@@ -169,9 +169,11 @@ var SEED = {
     {id:'t9',date:'2026-08-15',type:'expense',scope:'personal',cat:'의류&미용',method:'우리(K패스)',amt:55000,card:false,memo:''}
   ],
   categories:[
-    {id:'k1',name:'채움영어 강사료',type:'income',deductible:false,taxAccount:null},
-    {id:'k2',name:'스마트스토어',type:'income',deductible:false,taxAccount:null},
-    {id:'k3',name:'기타수입',type:'income',deductible:false,taxAccount:null},
+    {id:'k1',name:'채움영어 강사료',type:'income',incType:'사업소득',taxCode:'940903',deductible:false,taxAccount:null},
+    {id:'k2',name:'스마트스토어',type:'income',incType:'사업소득',taxCode:'',deductible:false,taxAccount:null},
+    {id:'k3',name:'기타수입',type:'income',incType:'기타소득',taxCode:'',deductible:false,taxAccount:null},
+    {id:'k3b',name:'급여',type:'income',incType:'근로소득',taxCode:'',deductible:false,taxAccount:null},
+    {id:'k3c',name:'이자수입',type:'income',incType:'이자소득',taxCode:'',deductible:false,taxAccount:null},
     {id:'k4',name:'식비',type:'expense',deductible:false,taxAccount:null},
     {id:'k5',name:'배달',type:'expense',deductible:false,taxAccount:null},
     {id:'k6',name:'카페',type:'expense',deductible:false,taxAccount:null},
@@ -325,7 +327,7 @@ function renderAcct(){
     var s=d.schedule,sc=s?('거치 '+s.grace+' · 상환시작 '+s.start+' · '+s.method+' · 월 '+won(s.monthly)+' · 잔여 '+s.remain+'회'):'상환일정 없음(수시상환·이자만)';
     return '<div style="border:1px solid var(--line);border-radius:8px;padding:11px;margin-bottom:8px"><div class="row" style="border-bottom:0;padding:2px 0"><b>'+d.name+'</b><span>'+won(d.balance)+'</span></div><div class="mut" style="margin-top:4px">금리 '+(d.rate!=null?d.rate+'%':'-')+' · <b>'+sc+'</b></div><div style="margin-top:6px"><button class="ghost" data-editdebt="'+d.id+'">수정</button> <button class="ghost" data-sched="'+d.id+'">'+(s?'스케줄 수정':'스케줄 추가')+'</button> <button class="ghost" data-deldebt="'+d.id+'">삭제</button></div></div>';
   }).join('');
-  var catHtml=DB.categories.map(function(c){var tag=c.type==='income'?'<span class="chip auto">수입</span>':(c.deductible?'<span class="chip credit">경비·'+(c.taxAccount||'-')+'</span>':'<span class="chip check">개인</span>');return '<div class="row"><span>'+c.name+' '+tag+'</span><span class="acts"><span data-editcat="'+c.id+'">수정</span><span data-delcat="'+c.id+'">삭제</span></span></div>'}).join('');
+  var catHtml=DB.categories.map(function(c){var tag=c.type==='income'?'<span class="chip auto">수입·'+(c.incType||'-')+(c.taxCode?' '+c.taxCode:'')+'</span>':(c.deductible?'<span class="chip credit">경비·'+(c.taxAccount||'-')+'</span>':'<span class="chip check">개인</span>');return '<div class="row"><span>'+c.name+' '+tag+'</span><span class="acts"><span data-editcat="'+c.id+'">수정</span><span data-delcat="'+c.id+'">삭제</span></span></div>'}).join('');
   document.getElementById('v-acct').innerHTML=''
    +'<div class="sec"><h4>계좌·자산 <button class="ghost" id="addAccBtn">+ 추가</button></h4>'+accHtml+'</div>'
    +'<div class="sec"><h4>카드 <button class="ghost" id="addCardBtn">+ 추가</button></h4>'+cardHtml+'<div class="mut" style="margin-top:8px">신용카드 지출은 가계부에서 \'미결제\'로 쌓여 현황판 카드 미결제에 표시 → 선결제로 확정.</div></div>'
@@ -345,6 +347,9 @@ function renderTax(){
   var due=Math.max(tax-70000,0)-wht;
   // 올해 사업 실적(거래 기반, 참고)
   var bizInc=0;DB.transactions.forEach(function(t){if(t.scope==='business'&&t.type==='income')bizInc+=t.amt;});
+  var byInc={};DB.transactions.forEach(function(t){if(t.type==='income'){var ic=DB.categories.filter(function(x){return x.name===t.cat&&x.type==='income'})[0];var k=(ic&&ic.incType)||'미분류';byInc[k]=byInc[k]||{sum:0,code:''};byInc[k].sum+=t.amt;if(ic&&ic.taxCode)byInc[k].code=ic.taxCode;}});
+  var incTotal=0;Object.keys(byInc).forEach(function(k){incTotal+=byInc[k].sum;});
+  var incGuide=Object.keys(byInc).sort(function(a,b){return byInc[b].sum-byInc[a].sum}).map(function(k){return '<div class="taxrow"><span>'+k+(byInc[k].code?' <span class="mut">('+byInc[k].code+')</span>':'')+'</span><span class="pos">'+won(byInc[k].sum)+'</span></div>'}).join('')||'<div class="mut" style="padding:6px 0">입력된 수입 거래 없음</div>';
   var byAccount={},guideTotal=0;
   DB.transactions.forEach(function(t){if(t.type==='expense'&&t.scope==='business'){var c=DB.categories.filter(function(x){return x.name===t.cat})[0];if(c&&c.deductible){var acc=c.taxAccount||c.name;byAccount[acc]=(byAccount[acc]||0)+t.amt;guideTotal+=t.amt;}}});
   var guide=Object.keys(byAccount).sort(function(a,b){return byAccount[b]-byAccount[a]}).map(function(acc){return '<div class="taxrow"><span>'+acc+'</span><span>'+won(byAccount[acc])+'</span></div>'}).join('')||'<div class="mut" style="padding:6px 0">경비로 지정된 카테고리 거래 없음</div>';
@@ -367,6 +372,7 @@ function renderTax(){
    +'<div class="taxrow"><span>(−) 기납부(원천징수 3.3%)</span><span>'+won(wht)+'</span></div>'
    +'<div class="taxrow big"><span>예상 '+(due>=0?'추가납부':'환급')+'</span><span class="'+(due>=0?'neg':'pos')+'">'+signWon(due)+'</span></div>'
    +'<div class="hint">채움영어 풀가동 시 추가납부 전환.</div></div>'
+   +'<div class="sec"><h4>수입 소득구분별 (가계부 연동) <span class="mut">종합소득세 소득 분류</span></h4>'+incGuide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>수입 합계(YTD)</b></span><span class="pos"><b>'+won(incTotal)+'</b></span></div><div class="hint">수입 거래의 계정과목에 지정된 소득구분으로 자동 분류. 분류·코드 수정은 계좌·부채 탭 카테고리에서.</div></div>'
    +'<div class="sec"><h4>종소세 경비 세목별 (가계부 연동) <span class="mut">카테고리 세무매핑 기준</span></h4><div class="taxrow"><span><b>사업 수입(YTD)</b></span><span class="pos">'+won(bizInc)+'</span></div>'+guide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>경비 합계(YTD)</b></span><span><b>'+won(guideTotal)+'</b></span></div><div class="hint">카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 그 지출이 여기 자동 집계된다. (카테고리 관리는 계좌·부채 탭)</div></div>';
 }
 function taxRecalc(){
@@ -586,6 +592,8 @@ function debtModal(id){
 }
 function saveDebt(id){var n=document.getElementById('db_name').value.trim();if(!n)return alert('이름을 입력하세요');if(id){var d=DB.debts.filter(function(x){return x.id===id})[0];d.name=n;d.balance=numv('db_bal');d.rate=numv('db_rate')||null;}else DB.debts.push({id:uid(),name:n,balance:numv('db_bal'),rate:numv('db_rate')||null,schedule:null});save();closeModal();renderAcct();renderDash();}
 function delDebt(id){if(!confirm('삭제할까요?'))return;DB.debts=DB.debts.filter(function(d){return d.id!==id});save();renderAcct();renderDash();}
+var INC_TYPES=['사업소득','근로소득','이자소득','배당소득','기타소득','연금소득'];
+function migrateDB(d){ if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } return d; }
 function catModal(id){
   var c=id?DB.categories.filter(function(x){return x.id===id})[0]:{name:'',type:'expense',deductible:false,taxAccount:'지급수수료'};
   var accs=['지급수수료','통신비','매출원가','관리비(사업안분)','감가상각비','차량유지비','소모품비','여비교통비','광고선전비','도서·교육비','기타'];
@@ -596,16 +604,21 @@ function catModal(id){
    +'<div id="k_taxwrap" style="display:'+(c.type==='expense'?'block':'none')+'">'
    +'<div class="field"><label>세무 구분</label><div class="seg"><button class="'+(!c.deductible?'on':'')+'" onclick="catDed(this,false)">개인(경비 아님)</button><button class="'+(c.deductible?'on':'')+'" onclick="catDed(this,true)">사업경비</button></div></div>'
    +'<div class="field"><label>계정과목(세무 매핑)</label><select id="k_acc">'+accOpts+'</select></div></div>'
+   +'<div id="k_incwrap" style="display:'+(c.type==='income'?'block':'none')+'">'
+   +'<div class="field"><label>소득구분 <span class="mut">(종합소득세)</span></label><select id="k_inctype">'+INC_TYPES.map(function(x){return '<option'+(x===(c.incType||'사업소득')?' selected':'')+'>'+x+'</option>'}).join('')+'</select></div>'
+   +'<div class="field"><label>업종·소득 코드 <span class="mut">(선택, 예: 940903)</span></label><input id="k_taxcode" value="'+(c.taxCode||'')+'" placeholder="모르면 비워두기"></div></div>'
    +'<button class="btn" onclick="saveCat('+(id?"'"+id+"'":'null')+')">저장</button>');
   modal._ctype=c.type;modal._cded=c.deductible;
 }
-function catType(b,v){modal._ctype=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('k_taxwrap').style.display=v==='expense'?'block':'none';}
+function catType(b,v){modal._ctype=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('k_taxwrap').style.display=v==='expense'?'block':'none';var iw=document.getElementById('k_incwrap');if(iw)iw.style.display=v==='income'?'block':'none';}
 function catDed(b,v){modal._cded=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');}
 function saveCat(id){
   var name=document.getElementById('k_name').value.trim();if(!name)return alert('이름 입력');
   var type=modal._ctype,ded=type==='expense'&&modal._cded,acc=ded?document.getElementById('k_acc').value:null;
-  if(id){var c=DB.categories.filter(function(x){return x.id===id})[0];c.name=name;c.type=type;c.deductible=ded;c.taxAccount=acc;}
-  else DB.categories.push({id:uid(),name:name,type:type,deductible:ded,taxAccount:acc});
+  var incType=type==='income'?document.getElementById('k_inctype').value:null;
+  var taxCode=type==='income'?document.getElementById('k_taxcode').value.trim():'';
+  if(id){var c=DB.categories.filter(function(x){return x.id===id})[0];c.name=name;c.type=type;c.deductible=ded;c.taxAccount=acc;c.incType=incType;c.taxCode=taxCode;}
+  else DB.categories.push({id:uid(),name:name,type:type,deductible:ded,taxAccount:acc,incType:incType,taxCode:taxCode});
   save();closeModal();renderAcct();
 }
 function delCat(id){if(!confirm('삭제할까요?'))return;DB.categories=DB.categories.filter(function(c){return c.id!==id});save();renderAcct();}
@@ -614,20 +627,23 @@ function txnModal(id){
   var catOpts=DB.categories.filter(function(c){return c.type===t.type}).map(function(c){return '<option'+(c.name===t.cat?' selected':'')+'>'+c.name+'</option>'}).join('');
   var itemCatOpts=['해당없음'].concat(DB.itemCats||[]).map(function(c){return '<option'+(c===(t.itemCat||'해당없음')?' selected':'')+'>'+c+'</option>'}).join('');
   var methOpts=DB.cards.map(function(c){return c.name}).concat(['현금','이체']).map(function(m){return '<option'+(m===t.method?' selected':'')+'>'+m+'</option>'}).join('');
+  var isInc=t.type==='income';
   openModal('<div class="mtop"><h3>'+(id?'거래 수정':'거래 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="field"><label>유형</label><div class="seg"><button class="'+(t.type==='expense'?'on':'')+'" onclick="setType(this,\'expense\')">지출</button><button class="'+(t.type==='income'?'on':'')+'" onclick="setType(this,\'income\')">수입</button></div></div>'
+   +'<div class="field"><label>유형</label><div class="seg"><button class="'+(!isInc?'on':'')+'" onclick="setType(this,\'expense\')">지출</button><button class="'+(isInc?'on':'')+'" onclick="setType(this,\'income\')">수입</button></div></div>'
    +'<div class="field"><label>대분류</label><div class="seg"><button class="'+(t.scope==='personal'?'on':'')+'" onclick="setScope(this,\'personal\')">개인</button><button class="'+(t.scope==='business'?'on':'')+'" onclick="setScope(this,\'business\')">사업</button></div></div>'
-   +'<div class="field"><label>계정과목</label><select id="fCat">'+catOpts+'</select></div>'
-   +'<div class="field"><label>세부계정과목 <span class="mut">(재물관리 카테고리 연동)</span></label><select id="fItemCat">'+itemCatOpts+'</select></div>'
+   +'<div class="field"><label>계정과목</label><select id="fCat" onchange="updIncInfo()">'+catOpts+'</select></div>'
+   +'<div class="field" id="incomeOnly" style="display:'+(isInc?'block':'none')+'"><label>소득구분 <span class="mut">(종합소득세 연동)</span></label><div id="fIncInfo" class="autoNote" style="margin-top:0"></div></div>'
+   +'<div id="expenseOnly" style="display:'+(isInc?'none':'block')+'"><div class="field"><label>세부계정과목 <span class="mut">(재물관리 카테고리 연동)</span></label><select id="fItemCat">'+itemCatOpts+'</select></div></div>'
    +'<div class="field"><label>결제수단</label><select id="fMethod">'+methOpts+'</select></div>'
    +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900"></div>'
    +'<div class="field"><label>날짜</label><input id="fDate" value="'+t.date+'"></div>'
    +'<div class="field"><label>메모</label><textarea id="fMemo" rows="2">'+(t.memo||'')+'</textarea></div>'
-   +'<label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
+   +'<label id="assetChk" style="display:'+(isInc?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
    +'<button class="btn" onclick="saveTxn('+(id?"'"+id+"'":'null')+')">저장</button>');
-  modal._type=t.type;modal._scope=t.scope;
+  modal._type=t.type;modal._scope=t.scope;updIncInfo();
 }
-function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('fCat').innerHTML=DB.categories.filter(function(c){return c.type===v}).map(function(c){return '<option>'+c.name+'</option>'}).join('');}
+function updIncInfo(){var el=document.getElementById('fIncInfo');if(!el||modal._type!=='income')return;var name=document.getElementById('fCat').value;var c=DB.categories.filter(function(x){return x.name===name&&x.type==='income'})[0];el.innerHTML=c?('소득구분: <b>'+(c.incType||'미분류')+'</b>'+(c.taxCode?' · 코드 '+c.taxCode:'')+' → 세무 페이지 자동 집계'):'카테고리 없음 (계좌·부채 탭에서 추가)';}
+function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('fCat').innerHTML=DB.categories.filter(function(c){return c.type===v}).map(function(c){return '<option>'+c.name+'</option>'}).join('');var inc=v==='income';document.getElementById('incomeOnly').style.display=inc?'block':'none';document.getElementById('expenseOnly').style.display=inc?'none':'block';document.getElementById('assetChk').style.display=inc?'none':'flex';updIncInfo();}
 function setScope(b,v){modal._scope=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');}
 function saveTxn(id){
   var amt=parseFloat(document.getElementById('fAmt').value.replace(/[^0-9.]/g,'')),date=document.getElementById('fDate').value.trim();
@@ -688,7 +704,7 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=d;renderDash();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);renderDash();});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
