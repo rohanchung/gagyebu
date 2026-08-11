@@ -125,7 +125,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="view" id="v-items"></div>
     <div class="view" id="v-budget"></div>
     <div class="view" id="v-log"></div>
-    <div class="foot">데이터는 이 브라우저에 저장(localStorage) · <a id="resetBtn">시드로 초기화</a> · <a id="logoutBtn">로그아웃</a></div>
+    <div class="foot">v1.1 · 데이터는 Supabase에 안전 저장 · <a id="reloadBtn">새로고침</a> · <a id="logoutBtn">로그아웃</a></div>
   </div>
 </div>
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
@@ -676,7 +676,7 @@ document.addEventListener('click',function(e){
   var dl=e.target.closest('[data-del]');if(dl)return delTxn(dl.dataset.del);
 });
 document.addEventListener('change',function(e){var b=e.target.closest('[data-budcat]');if(b)budgetChange(b.dataset.budcat,b.value);});
-document.getElementById('resetBtn').addEventListener('click',function(){if(confirm('시드로 초기화할까요?')){DB=JSON.parse(JSON.stringify(SEED));save();renderDash();renderCal();renderAcct();renderTax();}});
+document.getElementById('reloadBtn').addEventListener('click',function(){location.reload();});
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
