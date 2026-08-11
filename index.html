@@ -15,7 +15,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .login input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:15px;text-align:center;letter-spacing:2px}
 .login button{width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
 .login .err{color:var(--neg);font-size:12px;min-height:16px;margin-top:8px}
-.app{display:none;min-height:100vh;max-width:1280px;margin:0 auto}
+.app{display:none;min-height:100vh;max-width:1680px;margin:0 auto}
 .app.on{display:flex}
 .side{width:170px;background:var(--card);border-right:1px solid var(--line);padding:16px 10px;flex-shrink:0}
 .brand{font-size:16px;font-weight:800;padding:4px 8px 16px}
@@ -55,6 +55,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
 .mnav{display:flex;align-items:center;gap:12px}.mnav b{font-size:16px}.mnav span{cursor:pointer;color:var(--muted);padding:2px 8px;user-select:none;font-size:15px}
 .msum{display:flex;gap:8px}.msum div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:11.5px;text-align:right}.msum .l{color:var(--muted);font-size:9.5px}
+.calwrap{display:flex;gap:16px;align-items:flex-start}
+.calmain{flex:1;min-width:0}
+.calside{width:360px;flex-shrink:0;position:sticky;top:18px;max-height:calc(100vh - 36px);overflow:auto}
+.calside .detail{margin-top:0}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .dow{color:var(--muted);font-size:11px;text-align:center;padding:4px 0}.dow.s0{color:var(--neg)}.dow.s6{color:var(--accent)}
 .cell{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:96px;padding:5px 6px;cursor:pointer;position:relative;overflow:hidden}
@@ -88,6 +92,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .taxrow.big{font-weight:800;font-size:14px;border-bottom:0;background:var(--warn-bg);padding:10px;border-radius:8px;margin-top:6px}
 .taxin{width:130px;text-align:right;padding:5px 7px;border:1px solid var(--accent);border-radius:6px;font-size:12px;background:#f7faff}
 .foot{padding:14px 8px;color:#9aa6b6;font-size:10.5px;text-align:center}.foot a{color:var(--accent);cursor:pointer}
+@media(max-width:900px){.calwrap{flex-direction:column}.calside{width:100%;position:static;max-height:none}}
 @media(max-width:640px){.app.on{flex-direction:column}.side{width:100%;display:flex;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.side .brand{width:100%}.side .m{flex:1 0 auto}.side .sub{display:none}.side .m.dim{display:none}.msum div{padding:5px 7px}}
 </style>
 </head>
@@ -283,10 +288,13 @@ function renderCal(){
     cells+='<div class="cell'+(ds===today?' today':'')+(ds===selDate?' sel':'')+'" data-date="'+ds+'">'+hdr+lines+(card?'<div class="dot"></div>':'')+'</div>';
   }
   document.getElementById('v-cal').innerHTML=''
+   +'<div class="calwrap"><div class="calmain">'
    +'<div class="mhead"><div class="mnav"><span data-mv="-1">◀</span><b id="calTitle" style="cursor:pointer">'+y+'년 '+mo+'월</b><span data-mv="1">▶</span><span id="calPick" style="cursor:pointer;margin-left:4px" title="연·월 선택">📅</span></div>'
    +'<div class="msum"><div><div class="l">수입</div><span class="pos">'+signWon(pl.inc)+'</span></div><div><div class="l">지출</div><span class="neg">'+signWon(-pl.exp)+'</span></div><div><div class="l">월 손익</div><b class="'+(pl.net<0?'neg':'pos')+'">'+signWon(pl.net)+'</b></div></div></div>'
-   +'<div class="cal">'+cells+'</div><div id="dayDetail"></div>';
-  if(selDate)renderDay(selDate);
+   +'<div class="cal">'+cells+'</div></div>'
+   +'<div class="calside" id="dayPanel"></div></div>';
+  var def=(selDate&&selDate.slice(0,7)===m)?selDate:(today.slice(0,7)===m?today:m+'-01');
+  renderDay(def);
 }
 function renderDay(ds){
   selDate=ds;
@@ -295,7 +303,7 @@ function renderDay(ds){
   var h='<div class="detail"><div class="dhd"><h4>'+parseInt(ds.slice(5,7),10)+'월 '+parseInt(ds.slice(8),10)+'일 <span class="mut">('+tx.length+'건)</span></h4><button class="btn sm" id="addTxn">+ 거래 추가</button></div>';
   if(!tx.length)h+='<div class="mut" style="padding:8px 0">거래 없음 — 우측 상단에서 추가</div>';
   tx.forEach(function(t){h+='<div class="row"><span><span class="pill">'+(t.scope==='business'?'사업':'개인')+'</span>'+t.cat+' <span class="mut">· '+t.method+'</span>'+(t.card?'<span class="badge">미결제</span>':'')+(t.memo?' <span class="mut" title="'+t.memo+'">📝</span>':'')+'</span><span style="color:'+(t.type==='income'?'var(--pos)':'var(--neg)')+'">'+(t.type==='income'?'+':'-')+won(t.amt)+' <span class="acts"><span data-edit="'+t.id+'">✎</span><span data-del="'+t.id+'">🗑</span></span></span></div>'});
-  h+='</div>';document.getElementById('dayDetail').innerHTML=h;
+  h+='</div>';document.getElementById('dayPanel').innerHTML=h;
 }
 var pickerYear=2026;
 function monthPicker(){pickerYear=parseInt(DB.ui.month.slice(0,4),10);drawPicker();}
