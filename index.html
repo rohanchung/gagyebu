@@ -432,19 +432,31 @@ function renderItems(){
   var yOpts='<option'+(iy==='전체'?' selected':'')+'>전체</option>'+years.map(function(y){return '<option'+(y===iy?' selected':'')+'>'+y+'</option>'}).join('');
   var mOpts='<option value="전체"'+(im==='전체'?' selected':'')+'>전체</option>';for(var mo=1;mo<=12;mo++){var mm=String(mo).padStart(2,'0');mOpts+='<option value="'+mm+'"'+(mm===im?' selected':'')+'>'+mo+'월</option>';}
   var filtered=DB.items.filter(function(it){var y=(it.buy||'').slice(0,4),mn=(it.buy||'').slice(5,7);return (iy==='전체'||y===iy)&&(im==='전체'||mn===im)});
-  var rows=filtered.map(function(it){
+  function itemRow(it,isArch){
     var u=itemUnits(it);
-    return '<div class="row"><span style="flex:1"><b>'+it.name+'</b> <span class="mut">'+(it.detail||'')+'</span><br><span class="pill">'+it.cat+'</span> <span class="mut">'+it.buy+' → '+(it.end||'-')+' · '+(it.basis==='횟수'?u+'회':u+'일')+'</span></span>'
+    var past=!isArch && it.end && it.end < todayStr();
+    var badge=past?' <span class="badge">기간종료</span>':'';
+    var actBtns=isArch
+      ? '<span data-restoreitem="'+it.id+'">복원</span><span data-delitem="'+it.id+'">삭제</span>'
+      : '<span data-doneitem="'+it.id+'" style="color:var(--pos);font-weight:700">완료</span><span data-edititem="'+it.id+'">수정</span><span data-delitem="'+it.id+'">삭제</span>';
+    return '<div class="row"'+(isArch?' style="opacity:.55"':'')+'><span style="flex:1"><b>'+it.name+'</b>'+badge+' <span class="mut">'+(it.detail||'')+'</span><br><span class="pill">'+it.cat+'</span> <span class="mut">'+it.buy+' → '+(it.end||'-')+' · '+(it.basis==='횟수'?u+'회':u+'일')+(isArch&&it.archivedAt?' · 완료 '+it.archivedAt:'')+'</span></span>'
       +'<span style="text-align:right;min-width:130px">'+won(it.price)+'<br><span class="mut">일 '+won(itemDaily(it))+' · 월 '+won(itemMonthly(it))+'</span></span>'
-      +'<span class="acts" style="min-width:60px;text-align:right"><span data-edititem="'+it.id+'">수정</span><span data-delitem="'+it.id+'">삭제</span></span></div>';
-  }).join('');
-  var totMonthly=filtered.reduce(function(s,it){return s+itemMonthly(it)},0);
+      +'<span class="acts" style="min-width:96px;text-align:right">'+actBtns+'</span></div>';
+  }
+  var active=filtered.filter(function(it){return it.status!=='archived';});
+  var archived=filtered.filter(function(it){return it.status==='archived';});
+  var rows=active.map(function(it){return itemRow(it,false);}).join('');
+  var archRows=archived.map(function(it){return itemRow(it,true);}).join('');
+  var totMonthly=active.reduce(function(s,it){return s+itemMonthly(it)},0);
   document.getElementById('v-items').innerHTML=''
-   +'<div class="sec"><h4>재물 감가상각 대장 <button class="ghost" id="addItemBtn">+ 추가</button></h4>'
+   +'<div class="sec"><h4>재물 감가상각 대장 <span class="mut" style="font-size:11px">사용중 '+active.length+'개</span> <button class="ghost" id="addItemBtn">+ 추가</button></h4>'
    +'<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select id="itYear" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+yOpts+'</select><select id="itMonth" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+mOpts+'</select><span class="mut" style="align-self:center">구매일 기준 · 연/월/전체</span></div>'
-   +(rows||'<div class="mut">해당 기간 재물 없음</div>')
-   +'<div class="taxrow big" style="margin-top:10px"><span>총 월 감가상각 ('+(iy==='전체'?'전체':iy+(im==='전체'?'':'-'+im))+')</span><span>'+won(totMonthly)+'</span></div></div>';
+   +(rows||'<div class="mut">사용중 재물 없음</div>')
+   +'<div class="taxrow big" style="margin-top:10px"><span>총 월 감가상각 ('+(iy==='전체'?'전체':iy+(im==='전체'?'':'-'+im))+', 사용중)</span><span>'+won(totMonthly)+'</span></div></div>'
+   +(archived.length?'<div class="sec"><h4>✅ 완료·아카이브 <span class="mut">'+archived.length+'개 · 감가집계 제외</span></h4>'+archRows+'</div>':'');
 }
+function itemDone(id){var it=DB.items.filter(function(x){return x.id===id})[0];if(!it)return;it.status='archived';it.archivedAt=todayStr();logAct('재물완료 · '+it.name);save();renderItems();}
+function itemRestore(id){var it=DB.items.filter(function(x){return x.id===id})[0];if(!it)return;it.status='사용중';it.archivedAt=undefined;logAct('재물복원 · '+it.name);save();renderItems();}
 function itemFilterChange(){DB.ui.itemYear=document.getElementById('itYear').value;DB.ui.itemMonth=document.getElementById('itMonth').value;save();renderItems();}
 
 /* ====== 예산 ====== */
@@ -470,8 +482,9 @@ function renderBudget(){
 function budgetChange(cat,val){DB.budgets[cat]=parseFloat((val+'').replace(/[^0-9.]/g,''))||0;save();renderBudget();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.5';
+var APP_VERSION='1.6';
 var CHANGELOG=[
+  {v:'1.6',date:'2026-08-12',note:'재물관리 완료·아카이브(완료 체크 시 감가집계 제외, 기간종료 뱃지, 복원 가능)'},
   {v:'1.5',date:'2026-08-12',note:'캘린더 헤더 1줄 통합(수입/지출/월손익 + 소비감시 카드) · 소비감시 카드 카테고리 클릭 변경'},
   {v:'1.4',date:'2026-08-12',note:'오늘 날짜 자동 볼드 · 캘린더 수입 상단분리+지출 개인/사업 표기 · 선결제 체크리스트(부분확정) · 캘린더 주요소비 과목별 월합계'},
   {v:'1.3',date:'2026-08-11',note:'수입 거래 종합소득세 소득구분 연동 · 수입 모달 결제수단 제거 · 카테고리 그룹핑(수입 최상단) · 업데이트/활동 로그 추가'},
@@ -757,6 +770,8 @@ document.addEventListener('click',function(e){
   var kc=e.target.closest('[data-delcat]');if(kc)return delCat(kc.dataset.delcat);
   if(e.target.id==='addItemBtn')return itemModal(null);
   var ei=e.target.closest('[data-edititem]');if(ei)return itemModal(ei.dataset.edititem);
+  var dni=e.target.closest('[data-doneitem]');if(dni)return itemDone(dni.dataset.doneitem);
+  var ri=e.target.closest('[data-restoreitem]');if(ri)return itemRestore(ri.dataset.restoreitem);
   var di=e.target.closest('[data-delitem]');if(di)return delItem(di.dataset.delitem);
   if(e.target.id==='addLogBtn')return logModal(null);
   var el2=e.target.closest('[data-editlog]');if(el2)return logModal(el2.dataset.editlog);
