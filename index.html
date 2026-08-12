@@ -119,6 +119,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .labtbl tr.catrow td{background:#eef2f8;font-weight:800;color:#33425e;font-size:10.5px}
 .labtbl tr.catrow .cM{background:#eef2f8;z-index:3}
 .lab-hi{color:var(--neg);font-weight:800}.lab-lo{color:var(--accent);font-weight:800}
+.sajucols{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
+.sajucols .sc{flex:1;min-width:280px;margin-bottom:0}
+.sajucols .scbody{max-height:460px;overflow:auto}
 .foot{padding:14px 8px;color:#9aa6b6;font-size:10.5px;text-align:center}.foot a{color:var(--accent);cursor:pointer}
 @media(max-width:900px){.calwrap{flex-direction:column}.calside{width:100%;position:static;max-height:none}}
 @media(max-width:640px){.app.on{flex-direction:column}.side{width:100%;display:flex;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.side .brand{width:100%}.side .m{flex:1 0 auto}.side .sub{display:none}.side .m.dim{display:none}.msum div{padding:5px 7px}}
@@ -760,14 +763,18 @@ function renderSaju(){
    +'<div style="cursor:pointer" onclick="sajuRead(\'natal\',\'총운(원국) 해석\')">'+wonguk
    +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · 십신 '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span> · <span class="accent" style="color:var(--accent)">총운 해석 보기'+rmk('natal')+'</span></div></div></div>'
    +'<div class="sec"><h4>대운 흐름 <span class="mut">10년 단위 · 클릭</span></h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
-   +'<div class="sec"><h4>연도별 세운 <span class="mut">클릭 → 해석</span></h4>'+yrs+'</div>'
-   +'<div class="sec"><h4>월별 <span class="mut">세운</span> <select id="sajuYearSel" style="padding:4px 8px;border:1px solid var(--line);border-radius:7px">'+yrOpts+'</select> <span class="mut">'+sgz+'년 12개월 · 클릭</span></h4>'+months+'</div>'
-   +'<div class="sec"><h4>이 달 특이일 <span class="mut">주의/특이</span> <input id="sajuYMSel" value="'+ym+'" style="width:96px;padding:4px 8px;border:1px solid var(--line);border-radius:7px"></h4>'+special+'<div class="hint">항목 클릭 → 저장된 해석 표시. 없으면 "○○ 평가해줘"라고 하면 Claude가 해석 후 저장(💬 표시).</div></div>';
+   +'<div class="sajucols">'
+   +'<div class="sec sc"><h4>연도별 세운 <span class="mut">클릭→해석</span></h4><div class="scbody">'+yrs+'</div></div>'
+   +'<div class="sec sc"><h4>월별 <select id="sajuYearSel" style="padding:3px 6px;border:1px solid var(--line);border-radius:7px">'+yrOpts+'</select> <span class="mut">'+sgz+'</span></h4><div class="scbody">'+months+'</div></div>'
+   +'<div class="sec sc"><h4>특이일 <input id="sajuYMSel" value="'+ym+'" style="width:90px;padding:3px 6px;border:1px solid var(--line);border-radius:7px"></h4><div class="scbody">'+special+'</div></div>'
+   +'</div>'
+   +'<div class="hint" style="padding:0 4px">항목 클릭 → 저장된 해석 표시(💬). 없으면 "○○ 평가해줘" 하면 Claude가 해석 후 저장. 해석은 총평 + 재물·연애·건강·사건사고·시험·명예로 나눠서.</div>';
 }
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.5';
+var APP_VERSION='3.6';
 var CHANGELOG=[
+  {v:'3.6',date:'2026-08-12',note:'사주 연도별/월별/특이일 3열 배치(세로공간 절약) · 해석 구조를 총평+재물·연애·건강·사건사고·시험·명예 6분류로'},
   {v:'3.5',date:'2026-08-12',note:'사주 항목(총운·대운·세운·월·특이일) 클릭 → Claude가 저장한 해석 표시(💬). 해석은 evaluate-my-saju 스킬이 Supabase에 기록'},
   {v:'3.4',date:'2026-08-12',note:'명리(사주) 탭 신설 — 원국·대운·연도별 세운·월별 운·이달 특이일(합충형·삼재·공망) · 결정론적 만세력 엔진(절기 근사식) · 해석은 Claude가'},
   {v:'3.3',date:'2026-08-12',note:'2026 체중 62건 임포트(기존과 병합, 총 75건) · 피검사 표에 체중 행(복약 아래) · 체중 그래프 개선(하단 60kg 고정·얇은 선·격자·점 호버 툴팁)'},
