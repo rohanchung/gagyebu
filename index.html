@@ -375,7 +375,7 @@ function jumpMonth(mm){DB.ui.month=mm;save();selDate=null;closeModal();renderCal
 /* ====== 계좌·부채 ====== */
 function renderAcct(){
   var accHtml=DB.accounts.map(function(a){var ex=a.subtype?' <span class="chip credit">'+a.subtype+'</span>':(a.currency?' <span class="chip credit">'+a.currency+'</span>':'');var cf=(isCashAcct(a)&&a.opening)?'<br><span class="mut" style="font-size:10px">현금흐름 계산 '+won(acctComputed(a))+' <span class="chip auto">기초 '+a.opening.date+'</span></span>':'';return '<div class="row"><span><span class="pill">'+a.group+'</span>'+a.name+ex+' <span class="chip '+a.mode+'">'+(a.mode==='auto'?'자동':'수기')+'</span></span><span style="text-align:right">'+won(accVal(a))+cf+' <span class="acts"><span data-editacc="'+a.id+'">수정</span><span data-delacc="'+a.id+'">삭제</span></span></span></div>'}).join('');
-  var cardHtml=DB.cards.map(function(c){var cbc=cardPendingByCard();var p=c.type==='credit'?(cbc[c.name]||0):0;return '<div class="row"><span>'+c.name+' <span class="chip '+c.type+'">'+(c.type==='credit'?'신용':'체크')+'</span></span><span>'+(c.type==='credit'?'미결제 '+won(p):'즉시결제')+' <span class="acts"><span data-editcard="'+c.id+'">수정</span><span data-delcard="'+c.id+'">삭제</span></span></span></div>'}).join('');
+  var cardHtml=DB.cards.map(function(c){var cbc=cardPendingByCard();var p=c.type==='credit'?(cbc[c.name]||0):0;var lk=c.acct?' <span class="chip auto">→'+acctName(c.acct)+'</span>':' <span class="chip check">연결계좌 미설정</span>';return '<div class="row"><span>'+c.name+' <span class="chip '+c.type+'">'+(c.type==='credit'?'신용':'체크')+'</span>'+lk+'</span><span>'+(c.type==='credit'?'미결제 '+won(p):'즉시결제')+' <span class="acts"><span data-editcard="'+c.id+'">수정</span><span data-delcard="'+c.id+'">삭제</span></span></span></div>'}).join('');
   var debtHtml=DB.debts.map(function(d){
     var s=d.schedule,sc=s?('거치 '+s.grace+' · 상환시작 '+s.start+' · '+s.method+' · 월 '+won(s.monthly)+' · 잔여 '+s.remain+'회'):'상환일정 없음(수시상환·이자만)';
     return '<div style="border:1px solid var(--line);border-radius:8px;padding:11px;margin-bottom:8px"><div class="row" style="border-bottom:0;padding:2px 0"><b>'+d.name+'</b><span>'+won(d.balance)+'</span></div><div class="mut" style="margin-top:4px">금리 '+(d.rate!=null?d.rate+'%':'-')+' · <b>'+sc+'</b></div><div style="margin-top:6px"><button class="ghost" data-editdebt="'+d.id+'">수정</button> <button class="ghost" data-sched="'+d.id+'">'+(s?'스케줄 수정':'스케줄 추가')+'</button> <button class="ghost" data-deldebt="'+d.id+'">삭제</button></div></div>';
@@ -580,8 +580,9 @@ function renderCashflow(){
 }
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.0';
+var APP_VERSION='2.1';
 var CHANGELOG=[
+  {v:'2.1',date:'2026-08-12',note:'카드-계좌 연결 — 카드 설정에 연결계좌, 체크=즉시출금·신용=선결제 자동, 지출 입력 시 출금계좌 자동 결정'},
   {v:'2.0',date:'2026-08-12',note:'현금흐름 시스템 — 계좌 기초잔액+거래 계좌연결, 이체 타입, 선결제 출금계좌 차감, 🌊 현금흐름 탭(Sankey+실시간 대조)'},
   {v:'1.6',date:'2026-08-12',note:'재물관리 완료·아카이브(완료 체크 시 감가집계 제외, 기간종료 뱃지, 복원 가능)'},
   {v:'1.5',date:'2026-08-12',note:'캘린더 헤더 1줄 통합(수입/지출/월손익 + 소비감시 카드) · 소비감시 카드 카테고리 클릭 변경'},
@@ -688,7 +689,7 @@ function settleModal(){
   openModal('<div class="mtop"><h3>신용카드 선결제 <span class="mut" style="font-size:12px">체크한 건만 확정</span></h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div style="text-align:right;margin-bottom:6px"><span class="ghost" style="cursor:pointer" onclick="settleAll(true)">전체선택</span> <span class="ghost" style="cursor:pointer" onclick="settleAll(false)">전체해제</span></div>'
    +'<div style="max-height:40vh;overflow:auto;margin-bottom:10px;border:1px solid var(--line);border-radius:8px">'+rows+'</div>'
-   +'<div class="field"><label>출금계좌 <span class="mut">(이 계좌에서 현금 차감)</span></label><select id="stAcct">'+acctOpts+'</select></div>'
+   +'<div class="field"><label>출금계좌 <span class="mut">(카드에 연결계좌가 있으면 그쪽 우선 · 없는 카드만 이 계좌)</span></label><select id="stAcct">'+acctOpts+'</select></div>'
    +'<div class="taxrow big"><span>선택 합계 <span id="stCnt" class="mut" style="font-size:12px"></span></span><span id="stSum" class="neg"></span></div>'
    +'<button class="btn" style="width:100%;margin-top:10px" onclick="doSettle()">선택 항목 결제 확정</button>'
    +'<div class="hint">확정 시 선택 거래가 \'미결제\'에서 해제되고, 합계만큼 출금계좌 현금이 차감됩니다. (삼성카드 10일~익월9일 주기면 그 기간 건만 체크)</div>');
@@ -697,10 +698,10 @@ function settleModal(){
 function settleAll(v){var bx=document.querySelectorAll('.stx');for(var i=0;i<bx.length;i++)bx[i].checked=v;settleRecalc();}
 function settleRecalc(){var bx=document.querySelectorAll('.stx'),cnt=0,sum=0;for(var i=0;i<bx.length;i++){if(bx[i].checked){cnt++;sum+=parseFloat(bx[i].dataset.amt);}}var cs=document.getElementById('stCnt'),ss=document.getElementById('stSum');if(cs)cs.textContent='('+cnt+'건)';if(ss)ss.textContent=won(sum);}
 function doSettle(){var bx=document.querySelectorAll('.stx'),ids=[],sum=0,byCard={};for(var i=0;i<bx.length;i++){if(bx[i].checked){ids.push(bx[i].dataset.id);sum+=parseFloat(bx[i].dataset.amt);}}if(!ids.length)return alert('선택된 항목이 없습니다');
-  var acctEl=document.getElementById('stAcct'),acct=acctEl?acctEl.value:undefined;
+  var acctEl=document.getElementById('stAcct'),fallback=acctEl?acctEl.value:undefined;
   DB.transactions.forEach(function(t){if(ids.indexOf(t.id)>=0){t.card=false;byCard[t.method]=(byCard[t.method]||0)+t.amt;}});
-  if(acct){Object.keys(byCard).forEach(function(cardName){DB.transactions.push({id:uid(),type:'settle',acct:acct,amt:byCard[cardName],date:todayStr(),method:cardName+' 결제',cat:'카드결제'});});}
-  logAct('선결제 확정 · '+ids.length+'건 '+won(sum)+(acct?' ('+acctName(acct)+' 차감)':''));save();closeModal();renderDash();renderCal();alert('선결제 확정: '+ids.length+'건 '+won(sum));}
+  Object.keys(byCard).forEach(function(cardName){var cobj=DB.cards.filter(function(c){return c.name===cardName;})[0];var acct=(cobj&&cobj.acct)?cobj.acct:fallback;if(acct)DB.transactions.push({id:uid(),type:'settle',acct:acct,amt:byCard[cardName],date:todayStr(),method:cardName+' 결제',cat:'카드결제'});});
+  logAct('선결제 확정 · '+ids.length+'건 '+won(sum));save();closeModal();renderDash();renderCal();alert('선결제 확정: '+ids.length+'건 '+won(sum));}
 function computeMonthly(balance,ratePct,n,method){
   var r=(ratePct||0)/100/12; if(!n)return {monthly:0,note:'잔여 횟수를 입력하세요'};
   if(method==='만기일시')return {monthly:Math.round(balance*r),note:'이자만 매월 납부, 원금은 만기 일시상환'};
@@ -764,12 +765,14 @@ function saveAcc(id){
 function delAcc(id){if(!confirm('삭제할까요?'))return;var _a=DB.accounts.filter(function(a){return a.id===id})[0];logAct('계좌삭제 · '+(_a?_a.name:id));DB.accounts=DB.accounts.filter(function(a){return a.id!==id});save();renderAcct();renderDash();}
 function cardModal(id){
   var c=id?DB.cards.filter(function(x){return x.id===id})[0]:{name:'',type:'credit'};
+  var acctOpts='<option value="">— 미연결 —</option>'+cashAccts().map(function(a){return '<option value="'+a.id+'"'+(a.id===c.acct?' selected':'')+'>'+a.name+'</option>';}).join('');
   openModal('<div class="mtop"><h3>'+(id?'카드 수정':'카드 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>카드 이름</label><input id="cd_name" value="'+(c.name||'')+'" placeholder="예: 현대카드 / 국민 체크"></div>'
    +'<div class="field"><label>종류</label><select id="cd_type"><option value="credit"'+(c.type==='credit'?' selected':'')+'>신용(선결제·미결제 누적)</option><option value="check"'+(c.type==='check'?' selected':'')+'>체크(즉시결제)</option></select></div>'
+   +'<div class="field"><label>연결계좌 <span class="mut">(체크=즉시출금 · 신용=선결제 출금계좌)</span></label><select id="cd_acct">'+acctOpts+'</select></div>'
    +'<button class="btn" onclick="saveCard('+(id?"'"+id+"'":'null')+')">'+(id?'저장':'추가')+'</button>');
 }
-function saveCard(id){var n=document.getElementById('cd_name').value.trim();if(!n)return alert('이름을 입력하세요');var type=document.getElementById('cd_type').value;if(id){var c=DB.cards.filter(function(x){return x.id===id})[0];c.name=n;c.type=type;}else DB.cards.push({id:uid(),name:n,type:type});logAct((id?'카드수정':'카드추가')+' · '+n);save();closeModal();renderAcct();renderDash();}
+function saveCard(id){var n=document.getElementById('cd_name').value.trim();if(!n)return alert('이름을 입력하세요');var type=document.getElementById('cd_type').value;var acct=document.getElementById('cd_acct').value||undefined;if(id){var c=DB.cards.filter(function(x){return x.id===id})[0];c.name=n;c.type=type;c.acct=acct;}else DB.cards.push({id:uid(),name:n,type:type,acct:acct});logAct((id?'카드수정':'카드추가')+' · '+n+(acct?' → '+acctName(acct):''));save();closeModal();renderAcct();renderDash();}
 function delCard(id){if(!confirm('삭제할까요?'))return;var _c=DB.cards.filter(function(c){return c.id===id})[0];logAct('카드삭제 · '+(_c?_c.name:id));DB.cards=DB.cards.filter(function(c){return c.id!==id});save();renderAcct();renderDash();}
 function debtModal(id){
   var d=id?DB.debts.filter(function(x){return x.id===id})[0]:{name:'',balance:'',rate:''};
@@ -830,6 +833,7 @@ function txnModal(id){
    +'<div id="expenseOnly" style="display:'+(isInc?'none':'block')+'"><div class="field"><label>세부계정과목 <span class="mut">(재물관리 카테고리 연동)</span></label><select id="fItemCat">'+itemCatOpts+'</select></div></div>'
    +'<div class="field" id="methodField" style="display:'+(isInc?'none':'block')+'"><label>결제수단</label><select id="fMethod" onchange="methodChange()">'+methOpts+'</select></div>'
    +'<div class="field" id="acctField"><label id="acctLabel">'+(isInc?'입금계좌':'출금계좌')+'</label><select id="fAcct">'+cashOpts(defAcct)+'</select></div>'
+   +'<div id="acctNote" class="autoNote" style="margin-top:0;display:none"></div>'
    +'</div>'
    +'<div id="transferBody" style="display:'+(isTr?'block':'none')+'">'
    +'<div class="field"><label>출발계좌</label><select id="fFrom">'+cashOpts(t.from)+'</select></div>'
@@ -843,7 +847,14 @@ function txnModal(id){
   modal._type=t.type;modal._scope=t.scope;updIncInfo();methodChange();
 }
 function updIncInfo(){var el=document.getElementById('fIncInfo');if(!el||modal._type!=='income')return;var name=document.getElementById('fCat').value;var c=DB.categories.filter(function(x){return x.name===name&&x.type==='income'})[0];el.innerHTML=c?('소득구분: <b>'+(c.incType||'미분류')+'</b>'+(c.taxCode?' · 코드 '+c.taxCode:'')+' → 세무 페이지 자동 집계'):'카테고리 없음 (계좌·부채 탭에서 추가)';}
-function methodChange(){var af=document.getElementById('acctField');if(!af)return;if(modal._type==='income'){af.style.display='block';return;}if(modal._type==='transfer'){af.style.display='none';return;}var m=(document.getElementById('fMethod')||{}).value;af.style.display=creditCard(m)?'none':'block';}
+function methodChange(){var af=document.getElementById('acctField'),nt=document.getElementById('acctNote');if(!af)return;
+  function hideNote(){if(nt){nt.style.display='none';}}
+  if(modal._type==='income'){af.style.display='block';hideNote();return;}
+  if(modal._type==='transfer'){af.style.display='none';hideNote();return;}
+  var m=(document.getElementById('fMethod')||{}).value;
+  var card=DB.cards.filter(function(c){return c.name===m;})[0];
+  if(card){af.style.display='none';if(nt){nt.style.display='block';nt.innerHTML=card.type==='credit'?('💳 신용 → 미결제로 쌓였다가 <b>'+(card.acct?acctName(card.acct):'선결제 계좌')+'</b>에서 선결제 시 차감'):('💳 체크 → <b>'+(card.acct?acctName(card.acct):'⚠ 연결계좌 미설정')+'</b>에서 즉시 출금');}}
+  else{af.style.display='block';hideNote();}}
 function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
   var isTr=v==='transfer',inc=v==='income';
   document.getElementById('txnBody').style.display=isTr?'none':'block';
@@ -870,9 +881,13 @@ function saveTxn(id){
   }
   var method=modal._type==='income'?'이체':document.getElementById('fMethod').value;
   var itemCat=(document.getElementById('fItemCat')||{}).value||'해당없음';
-  var isCardPay=creditCard(method)&&modal._type==='expense';
+  var cardObj=DB.cards.filter(function(c){return c.name===method;})[0];
+  var isCardPay=cardObj&&cardObj.type==='credit'&&modal._type==='expense';
   var acctEl=document.getElementById('fAcct');
-  var acct=(modal._type==='income'||(modal._type==='expense'&&!isCardPay))?(acctEl?acctEl.value:undefined):undefined;
+  var acct;
+  if(modal._type==='income')acct=acctEl?acctEl.value:undefined;
+  else if(cardObj)acct=cardObj.type==='check'?cardObj.acct:undefined; // 체크=연결계좌 즉시출금, 신용=선결제시
+  else acct=acctEl?acctEl.value:undefined; // 현금·이체
   var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
   if(id){Object.assign(DB.transactions.filter(function(x){return x.id===id})[0],rec);}else{rec.id=uid();DB.transactions.push(rec);}
   logAct((id?'거래수정':'거래추가')+' · '+rec.date+' '+rec.cat+' '+(rec.type==='income'?'+':'-')+won(rec.amt));
