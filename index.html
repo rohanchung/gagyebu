@@ -374,7 +374,10 @@ function jumpMonth(mm){DB.ui.month=mm;save();selDate=null;closeModal();renderCal
 
 /* ====== 계좌·부채 ====== */
 function renderAcct(){
-  var accHtml=DB.accounts.map(function(a){var ex=a.subtype?' <span class="chip credit">'+a.subtype+'</span>':(a.currency?' <span class="chip credit">'+a.currency+'</span>':'');var cf=(isCashAcct(a)&&a.opening)?'<br><span class="mut" style="font-size:10px">현금흐름 계산 '+won(acctComputed(a))+' <span class="chip auto">기초 '+a.opening.date+'</span></span>':'';return '<div class="row"><span><span class="pill">'+a.group+'</span>'+a.name+ex+' <span class="chip '+a.mode+'">'+(a.mode==='auto'?'자동':'수기')+'</span></span><span style="text-align:right">'+won(accVal(a))+cf+' <span class="acts"><span data-editacc="'+a.id+'">수정</span><span data-delacc="'+a.id+'">삭제</span></span></span></div>'}).join('');
+  function accRow(a){var ex=a.subtype?' <span class="chip credit">'+a.subtype+'</span>':(a.currency?' <span class="chip credit">'+a.currency+'</span>':'');var cf=(isCashAcct(a)&&a.opening)?'<br><span class="mut" style="font-size:10px">현금흐름 계산 '+won(acctComputed(a))+' <span class="chip auto">기초 '+a.opening.date+'</span></span>':'';return '<div class="row"><span><span class="pill">'+a.group+'</span>'+a.name+ex+' <span class="chip '+a.mode+'">'+(a.mode==='auto'?'자동':'수기')+'</span></span><span style="text-align:right">'+won(accVal(a))+cf+' <span class="acts"><span data-editacc="'+a.id+'">수정</span><span data-delacc="'+a.id+'">삭제</span></span></span></div>';}
+  function accBucket(a){return a.group==='현금성'?'현금성':(a.group==='투자'?'투자':'기타');}
+  var accG={'현금성':[],'투자':[],'기타':[]};DB.accounts.forEach(function(a){accG[accBucket(a)].push(a);});
+  var accHtml=['현금성','투자','기타'].map(function(gn){var arr=accG[gn];if(!arr.length)return '';var sub=arr.reduce(function(s,a){return s+accVal(a);},0);return '<div class="grp"><div class="ghd"><span>'+gn+' <span class="mut" style="font-weight:400">'+arr.length+'</span></span><span>'+won(sub)+'</span></div>'+arr.map(accRow).join('')+'</div>';}).join('');
   var cardHtml=DB.cards.map(function(c){var cbc=cardPendingByCard();var p=c.type==='credit'?(cbc[c.name]||0):0;var lk=c.acct?' <span class="chip auto">→'+acctName(c.acct)+'</span>':' <span class="chip check">연결계좌 미설정</span>';return '<div class="row"><span>'+c.name+' <span class="chip '+c.type+'">'+(c.type==='credit'?'신용':'체크')+'</span>'+lk+'</span><span>'+(c.type==='credit'?'미결제 '+won(p):'즉시결제')+' <span class="acts"><span data-editcard="'+c.id+'">수정</span><span data-delcard="'+c.id+'">삭제</span></span></span></div>'}).join('');
   var debtHtml=DB.debts.map(function(d){
     var s=d.schedule,sc=s?('거치 '+s.grace+' · 상환시작 '+s.start+' · '+s.method+' · 월 '+won(s.monthly)+' · 잔여 '+s.remain+'회'):'상환일정 없음(수시상환·이자만)';
@@ -580,8 +583,9 @@ function renderCashflow(){
 }
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.1';
+var APP_VERSION='2.2';
 var CHANGELOG=[
+  {v:'2.2',date:'2026-08-12',note:'계좌 목록 현금성/투자/기타 그룹화(소계 표시) · 모달 바깥클릭 닫힘 방지(X로만 닫힘)'},
   {v:'2.1',date:'2026-08-12',note:'카드-계좌 연결 — 카드 설정에 연결계좌, 체크=즉시출금·신용=선결제 자동, 지출 입력 시 출금계좌 자동 결정'},
   {v:'2.0',date:'2026-08-12',note:'현금흐름 시스템 — 계좌 기초잔액+거래 계좌연결, 이체 타입, 선결제 출금계좌 차감, 🌊 현금흐름 탭(Sankey+실시간 대조)'},
   {v:'1.6',date:'2026-08-12',note:'재물관리 완료·아카이브(완료 체크 시 감가집계 제외, 기간종료 뱃지, 복원 가능)'},
@@ -643,7 +647,7 @@ function delItem(id){if(!confirm('삭제할까요?'))return;DB.items=DB.items.fi
 var ov=document.getElementById('ov'),modal=document.getElementById('modal');
 function openModal(h){modal.innerHTML=h;ov.classList.add('on');}
 function closeModal(){ov.classList.remove('on');}
-ov.addEventListener('click',function(e){if(e.target===ov)closeModal();});
+/* 모달은 X 버튼으로만 닫힘 (바깥 클릭 무시) */
 function assetModal(id){
   var a=DB.accounts.filter(function(x){return x.id===id})[0];if(!a)return;
   var isFx=a.group==='외환';
