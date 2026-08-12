@@ -122,6 +122,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .sajucols{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
 .sajucols .sc{flex:1;min-width:280px;margin-bottom:0}
 .sajucols .scbody{max-height:460px;overflow:auto}
+.bub{cursor:pointer;font-size:13px;margin-left:6px;opacity:.28;user-select:none}
+.bub.on{opacity:1}.bub:hover{opacity:.8}
 .foot{padding:14px 8px;color:#9aa6b6;font-size:10.5px;text-align:center}.foot a{color:var(--accent);cursor:pointer}
 @media(max-width:900px){.calwrap{flex-direction:column}.calside{width:100%;position:static;max-height:none}}
 @media(max-width:640px){.app.on{flex-direction:column}.side{width:100%;display:flex;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.side .brand{width:100%}.side .m{flex:1 0 auto}.side .sub{display:none}.side .m.dim{display:none}.msum div{padding:5px 7px}}
@@ -745,35 +747,40 @@ function sajuRead(key,title){var r=(DB.saju.readings||{})[key];
    +(r?'<div style="font-size:13px;line-height:1.7;white-space:pre-wrap">'+sajuEsc(r.text)+'</div><div class="mut" style="margin-top:10px;font-size:10px">Claude 해석 · 저장 '+(r.savedAt||'')+'</div>'
       :'<div class="mut" style="padding:10px 0;line-height:1.6">아직 저장된 해석이 없습니다.<br>Claude에게 <b>"'+title+' 평가해줘"</b>라고 요청하면, 해석 후 여기에 저장할 수 있습니다.</div>')
    +'</div>');}
+function bub(key,title){var has=DB.saju.readings&&DB.saju.readings[key];return '<span class="bub'+(has?' on':'')+'" onclick="event.stopPropagation();sajuRead(\''+key+'\',\''+(''+title).replace(/'/g,'')+'\')" title="해석">💬</span>';}
+function sajuPickYear(y){DB.ui.sajuYear=y;var mm=(DB.ui.sajuYM&&DB.ui.sajuYM.slice(5))||String(new Date().getMonth()+1).padStart(2,'0');DB.ui.sajuYM=y+'-'+mm;save();renderSaju();}
+function sajuPickMonth(ym){DB.ui.sajuYM=ym;DB.ui.sajuYear=parseInt(ym.slice(0,4));save();renderSaju();}
 function renderSaju(){
   var S=DB.saju,ig=S.ilgan,N=S.natal,cd=sajuCurDaeun(),curY=new Date().getFullYear();
+  var selY=DB.ui.sajuYear||curY;
   function pillCard(lbl,gz){return '<div style="text-align:center"><div class="mut" style="font-size:10px">'+lbl+'</div><div style="font-size:22px;font-weight:800;margin:2px 0">'+gz[0]+'</div><div style="font-size:22px;font-weight:800">'+gz[1]+'</div><div style="font-size:9.5px;color:var(--muted);margin-top:3px">'+sipsin(ig,gz[0])+'<br>'+jiSipsin(ig,gz[1])+'</div></div>';}
   var wonguk='<div style="display:flex;justify-content:space-around;gap:8px;flex-wrap:wrap">'+pillCard('연주',N.year)+pillCard('월주',N.month)+pillCard('일주 (나)',N.day)+pillCard('시주',N.hour)+'</div>';
-  var daeun=S.daeun.list.map(function(x){var on=(cd.from===x[0]);var key='daeun:'+x[0];return '<div class="stat'+(on?'':' watch')+'" style="min-width:62px;text-align:center;cursor:pointer'+(on?';border:2px solid var(--accent)':'')+'" onclick="sajuRead(\''+key+'\',\''+x[0]+'세 대운 '+x[1]+'\')"><div class="sl">'+x[0]+'~'+rmk(key)+'</div><div class="sv" style="font-size:13px">'+x[1]+'</div></div>';}).join('');
-  var yrs='';for(var yy=curY-5;yy<=curY+10;yy++){var gz=seunGZ(yy),sj=isSamjae(yy),on=(yy===curY),key='year:'+yy;yrs+='<div class="row" style="cursor:pointer'+(on?';background:var(--accent-bg)':'')+'" onclick="sajuRead(\''+key+'\',\''+yy+' 세운 '+gz+'\')"><span><b>'+yy+'</b> <span style="font-size:15px;font-weight:800">'+gz+'</span> <span class="mut">'+sipsin(ig,gz[0])+'·'+jiSipsin(ig,gz[1])+'</span>'+rmk(key)+'</span><span>'+(sj?'<span class="chip" style="background:#fde2e2;color:#a32d2d">삼재</span>':'')+(on?' <span class="chip auto">올해</span>':'')+'</span></div>';}
-  var sy=DB.ui.sajuYear||curY;var sgz=seunGZ(sy),ys=SAJU_GAN.indexOf(sgz[0]);var mss=((ys%5)*2+2)%10;
-  var monLabels=['寅(2월경)','卯(3월경)','辰(4월경)','巳(5월경)','午(6월경)','未(7월경)','申(8월경)','酉(9월경)','戌(10월경)','亥(11월경)','子(12월경)','丑(1월경)'];
-  var months='';for(var kk=0;kk<12;kk++){var st=SAJU_GAN[(mss+kk)%10],br=SAJU_JI[(kk+2)%12];var mkey='month:'+sy+':'+br;months+='<div class="row" style="cursor:pointer" onclick="sajuRead(\''+mkey+'\',\''+sy+' '+st+br+'월\')"><span><span class="mut">'+monLabels[kk]+'</span> <span style="font-size:15px;font-weight:800">'+st+br+'</span>'+rmk(mkey)+'</span><span class="mut">'+sipsin(ig,st)+'·'+jiSipsin(ig,br)+'</span></div>';}
-  var ym=DB.ui.sajuYM||todayStr().slice(0,7);var yA=+ym.slice(0,4),mA=+ym.slice(5,7);var dim=new Date(yA,mA,0).getDate();
-  var special='';for(var dd=1;dd<=dim;dd++){var df=dayFlags(yA,mA,dd);if(df.flags.length){var warn=df.flags.some(function(f){return f.w==='주의';});var ds=ym+'-'+String(dd).padStart(2,'0'),dkey='day:'+ds;special+='<div class="row" style="cursor:pointer" onclick="sajuRead(\''+dkey+'\',\''+ds+' '+df.gz+'\')"><span>'+(warn?'⚠️':'✨')+' <b>'+mA+'/'+dd+'</b> <span style="font-weight:800">'+df.gz+'</span>'+rmk(dkey)+'</span><span class="mut">'+df.flags.map(function(f){return f.d;}).join(' · ')+'</span></div>';}}
+  var daeun=S.daeun.list.map(function(x){var on=(cd.from===x[0]);var key='daeun:'+x[0];return '<div class="stat'+(on?'':' watch')+'" style="min-width:64px;text-align:center'+(on?';border:2px solid var(--accent)':'')+'"><div class="sl">'+x[0]+'~ '+bub(key,x[0]+'세 대운 '+x[1])+'</div><div class="sv" style="font-size:13px">'+x[1]+'</div></div>';}).join('');
+  var yrs='';for(var yy=curY-5;yy<=curY+10;yy++){var gz=seunGZ(yy),sj=isSamjae(yy),on=(yy===curY),sel=(yy===selY),key='year:'+yy;
+    yrs+='<div class="row" style="cursor:pointer'+(sel?';background:var(--accent-bg)':'')+'" onclick="sajuPickYear('+yy+')"><span><b>'+yy+'</b> <span style="font-size:15px;font-weight:800">'+gz+'</span> <span class="mut">'+sipsin(ig,gz[0])+'·'+jiSipsin(ig,gz[1])+'</span>'+(on?' <span class="chip auto">올해</span>':'')+(sj?' <span class="chip" style="background:#fde2e2;color:#a32d2d">삼재</span>':'')+'</span>'+bub(key,yy+' 세운 '+gz)+'</div>';}
+  var ym=DB.ui.sajuYM||todayStr().slice(0,7); if(ym.slice(0,4)!==(''+selY))ym=selY+'-'+ym.slice(5); var selMM=ym.slice(5);
+  var months='';for(var M=1;M<=12;M++){var mm=String(M).padStart(2,'0');var mp=sjPillars(selY,M,15).month;var mkey='month:'+selY+'-'+mm;var msel=(selMM===mm);
+    months+='<div class="row" style="cursor:pointer'+(msel?';background:var(--accent-bg)':'')+'" onclick="sajuPickMonth(\''+selY+'-'+mm+'\')"><span><b>'+M+'월</b> <span style="font-size:15px;font-weight:800">'+mp+'</span> <span class="mut">'+sipsin(ig,mp[0])+'·'+jiSipsin(ig,mp[1])+'</span></span>'+bub(mkey,selY+'년 '+M+'월 '+mp)+'</div>';}
+  var mA=+selMM,dim=new Date(selY,mA,0).getDate();
+  var special='';for(var dd=1;dd<=dim;dd++){var df=dayFlags(selY,mA,dd);if(df.flags.length){var warn=df.flags.some(function(f){return f.w==='주의';});var ds=selY+'-'+selMM+'-'+String(dd).padStart(2,'0'),dkey='day:'+ds;
+    special+='<div class="row"><span>'+(warn?'⚠️':'✨')+' <b>'+mA+'/'+dd+'</b> <span style="font-weight:800">'+df.gz+'</span> <span class="mut" style="font-size:10px">'+df.flags.map(function(f){return f.d;}).join('·')+'</span></span>'+bub(dkey,ds+' '+df.gz)+'</div>';}}
   if(!special)special='<div class="mut" style="padding:8px 0">이 달 특이일 없음</div>';
-  var yrOpts='';for(var oy=curY-5;oy<=curY+10;oy++)yrOpts+='<option'+(oy===sy?' selected':'')+'>'+oy+'</option>';
   document.getElementById('v-saju').innerHTML=''
-   +'<div class="sec"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' (양력·남) · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span></h4>'
-   +'<div style="cursor:pointer" onclick="sajuRead(\'natal\',\'총운(원국) 해석\')">'+wonguk
-   +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · 십신 '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span> · <span class="accent" style="color:var(--accent)">총운 해석 보기'+rmk('natal')+'</span></div></div></div>'
-   +'<div class="sec"><h4>대운 흐름 <span class="mut">10년 단위 · 클릭</span></h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
+   +'<div class="sec"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' (양력·남) · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span>'+bub('natal','총운(원국) 해석')+'</h4>'+wonguk
+   +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · 십신 '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span></div></div>'
+   +'<div class="sec"><h4>대운 흐름 <span class="mut">10년 단위</span></h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
    +'<div class="sajucols">'
-   +'<div class="sec sc"><h4>연도별 세운 <span class="mut">클릭→해석</span></h4><div class="scbody">'+yrs+'</div></div>'
-   +'<div class="sec sc"><h4>월별 <select id="sajuYearSel" style="padding:3px 6px;border:1px solid var(--line);border-radius:7px">'+yrOpts+'</select> <span class="mut">'+sgz+'</span></h4><div class="scbody">'+months+'</div></div>'
-   +'<div class="sec sc"><h4>특이일 <input id="sajuYMSel" value="'+ym+'" style="width:90px;padding:3px 6px;border:1px solid var(--line);border-radius:7px"></h4><div class="scbody">'+special+'</div></div>'
+   +'<div class="sec sc"><h4>연도별 세운 <span class="mut">클릭→월별 / 💬 해석</span></h4><div class="scbody">'+yrs+'</div></div>'
+   +'<div class="sec sc"><h4>'+selY+'년 월별 <span class="mut">클릭→특이일 / 💬 해석</span></h4><div class="scbody">'+months+'</div></div>'
+   +'<div class="sec sc"><h4>특이일 <span class="mut">'+ym+' / 💬 해석</span></h4><div class="scbody">'+special+'</div></div>'
    +'</div>'
-   +'<div class="hint" style="padding:0 4px">항목 클릭 → 저장된 해석 표시(💬). 없으면 "○○ 평가해줘" 하면 Claude가 해석 후 저장. 해석은 총평 + 재물·연애·건강·사건사고·시험·명예로 나눠서.</div>';
+   +'<div class="hint" style="padding:0 4px">행 클릭 = 우측으로 드릴다운(연도→월→일). 💬 클릭 = 저장된 해석 모달. 없으면 "○○ 평가해줘" 하면 Claude가 총평+6분류로 해석·저장.</div>';
 }
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.6';
+var APP_VERSION='3.7';
 var CHANGELOG=[
+  {v:'3.7',date:'2026-08-12',note:'사주 드릴다운 UX — 연도 클릭→월별, 월 클릭→특이일(드롭다운 제거) · 해석은 각 행 💬 말풍선 버튼으로 분리(클릭 시 모달)'},
   {v:'3.6',date:'2026-08-12',note:'사주 연도별/월별/특이일 3열 배치(세로공간 절약) · 해석 구조를 총평+재물·연애·건강·사건사고·시험·명예 6분류로'},
   {v:'3.5',date:'2026-08-12',note:'사주 항목(총운·대운·세운·월·특이일) 클릭 → Claude가 저장한 해석 표시(💬). 해석은 evaluate-my-saju 스킬이 Supabase에 기록'},
   {v:'3.4',date:'2026-08-12',note:'명리(사주) 탭 신설 — 원국·대운·연도별 세운·월별 운·이달 특이일(합충형·삼재·공망) · 결정론적 만세력 엔진(절기 근사식) · 해석은 Claude가'},
@@ -1151,7 +1158,7 @@ document.addEventListener('click',function(e){
   var ed=e.target.closest('[data-edit]');if(ed)return txnModal(ed.dataset.edit);
   var dl=e.target.closest('[data-del]');if(dl)return delTxn(dl.dataset.del);
 });
-document.addEventListener('change',function(e){var b=e.target.closest('[data-budcat]');if(b)return budgetChange(b.dataset.budcat,b.value);var w=e.target.closest('[data-watch]');if(w){DB.ui.watchCats=DB.ui.watchCats||['식비','카페','간식/편의점'];DB.ui.watchCats[parseInt(w.dataset.watch)]=w.value;save();return renderCal();}var rc=e.target.closest('[data-recon]');if(rc)return setReconcile(rc.dataset.recon,rc.value);if(e.target.id==='sajuYearSel'){DB.ui.sajuYear=parseInt(e.target.value);save();return renderSaju();}if(e.target.id==='sajuYMSel'){DB.ui.sajuYM=e.target.value.trim();save();return renderSaju();}});
+document.addEventListener('change',function(e){var b=e.target.closest('[data-budcat]');if(b)return budgetChange(b.dataset.budcat,b.value);var w=e.target.closest('[data-watch]');if(w){DB.ui.watchCats=DB.ui.watchCats||['식비','카페','간식/편의점'];DB.ui.watchCats[parseInt(w.dataset.watch)]=w.value;save();return renderCal();}var rc=e.target.closest('[data-recon]');if(rc)return setReconcile(rc.dataset.recon,rc.value);});
 var _labtip=document.createElement('div');_labtip.style.cssText='position:fixed;z-index:100;background:#1b2333;color:#fff;font-size:11px;padding:6px 9px;border-radius:6px;max-width:240px;pointer-events:none;display:none;line-height:1.45;box-shadow:0 4px 14px rgba(0,0,0,.22)';document.body.appendChild(_labtip);
 document.addEventListener('mouseover',function(e){var t=e.target.closest('[data-tip]');if(t){_labtip.textContent=t.getAttribute('data-tip');_labtip.style.display='block';}});
 document.addEventListener('mousemove',function(e){if(_labtip.style.display==='block'){var x=e.clientX+14,y=e.clientY+16;if(x>window.innerWidth-250)x=e.clientX-250;_labtip.style.left=x+'px';_labtip.style.top=y+'px';}});
