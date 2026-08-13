@@ -766,20 +766,24 @@ function renderSaju(){
     special+='<div class="row"><span>'+(warn?'⚠️':'✨')+' <b>'+mA+'/'+dd+'</b> <span style="font-weight:800">'+df.gz+'</span> <span class="mut" style="font-size:10px">'+df.flags.map(function(f){return f.d;}).join('·')+'</span></span>'+bub(dkey,ds+' '+df.gz)+'</div>';}}
   if(!special)special='<div class="mut" style="padding:8px 0">이 달 특이일 없음</div>';
   document.getElementById('v-saju').innerHTML=''
-   +'<div class="sec"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' (양력·남) · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span>'+bub('natal','총운(원국) 해석')+'</h4>'+wonguk
-   +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · 십신 '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span></div></div>'
-   +'<div class="sec"><h4>대운 흐름 <span class="mut">10년 단위</span></h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
-   +'<div class="sajucols">'
-   +'<div class="sec sc"><h4>연도별 세운 <span class="mut">클릭→월별 / 💬 해석</span></h4><div class="scbody">'+yrs+'</div></div>'
-   +'<div class="sec sc"><h4>'+selY+'년 월별 <span class="mut">클릭→특이일 / 💬 해석</span></h4><div class="scbody">'+months+'</div></div>'
-   +'<div class="sec sc"><h4>특이일 <span class="mut">'+ym+' / 💬 해석</span></h4><div class="scbody">'+special+'</div></div>'
+   +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">'
+   +'<div class="sec" style="flex:2;min-width:340px;margin-bottom:0"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span>'+bub('natal','총운(원국) 해석')+'</h4>'+wonguk
+   +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span></div></div>'
+   +'<div class="sec" style="flex:1.5;min-width:300px;margin-bottom:0"><h4>대운 흐름 <span class="mut">💬 클릭</span></h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
    +'</div>'
-   +'<div class="hint" style="padding:0 4px">행 클릭 = 우측으로 드릴다운(연도→월→일). 💬 클릭 = 저장된 해석 모달. 없으면 "○○ 평가해줘" 하면 Claude가 총평+6분류로 해석·저장.</div>';
+   +'<div class="sajucols">'
+   +'<div class="sec sc"><h4>연도별 세운 <span class="mut">클릭→월별 / 💬</span></h4><div class="scbody">'+yrs+'</div></div>'
+   +'<div class="sec sc"><h4>'+selY+'년 월별 <span class="mut">클릭→특이일 / 💬</span></h4><div class="scbody">'+months+'</div></div>'
+   +'<div class="sec sc"><h4>특이일 <span class="mut">'+ym+' / 💬</span></h4><div class="scbody">'+special+'</div></div>'
+   +'</div>'
+   +'<div class="hint" style="padding:0 4px 8px">행 클릭 = 드릴다운(연도→월→일). 💬 = 저장된 해석 모달.</div>'
+   +'<div class="sec"><h4>🧭 인생 총운 <span class="mut">스토리 · 차후 업데이트됨</span></h4><div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;color:#33425e">'+(S.story?sajuEsc(S.story):'<span class="mut">아직 스토리 없음 — "인생 총운 스토리 써줘" 하면 Claude가 작성·저장.</span>')+'</div></div>';
 }
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.7';
+var APP_VERSION='3.8';
 var CHANGELOG=[
+  {v:'3.8',date:'2026-08-13',note:'사주 총운+대운 한 줄 배치 · 맨 밑 인생 총운 스토리 섹션(상시 표시) · 대운/연도 말풍선에 분석 저장'},
   {v:'3.7',date:'2026-08-12',note:'사주 드릴다운 UX — 연도 클릭→월별, 월 클릭→특이일(드롭다운 제거) · 해석은 각 행 💬 말풍선 버튼으로 분리(클릭 시 모달)'},
   {v:'3.6',date:'2026-08-12',note:'사주 연도별/월별/특이일 3열 배치(세로공간 절약) · 해석 구조를 총평+재물·연애·건강·사건사고·시험·명예 6분류로'},
   {v:'3.5',date:'2026-08-12',note:'사주 항목(총운·대운·세운·월·특이일) 클릭 → Claude가 저장한 해석 표시(💬). 해석은 evaluate-my-saju 스킬이 Supabase에 기록'},
