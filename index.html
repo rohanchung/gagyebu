@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>⚜ 가계부</title>
+<title>Rohan Book</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +12,7 @@
 <style>
 :root{--bg:#f4f6fa;--card:#fff;--soft:#f8fafc;--line:#e4e8f0;--ink:#1b2333;--muted:#6b7789;--accent:#2f6df6;--accent-bg:#eaf1ff;--pos:#0f9d58;--neg:#e0483d;--warn:#b26a00;--warn-bg:#fff6e2;--gold:#a67c1a;--serif:'Cinzel','Gowun Batang',serif;}
 *{box-sizing:border-box}
+html{overflow-y:scroll}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Malgun Gothic',sans-serif}
 /* login */
 .login{position:fixed;inset:0;background:linear-gradient(160deg,#eef2fb,#f6f8fc);display:flex;align-items:center;justify-content:center;z-index:50}
@@ -132,6 +133,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .sajucols .scbody{max-height:460px;overflow:auto}
 .bub{cursor:pointer;font-size:13px;margin-left:6px;opacity:.28;user-select:none}
 .bub.on{opacity:1}.bub:hover{opacity:.8}
+.fbadge{font-family:var(--serif);font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:.5px;white-space:nowrap}
+.fbadge.good{background:#f3ead2;color:#8a6d12;border:1px solid #e3d3a0}
+.fbadge.bad{background:#fadfd9;color:#a3301f;border:1px solid #edb6ab}
+.fbadge.neu{background:#eceae3;color:#6b6552;border:1px solid #ddd8c8}
 .foot{padding:14px 8px;color:#9aa6b6;font-size:10.5px;text-align:center}.foot a{color:var(--accent);cursor:pointer}
 @media(max-width:900px){.calwrap{flex-direction:column}.calside{width:100%;position:static;max-height:none}}
 @media(max-width:640px){.app.on{flex-direction:column}.side{width:100%;display:flex;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.side .brand{width:100%}.side .m{flex:1 0 auto}.side .sub{display:none}.side .m.dim{display:none}.msum div{padding:5px 7px}}
@@ -141,8 +146,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 <!-- 로그인 -->
 <div class="login" id="login">
   <div class="box">
-    <h1>💰 가계부</h1>
-    <p>나만 볼 수 있는 개인 재무 · Supabase 로그인</p>
+    <h1 style="font-family:var(--serif);color:var(--gold);letter-spacing:1px"><img src="favicon.png" style="width:40px;vertical-align:middle;margin-right:4px" alt="">Rohan Book</h1>
+    <p>나만 볼 수 있는 개인 재무·건강·명리 · Supabase 로그인</p>
     <input id="email" type="email" placeholder="이메일" autofocus>
     <input id="pw" type="password" placeholder="비밀번호">
     <div class="err" id="loginErr"></div>
@@ -154,7 +159,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 
 <div class="app" id="app">
   <div class="side">
-    <div class="brand"><img src="favicon.png" class="brand-crest" alt=""><br>가계부</div>
+    <div class="brand"><img src="favicon.png" class="brand-crest" alt=""><br>Rohan Book</div>
     <div class="sub">⚜ 재정</div>
     <div class="m on" data-v="dash">🏰 현황판</div>
     <div class="m" data-v="cal">📜 가계부</div>
@@ -772,8 +777,12 @@ function renderSaju(){
   var months='';for(var M=1;M<=12;M++){var mm=String(M).padStart(2,'0');var mp=sjPillars(selY,M,15).month;var mkey='month:'+selY+'-'+mm;var msel=(selMM===mm);
     months+='<div class="row" style="cursor:pointer'+(msel?';background:var(--accent-bg)':'')+'" onclick="sajuPickMonth(\''+selY+'-'+mm+'\')"><span><b>'+M+'월</b> <span style="font-size:15px;font-weight:800">'+mp+'</span> <span class="mut">'+sipsin(ig,mp[0])+'·'+jiSipsin(ig,mp[1])+'</span></span>'+bub(mkey,selY+'년 '+M+'월 '+mp)+'</div>';}
   var mA=+selMM,dim=new Date(selY,mA,0).getDate();
-  var special='';for(var dd=1;dd<=dim;dd++){var df=dayFlags(selY,mA,dd);if(df.flags.length){var warn=df.flags.some(function(f){return f.w==='주의';});var ds=selY+'-'+selMM+'-'+String(dd).padStart(2,'0'),dkey='day:'+ds;
-    special+='<div class="row"><span>'+(warn?'⚠️':'✨')+' <b>'+mA+'/'+dd+'</b> <span style="font-weight:800">'+df.gz+'</span> <span class="mut" style="font-size:10px">'+df.flags.map(function(f){return f.d;}).join('·')+'</span></span>'+bub(dkey,ds+' '+df.gz)+'</div>';}}
+  var special='';for(var dd=1;dd<=dim;dd++){var df=dayFlags(selY,mA,dd);if(df.flags.length){
+    var bad=df.flags.some(function(f){return f.t==='충'||f.t==='형'||f.t==='천간충';});
+    var good=df.flags.some(function(f){return f.t==='합'||f.t==='삼합'||f.t==='반합';});
+    var vb=bad?'<span class="fbadge bad">⚔ 凶</span>':(good?'<span class="fbadge good">⚜ 吉</span>':'<span class="fbadge neu">◈ 平</span>');
+    var ds=selY+'-'+selMM+'-'+String(dd).padStart(2,'0'),dkey='day:'+ds;
+    special+='<div class="row"><span>'+vb+' <b>'+mA+'/'+dd+'</b> <span style="font-weight:800">'+df.gz+'</span> <span class="mut" style="font-size:10px">'+df.flags.map(function(f){return f.d;}).join('·')+'</span></span>'+bub(dkey,ds+' '+df.gz)+'</div>';}}
   if(!special)special='<div class="mut" style="padding:8px 0">이 달 특이일 없음</div>';
   document.getElementById('v-saju').innerHTML=''
    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">'
@@ -791,8 +800,9 @@ function renderSaju(){
 }
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.9';
+var APP_VERSION='4.0';
 var CHANGELOG=[
+  {v:'4.0',date:'2026-08-13',note:'이름 Rohan Book으로 변경 · 페이지 폭 고정(스크롤바 상시) · 특이일 길(吉)/흉(凶)/평(平) 중세풍 판정 뱃지'},
   {v:'3.9',date:'2026-08-13',note:'중세풍 디자인(문장 파비콘·Cinzel 세리프 헤더·골드 네비·중세 아이콘) · 계정과목/결제수단/예산을 많이 쓴 순 자동정렬'},
   {v:'3.8',date:'2026-08-13',note:'사주 총운+대운 한 줄 배치 · 맨 밑 인생 총운 스토리 섹션(상시 표시) · 대운/연도 말풍선에 분석 저장'},
   {v:'3.7',date:'2026-08-12',note:'사주 드릴다운 UX — 연도 클릭→월별, 월 클릭→특이일(드롭다운 제거) · 해석은 각 행 💬 말풍선 버튼으로 분리(클릭 시 모달)'},
