@@ -139,7 +139,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .fbadge.neu{background:#eceae3;color:#6b6552;border:1px solid #ddd8c8}
 .moodchip{display:inline-block;font-family:var(--serif);font-size:12px;padding:4px 11px;border-radius:999px;border:1px solid var(--mc);color:var(--mc);cursor:pointer;margin:3px 3px 0 0;user-select:none}
 .moodchip.on{background:var(--mc);color:#fff}
-.jentry{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;background:var(--card)}
+.jgrid{column-count:3;column-gap:12px}
+@media(max-width:1100px){.jgrid{column-count:2}}
+@media(max-width:680px){.jgrid{column-count:1}}
+.jentry{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 12px;cursor:pointer;background:var(--card);break-inside:avoid;-webkit-column-break-inside:avoid;display:inline-block;width:100%;vertical-align:top}
 .jentry:hover{border-color:var(--gold)}
 .jtag{display:inline-block;font-size:9.5px;padding:1px 7px;border-radius:4px;margin-right:4px;font-weight:700}
 .foot{padding:14px 8px;color:#9aa6b6;font-size:10.5px;text-align:center}.foot a{color:var(--accent);cursor:pointer}
@@ -824,20 +827,19 @@ function renderJournal(){
   var J=(DB.journal||[]).slice().sort(function(a,b){return (a.date||'')<(b.date||'')?1:-1;});
   var rows=J.map(function(e){
     var tags=(e.moods||[]).map(function(mn){var c=moodColor(mn);return '<span class="jtag" style="background:'+c+'1f;color:'+c+'">'+mn+'</span>';}).join('');
-    var body=(e.body||'').length>140?(e.body.slice(0,140)+'…'):(e.body||'');
-    return '<div class="jentry" data-editjournal="'+e.id+'"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px"><span style="font-weight:700;font-size:14px">'+(e.title||'(무제)')+'</span><span class="mut" style="font-size:10.5px;white-space:nowrap">'+fmtJ(e.date)+(e.place?' · '+e.place:'')+'</span></div>'+(tags?'<div style="margin-bottom:6px">'+tags+'</div>':'')+(body?'<div style="font-size:12.5px;color:#41506a;line-height:1.6;white-space:pre-wrap">'+sajuEsc(body)+'</div>':'')+'</div>';
-  }).join('')||'<div class="mut" style="padding:10px 0">아직 기록이 없다. 생각·마음·흔들림·기쁨을 그때그때 남겨라.</div>';
-  document.getElementById('v-journal').innerHTML='<div class="sec"><h4>📖 일지 <span class="mut">생각·마음·흔들림·기쁨 ('+J.length+')</span> <button class="ghost" id="addJournalBtn" style="float:right">+ 기록</button></h4>'+rows+'</div>';
+    return '<div class="jentry" data-editjournal="'+e.id+'"><div style="margin-bottom:5px"><div style="font-family:var(--serif);font-weight:700;font-size:14px">'+(e.title||'(무제)')+'</div><div class="mut" style="font-size:10.5px">'+fmtJ(e.date)+(e.place?' · '+e.place:'')+'</div></div>'+(tags?'<div style="margin-bottom:6px">'+tags+'</div>':'')+((e.body||'')?'<div style="font-size:12.5px;color:#41506a;line-height:1.65;white-space:pre-wrap">'+sajuEsc(e.body)+'</div>':'')+'</div>';
+  }).join('');
+  var grid=rows?'<div class="jgrid">'+rows+'</div>':'<div class="mut" style="padding:10px 0">아직 기록이 없다. 생각·마음·흔들림·기쁨을 그때그때 남겨라.</div>';
+  document.getElementById('v-journal').innerHTML='<div class="sec"><h4>📖 일지 <span class="mut">생각·마음·흔들림·기쁨 ('+J.length+') · 카드 클릭 → 수정/삭제</span> <button class="ghost" id="addJournalBtn" style="float:right">+ 기록</button></h4>'+grid+'</div>';
 }
 function journalModal(id){
   var e=id?(DB.journal||[]).filter(function(x){return x.id===id})[0]:{date:nowLocal(),title:'',moods:[],place:'',body:''};
   var chips=MOODS.map(function(m){var on=(e.moods||[]).indexOf(m[0])>=0;return '<span class="moodchip'+(on?' on':'')+'" data-mood="'+m[0]+'" style="--mc:'+m[1]+'" onclick="this.classList.toggle(\'on\')">'+m[0]+'</span>';}).join('');
   openModal('<div class="mtop"><h3 style="font-family:var(--serif)">'+(id?'일지 수정':'일지 기록')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>한줄 메모</label><input id="j_title" value="'+(e.title||'').replace(/"/g,'&quot;')+'" placeholder="오늘의 한 줄"></div>'
-   +'<div class="field"><label>날짜·시간</label><input id="j_date" type="datetime-local" value="'+(e.date||nowLocal())+'"></div>'
+   +'<div style="display:flex;gap:8px"><div class="field" style="flex:1"><label>날짜·시간</label><input id="j_date" type="datetime-local" value="'+(e.date||nowLocal())+'"></div><div class="field" style="flex:1"><label>장소</label><input id="j_place" value="'+(e.place||'').replace(/"/g,'&quot;')+'" placeholder="선택"></div></div>'
    +'<div class="field"><label>감정 <span class="mut">(복수 선택)</span></label><div id="j_moods">'+chips+'</div></div>'
-   +'<div class="field"><label>장소</label><input id="j_place" value="'+(e.place||'').replace(/"/g,'&quot;')+'" placeholder="선택"></div>'
-   +'<div class="field"><label>텍스트</label><textarea id="j_body" rows="7" placeholder="마음 가는 대로…">'+(e.body||'')+'</textarea></div>'
+   +'<div class="field"><label>텍스트</label><textarea id="j_body" rows="15" style="min-height:280px;line-height:1.7" placeholder="마음 가는 대로…">'+(e.body||'')+'</textarea></div>'
    +'<button class="btn" onclick="saveJournal('+(id?"'"+id+"'":'null')+')">저장</button>'+(id?' <button class="ghost" onclick="delJournal(\''+id+'\')">삭제</button>':''));
 }
 function saveJournal(id){
@@ -852,8 +854,9 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.2';
+var APP_VERSION='4.3';
 var CHANGELOG=[
+  {v:'4.3',date:'2026-08-13',note:'일지 마스머리 3단 카드(전체 내용 표시, 안 잘림) · 수정 모달 텍스트칸 확대(15줄) · 노션 일지 15편 임포트'},
   {v:'4.2',date:'2026-08-13',note:'일지 페이지 신설(성찰) — 한줄메모·날짜시간·감정(다중태그)·장소·텍스트. 노션 「한번씩 기록」 구조 이식'},
   {v:'4.1',date:'2026-08-13',note:'현황판 상단 재구성 — 총자산/총부채/순자산 한 테이블 + 오른쪽 로버트의 정리 게시판(클릭→글 읽기)'},
   {v:'4.0',date:'2026-08-13',note:'이름 Rohan Book으로 변경 · 페이지 폭 고정(스크롤바 상시) · 특이일 길(吉)/흉(凶)/평(平) 중세풍 판정 뱃지'},
