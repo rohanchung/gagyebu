@@ -646,7 +646,7 @@ function renderCashflow(){
 }
 
 /* ====== 건강: 체중 & 사고 ====== */
-var WIN=[['kg','체중','kg'],['fatKg','체지방량','kg'],['muscle','근육량','kg'],['skMuscle','골격근량','kg'],['waterKg','체수분량','kg'],['protein','단백질량','kg'],['boneKg','골량','kg'],['visceral','내장지방등급',''],['bmr','기초대사율','kcal'],['bodyAge','신체나이','세'],['score','신체점수',''],['hr','심박수','bpm'],['whr','허리·엉덩이비율','']];
+var WIN=[['kg','체중','kg'],['waterKg','체수분','kg'],['fatKg','체지방','kg'],['boneKg','골무기질','kg'],['protein','단백질량','kg'],['muscle','근육량','kg'],['skMuscle','골격근량','kg'],['bmr','기초대사율','kcal']];
 function whHeight(){return (DB.health&&DB.health.height)||163;}
 var WTABS=[
  {k:'kg',label:'체중',u:'kg',g:function(e){return e.kg;}},
