@@ -659,11 +659,15 @@ var WTABS=[
  {k:'bmr',label:'기초대사',u:'kcal',g:function(e){return e.bmr;}}
 ];
 function wNum(v,d){return (v==null||v===''||isNaN(v))?'—':(+v).toFixed(d==null?1:d);}
-function weightSummary(e){
+function weightCells(e){
   var kg=e.kg||0,h=whHeight();
   var c={bmi:kg?kg/Math.pow(h/100,2):null,fatPct:(kg&&e.fatKg!=null)?e.fatKg/kg*100:null,musclePct:(kg&&e.muscle!=null)?e.muscle/kg*100:null,waterPct:(kg&&e.waterKg!=null)?e.waterKg/kg*100:null,proteinPct:(kg&&e.protein!=null)?e.protein/kg*100:null,bonePct:(kg&&e.boneKg!=null)?e.boneKg/kg*100:null,lean:(kg&&e.fatKg!=null)?kg-e.fatKg:null};
-  var cells=[['체중',e.kg,'kg',1,0],['BMI',c.bmi,'',1,1],['체지방률',c.fatPct,'%',1,1],['체지방량',e.fatKg,'kg',1,0],['근육량',e.muscle,'kg',1,0],['골격근',e.skMuscle,'kg',1,0],['근육비율',c.musclePct,'%',1,1],['체수분',e.waterKg,'kg',1,0],['체수분율',c.waterPct,'%',1,1],['단백질',e.protein,'kg',1,0],['단백질률',c.proteinPct,'%',1,1],['골량',e.boneKg,'kg',1,0],['골무기질률',c.bonePct,'%',1,1],['제지방량',c.lean,'kg',1,1],['내장지방',e.visceral,'',0,0],['기초대사',e.bmr,'kcal',0,0],['신체나이',e.bodyAge,'세',0,0],['신체점수',e.score,'',0,0],['심박수',e.hr,'bpm',0,0],['허리엉덩이',e.whr,'',2,0]];
-  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px">'+cells.map(function(x){return '<div class="stat"><div class="sl">'+x[0]+(x[4]?' <span style="font-size:7.5px;opacity:.55">계산</span>':'')+'</div><div class="sv" style="font-size:14px">'+wNum(x[1],x[3])+(x[2]?'<span style="font-size:9px;color:var(--muted)"> '+x[2]+'</span>':'')+'</div></div>';}).join('')+'</div>';
+  // [라벨, 값, 단위, 소수, 계산여부]
+  return [['체중',e.kg,'kg',1,0],['BMI',c.bmi,'',1,1],['체지방률',c.fatPct,'%',1,1],['체지방량',e.fatKg,'kg',1,0],['근육량',e.muscle,'kg',1,0],['골격근',e.skMuscle,'kg',1,0],['근육비율',c.musclePct,'%',1,1],['체수분',e.waterKg,'kg',1,0],['체수분율',c.waterPct,'%',1,1],['단백질',e.protein,'kg',1,0],['단백질률',c.proteinPct,'%',1,1],['골량',e.boneKg,'kg',1,0],['골무기질률',c.bonePct,'%',1,1],['제지방량',c.lean,'kg',1,1],['내장지방',e.visceral,'',0,0],['기초대사',e.bmr,'kcal',0,0],['신체나이',e.bodyAge,'세',0,0],['신체점수',e.score,'',0,0],['심박수',e.hr,'bpm',0,0],['허리엉덩이',e.whr,'',2,0]];
+}
+function weightInline(e){
+  // 값 있는 항목만 작은 pill로 나열
+  return '<div style="display:flex;flex-wrap:wrap;gap:5px 10px;margin-top:5px">'+weightCells(e).filter(function(x){return x[1]!=null&&x[1]!==''&&!isNaN(x[1]);}).map(function(x){return '<span style="font-size:11px;color:#5a4a1a"><span style="color:#a2967a">'+x[0]+(x[4]?'·계':'')+'</span> <b>'+wNum(x[1],x[3])+'</b>'+(x[2]?'<span style="color:#b6a985;font-size:9px">'+x[2]+'</span>':'')+'</span>';}).join('')+'</div>';
 }
 function metricChart(mkey){
   var m=WTABS.filter(function(x){return x.k===mkey})[0]||WTABS[0];
@@ -689,13 +693,15 @@ function renderWeight(){
   var latest=ws.length?ws[ws.length-1]:null;
   var mkey=(DB.ui&&DB.ui.weightMetric)||'kg';
   var tabs=WTABS.map(function(m){return '<span class="wtab'+(m.k===mkey?' on':'')+'" onclick="setWeightMetric(\''+m.k+'\')">'+m.label+'</span>';}).join('');
-  var wlist=ws.slice().reverse().slice(0,80).map(function(w){return '<div class="row" data-editweight="'+w.date+'" style="cursor:pointer"><span>'+w.date+(w.memo?' <span class="mut">· '+w.memo+'</span>':'')+'</span><span>'+w.kg+'kg'+(w.fatKg!=null?' <span class="mut">· 체지방 '+w.fatKg+'kg</span>':'')+' <span class="acts"><span data-delweight="'+w.date+'">🗑</span></span></span></div>';}).join('');
+  var wlist=ws.slice().reverse().slice(0,80).map(function(w){
+    var hasComp=w.fatKg!=null||w.muscle!=null;
+    return '<div class="row" data-editweight="'+w.date+'" style="cursor:pointer;display:block;padding:9px 10px"><div style="display:flex;justify-content:space-between;align-items:center"><span><b>'+w.date+'</b>'+(w.memo?' <span class="mut">· '+w.memo+'</span>':'')+'</span><span class="acts"><span data-delweight="'+w.date+'">🗑</span></span></div>'+(hasComp?weightInline(w):'<div style="font-size:12px;color:#5a4a1a;margin-top:3px">'+w.kg+' kg <span class="mut" style="font-size:10px">· 체성분 미입력 (클릭→기록)</span></div>')+'</div>';
+  }).join('');
   var ev=(H.events||[]).slice().sort(function(a,b){return a.date<b.date?1:-1;});
   var evlist=ev.map(function(e){var st=e.status==='진행중'?'<span class="chip" style="background:#fff6e2;color:#b26a00">진행중</span>':'<span class="chip check">완치</span>';return '<div class="row"><span>'+st+' <b>'+e.name+'</b>'+(e.symptom?' <span class="mut">· '+e.symptom+'</span>':'')+(e.memo?' <span class="mut">📄</span>':'')+'</span><span>'+e.date+' <span class="acts"><span data-editevent="'+e.id+'">수정</span><span data-delevent="'+e.id+'">삭제</span></span></span></div>';}).join('');
   document.getElementById('v-weight').innerHTML=''
-   +(latest?'<div class="sec"><h4>⚖️ 최신 체성분 <span class="mut">'+latest.date+' · 키 '+whHeight()+'cm</span> <button class="ghost" id="addWeightBtn" style="float:right">+ 기록</button></h4>'+weightSummary(latest)+'</div>':'<div class="sec"><h4>⚖️ 체성분 <button class="ghost" id="addWeightBtn" style="float:right">+ 기록</button></h4><div class="mut">기록 없음</div></div>')
-   +'<div class="sec"><h4>추세 <span class="mut">지표 탭 선택</span></h4><div class="wtabs">'+tabs+'</div>'+metricChart(mkey)+'</div>'
-   +'<div class="sec"><h4>기록 <span class="mut">'+ws.length+'건 · 클릭→수정</span></h4>'+(wlist||'<div class="mut">기록 없음</div>')+'</div>'
+   +'<div class="sec"><h4>⚖️ 체성분 추세 <span class="mut">'+(latest?latest.date+' · 키 '+whHeight()+'cm':'')+'</span> <button class="ghost" id="addWeightBtn" style="float:right">+ 기록</button></h4><div class="wtabs">'+tabs+'</div>'+metricChart(mkey)+'</div>'
+   +'<div class="sec"><h4>기록 <span class="mut">'+ws.length+'건 · 클릭→수정 · <span style="opacity:.7">·계=자동계산</span></span></h4>'+(wlist||'<div class="mut">기록 없음</div>')+'</div>'
    +'<div class="sec"><h4>🤕 사고·질병 이력 <button class="ghost" id="addEventBtn" style="float:right">+ 추가</button></h4>'+(evlist||'<div class="mut">기록 없음</div>')+'<div class="hint">감기·오십견 등을 \'사고\'로 관리. 진료내역서는 수정 → 메모칸에 텍스트로 붙여넣으면 됨.</div></div>';
 }
 function weightModal(date){
