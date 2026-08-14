@@ -179,7 +179,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="m" data-v="tax">⚖️ 세무</div>
     <div class="m" data-v="budget">🗝️ 예산</div>
     <div class="sub">⚕ 건강</div>
-    <div class="m" data-v="weight">🩹 체중·사고</div>
+    <div class="m" data-v="weight">🩹 체성분·사고</div>
     <div class="m" data-v="labs">🧪 피검사</div>
     <div class="sub">🔮 명리</div>
     <div class="m" data-v="saju">🕯️ 사주</div>
@@ -202,7 +202,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="view" id="v-items"></div>
     <div class="view" id="v-budget"></div>
     <div class="view" id="v-log"></div>
-    <div class="foot">v1.1 · 데이터는 Supabase에 안전 저장 · <a id="reloadBtn">새로고침</a> · <a id="logoutBtn">로그아웃</a></div>
+    <div class="foot"><span id="footVer"></span> · 데이터는 Supabase에 안전 저장 · <a id="reloadBtn">새로고침</a> · <a id="logoutBtn">로그아웃</a></div>
   </div>
 </div>
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
@@ -225,8 +225,8 @@ var SEED = {
     {id:'c3',name:'우리(K패스)',type:'check'}
   ],
   debts: [
-    {id:'d1',name:'소상공인대환',balance:20000000,rate:3.03,schedule:{grace:'3년(종료)',start:'2026-09',method:'원금균등',monthly:416667,remain:48}},
-    {id:'d2',name:'약관대출(교보 종신)',balance:18500000,rate:5.05,schedule:null}
+    {id:'d1',name:'소상공인대환',balance:20000000,rate:3.11,schedule:{grace:'3년(종료)',start:'2026-09',method:'원금균등',monthly:462646,remain:48,bank:{payDay:19,prevDate:'2026-08-19',firstYM:'2026-09',principal:416000,firstPrincipal:448000,basis:365}}},
+    {id:'d2',name:'약관대출(교보 종신)',balance:19900000,rate:5.5,schedule:null}
   ],
   netSnapshots:[{m:'2026-02',a:4243477,l:42698252},{m:'2026-03',a:4086041,l:40880000},{m:'2026-04',a:2800000,l:42262352},{m:'2026-05',a:3527889,l:40610040},{m:'2026-06',a:2200000,l:39000000},{m:'2026-07',a:5039817,l:39137329}],
   transactions:[
@@ -442,7 +442,7 @@ function renderAcct(){
   var accHtml=['현금성','투자','기타'].map(function(gn){var arr=accG[gn];if(!arr.length)return '';var sub=arr.reduce(function(s,a){return s+accVal(a);},0);return '<div class="grp"><div class="ghd"><span>'+gn+' <span class="mut" style="font-weight:400">'+arr.length+'</span></span><span>'+won(sub)+'</span></div>'+arr.map(accRow).join('')+'</div>';}).join('');
   var cardHtml=DB.cards.map(function(c){var cbc=cardPendingByCard();var p=c.type==='credit'?(cbc[c.name]||0):0;var lk=c.acct?' <span class="chip auto">→'+acctName(c.acct)+'</span>':' <span class="chip check">연결계좌 미설정</span>';return '<div class="row"><span>'+c.name+' <span class="chip '+c.type+'">'+(c.type==='credit'?'신용':'체크')+'</span>'+lk+'</span><span>'+(c.type==='credit'?'미결제 '+won(p):'즉시결제')+' <span class="acts"><span data-editcard="'+c.id+'">수정</span><span data-delcard="'+c.id+'">삭제</span></span></span></div>'}).join('');
   var debtHtml=DB.debts.map(function(d){
-    var s=d.schedule,sc=s?('거치 '+s.grace+' · 상환시작 '+s.start+' · '+s.method+' · 월 '+won(s.monthly)+' · 잔여 '+s.remain+'회'):'상환일정 없음(수시상환·이자만)';
+    var s=d.schedule,nx=(s&&s.bank)?bankNextPay(d):null,sc=s?('거치 '+s.grace+' · 상환시작 '+s.start+' · '+s.method+(nx?(' · 다음 '+nx.date+' <b>'+won(nx.total)+'</b> (원금 '+comma(nx.principal)+'+이자 '+comma(nx.interest)+')'):(' · 월 '+won(s.monthly)))+' · 잔여 '+s.remain+'회'):'상환일정 없음(수시상환·이자만)';
     return '<div style="border:1px solid var(--line);border-radius:8px;padding:11px;margin-bottom:8px"><div class="row" style="border-bottom:0;padding:2px 0"><b>'+d.name+'</b><span>'+won(d.balance)+'</span></div><div class="mut" style="margin-top:4px">금리 '+(d.rate!=null?d.rate+'%':'-')+' · <b>'+sc+'</b></div><div style="margin-top:6px"><button class="ghost" data-editdebt="'+d.id+'">수정</button> <button class="ghost" data-sched="'+d.id+'">'+(s?'스케줄 수정':'스케줄 추가')+'</button> <button class="ghost" data-deldebt="'+d.id+'">삭제</button></div></div>';
   }).join('');
   function catRow(c){var tag=c.type==='income'?'<span class="chip auto">수입·'+(c.incType||'-')+(c.taxCode?' '+c.taxCode:'')+'</span>':(c.deductible?'<span class="chip credit">경비·'+(c.taxAccount||'-')+'</span>':'<span class="chip check">개인</span>');return '<div class="row"><span>'+c.name+' '+tag+'</span><span class="acts"><span data-editcat="'+c.id+'">수정</span><span data-delcat="'+c.id+'">삭제</span></span></div>';}
@@ -912,8 +912,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.4';
+var APP_VERSION='4.5';
+(function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'4.5',date:'2026-08-14',note:'부채 상환스케줄 엔진 교체 — 은행 실제 방식(원금 고정 416,000 + 잔액×3.11%×경과일수/365 일할이자, 납입일 매월 19일·주말 익영업일) 반영. 48회 전액 시뮬레이션 · 계좌·부채 탭에 다음 회차 실금액 표시 · 스케줄 모달에 전체 회차표. 은행앱 6회차와 원 단위 일치 검증'},
   {v:'4.4',date:'2026-08-14',note:'체중→체성분 전체 기록(샤오미 20항목, 비율·BMI·제지방량 자동계산) · 최신 요약카드 · 8지표 탭 그래프 · 그래프 중세풍(양피지·골드) 리디자인'},
   {v:'4.3',date:'2026-08-13',note:'일지 마스머리 3단 카드(전체 내용 표시, 안 잘림) · 수정 모달 텍스트칸 확대(15줄) · 노션 일지 15편 임포트'},
   {v:'4.2',date:'2026-08-13',note:'일지 페이지 신설(성찰) — 한줄메모·날짜시간·감정(다중태그)·장소·텍스트. 노션 「한번씩 기록」 구조 이식'},
@@ -1051,6 +1053,40 @@ function doSettle(){var bx=document.querySelectorAll('.stx'),ids=[],sum=0,byCard
   DB.transactions.forEach(function(t){if(ids.indexOf(t.id)>=0){t.card=false;byCard[t.method]=(byCard[t.method]||0)+t.amt;}});
   Object.keys(byCard).forEach(function(cardName){var cobj=DB.cards.filter(function(c){return c.name===cardName;})[0];var acct=(cobj&&cobj.acct)?cobj.acct:fallback;if(acct)DB.transactions.push({id:uid(),type:'settle',acct:acct,amt:byCard[cardName],date:todayStr(),method:cardName+' 결제',cat:'카드결제'});});
   logAct('선결제 확정 · '+ids.length+'건 '+won(sum));save();closeModal();renderDash();renderCal();alert('선결제 확정: '+ids.length+'건 '+won(sum));}
+/* ==== 은행 실제 상환스케줄 (원금 고정 + 일할이자) ====
+   검증: 경기신보 소상공인대환 스케줄 6회차 원 단위 일치 (2026-08-14) */
+function bankPayDate(y,m,payDay){var d=new Date(Date.UTC(y,m-1,payDay));var w=d.getUTCDay();if(w===6)d.setUTCDate(payDay+2);else if(w===0)d.setUTCDate(payDay+1);return d;}
+function bankSchedule(d){
+  var b=d&&d.schedule&&d.schedule.bank; if(!b)return null;
+  var rate=(d.rate||0)/100, basis=b.basis||365, n=d.schedule.remain||0;
+  var ym=((b.firstYM||d.schedule.start||'')+'').split('-'); if(ym.length<2)return null;
+  var y=parseInt(ym[0],10), m=parseInt(ym[1],10);
+  var prev=new Date(b.prevDate+'T00:00:00Z'), bal=d.balance, rows=[], ti=0, tp=0;
+  for(var i=0;i<n;i++){
+    var dt=bankPayDate(y,m,b.payDay||19);
+    var days=Math.round((dt-prev)/86400000);
+    var p=(i===0&&b.firstPrincipal)?b.firstPrincipal:b.principal;
+    if(p>bal)p=bal;
+    var it=Math.floor(bal*rate*days/basis);
+    bal-=p; ti+=it; tp+=(p+it);
+    rows.push({no:i+1,date:dt.toISOString().slice(0,10),days:days,principal:p,interest:it,total:p+it,balance:bal});
+    prev=dt; m++; if(m>12){m=1;y++;}
+    if(bal<=0)break;
+  }
+  return {rows:rows,totalInterest:ti,totalPay:tp};
+}
+function bankNextPay(d){var s=bankSchedule(d); if(!s)return null; var t=todayStr();
+  for(var i=0;i<s.rows.length;i++){if(s.rows[i].date>=t)return s.rows[i];} return null;}
+function bankYearTotal(d,year){var s=bankSchedule(d); if(!s)return 0; var y=''+year,t=0;
+  s.rows.forEach(function(r){if(r.date.slice(0,4)===y)t+=r.total;}); return t;}
+function bankSchedTable(d){
+  var s=bankSchedule(d); if(!s)return '';
+  var b=d.schedule.bank, t=todayStr();
+  return '<div class="sec" style="margin-top:14px;padding:11px"><h4>🏦 은행 실제 스케줄 <span class="mut">'+s.rows.length+'회 · 총이자 '+won(s.totalInterest)+' · 총상환 '+won(s.totalPay)+'</span></h4>'
+   +'<div style="max-height:250px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:0 9px">'
+   +s.rows.map(function(r){return '<div class="row" style="font-size:11.5px;'+(r.date>=t?'font-weight:700':'opacity:.42')+'"><span>'+r.no+'. '+r.date+' <span class="mut">'+r.days+'일</span></span><span style="font-variant-numeric:tabular-nums">'+comma(r.total)+' <span class="mut">('+comma(r.principal)+'+'+comma(r.interest)+')</span></span></div>';}).join('')
+   +'</div><div class="hint">원금 고정 '+comma(b.principal)+'원(1회차 '+comma(b.firstPrincipal||b.principal)+') · 이자 = 잔액 × '+d.rate+'% × 경과일수 / '+(b.basis||365)+' · 납입일 매월 '+(b.payDay||19)+'일(주말이면 익영업일). <b>공휴일은 미반영</b>이라 해당 회차는 하루이틀 차이 날 수 있음.</div></div>';
+}
 function computeMonthly(balance,ratePct,n,method){
   var r=(ratePct||0)/100/12; if(!n)return {monthly:0,note:'잔여 횟수를 입력하세요'};
   if(method==='만기일시')return {monthly:Math.round(balance*r),note:'이자만 매월 납부, 원금은 만기 일시상환'};
@@ -1068,7 +1104,8 @@ function schedModal(id){
    +'<div class="field"><label>금리(연 %)</label><input id="s_rate" value="'+(d.rate!=null?d.rate:'')+'" oninput="calcSched(\''+id+'\')"></div>'
    +'<div class="field"><label>잔여 횟수(개월)</label><input id="s_remain" value="'+(s.remain||'')+'" oninput="calcSched(\''+id+'\')"></div>'
    +'<div class="taxrow big" id="s_out" style="margin-top:2px">월 상환액 —</div><div class="hint" id="s_note"></div>'
-   +'<div style="margin-top:12px"><button class="btn" onclick="saveSched(\''+id+'\')">저장</button> <button class="ghost" onclick="clearSched(\''+id+'\')">일정 없음으로</button></div>');
+   +'<div style="margin-top:12px"><button class="btn" onclick="saveSched(\''+id+'\')">저장</button> <button class="ghost" onclick="clearSched(\''+id+'\')">일정 없음으로</button></div>'
+   +bankSchedTable(d));
   calcSched(id);
 }
 function calcSched(id){
