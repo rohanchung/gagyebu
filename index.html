@@ -148,6 +148,36 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .wtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
 .wtab{font-family:var(--serif);font-size:11px;padding:4px 11px;border:1px solid #e3d8bd;border-radius:999px;color:#7a5c12;cursor:pointer;background:#faf7ee}
 .wtab.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+.gtoday{background:linear-gradient(160deg,#fbfaf6,#fff);border:1px solid #e8e2cf;border-radius:12px;padding:16px;margin-bottom:12px}
+.gtoday h3{font-family:var(--serif);margin:0;font-size:16px;color:var(--gold)}
+.gstreak{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0 13px}
+.gstreak div{font-family:var(--serif);font-size:11.5px;background:#f3ead2;color:#8a6d12;border:1px solid #e3d3a0;padding:3px 11px;border-radius:999px}
+.gstreak div.cold{background:#f0f0f4;color:#8a8a9a;border-color:#e0e0e8}
+.rtask{display:flex;align-items:center;gap:11px;padding:12px 13px;margin:5px 0;border:1px solid var(--line);border-radius:10px;background:var(--soft);cursor:pointer;font-size:13.5px;user-select:none}
+.rtask:hover{border-color:var(--gold)}
+.rtask.on{background:#f3ead2;border-color:#e3d3a0;color:#7a5c12}
+.rtask .bx{width:21px;height:21px;border:2px solid #cfc7ae;border-radius:6px;flex-shrink:0;text-align:center;line-height:18px;font-size:13px;font-weight:800;background:#fff}
+.rtask.on .bx{background:var(--gold);border-color:var(--gold);color:#fff}
+.rtask .rn{flex:1}
+.rtask .rg{font-size:10px;color:var(--muted);margin-left:5px}
+.hmwrap{display:flex;gap:6px;align-items:flex-start;overflow-x:auto;padding:2px 0}
+.hmdow{display:grid;grid-template-rows:repeat(7,14px);gap:3px;font-size:8.5px;color:var(--muted);flex-shrink:0}
+.hmdow span{line-height:14px;height:14px}
+.hm{display:grid;grid-template-rows:repeat(7,14px);grid-auto-flow:column;grid-auto-columns:14px;gap:3px;flex-shrink:0}
+.hm i{width:14px;height:14px;border-radius:3px;background:#eef0f4;display:block;position:relative;cursor:default}
+.hm i.l1{background:#ece0bf}.hm i.l2{background:#d8bd77}.hm i.l3{background:var(--gold)}
+.hm i.warn::after{content:'';position:absolute;top:-1px;right:-1px;width:4px;height:4px;border-radius:50%;background:var(--neg)}
+.hm i.td{outline:2px solid var(--accent);outline-offset:1px}
+.pbar{height:7px;background:#eef0f4;border-radius:4px;overflow:hidden;margin-top:6px}
+.pbar span{display:block;height:100%;background:var(--gold);transition:width .2s}
+.goalrow{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:6px 0;background:var(--card)}
+.goalrow.done{opacity:.48}
+.goalrow.done .gt{text-decoration:line-through}
+.gyear{border-left:3px solid var(--gold);padding:7px 12px;margin:6px 0;background:#faf7ee;border-radius:0 8px 8px 0}
+.gdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#e4e8f0;vertical-align:middle;margin-left:4px}
+.gdot.part{background:#d8bd77}.gdot.full{background:var(--gold)}
+.dchip{display:inline-block;font-size:11px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;cursor:pointer;margin:2px 3px 0 0;user-select:none;background:var(--soft);color:var(--muted)}
+.dchip.on{background:var(--gold);color:#fff;border-color:var(--gold)}
 .foot{padding:14px 8px;color:#9aa6b6;font-size:10.5px;text-align:center}.foot a{color:var(--accent);cursor:pointer}
 @media(max-width:900px){.calwrap{flex-direction:column}.calside{width:100%;position:static;max-height:none}}
 @media(max-width:640px){.app.on{flex-direction:column}.side{width:100%;display:flex;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.side .brand{width:100%}.side .m{flex:1 0 auto}.side .sub{display:none}.side .m.dim{display:none}.msum div{padding:5px 7px}}
@@ -171,8 +201,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 <div class="app" id="app">
   <div class="side">
     <div class="brand"><img src="favicon.png" class="brand-crest" alt=""><br>Rohan Book</div>
+    <div class="sub">🎯 실행</div>
+    <div class="m on" data-v="goal">🎯 목표·루틴</div>
     <div class="sub">⚜ 재정</div>
-    <div class="m on" data-v="dash">🏰 현황판</div>
+    <div class="m" data-v="dash">🏰 현황판</div>
     <div class="m" data-v="cal">📜 가계부</div>
     <div class="m" data-v="cashflow">🌊 현금흐름</div>
     <div class="m" data-v="acct">🪙 계좌·부채</div>
@@ -190,7 +222,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="m" data-v="log">🪶 로그</div>
   </div>
   <div class="main">
-    <div class="view on" id="v-dash"></div>
+    <div class="view on" id="v-goal"></div>
+    <div class="view" id="v-dash"></div>
     <div class="view" id="v-cal"></div>
     <div class="view" id="v-cashflow"></div>
     <div class="view" id="v-acct"></div>
@@ -275,6 +308,16 @@ var SEED = {
     {id:'g1',date:'2026-08-04',title:'정책자금 거치연장 요청',body:'경기신보 연락, 김포지점 회신 대기. 거치연장 1순위, 안되면 재대환(금리 관건).'},
     {id:'g2',date:'2026-07-28',title:'방 개설 & 전면 진단',body:'순자산 -3,410만. 40대 평균은 장기전. 수입체급(행정사/운영총괄)이 유일 레버.'}
   ],
+  goals:[
+    {id:'gy26',level:'year',period:'2026',title:'풍무점 이전 보증금 500만 확보 + 루틴 체계 정착',memo:'10월 이전 확정. 9월부터 대환 상환 시작(월 46만). 연간은 방향 표시등 — 체크하지 않는다.',status:'active'},
+    {id:'gm2608',level:'month',period:'2026-08',title:'루틴 시스템 가동 — 매일 체크 습관화',metric:{type:'autodays',target:15,unit:'일'},progress:0,status:'active'}
+  ],
+  routines:[
+    {id:'r1',title:'체중·체성분 기록',freq:'daily',days:[],goalId:'gm2608',order:1,active:true},
+    {id:'r2',title:'가계부 입력',freq:'daily',days:[],goalId:'gm2608',order:2,active:true},
+    {id:'r3',title:'일지 한 줄',freq:'daily',days:[],goalId:'gm2608',order:3,active:true}
+  ],
+  checks:{},
   ui:{month:'2026-08',watchCats:['식비','카페','간식/편의점']}
 };
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
@@ -385,7 +428,8 @@ function renderCal(){
       else{var b=t.scope==='business';lines+='<div class="cl ex"><span class="c"><span class="sc '+(b?'b':'p')+'">'+(b?'사':'개')+'</span>'+t.cat+'</span><span class="a">-'+comma(t.amt)+'</span></div>';}
     });
     if(tx.length>10)lines+='<div class="mut" style="font-size:9px">+'+(tx.length-10)+'건 더</div>';
-    var hdr='<div class="dhdr"><span class="dn">'+d+'</span>'+(daysum?'<span class="dsum">-'+comma(daysum)+'</span>':'')+'</div>';
+    var _gr=dayRate(ds),_gd=_gr?('<span class="gdot'+(_gr.done>=_gr.total?' full':(_gr.done?' part':''))+'" data-tip="루틴 '+_gr.done+'/'+_gr.total+'"></span>'):'';
+    var hdr='<div class="dhdr"><span class="dn">'+d+_gd+'</span>'+(daysum?'<span class="dsum">-'+comma(daysum)+'</span>':'')+'</div>';
     cells+='<div class="cell'+(ds===today?' today':'')+(ds===selDate?' sel':'')+'" data-date="'+ds+'">'+hdr+lines+(card?'<div class="dot"></div>':'')+'</div>';
   }
   var WATCH=(DB.ui.watchCats&&DB.ui.watchCats.length)?DB.ui.watchCats:['식비','카페','간식/편의점'];
@@ -876,6 +920,137 @@ function renderSaju(){
    +'<div class="sec"><h4>🧭 인생 총운 <span class="mut">스토리 · 차후 업데이트됨</span></h4><div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;color:#33425e">'+(S.story?sajuEsc(S.story):'<span class="mut">아직 스토리 없음 — "인생 총운 스토리 써줘" 하면 Claude가 작성·저장.</span>')+'</div></div>';
 }
 
+/* ====== 목표·루틴 ====== */
+var DOW_KO=['일','월','화','수','목','금','토'];
+function addDays(ds,n){var d=new Date(ds+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
+function dowOf(ds){return new Date(ds+'T00:00:00Z').getUTCDay();}
+function routinesForDay(ds){
+  return (DB.routines||[]).filter(function(r){
+    if(r.active===false)return false;
+    if(r.start&&ds<r.start)return false;
+    if(r.end&&ds>r.end)return false;
+    if(r.freq==='weekly')return (r.days||[]).indexOf(dowOf(ds))>=0;
+    return true;
+  }).sort(function(a,b){return (a.order||0)-(b.order||0);});
+}
+function checkGet(ds,rid){var c=DB.checks&&DB.checks[ds];return !!(c&&c[rid]);}
+function checkToggle(ds,rid){
+  DB.checks=DB.checks||{}; DB.checks[ds]=DB.checks[ds]||{};
+  if(DB.checks[ds][rid])delete DB.checks[ds][rid]; else DB.checks[ds][rid]=1;
+  if(!Object.keys(DB.checks[ds]).length)delete DB.checks[ds];
+  save(); renderGoal();
+}
+function dayRate(ds){
+  var rs=routinesForDay(ds); if(!rs.length)return null;
+  var done=0; rs.forEach(function(r){if(checkGet(ds,r.id))done++;});
+  return {done:done,total:rs.length,rate:done/rs.length};
+}
+function streakFrom(ds,full){
+  var n=0,d=ds;
+  for(var i=0;i<400;i++){
+    var r=dayRate(d);
+    if(r===null){d=addDays(d,-1);continue;}
+    if(full?(r.done<r.total):(r.done===0))break;
+    n++; d=addDays(d,-1);
+  }
+  return n;
+}
+function goalStreaks(){
+  var t=todayStr(),r=dayRate(t);
+  return {any:streakFrom((r&&r.done>0)?t:addDays(t,-1),false),
+          full:streakFrom((r&&r.total&&r.done===r.total)?t:addDays(t,-1),true)};
+}
+function monthDoneDays(ym){
+  var n=0; for(var k in (DB.checks||{})){ if(k.slice(0,7)===ym&&Object.keys(DB.checks[k]).length)n++; } return n;
+}
+function goalHeatmap(){
+  var t=todayStr(), end=addDays(t,6-dowOf(t)), d=addDays(end,-83), cells='';
+  for(var i=0;i<84;i++){
+    var r=dayRate(d), lv='';
+    if(r)lv=(r.rate>=1?' l3':(r.rate>=0.5?' l2':(r.rate>0?' l1':'')));
+    var warn='';
+    try{var f=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
+      var _wn=0; for(var j=0;j<f.flags.length;j++){if(f.flags[j].w==='주의')_wn++;}
+      if(_wn>=2)warn=' warn';
+    }catch(e){}
+    var tip=d+' ('+DOW_KO[dowOf(d)]+') · '+(r?(r.done+'/'+r.total+' 달성'):'루틴 없음')+(warn?' · 사주 주의 겹침':'');
+    cells+='<i class="'+lv+warn+(d===t?' td':'')+'" data-tip="'+tip+'"></i>';
+    d=addDays(d,1);
+  }
+  return cells;
+}
+function goalValue(g){
+  if(g.metric&&g.metric.type==='autodays')return monthDoneDays(g.period);
+  return g.progress||0;
+}
+function goalPct(g){
+  if(g.status==='done')return 100;
+  if(!g.metric||g.metric.type==='binary')return 0;
+  var tg=g.metric.target||0; if(!tg)return 0;
+  return Math.round((goalValue(g)/tg)*100);
+}
+function goalRow(g){
+  var pct=goalPct(g), isM=g.metric&&g.metric.type&&g.metric.type!=='binary';
+  return '<div class="goalrow'+(g.status==='done'?' done':'')+'">'
+   +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:13px">'
+   +'<span class="gt">'+sajuEsc(g.title)+'</span>'
+   +'<span class="acts" style="white-space:nowrap"><span data-gdone="'+g.id+'" title="'+(g.status==='done'?'되돌리기':'완료')+'">'+(g.status==='done'?'↩':'✔')+'</span><span data-gedit="'+g.id+'">✎</span></span></div>'
+   +(isM?('<div class="mut" style="font-size:11px;margin-top:5px">'+comma(goalValue(g))+' / '+comma(g.metric.target)+' '+(g.metric.unit||'')+' <b>'+pct+'%</b>'+(g.metric.type==='autodays'?' <span class="chip auto">자동</span>':'')+'</div>'
+        +'<div class="pbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></div>'):'')
+   +(g.memo?'<div class="mut" style="font-size:11px;margin-top:6px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
+   +'</div>';
+}
+function renderGoal(){
+  var t=todayStr(), ym=t.slice(0,7), yy=t.slice(0,4);
+  var rs=routinesForDay(t), st=goalStreaks(), r=dayRate(t);
+  var tasks=rs.length?rs.map(function(x){
+    var on=checkGet(t,x.id);
+    var g=(DB.goals||[]).filter(function(z){return z.id===x.goalId;})[0];
+    return '<div class="rtask'+(on?' on':'')+'" data-rcheck="'+x.id+'">'
+     +'<span class="bx">'+(on?'✓':'')+'</span>'
+     +'<span class="rn">'+sajuEsc(x.title)+(g?'<span class="rg">→ '+sajuEsc(g.title)+'</span>':'')+'</span>'
+     +'<span class="acts"><span data-rtedit="'+x.id+'">✎</span></span></div>';
+  }).join(''):'<div class="mut" style="padding:12px 0">오늘 할 루틴이 없다. 아래 <b>+ 루틴</b>으로 추가해라.</div>';
+
+  var inactive=(DB.routines||[]).filter(function(x){return x.active===false;});
+  var offday=(DB.routines||[]).filter(function(x){return x.active!==false&&x.freq==='weekly'&&(x.days||[]).indexOf(dowOf(t))<0;});
+
+  var mg=(DB.goals||[]).filter(function(g){return g.level==='month'&&g.period===ym;});
+  var yg=(DB.goals||[]).filter(function(g){return g.level==='year'&&g.period===yy;});
+
+  var sajuToday='';
+  try{var ft=dayFlags(parseInt(t.slice(0,4),10),parseInt(t.slice(5,7),10),parseInt(t.slice(8,10),10));
+    if(ft.flags.length)sajuToday=' <span class="mut" style="font-size:11px">· '+ft.gz+' '+ft.flags.map(function(f){return f.t;}).join('·')+'</span>';
+    else sajuToday=' <span class="mut" style="font-size:11px">· '+ft.gz+'</span>';
+  }catch(e){}
+
+  document.getElementById('v-goal').innerHTML=''
+   +'<div class="gtoday">'
+   +'<h3>'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8,10),10)+'일 ('+DOW_KO[dowOf(t)]+')'+sajuToday+'</h3>'
+   +'<div class="gstreak">'
+   +'<div'+(st.any?'':' class="cold"')+'>🔥 연속 '+st.any+'일</div>'
+   +'<div'+(st.full?'':' class="cold"')+'>⭐ 완전달성 '+st.full+'일</div>'
+   +'<div'+(r&&r.done?'':' class="cold"')+'>오늘 '+(r?(r.done+'/'+r.total):'—')+'</div>'
+   +'<div class="cold">이번달 '+monthDoneDays(ym)+'일 기록</div>'
+   +'</div>'
+   +tasks
+   +'<div style="margin-top:11px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
+   +(offday.length?' <span class="mut" style="font-size:11px;margin-left:8px">오늘 쉬는 루틴 '+offday.length+'개</span>':'')
+   +(inactive.length?' <span class="mut" style="font-size:11px;margin-left:8px">비활성 '+inactive.length+'개</span>':'')
+   +' <span class="mut" id="routineListBtn" style="font-size:11px;margin-left:8px;cursor:pointer">📋 전체 루틴</span>'
+   +'</div></div>'
+
+   +'<div class="sec"><h4>🌱 12주 기록 <span class="mut">진하면 달성 · 우상단 빨간점 = 사주 충·형 2개 이상 겹친 날</span></h4>'
+   +'<div class="hmwrap"><div class="hmdow">'+DOW_KO.map(function(d,i){return '<span>'+(i%2===1?d:'')+'</span>';}).join('')+'</div>'
+   +'<div class="hm">'+goalHeatmap()+'</div></div></div>'
+
+   +'<div class="sec"><h4>'+parseInt(ym.slice(5),10)+'월 목표 <button class="btn sm" id="addMGoalBtn">+ 추가</button></h4>'
+   +(mg.length?mg.map(goalRow).join(''):'<div class="mut" style="padding:6px 0">이번 달 목표가 없다. 월간이 실질 단위다.</div>')+'</div>'
+
+   +'<div class="sec"><h4>'+yy+'년 방향 <span class="mut">표시등 · 체크하지 않는다</span> <button class="btn sm" id="addYGoalBtn">+ 추가</button></h4>'
+   +(yg.length?yg.map(function(g){return '<div class="gyear"><div style="display:flex;justify-content:space-between;font-size:13px"><span>'+sajuEsc(g.title)+'</span><span class="acts"><span data-gedit="'+g.id+'">✎</span></span></div>'+(g.memo?'<div class="mut" style="font-size:11px;margin-top:5px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')+'</div>';}).join(''):'<div class="mut" style="padding:6px 0">올해 방향이 비어 있다.</div>')+'</div>';
+}
+
 /* ====== 일지 ====== */
 var MOODS=[['깨달음','#a67c1a'],['다짐','#00695c'],['기쁨','#2e7d32'],['재밌음','#1565c0'],['반성','#c2185b'],['슬픔','#c62828'],['우울함','#6a1b9a'],['쓸쓸함','#616161']];
 function moodColor(n){var m=MOODS.filter(function(x){return x[0]===n})[0];return m?m[1]:'#888';}
@@ -912,9 +1087,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.5';
+var APP_VERSION='5.0';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'5.0',date:'2026-08-14',note:'🎯 목표·루틴 탭 신설 — 오늘의 루틴 원터치 체크 · 연속기록/완전달성 스트릭 · 12주 잔디 히트맵(사주 주의일 겹침) · 월간 목표 진행률 · 연간 방향 표시등. 가계부 캘린더에 일별 달성 점 표시. 첫 화면을 목표 탭으로 변경'},
   {v:'4.5',date:'2026-08-14',note:'부채 상환스케줄 엔진 교체 — 은행 실제 방식(원금 고정 416,000 + 잔액×3.11%×경과일수/365 일할이자, 납입일 매월 19일·주말 익영업일) 반영. 48회 전액 시뮬레이션 · 계좌·부채 탭에 다음 회차 실금액 표시 · 스케줄 모달에 전체 회차표. 은행앱 6회차와 원 단위 일치 검증'},
   {v:'4.4',date:'2026-08-14',note:'체중→체성분 전체 기록(샤오미 20항목, 비율·BMI·제지방량 자동계산) · 최신 요약카드 · 8지표 탭 그래프 · 그래프 중세풍(양피지·골드) 리디자인'},
   {v:'4.3',date:'2026-08-13',note:'일지 마스머리 3단 카드(전체 내용 표시, 안 잘림) · 수정 모달 텍스트칸 확대(15줄) · 노션 일지 15편 임포트'},
@@ -988,6 +1164,119 @@ function saveItem(id){
   save();closeModal();renderItems();
 }
 function delItem(id){if(!confirm('삭제할까요?'))return;DB.items=DB.items.filter(function(i){return i.id!==id});save();renderItems();}
+
+/* ====== 목표·루틴 모달 ====== */
+function routineModal(id){
+  var r=id?(DB.routines||[]).filter(function(x){return x.id===id;})[0]:{title:'',freq:'daily',days:[1,2,3,4,5],goalId:'',order:((DB.routines||[]).length+1),active:true,start:''};
+  if(!r)return;
+  var ym=todayStr().slice(0,7);
+  var gopts='<option value="">— 연결 안 함 —</option>'+(DB.goals||[]).filter(function(g){return g.level==='month';}).map(function(g){
+    return '<option value="'+g.id+'"'+(g.id===r.goalId?' selected':'')+'>'+g.period+' · '+sajuEsc(g.title)+'</option>';}).join('');
+  var chips=DOW_KO.map(function(d,i){return '<span class="dchip'+(((r.days||[]).indexOf(i)>=0)?' on':'')+'" data-dow="'+i+'" onclick="this.classList.toggle(\'on\')">'+d+'</span>';}).join('');
+  openModal('<div class="mtop"><h3>'+(id?'루틴 수정':'루틴 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>루틴 이름</label><input id="rt_title" value="'+sajuEsc(r.title)+'" placeholder="예: 아침 스트레칭 10분"></div>'
+   +'<div class="field"><label>빈도</label><div class="seg"><button class="'+(r.freq==='daily'?'on':'')+'" onclick="rtFreq(this,\'daily\')">매일</button><button class="'+(r.freq==='weekly'?'on':'')+'" onclick="rtFreq(this,\'weekly\')">요일 지정</button></div></div>'
+   +'<div class="field" id="rt_dayswrap" style="display:'+(r.freq==='weekly'?'block':'none')+'"><label>요일</label><div id="rt_days">'+chips+'</div></div>'
+   +'<div class="field"><label>연결할 월간 목표 <span class="mut">(선택)</span></label><select id="rt_goal">'+gopts+'</select></div>'
+   +'<div class="field"><label>시작일 <span class="mut">(선택 · 이 날짜부터 집계)</span></label><input id="rt_start" type="date" value="'+(r.start||'')+'"></div>'
+   +'<div class="field"><label>상태</label><div class="seg"><button class="'+(r.active!==false?'on':'')+'" onclick="rtAct(this,true)">활성</button><button class="'+(r.active===false?'on':'')+'" onclick="rtAct(this,false)">쉼</button></div></div>'
+   +'<button class="btn" onclick="saveRoutine('+(id?"'"+id+"'":'null')+')">저장</button>'
+   +(id?' <button class="ghost" onclick="delRoutine(\''+id+'\')">삭제</button>':''));
+  modal._rfreq=r.freq; modal._ract=(r.active!==false);
+}
+function rtFreq(b,v){modal._rfreq=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('rt_dayswrap').style.display=(v==='weekly'?'block':'none');}
+function rtAct(b,v){modal._ract=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');}
+function saveRoutine(id){
+  var title=document.getElementById('rt_title').value.trim();
+  if(!title)return alert('루틴 이름을 입력하세요');
+  var days=[],ch=document.querySelectorAll('#rt_days .dchip.on');
+  for(var i=0;i<ch.length;i++)days.push(parseInt(ch[i].dataset.dow,10));
+  if(modal._rfreq==='weekly'&&!days.length)return alert('요일을 하나 이상 선택하세요');
+  var rec={title:title,freq:modal._rfreq,days:days,goalId:document.getElementById('rt_goal').value||null,
+           start:document.getElementById('rt_start').value||'',active:modal._ract};
+  DB.routines=DB.routines||[];
+  if(id){Object.assign(DB.routines.filter(function(x){return x.id===id;})[0],rec);}
+  else{rec.id=uid();rec.order=DB.routines.length+1;DB.routines.push(rec);}
+  logAct((id?'루틴수정':'루틴추가')+' · '+title);
+  save();closeModal();renderGoal();
+}
+function delRoutine(id){
+  if(!confirm('삭제할까요? 지난 체크 기록도 같이 지워집니다.'))return;
+  var _r=(DB.routines||[]).filter(function(x){return x.id===id;})[0];
+  DB.routines=DB.routines.filter(function(x){return x.id!==id;});
+  for(var k in (DB.checks||{})){ if(DB.checks[k][id]){delete DB.checks[k][id]; if(!Object.keys(DB.checks[k]).length)delete DB.checks[k];} }
+  logAct('루틴삭제 · '+(_r?_r.title:id)); save();closeModal();renderGoal();
+}
+function routineList(){
+  var rs=(DB.routines||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
+  openModal('<div class="mtop"><h3>전체 루틴 <span class="mut" style="font-size:12px">'+rs.length+'개</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +(rs.length?rs.map(function(r){
+     var fq=r.freq==='weekly'?((r.days||[]).map(function(i){return DOW_KO[i];}).join('')):'매일';
+     return '<div class="row"><span>'+(r.active===false?'<span class="pill">쉼</span>':'')+sajuEsc(r.title)+' <span class="mut">· '+fq+'</span></span><span class="acts"><span data-rtedit="'+r.id+'">수정</span></span></div>';
+   }).join(''):'<div class="mut">등록된 루틴이 없습니다.</div>')
+   +'<div style="margin-top:12px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button></div>');
+}
+function goalModal(id,level){
+  var g=id?(DB.goals||[]).filter(function(x){return x.id===id;})[0]:null;
+  var lv=g?g.level:(level||'month');
+  var per=g?g.period:(lv==='year'?todayStr().slice(0,4):todayStr().slice(0,7));
+  g=g||{title:'',level:lv,period:per,metric:{type:'binary',target:'',unit:''},progress:0,memo:'',status:'active'};
+  var mt=(g.metric&&g.metric.type)||'binary';
+  openModal('<div class="mtop"><h3>'+(id?'목표 수정':(lv==='year'?'연간 방향 추가':'월간 목표 추가'))+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>기간 '+(lv==='year'?'(YYYY)':'(YYYY-MM)')+'</label><input id="g_period" value="'+g.period+'"></div>'
+   +'<div class="field"><label>제목</label><input id="g_title" value="'+sajuEsc(g.title)+'" placeholder="'+(lv==='year'?'올해 어디로 갈 것인가':'이번 달 무엇을 끝낼 것인가')+'"></div>'
+   +(lv==='month'?('<div class="field"><label>측정 방식</label><div class="seg">'
+     +'<button class="'+(mt==='binary'?'on':'')+'" onclick="gMet(this,\'binary\')">완료/미완</button>'
+     +'<button class="'+(mt==='autodays'?'on':'')+'" onclick="gMet(this,\'autodays\')">체크일수·자동</button>'
+     +'<button class="'+(mt==='count'?'on':'')+'" onclick="gMet(this,\'count\')">횟수</button>'
+     +'<button class="'+(mt==='amount'?'on':'')+'" onclick="gMet(this,\'amount\')">금액</button></div>'
+     +'<div class="hint" id="g_methint"></div></div>'
+     +'<div id="g_mwrap" style="display:'+(mt==='binary'?'none':'block')+'">'
+     +'<div class="field"><label>목표값</label><input id="g_target" value="'+((g.metric&&g.metric.target)||'')+'"></div>'
+     +'<div class="field"><label>단위 <span class="mut">(예: 일 · 회 · 원)</span></label><input id="g_unit" value="'+((g.metric&&g.metric.unit)||'')+'"></div>'
+     +'<div class="field" id="g_pwrap" style="display:'+(mt==='autodays'?'none':'block')+'"><label>현재 진행</label><input id="g_progress" value="'+(g.progress||0)+'"></div></div>'):'')
+   +'<div class="field"><label>메모</label><textarea id="g_memo" rows="3">'+sajuEsc(g.memo||'')+'</textarea></div>'
+   +'<button class="btn" onclick="saveGoal('+(id?"'"+id+"'":'null')+',\''+lv+'\')">저장</button>'
+   +(id?' <button class="ghost" onclick="delGoal(\''+id+'\')">삭제</button>':''));
+  modal._gmet=mt;
+}
+function gMet(b,v){modal._gmet=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
+  document.getElementById('g_mwrap').style.display=(v==='binary'?'none':'block');
+  var pw=document.getElementById('g_pwrap'); if(pw)pw.style.display=(v==='autodays'?'none':'block');
+  var hi=document.getElementById('g_methint'); if(hi)hi.textContent=(v==='autodays'?'루틴을 하나라도 체크한 날의 수를 그 달에서 자동으로 셉니다. 진행값 입력 불필요.':'');
+  if(v==='autodays'){var u=document.getElementById('g_unit'); if(u&&!u.value)u.value='일';}}
+function saveGoal(id,lv){
+  var title=document.getElementById('g_title').value.trim();
+  if(!title)return alert('제목을 입력하세요');
+  var per=document.getElementById('g_period').value.trim();
+  var re=(lv==='year')?/^\d{4}$/:/^\d{4}-\d{2}$/;
+  if(!re.test(per))return alert(lv==='year'?'기간은 YYYY 형식 (예: 2026)':'기간은 YYYY-MM 형식 (예: 2026-08)');
+  var rec={title:title,level:lv,period:per,memo:document.getElementById('g_memo').value};
+  if(lv==='month'){
+    var mt=modal._gmet;
+    rec.metric={type:mt,target:mt==='binary'?0:numv('g_target'),unit:mt==='binary'?'':document.getElementById('g_unit').value.trim()};
+    rec.progress=(mt==='binary'||mt==='autodays')?0:numv('g_progress');
+  }else{rec.metric={type:'binary',target:0,unit:''};rec.progress=0;}
+  DB.goals=DB.goals||[];
+  if(id){Object.assign(DB.goals.filter(function(x){return x.id===id;})[0],rec);}
+  else{rec.id=uid();rec.status='active';DB.goals.push(rec);}
+  logAct((id?'목표수정':'목표추가')+' · '+per+' '+title);
+  save();closeModal();renderGoal();
+}
+function goalToggle(id){
+  var g=(DB.goals||[]).filter(function(x){return x.id===id;})[0]; if(!g)return;
+  g.status=(g.status==='done')?'active':'done';
+  g.doneAt=(g.status==='done')?todayStr():undefined;
+  logAct('목표'+(g.status==='done'?'완료':'재개')+' · '+g.title);
+  save();renderGoal();
+}
+function delGoal(id){
+  if(!confirm('삭제할까요? 이 목표에 연결된 루틴은 연결만 끊깁니다.'))return;
+  var _g=(DB.goals||[]).filter(function(x){return x.id===id;})[0];
+  DB.goals=DB.goals.filter(function(x){return x.id!==id;});
+  (DB.routines||[]).forEach(function(r){if(r.goalId===id)r.goalId=null;});
+  logAct('목표삭제 · '+(_g?_g.title:id)); save();closeModal();renderGoal();
+}
 
 /* ====== 모달 ====== */
 var ov=document.getElementById('ov'),modal=document.getElementById('modal');
@@ -1175,7 +1464,7 @@ var WEIGHT_IMPORT_2026=[{"date":"2026-01-01","kg":72.6,"memo":"식단 수행"},{
 var HEALTH_SEED={"labDates":["2021-02-01","2021-02-08","2021-02-22","2021-03-31","2021-05-18","2021-07-13","2021-12-29","2022-03-08","2022-05-18","2022-05-27","2022-11-22","2023-03-16","2023-07-14","2023-11-16","2024-03-16","2024-06-11","2024-10-07","2025-03-27","2025-09-18","2026-03-12","2026-09-03"],"labTypes":["응급실","입원","외래","외래","외래","외래","외래","외래","응급실","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래"],"labMeds":[{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":[],"pm":[]}],"metrics":[{"name":"HDL-콜레스테롤","func":"좋은 콜레스테롤(높을수록 유리)","low":40.0,"high":85.0,"range":"40-85","cat":"지질"},{"name":"LDL-콜레스테롤","func":"나쁜 콜레스테롤(동맥경화 위험)","low":50.0,"high":159.0,"range":"50-159","cat":"지질"},{"name":"LDH","func":"젖산탈수소효소(간·심근·조직손상)","low":238.0,"high":422.0,"range":"238-422","cat":"심장"},{"name":"Triglyceride","func":"중성지방","low":35.0,"high":199.9,"range":"35-199.9","cat":"지질"},{"name":"AST(SGOT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Glucose(Quant)","func":"포도당","low":74.0,"high":106.0,"range":"74-106","cat":"대사·당"},{"name":"BUN","func":"혈액요소질소(신장)","low":7.0,"high":23.0,"range":"7-23","cat":"신장"},{"name":"Creatine (Serum)","func":"크레아티닌 · 신장 기능","low":0.7,"high":1.44,"range":"0.7-1.44","cat":"신장"},{"name":"eGFR","func":"추정 사구체여과율 · 신장 기능","low":null,"high":null,"range":"","cat":"신장"},{"name":"Uric Acid (Serum)","func":"요산(통풍·신장)","low":3.5,"high":7.2,"range":"3.5-7.2","cat":"신장"},{"name":"Total 콜레스테롤","func":"총 콜레스테롤","low":130.0,"high":239.9,"range":"130-239.9","cat":"지질"},{"name":"ALT(SGPT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Trpopin T (HS)","func":"심근경색","low":0.0,"high":0.014,"range":"0-0.014","cat":"심장"},{"name":"CK-MB","func":"흉통, 심근경색","low":0.0,"high":4.87,"range":"0-4.87","cat":"심장"},{"name":"NT Pro BNP","func":"심부전 지표(심장 부담)","low":0.0,"high":125.0,"range":"0-125","cat":"심장"},{"name":"Na (Serum)","func":"나트륨","low":136.0,"high":146.0,"range":"136-146","cat":"전해질"},{"name":"K (Serum)","func":"칼륨","low":3.5,"high":5.1,"range":"3.5-5.1","cat":"전해질"},{"name":"CI","func":"염소(전해질)","low":98.0,"high":107.0,"range":"98-107","cat":"전해질"},{"name":"HbA1c","func":"당화혈색소","low":4.0,"high":6.0,"range":"4.0-6.0","cat":"대사·당"},{"name":"Total Ca (Serum)","func":"칼슘","low":8.8,"high":10.6,"range":"8.8-10.6","cat":"전해질"},{"name":"CRP(Quant HS)","func":"염증상태","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Total Protein","func":"총 단백질","low":6.6,"high":8.3,"range":"6.6-8.3","cat":"간"},{"name":"Albumin","func":"알부민(영양·간)","low":3.5,"high":5.2,"range":"3.5-5.2","cat":"간"},{"name":"CPK","func":"크레아틴키나제(근육·심장 부하)","low":43.0,"high":198.0,"range":"43-198","cat":"심장"},{"name":"P (Serum)","func":"인(혈중 인산염)","low":2.5,"high":4.5,"range":"2.5-4.5","cat":"전해질"},{"name":"Mg (Serum)","func":"마그네슘","low":0.73,"high":1.06,"range":"0.73-1.06","cat":"전해질"},{"name":"C-peptide(120min)","func":"식후 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"C-peptide(Basal)","func":"공복 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"Glucose (PP2)","func":"식후 2시간 혈당","low":85.0,"high":120.0,"range":"85-120","cat":"대사·당"},{"name":"UA(7종) & Image Micro","func":"소변검사 종합 패널","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"Osmolality","func":"혈액 삼투질농도(수분·전해질 균형)","low":275.0,"high":295.0,"range":"275-295","cat":"전해질"},{"name":"Total Bilirubin","func":"총 빌리루빈(간·황달)","low":0.3,"high":1.4,"range":"0.3-1.4","cat":"간"},{"name":"Amylase","func":"아밀라제(췌장)","low":22.0,"high":80.0,"range":"22-80","cat":"간"},{"name":"CRP(Quant)","func":"감염","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Lactic Acid","func":"젖산(조직 산소부족)","low":0.5,"high":2.2,"range":"0.5-2.2","cat":"전해질"},{"name":"Total IgE(RIA)","func":"총 면역글로불린E(알레르기)","low":0.0,"high":100.0,"range":"0-100","cat":"염증·면역"},{"name":"UA SG","func":"소변 비중(농축 정도)","low":1.005,"high":1.03,"range":"1.005-1.030","cat":"소변(UA)"},{"name":"UA pH","func":"소변 산성도","low":5.0,"high":8.0,"range":"5.0-8.0","cat":"소변(UA)"},{"name":"UA Glucose","func":"요당(소변 속 포도당)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Bilirubin","func":"소변 빌리루빈(간·담도)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Ketone","func":"소변 케톤체(지방 대사)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Protein","func":"요단백(신장 손상 지표)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Urobilinogen","func":"소변 유로빌리노겐(간 기능)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Nitrite","func":"소변 아질산염(요로감염)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA WBC","func":"소변 백혈구(요로 염증·감염)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"UMicro R.B.C","func":"소변 적혈구(혈뇨)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"CBC[G]","func":"전혈구계산(CBC) 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"Hb(Colorimetry)","func":"혈색소(빈혈)","low":13.0,"high":17.0,"range":"13-17","cat":"혈액(CBC)"},{"name":"Hct","func":"적혈구용적률","low":39.0,"high":51.0,"range":"39-51","cat":"혈액(CBC)"},{"name":"RBC Court","func":"적혈구 수","low":4.2,"high":5.9,"range":"4.2-5.9","cat":"혈액(CBC)"},{"name":"MCV","func":"평균 적혈구 용적","low":80.0,"high":100.0,"range":"80-100","cat":"혈액(CBC)"},{"name":"MCH","func":"평균 적혈구 혈색소량","low":25.0,"high":34.0,"range":"25-34","cat":"혈액(CBC)"},{"name":"MCHC","func":"평균 적혈구 혈색소 농도","low":31.5,"high":35.0,"range":"31.5-35.0","cat":"혈액(CBC)"},{"name":"WBC Count","func":"백혈구 수(감염·염증)","low":4.0,"high":10.0,"range":"4.0-10","cat":"혈액(CBC)"},{"name":"PLT Count","func":"혈소판 수(지혈)","low":150.0,"high":400.0,"range":"150-400","cat":"혈액(CBC)"},{"name":"Eosinophil Count","func":"호산구 수(알레르기·기생충)","low":0.05,"high":0.5,"range":"0.05-0.50","cat":"혈액(CBC)"},{"name":"WBC Diff.Neut","func":"호중구 분율(세균 감염 반응)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Lymp","func":"림프구 분율(바이러스·면역)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Mono","func":"단핵구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC.Diff.Eosi","func":"호산구 분율(알레르기·기생충)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Baso","func":"호염기구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC ANC","func":"절대호중구수(감염 방어력)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT & PT-STAT-Panel","func":"혈액응고 검사 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT","func":"활성화 부분트롬보플라스틴시간(응고)","low":30.7,"high":43.0,"range":"30.7-43.0","cat":"혈액(CBC)"},{"name":"PT Sec","func":"프로트롬빈 시간(초) · 응고","low":11.5,"high":14.5,"range":"11.5-14.5","cat":"혈액(CBC)"},{"name":"PT %","func":"프로트롬빈 활성도(%)","low":86.0,"high":143.0,"range":"86-143","cat":"혈액(CBC)"},{"name":"PT INR","func":"항응고 표준화 지표(INR)","low":0.8,"high":1.2,"range":"0.80-1.20","cat":"혈액(CBC)"},{"name":"ACTH(ECLIA)","func":"부신피질자극호르몬","low":7.2,"high":63.3,"range":"7.20-63.30","cat":"호르몬·내분비"},{"name":"Cortisol","func":"코르티솔(스트레스 호르몬)","low":null,"high":null,"range":"","cat":"호르몬·내분비"},{"name":"Free Cortisol","func":"유리 코르티솔","low":6.0,"high":75.0,"range":"6-75","cat":"호르몬·내분비"},{"name":"VMA(HPLC)","func":"소변 VMA(카테콜아민 대사물)","low":0.0,"high":8.0,"range":"0-8","cat":"호르몬·내분비"},{"name":"Total Metanephrine","func":"메타네프린(부신 종양 지표)","low":0.0,"high":0.8,"range":"0-0.8","cat":"호르몬·내분비"},{"name":"Epinephrine, Free","func":"에피네프린(아드레날린)","low":0.0,"high":17.0,"range":"0-17","cat":"호르몬·내분비"},{"name":"Norepinephrine, Free","func":"노르에피네프린","low":8.0,"high":79.0,"range":"8-79","cat":"호르몬·내분비"},{"name":"Lipoprotein","func":"지단백(a) · 심혈관 위험","low":0.0,"high":34.0,"range":"0-34","cat":"심장"},{"name":"Free T4(RIA)","func":"갑상선호르몬 T4","low":0.89,"high":1.79,"range":"0.89-1.79","cat":"호르몬·내분비"},{"name":"TSH(RIA)","func":"갑상선자극호르몬(TSH)","low":0.17,"high":4.05,"range":"0.17-4.05","cat":"호르몬·내분비"}],"labValues":{"HDL-콜레스테롤":[55.0,null,null,null,38.0,null,43.0,null,null,null,40.0,33.0,36.0,34.0,40.0,33.0,null,39.0,null,37.0,null],"LDL-콜레스테롤":[163.0,null,null,null,null,null,null,null,null,null,93.0,52.0,87.0,90.0,88.0,88.0,null,89.0,null,63.0,null],"LDH":[506.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Triglyceride":[155.0,null,null,null,99.0,null,82.0,null,null,null,110.0,94.0,144.0,145.0,103.0,130.0,null,90.0,null,138.0,null],"AST(SGOT)":[23.0,19.0,19.0,null,18.0,null,20.0,null,21.0,null,18.0,21.0,20.0,21.0,null,null,null,22.0,null,21.0,null],"Glucose(Quant)":[166.0,null,null,null,195.0,189.0,127.0,176.0,167.0,null,108.0,120.0,115.0,138.0,125.0,96.0,null,120.0,null,101.0,null],"BUN":[19.3,17.8,17.3,null,15.1,null,18.0,21.6,23.4,null,12.6,null,null,null,15.1,null,17.4,14.8,15.1,16.0,null],"Creatine (Serum)":[1.32,1.27,1.13,null,1.23,null,1.16,1.37,1.27,null,1.14,null,null,null,1.24,null,1.19,1.07,1.26,1.08,null],"eGFR":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,91.0,74.4,null,null],"Uric Acid (Serum)":[null,null,null,null,6.09,null,6.31,null,null,null,5.17,null,null,null,5.06,null,6.59,6.16,7.28,5.87,null],"Total 콜레스테롤":[242.0,null,null,null,144.0,null,132.0,null,null,null,152.0,97.0,134.0,138.0,147.0,133.0,null,139.0,null,111.0,null],"ALT(SGPT)":[28.0,17.0,23.0,null,25.0,null,17.0,null,20.0,null,17.0,20.0,22.0,27.0,null,null,null,29.0,null,22.0,null],"Trpopin T (HS)":[0.04,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CK-MB":[2.0,0.695,null,null,null,null,null,null,0.7,null,null,null,null,null,null,null,null,null,null,null,null],"NT Pro BNP":[1447.0,169.0,null,null,17.6,null,5.0,null,5.0,null,6.34,null,5.0,null,null,null,5.0,null,5.0,null,null],"Na (Serum)":[138.0,141.0,139.0,null,141.0,null,138.0,143.0,139.0,null,139.0,null,null,null,138.0,null,139.0,139.0,138.0,138.0,null],"K (Serum)":[4.1,3.9,3.9,null,4.7,null,4.4,4.4,4.0,null,4.6,null,null,null,4.8,null,5.0,4.8,5.3,5.1,null],"CI":[100.0,104.0,101.0,null,null,null,null,null,103.0,null,null,null,null,null,null,null,null,null,null,null,null],"HbA1c":[null,null,null,null,null,6.8,6.5,6.6,null,null,6.1,6.6,6.2,7.0,7.4,6.4,null,6.4,6.3,6.0,null],"Total Ca (Serum)":[null,9.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant HS)":[null,11.43,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.82,null,0.47,null],"Total Protein":[7.4,7.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Albumin":[4.6,4.1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CPK":[102.0,48.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"P (Serum)":[null,3.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Mg (Serum)":[null,0.9,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(120min)":[null,null,null,null,null,9.11,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(Basal)":[null,null,null,null,null,4.94,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Glucose (PP2)":[null,null,null,null,null,209.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA(7종) & Image Micro":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Osmolality":[292.0,null,null,null,null,null,null,null,295.0,null,null,null,null,null,null,null,null,null,null,null,null],"Total Bilirubin":[1.37,1.25,null,null,null,null,null,null,0.63,null,null,null,null,null,null,null,null,null,null,null,null],"Amylase":[42.0,null,null,null,null,null,null,null,40.0,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant)":[6.22,null,null,null,null,null,null,null,2.61,null,null,null,null,null,null,null,null,null,null,null,null],"Lactic Acid":[1.6,null,null,null,null,null,null,null,1.1,null,null,null,null,null,null,null,null,null,null,null,null],"Total IgE(RIA)":[null,null,null,null,null,null,null,null,null,20.5,null,null,null,null,null,null,null,null,null,null,null],"UA SG":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.034,null],"UA pH":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,5.5,null],"UA Glucose":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"3+",null],"UA Bilirubin":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Ketone":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"1+",null],"UA Protein":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Urobilinogen":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Nitrite":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA WBC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"UMicro R.B.C":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"CBC[G]":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Hb(Colorimetry)":[16.3,null,15.2,null,14.9,null,15.0,null,16.0,15.4,null,null,null,null,null,16.2,null,null,16.5,null,null],"Hct":[49.1,null,44.8,null,42.9,null,44.7,null,46.4,44.8,null,null,null,null,null,47.6,null,null,47.9,null,null],"RBC Court":[5.51,null,5.18,null,5.0,null,4.98,null,5.42,5.1,null,null,null,null,null,5.26,null,null,5.35,null,null],"MCV":[89.0,null,86.5,null,85.8,null,89.8,null,85.6,87.9,null,null,null,null,null,90.6,null,null,89.7,null,null],"MCH":[29.6,null,29.3,null,29.8,null,30.1,null,29.5,30.2,null,null,null,null,null,30.8,null,null,30.8,null,null],"MCHC":[33.3,null,33.9,null,34.7,null,33.6,null,34.5,34.3,null,null,null,null,null,34.0,null,null,34.3,null,null],"WBC Count":[10.03,null,11.37,null,7.61,null,7.93,null,1.1,7.14,null,null,null,null,null,8.99,null,null,7.35,null,null],"PLT Count":[224.0,null,295.0,null,259.0,null,249.0,null,241.0,232.0,null,null,null,null,null,212.0,null,null,228.0,null,null],"Eosinophil Count":[null,null,null,null,null,null,null,null,null,0.29,null,null,null,null,null,null,null,null,0.22,null,null],"WBC Diff.Neut":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,59.3,null,null],"WBC Diff.Lymp":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,27.2,null,null],"WBC Diff.Mono":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,9.8,null,null],"WBC.Diff.Eosi":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.0,null,null],"WBC Diff.Baso":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.7,null,null],"WBC ANC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,4359.0,null,null],"aPTT & PT-STAT-Panel":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"aPTT":[31.9,34.1,null,null,null,null,null,null,32.3,null,null,null,null,null,null,null,null,null,null,null,null],"PT Sec":[12.5,13.1,null,null,null,null,null,null,12.8,null,null,null,null,null,null,null,null,null,null,null,null],"PT %":[104.0,94.0,null,null,null,null,null,null,99.0,null,null,null,null,null,null,null,null,null,null,null,null],"PT INR":[0.97,1.04,null,null,null,null,null,null,1.0,null,null,null,null,null,null,null,null,null,null,null,null],"ACTH(ECLIA)":[null,null,null,54.06,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Cortisol":[null,null,null,19.27,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Free Cortisol":[null,100.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"VMA(HPLC)":[null,5.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Total Metanephrine":[null,0.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Epinephrine, Free":[null,13.3,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Norepinephrine, Free":[null,98.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Lipoprotein":[null,null,null,null,null,null,null,null,null,null,null,null,27.5,null,null,null,null,null,null,null,null],"Free T4(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.26,null],"TSH(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.45,null]},"weights":[{"date":"2021-02-01","kg":78.0},{"date":"2021-02-08","kg":74.0},{"date":"2021-12-29","kg":73.9},{"date":"2022-05-18","kg":73.8},{"date":"2022-11-22","kg":71.25},{"date":"2023-03-16","kg":73.4},{"date":"2023-07-14","kg":73.5},{"date":"2023-11-16","kg":74.9},{"date":"2024-03-16","kg":74.1},{"date":"2024-06-11","kg":74.5},{"date":"2025-03-27","kg":74.0},{"date":"2025-09-18","kg":74.0},{"date":"2026-03-12","kg":68.2}],"events":[],"catOrder":["심장","신장","전해질","대사·당","지질","간","염증·면역","혈액(CBC)","소변(UA)","호르몬·내분비"]};
 var SAJU_SEED={birth:{solar:'1986-05-10',lunar:'1986-04-02',gender:'M'},natal:{year:'丙寅',month:'癸巳',day:'甲寅',hour:'乙亥'},ilgan:'甲',gongmang:['子','丑'],gyeok:'식신격',daeun:{startAge:9,dir:'순행',list:[[9,'甲午'],[19,'乙未'],[29,'丙申'],[39,'丁酉'],[49,'戊戌'],[59,'己亥'],[69,'庚子'],[79,'辛丑'],[89,'壬寅'],[99,'癸卯']]}};
 function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health){d.health.metrics=JSON.parse(JSON.stringify(HEALTH_SEED.metrics));d.health.catOrder=HEALTH_SEED.catOrder.slice();}
- if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } return d; }
+ if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=JSON.parse(JSON.stringify(SEED.goals)); if(d&&!d.routines)d.routines=JSON.parse(JSON.stringify(SEED.routines)); if(d&&!d.checks)d.checks={}; if(d&&d.routines)d.routines.forEach(function(r){if(r.active===undefined)r.active=true;if(!r.days)r.days=[];}); return d; }
 function catModal(id){
   var c=id?DB.categories.filter(function(x){return x.id===id})[0]:{name:'',type:'expense',deductible:false,taxAccount:'지급수수료'};
   var accs=['지급수수료','통신비','매출원가','관리비(사업안분)','감가상각비','차량유지비','소모품비','여비교통비','광고선전비','도서·교육비','기타'];
@@ -1295,9 +1584,17 @@ for(var i=0;i<navs.length;i++)(function(m){m.addEventListener('click',function()
   var all=document.querySelectorAll('.side .m');for(var j=0;j<all.length;j++)all[j].classList.remove('on');m.classList.add('on');
   var vs=document.querySelectorAll('.view');for(var j=0;j<vs.length;j++)vs[j].classList.remove('on');
   document.getElementById('v-'+m.dataset.v).classList.add('on');
-  if(m.dataset.v==='cal')renderCal();if(m.dataset.v==='cashflow')renderCashflow();if(m.dataset.v==='acct')renderAcct();if(m.dataset.v==='tax')renderTax();if(m.dataset.v==='items')renderItems();if(m.dataset.v==='budget')renderBudget();if(m.dataset.v==='log')renderLog();if(m.dataset.v==='weight')renderWeight();if(m.dataset.v==='labs')renderLabs();if(m.dataset.v==='saju')renderSaju();if(m.dataset.v==='journal')renderJournal();
+  if(m.dataset.v==='goal')renderGoal();if(m.dataset.v==='cal')renderCal();if(m.dataset.v==='cashflow')renderCashflow();if(m.dataset.v==='acct')renderAcct();if(m.dataset.v==='tax')renderTax();if(m.dataset.v==='items')renderItems();if(m.dataset.v==='budget')renderBudget();if(m.dataset.v==='log')renderLog();if(m.dataset.v==='weight')renderWeight();if(m.dataset.v==='labs')renderLabs();if(m.dataset.v==='saju')renderSaju();if(m.dataset.v==='journal')renderJournal();
 });})(navs[i]);
 document.addEventListener('click',function(e){
+  var rte=e.target.closest('[data-rtedit]');if(rte)return routineModal(rte.dataset.rtedit);
+  var rck=e.target.closest('[data-rcheck]');if(rck)return checkToggle(todayStr(),rck.dataset.rcheck);
+  if(e.target.id==='addRoutineBtn')return routineModal(null);
+  if(e.target.id==='routineListBtn')return routineList();
+  if(e.target.id==='addMGoalBtn')return goalModal(null,'month');
+  if(e.target.id==='addYGoalBtn')return goalModal(null,'year');
+  var gde=e.target.closest('[data-gedit]');if(gde)return goalModal(gde.dataset.gedit);
+  var gdn=e.target.closest('[data-gdone]');if(gdn)return goalToggle(gdn.dataset.gdone);
   var el=e.target.closest('[data-acc]');
   var vd=e.target.closest('[data-vdel]');if(vd)return delVal(vd.dataset.acc,vd.dataset.vdel);
   if(el&&el.dataset.acc&&el.classList.contains('item'))return assetModal(el.dataset.acc);
@@ -1352,7 +1649,7 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);renderDash();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);renderGoal();});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
