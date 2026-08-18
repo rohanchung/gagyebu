@@ -150,6 +150,38 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .wtab.on{background:var(--gold);color:#fff;border-color:var(--gold)}
 .gcode{font-family:var(--serif);font-size:10.5px;font-weight:700;color:var(--gold);background:#f7f2e2;border:1px solid #e8ddbe;padding:1px 5px;border-radius:4px;letter-spacing:.3px}
 .rcode{font-family:var(--serif);font-size:10px;font-weight:700;color:#8a7c55;letter-spacing:.3px;margin-right:2px}
+.g2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;margin-bottom:12px}
+.g2col>.sec,.g2col>.gtoday{margin-bottom:0}
+@media(max-width:1080px){.g2col{grid-template-columns:1fr}}
+.dnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.dnav b{font-family:var(--serif);font-size:16px;color:var(--gold)}
+.dnav>span[data-dmv],.dnav #goalDatePick{cursor:pointer;color:var(--muted);font-size:14px;padding:1px 5px;user-select:none;border-radius:5px}
+.dnav>span[data-dmv]:hover,.dnav #goalDatePick:hover{background:#f3ead2;color:var(--gold)}
+.dnav>span.off{opacity:.22;pointer-events:none}
+.dnav #goalToday{cursor:pointer}
+.mnav2{display:inline-flex;align-items:center;gap:6px}
+.mnav2 span{cursor:pointer;color:var(--muted);font-size:13px;padding:0 4px;user-select:none;border-radius:4px}
+.mnav2 span:hover{background:#f3ead2;color:var(--gold)}
+.mnav2 b{font-size:13.5px}
+.gcal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.gcdow{text-align:center;font-size:10px;color:var(--muted);padding:2px 0}
+.gcdow.s0{color:var(--neg)}.gcdow.s6{color:var(--accent)}
+.gcell{position:relative;height:44px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;justify-content:space-between}
+.gcell.empty{border:0;background:transparent;cursor:default;height:44px}
+.gcell:hover{border-color:var(--gold)}
+.gcell .gcd{font-size:10.5px;color:var(--muted);line-height:1}
+.gcell .gcr{font-size:9px;font-weight:700;color:#8a6d12;text-align:right;line-height:1}
+.gcell.l0{background:#fafafa}
+.gcell.l1{background:#f6efdc;border-color:#ece0bf}
+.gcell.l2{background:#ecdcaf;border-color:#ddc27c}
+.gcell.l3{background:#d8bd77;border-color:var(--gold)}
+.gcell.l3 .gcd,.gcell.l2 .gcd{color:#5d4a12}
+.gcell.today{box-shadow:inset 0 0 0 1px var(--accent)}
+.gcell.sel{outline:2px solid var(--gold);outline-offset:1px}
+.gcell.fut{opacity:.35;cursor:default;pointer-events:none}
+.gcell .gcm{position:absolute;top:3px;right:4px;width:4px;height:4px;border-radius:50%;background:var(--neg)}
+.goalrow.ms{border-left:3px solid var(--gold)}
+.hm i[data-gcal]{cursor:pointer}
 .ctxtop{display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid #ece3c9}
 .ctxtitle{font-family:var(--serif);font-size:11.5px;font-weight:700;letter-spacing:.6px;color:var(--gold)}
 .ghost.sm{padding:4px 9px;font-size:11px}
@@ -1133,9 +1165,30 @@ function sourceValue(src){
   }catch(e){}
   return null;
 }
+/* 마일스톤의 출발점: 직전 달 눈금값, 없으면 부모의 시작값 */
+function msBaseline(m){
+  var p=goalById(m.parentId); if(!p)return null;
+  var list=milestonesOf(p.id), idx=-1;
+  for(var i=0;i<list.length;i++){if(list[i].id===m.id){idx=i;break;}}
+  if(idx>0){var pv=list[idx-1].metric&&list[idx-1].metric.target;return (pv!=null&&pv!=='')?parseFloat(pv):null;}
+  return (p.baseline!=null&&p.baseline!=='')?parseFloat(p.baseline):null;
+}
 function goalValue(g){
   if(!g)return 0;
   if(g.metric&&g.metric.type==='autodays')return monthDoneDays(g.period||todayStr().slice(0,7));
+  /* 눈금은 부모의 연동 소스를 그대로 따른다 (현재값은 하나뿐이므로) */
+  if(g.kind==='milestone'){
+    var p=goalById(g.parentId);
+    if(p&&p.source&&p.source!=='manual'){
+      var pv=sourceValue(p.source);
+      if(pv!=null)return pv;
+    }
+    if(g.progress===''||g.progress==null){
+      var mb=msBaseline(g);
+      if(mb!=null)return mb;
+    }
+    return g.progress||0;
+  }
   if(g.source&&g.source!=='manual'){
     var v=sourceValue(g.source);
     if(v!=null)return v;
@@ -1156,6 +1209,7 @@ function goalPct(g){
   var tg=(g.metric.target!=null&&g.metric.target!=='')?parseFloat(g.metric.target):0;
   var cur=goalValue(g);
   var base=(g.baseline!=null&&g.baseline!=='')?parseFloat(g.baseline):null;
+  if(g.kind==='milestone'&&base==null)base=msBaseline(g);
   /* 시작값이 있으면 base→target 구간의 진척률. 감소형(체중 68.2→65)도 동일 식으로 처리 */
   if((mt==='amount'||mt==='count')&&base!=null&&base!==tg)
     return Math.max(0,Math.min(100,Math.round(((cur-base)/(tg-base))*100)));
@@ -1170,6 +1224,42 @@ function goalTrend(g){
   return tg<base?-1:1;
 }
 
+/* --- 보고 있는 날짜 · 달 --- */
+function curDate(){var d=(DB.ui&&DB.ui.goalDate)||todayStr();return d>todayStr()?todayStr():d;}
+function curMonth(){return (DB.ui&&DB.ui.goalMonth)||todayStr().slice(0,7);}
+function setGoalDate(ds){
+  if(ds>todayStr())return;
+  DB.ui.goalDate=ds; DB.ui.goalMonth=ds.slice(0,7); save(); renderGoal();
+}
+function moveGoalDate(n){setGoalDate(addDays(curDate(),n));}
+function moveGoalMonth(n){
+  DB.ui.goalMonth=ymAdd(curMonth(),n); save(); renderGoal();
+}
+function goalDatePicker(){
+  var d=curDate();
+  openModal('<div class="mtop"><h3>날짜 선택</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>날짜 <span class="mut">(미래는 선택할 수 없다)</span></label>'
+   +'<input id="gd_date" type="date" value="'+d+'" max="'+todayStr()+'"></div>'
+   +'<button class="btn" onclick="applyGoalDate()">이동</button> '
+   +'<button class="ghost" onclick="setGoalDate(todayStr());closeModal()">오늘로</button>');
+}
+function applyGoalDate(){
+  var v=document.getElementById('gd_date').value;
+  if(!v)return; setGoalDate(v); closeModal();
+}
+function goalMonthPicker(){
+  var y=parseInt(curMonth().slice(0,4),10),months='';
+  for(var mo=1;mo<=12;mo++){var mm=y+'-'+String(mo).padStart(2,'0');
+    months+='<button class="'+(mm===curMonth()?'btn':'ghost')+'" style="margin:3px;min-width:52px" onclick="jumpGoalMonth(\''+mm+'\')">'+mo+'월</button>';}
+  openModal('<div class="mtop"><h3>월 선택</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:10px 0">'
+   +'<span class="x" style="font-size:18px" onclick="shiftGoalYear(-1)">◀</span><b style="font-size:17px">'+y+'년</b>'
+   +'<span class="x" style="font-size:18px" onclick="shiftGoalYear(1)">▶</span></div>'
+   +'<div style="display:flex;flex-wrap:wrap;justify-content:center">'+months+'</div>');
+}
+function shiftGoalYear(d){DB.ui.goalMonth=(parseInt(curMonth().slice(0,4),10)+d)+'-'+curMonth().slice(5);goalMonthPicker();}
+function jumpGoalMonth(mm){DB.ui.goalMonth=mm;save();closeModal();renderGoal();}
+
 /* --- 히트맵 --- */
 function goalHeatmap(){
   var t=todayStr(),end=addDays(t,6-dowOf(t)),d=addDays(end,-83),cells='';
@@ -1183,8 +1273,29 @@ function goalHeatmap(){
     }catch(e){}
     var ms=Object.keys(missOf(d)),mt=ms.length?(' · '+ms.map(function(c){return (missOf(d)[c].tag||'?');}).join(',')):'';
     var tip=d+' ('+DOW_KO[dowOf(d)]+') · '+(r?(r.done+'/'+r.total+' 달성'):'루틴 없음')+mt+(warn?' · 사주 주의 겹침':'');
-    cells+='<i class="'+lv+warn+(d===t?' td':'')+'" data-tip="'+tip+'"></i>';
+    cells+='<i class="'+lv+warn+(d===t?' td':'')+'" data-tip="'+tip+'" data-gcal="'+d+'"></i>';
     d=addDays(d,1);
+  }
+  return cells;
+}
+
+/* --- 월간 체크 캘린더 --- */
+function goalCalendar(){
+  var ym=curMonth(),sel=curDate(),t=todayStr();
+  var y=parseInt(ym.slice(0,4),10),mo=parseInt(ym.slice(5),10);
+  var first=new Date(Date.UTC(y,mo-1,1)).getUTCDay(),dim=new Date(Date.UTC(y,mo,0)).getUTCDate();
+  var cells=DOW_KO.map(function(d,i){return '<div class="gcdow s'+i+'">'+d+'</div>';}).join('');
+  for(var i=0;i<first;i++)cells+='<div class="gcell empty"></div>';
+  for(var dd=1;dd<=dim;dd++){
+    var ds=ym+'-'+String(dd).padStart(2,'0');
+    var r=dayRate(ds),lv='';
+    if(r)lv=(r.rate>=1?' l3':(r.rate>=0.5?' l2':(r.rate>0?' l1':' l0')));
+    var future=ds>t;
+    var nm=Object.keys(missOf(ds)).length;
+    cells+='<div class="gcell'+lv+(ds===sel?' sel':'')+(ds===t?' today':'')+(future?' fut':'')+'" data-gcal="'+ds+'">'
+      +'<span class="gcd">'+dd+'</span>'
+      +(r&&!future?'<span class="gcr">'+r.done+'/'+r.total+'</span>':'')
+      +(nm?'<span class="gcm"></span>':'')+'</div>';
   }
   return cells;
 }
@@ -1193,18 +1304,20 @@ function goalHeatmap(){
 function goalRow(g,compact){
   var pct=goalPct(g),mt=(g.metric&&g.metric.type)||'binary',isM=mt!=='binary';
   var val=goalValue(g);
-  return '<div class="goalrow'+(g.status==='done'?' done':'')+'">'
+  var par=g.parentId?goalById(g.parentId):null;
+  return '<div class="goalrow'+(g.status==='done'?' done':'')+(par?' ms':'')+'">'
    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:13px">'
-   +'<span class="gt"><span class="gcode">'+g.code+'</span> '+sajuEsc(g.title)+'</span>'
+   +'<span class="gt"><span class="gcode">'+g.code+'</span> '+sajuEsc(g.title)
+   +(par?' <span class="rg">← '+par.code+' '+sajuEsc(par.title)+'</span>':' <span class="chip check">단발</span>')+'</span>'
    +'<span class="acts" style="white-space:nowrap"><span data-gdone="'+g.id+'" title="'+(g.status==='done'?'되돌리기':'완료')+'">'+(g.status==='done'?'↩':'✔')+'</span><span data-gedit="'+g.id+'">✎</span></span></div>'
-   +(isM?('<div class="mut" style="font-size:11px;margin-top:5px">'+comma(val)+' / '+comma(g.metric.target)+' '+(g.metric.unit||'')+' <b>'+pct+'%</b>'
+   +(isM?('<div class="mut" style="font-size:11px;margin-top:5px">'+gnum(val)+' / '+gnum(g.metric.target)+' '+(g.metric.unit||'')+' <b>'+pct+'%</b>'
         +(mt==='autodays'?' <span class="chip auto">자동</span>':'')+(g.manual?' <span class="chip check">수동</span>':'')+'</div>'
         +'<div class="pbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></div>'):'')
    +(!compact&&g.memo?'<div class="mut" style="font-size:11px;margin-top:6px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
    +'</div>';
 }
 
-/* --- 오늘의 루틴 (목표별 그룹) --- */
+/* --- 그날의 루틴 (목표별 그룹) --- */
 function todayGroups(t){
   var rs=routinesForDay(t),groups=[],idx={};
   function bucket(key,label,cls){
@@ -1235,13 +1348,14 @@ function routineRow(t,r,g){
 
 function renderGoal(){
   syncAllMilestones();
-  var t=todayStr(),ym=t.slice(0,7),yy=t.slice(0,4);
-  var st=goalStreaks(),r=dayRate(t);
-  var yg=yearGoals(yy),solo=soloGoals(ym);
+  var t=todayStr(), d=curDate(), ym=curMonth(), yy=t.slice(0,4);
+  var st=goalStreaks(), r=dayRate(d);
+  var yg=yearGoals(yy);
+  var isToday=(d===t);
 
-  /* 컨텍스트바: 연간 → 월별 눈금 */
+  /* ── 1행: 연간 목표 (전폭) ── */
   var ctx=yg.map(function(g){
-    var ms=milestoneAt(g.id,ym),pct=goalPct(g),open=(DB.ui.goalOpen===g.id);
+    var pct=goalPct(g),open=(DB.ui.goalOpen===g.id);
     var stat=goalStats(g.id,ym+'-01',lastDayOfYM(ym));
     var mt=(g.metric&&g.metric.type)||'binary';
     var cur=goalValue(g), tr=goalTrend(g);
@@ -1257,13 +1371,13 @@ function renderGoal(){
      +'<span class="ctxr">'+right+'</span></div>'
      +'<div class="ctxbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></div>'
      +(open?('<div class="ctxbody">'
-        +'<div class="mut" style="font-size:11.5px">이달 투입 <b>'+stat.days+'일</b> · 루틴 달성 '+stat.done+'/'+stat.due+' ('+Math.round(stat.rate*100)+'%)'
+        +'<div class="mut" style="font-size:11.5px">'+parseInt(ym.slice(5),10)+'월 투입 <b>'+stat.days+'일</b> · 루틴 달성 '+stat.done+'/'+stat.due+' ('+Math.round(stat.rate*100)+'%)'
         +(mt!=='binary'&&tr<0?' · <span class="mut">감소형 목표</span>':'')+'</div>'
         +(g.memo?'<div class="mut" style="font-size:11px;margin-top:5px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
         +'<div class="msbox"><div class="mshd">월간 세부목표 <span class="mut">'+mlist.length+'개</span>'
           +'<button class="ghost sm" data-msadd="'+g.id+'">+ 세부목표</button></div>'
         +(mlist.length?mlist.map(function(m){
-            var isNow=(m.period===ym), mp=goalPct(m);
+            var isNow=(m.period===ym);
             var val=(m.metric&&m.metric.type!=='binary')?(gnum(m.metric.target)+(m.metric.unit||'')):'';
             return '<div class="msrow'+(isNow?' now':'')+(m.status==='done'?' done':'')+'">'
               +'<span><b class="gcode">'+m.code+'</b> '+sajuEsc(m.title)+(isNow?' <span class="chip auto">이달</span>':'')+'</span>'
@@ -1275,43 +1389,65 @@ function renderGoal(){
      +'</div>';
   }).join('');
 
-  var sajuToday='';
-  try{var ft=dayFlags(parseInt(t.slice(0,4),10),parseInt(t.slice(5,7),10),parseInt(t.slice(8,10),10));
-    sajuToday=' <span class="mut" style="font-size:11px">· '+ft.gz+(ft.flags.length?' '+ft.flags.map(function(f){return f.t;}).join('·'):'')+'</span>';
+  /* ── 2행 좌: 그날의 루틴 ── */
+  var sajuD='';
+  try{var ft=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
+    sajuD=' <span class="mut" style="font-size:11px">· '+ft.gz+(ft.flags.length?' '+ft.flags.map(function(f){return f.t;}).join('·'):'')+'</span>';
   }catch(e){}
-
-  var groups=todayGroups(t);
+  var groups=todayGroups(d);
   var tasks=groups.length?groups.map(function(gr){
     return '<div class="rgroup"><div class="rghd '+gr.cls+'">'+sajuEsc(gr.label)+'</div>'
-     +gr.rows.map(function(x){return routineRow(t,x.r,x.g);}).join('')+'</div>';
-  }).join(''):'<div class="mut" style="padding:12px 0">오늘 할 루틴이 없다. 아래 <b>+ 루틴</b>으로 추가해라.</div>';
-
+     +gr.rows.map(function(x){return routineRow(d,x.r,x.g);}).join('')+'</div>';
+  }).join(''):'<div class="mut" style="padding:12px 0">이 날 해당하는 루틴이 없다.</div>';
   var paused=(DB.routines||[]).filter(function(x){return x.status==='paused';}).length;
   var retired=(DB.routines||[]).filter(function(x){return x.status==='retired';}).length;
+
+  var dayPane='<div class="gtoday">'
+   +'<div class="dnav"><span data-dmv="-1">◀</span>'
+   +'<b>'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8,10),10)+'일 ('+DOW_KO[dowOf(d)]+')</b>'
+   +'<span data-dmv="1"'+(isToday?' class="off"':'')+'>▶</span>'
+   +'<span id="goalDatePick" title="날짜 선택">📅</span>'
+   +(isToday?'<span class="chip auto">오늘</span>':'<span class="chip check" id="goalToday">오늘로</span>')
+   +sajuD+'</div>'
+   +'<div class="gstreak">'
+   +'<div'+(st.any?'':' class="cold"')+'>🔥 연속 '+st.any+'일</div>'
+   +'<div'+(st.full?'':' class="cold"')+'>⭐ 완전달성 '+st.full+'일</div>'
+   +'<div'+(r&&r.done?'':' class="cold"')+'>'+(isToday?'오늘':'이 날')+' '+(r?(r.done+'/'+r.total):'—')+'</div>'
+   +'<div class="cold">'+parseInt(ym.slice(5),10)+'월 '+monthDoneDays(ym)+'일 기록</div>'
+   +'</div>'+tasks
+   +'<div style="margin-top:11px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
+   +' <span class="mut" id="routineListBtn" style="font-size:11px;margin-left:8px;cursor:pointer">📋 전체 루틴'
+   +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span></div></div>';
+
+  /* ── 2행 우: 월간 체크 캘린더 ── */
+  var mDays=monthDoneDays(ym);
+  var calPane='<div class="sec"><h4>📅 '+parseInt(ym.slice(5),10)+'월 체크 <span class="mut">'+mDays+'일 기록 · 날짜를 눌러 지난 날도 체크</span></h4>'
+   +'<div class="gcal">'+goalCalendar()+'</div></div>';
+
+  /* ── 3행 좌: 월간 과제 (연간 눈금 + 단발) ── */
+  var msThis=(DB.goals||[]).filter(function(g){return g.kind==='milestone'&&g.period===ym;});
+  var soloThis=soloGoals(ym);
+  var all=msThis.concat(soloThis);
+  var taskPane='<div class="sec"><h4><span class="mnav2"><span data-mmv="-1">◀</span>'
+   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월 과제</b>'
+   +'<span data-mmv="1">▶</span><span id="goalMonthPick" title="월 선택">📅</span></span>'
+   +'<button class="btn sm" id="addSoloBtn">+ 과제</button></h4>'
+   +'<div class="mut" style="font-size:11px;margin-bottom:7px">연간 목표의 이 달 눈금 '+msThis.length+'개 · 이 달 단발 과제 '+soloThis.length+'개</div>'
+   +(all.length?all.map(function(g){return goalRow(g,true);}).join('')
+     :'<div class="mut" style="padding:6px 0">이 달 과제가 없다. 연간 목표를 펼쳐 세부목표를 만들거나, <b>+ 과제</b>로 단발 과제를 추가해라.</div>')
+   +'</div>';
+
+  /* ── 3행 우: 12주 기록 ── */
+  var hmPane='<div class="sec"><h4>🌱 12주 기록 <span class="mut">진하면 달성 · 빨간점 = 사주 충·형 2개 이상</span></h4>'
+   +'<div class="hmwrap"><div class="hmdow">'+DOW_KO.map(function(x,i){return '<span>'+(i%2===1?x:'')+'</span>';}).join('')+'</div>'
+   +'<div class="hm">'+goalHeatmap()+'</div></div></div>';
 
   document.getElementById('v-goal').innerHTML=''
    +'<div class="ctxwrap"><div class="ctxtop"><span class="ctxtitle">⚑ '+yy+'년 연간 목표</span>'
    +'<button class="ghost sm" id="addYGoalBtn">+ 연간 목표</button></div>'
    +(ctx||'<div class="mut" style="font-size:12px;padding:6px 2px">올해 목표가 없다. 여기서부터 시작해라.</div>')+'</div>'
-
-   +'<div class="gtoday">'
-   +'<h3>'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8,10),10)+'일 ('+DOW_KO[dowOf(t)]+')'+sajuToday+'</h3>'
-   +'<div class="gstreak">'
-   +'<div'+(st.any?'':' class="cold"')+'>🔥 연속 '+st.any+'일</div>'
-   +'<div'+(st.full?'':' class="cold"')+'>⭐ 완전달성 '+st.full+'일</div>'
-   +'<div'+(r&&r.done?'':' class="cold"')+'>오늘 '+(r?(r.done+'/'+r.total):'—')+'</div>'
-   +'<div class="cold">이번달 '+monthDoneDays(ym)+'일 기록</div>'
-   +'</div>'+tasks
-   +'<div style="margin-top:11px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
-   +' <span class="mut" id="routineListBtn" style="font-size:11px;margin-left:8px;cursor:pointer">📋 전체 루틴'
-   +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span></div></div>'
-
-   +'<div class="sec"><h4>🌱 12주 기록 <span class="mut">진하면 달성 · 우상단 빨간점 = 사주 충·형 2개 이상 겹친 날</span></h4>'
-   +'<div class="hmwrap"><div class="hmdow">'+DOW_KO.map(function(d,i){return '<span>'+(i%2===1?d:'')+'</span>';}).join('')+'</div>'
-   +'<div class="hm">'+goalHeatmap()+'</div></div></div>'
-
-   +'<div class="sec"><h4>▣ '+parseInt(ym.slice(5),10)+'월 단독 과제 <span class="mut">연간 목표와 무관하게 이 달에 시작해 이 달에 끝나는 것</span> <button class="btn sm" id="addSoloBtn">+ 추가</button></h4>'
-   +(solo.length?solo.map(function(g){return goalRow(g);}).join(''):'<div class="mut" style="padding:6px 0">이 달의 단독 과제가 없다.</div>')+'</div>';
+   +'<div class="g2col">'+dayPane+calPane+'</div>'
+   +'<div class="g2col">'+taskPane+hmPane+'</div>';
 }
 
 /* ====== 일지 ====== */
@@ -1350,9 +1486,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='6.1';
+var APP_VERSION='6.2';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'6.2',date:'2026-08-18',note:'레이아웃 2열 재구성 — 연간(전폭) / 그날 루틴·월간 체크 캘린더 / 월간 과제·12주 기록 · 날짜 네비(◀▶📅)로 지난 날 루틴 체크 가능(미래 차단) · 월간 캘린더에서 날짜 클릭 이동 · 단독과제→월간 과제로 통합(연간 눈금+단발 한 화면) · 월 네비 추가 · 월간 눈금이 부모 목표의 연동값·시작값을 승계'},
   {v:'6.1',date:'2026-08-18',note:'월간 세부목표 직접 CRUD(binary 목표에도 수동 눈금 생성) · 연간 목표 헤더/버튼 정리 · 단독과제 프레임 분리 · [버그] 감소형 목표(체중) 진행률이 100%로 튀던 문제 수정 · 목표 현재값을 앱 데이터와 자동 연동(체중=체성분 최신, 현금=현금성 계좌 합계, 순자산, 총부채) · ESC/바깥클릭으로 모달 닫기'},
   {v:'6.0',date:'2026-08-18',note:'목표·루틴 전면 재설계 — 연간(대전제)→월별 눈금→일간 루틴 계층 · 계층 코드 자동발급(A/A.8/A1/A.8a/M8.1/Z1) · due 기반 마일스톤 자동생성(선형배분) · 기록 불변성(due 스냅샷, 과거 소급변동 제거) · 삭제 대신 은퇴 · 미달 사유 태그+메모 · 컨텍스트바 + 목표별 그룹핑'},
   {v:'5.0.1',date:'2026-08-18',note:'[버그수정] 현황판이 빈 화면으로 뜨던 문제 — v5.0에서 첫 화면을 목표 탭으로 바꾸면서 renderDash() 호출 지점이 사라졌음. 탭→렌더러를 VIEW_RENDER 맵으로 교체해 누락 시 콘솔 경고. 13개 탭 전수 클릭 검사 추가'},
@@ -1523,7 +1660,7 @@ function routineList(){
 }
 /* --- 미달 사유 --- */
 function missModal(code){
-  var t=todayStr(),r=routineByCode(code),cur=missOf(t)[code]||{tag:'',memo:''};
+  var t=curDate(),r=routineByCode(code),cur=missOf(t)[code]||{tag:'',memo:''};
   if(!r)return;
   var tags=(DB.missTags||MISS_TAGS).map(function(x){
     return '<span class="dchip'+(cur.tag===x?' on':'')+'" data-misstag="'+x+'" onclick="missPick(this)">'+x+'</span>';}).join('');
@@ -1532,7 +1669,7 @@ function missModal(code){
    +'<div class="field"><label>태그 <span class="mut">(집계용 — 1년 쌓이면 실패 원인이 숫자로 나온다)</span></label><div id="miss_tags">'+tags+'</div></div>'
    +'<div class="field"><label>한 줄 <span class="mut">(선택 · 맥락용)</span></label><input id="miss_memo" value="'+sajuEsc(cur.memo||'')+'" placeholder="예: 11시 퇴근"></div>'
    +'<button class="btn" onclick="saveMiss(\''+code+'\')">저장</button>'
-   +(cur.tag||cur.memo?' <button class="ghost" onclick="setMiss(todayStr(),\''+code+'\',\'\',\'\');closeModal()">지우기</button>':''));
+   +(cur.tag||cur.memo?' <button class="ghost" onclick="setMiss(curDate(),\''+code+'\',\'\',\'\');closeModal()">지우기</button>':''));
   modal._misstag=cur.tag||'';
 }
 function missPick(el){
@@ -1542,7 +1679,7 @@ function missPick(el){
   el.classList.add('on');
 }
 function saveMiss(code){
-  setMiss(todayStr(),code,modal._misstag||'',document.getElementById('miss_memo').value.trim());
+  setMiss(curDate(),code,modal._misstag||'',document.getElementById('miss_memo').value.trim());
   closeModal();
 }
 /* --- 목표 --- */
@@ -1932,6 +2069,8 @@ function migrateV6(d){
 
   if(!d.missTags)d.missTags=MISS_TAGS.slice();
   if(d.ui&&d.ui.goalOpen===undefined)d.ui.goalOpen=null;
+  if(d.ui&&!d.ui.goalDate)d.ui.goalDate=today;
+  if(d.ui&&!d.ui.goalMonth)d.ui.goalMonth=today.slice(0,7);
   d.schemaVersion=6;
   return d;
 }
@@ -2064,17 +2203,23 @@ for(var i=0;i<navs.length;i++)(function(m){m.addEventListener('click',function()
   if(_fn)_fn(); else console.warn('[RohanBook] 렌더러가 등록되지 않은 탭: '+m.dataset.v);
 });})(navs[i]);
 document.addEventListener('click',function(e){
+  var dmv=e.target.closest('[data-dmv]');if(dmv)return moveGoalDate(parseInt(dmv.dataset.dmv,10));
+  var mmv=e.target.closest('[data-mmv]');if(mmv)return moveGoalMonth(parseInt(mmv.dataset.mmv,10));
+  if(e.target.id==='goalDatePick')return goalDatePicker();
+  if(e.target.id==='goalMonthPick')return goalMonthPicker();
+  if(e.target.id==='goalToday')return setGoalDate(todayStr());
+  var gcl=e.target.closest('[data-gcal]');if(gcl)return setGoalDate(gcl.dataset.gcal);
   var rmi=e.target.closest('[data-rmiss]');if(rmi)return missModal(rmi.dataset.rmiss);
   var rte=e.target.closest('[data-rtedit]');if(rte)return routineModal(rte.dataset.rtedit);
-  var rck=e.target.closest('[data-rcheck]');if(rck)return checkToggle(todayStr(),rck.dataset.rcheck);
+  var rck=e.target.closest('[data-rcheck]');if(rck)return checkToggle(curDate(),rck.dataset.rcheck);
   if(e.target.id==='addRoutineBtn')return routineModal(null);
   if(e.target.id==='routineListBtn')return routineList();
-  if(e.target.id==='addSoloBtn')return goalModal(null,'month');
+  if(e.target.id==='addSoloBtn')return goalModal(null,'month',null,curMonth());
   if(e.target.id==='addMGoalBtn')return goalModal(null,'month');
   if(e.target.id==='addYGoalBtn')return goalModal(null,'year');
   var gde=e.target.closest('[data-gedit]');if(gde)return goalModal(gde.dataset.gedit);
   var gdn=e.target.closest('[data-gdone]');if(gdn)return goalToggle(gdn.dataset.gdone);
-  var msa=e.target.closest('[data-msadd]');if(msa)return goalModal(null,'milestone',msa.dataset.msadd,DB.ui.month||todayStr().slice(0,7));
+  var msa=e.target.closest('[data-msadd]');if(msa)return goalModal(null,'milestone',msa.dataset.msadd,curMonth());
   var gop=e.target.closest('[data-gopen]');if(gop)return toggleGoalOpen(gop.dataset.gopen);
   var el=e.target.closest('[data-acc]');
   var vd=e.target.closest('[data-vdel]');if(vd)return delVal(vd.dataset.acc,vd.dataset.vdel);
