@@ -150,6 +150,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .wtab.on{background:var(--gold);color:#fff;border-color:var(--gold)}
 .gcode{font-family:var(--serif);font-size:10.5px;font-weight:700;color:var(--gold);background:#f7f2e2;border:1px solid #e8ddbe;padding:1px 5px;border-radius:4px;letter-spacing:.3px}
 .rcode{font-family:var(--serif);font-size:10px;font-weight:700;color:#8a7c55;letter-spacing:.3px;margin-right:2px}
+.ctxtop{display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;margin-bottom:4px;border-bottom:1px solid #ece3c9}
+.ctxtitle{font-family:var(--serif);font-size:11.5px;font-weight:700;letter-spacing:.6px;color:var(--gold)}
+.ghost.sm{padding:4px 9px;font-size:11px}
+.ctxrow.gdone .ctxhead{opacity:.5}
+.msbox{margin-top:9px;padding-top:8px;border-top:1px dashed #ece3c9}
+.mshd{display:flex;justify-content:space-between;align-items:center;font-family:var(--serif);font-size:10.5px;font-weight:700;color:var(--gold);letter-spacing:.4px;margin-bottom:5px}
+.msrow{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;padding:5px 7px;border-radius:6px;background:#fff;border:1px solid var(--line);margin:3px 0}
+.msrow.now{border-color:#e3d3a0;background:#faf7ee}
+.msrow.done{opacity:.45}.msrow.done span:first-child{text-decoration:line-through}
+.msrow>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msr{white-space:nowrap;color:var(--muted)}
 .ctxwrap{background:linear-gradient(180deg,#fbfaf6,#fff);border:1px solid #e8e2cf;border-radius:12px;padding:11px 13px;margin-bottom:12px}
 .ctxrow{padding:7px 0;border-bottom:1px dashed #ece3c9;cursor:pointer}
 .ctxrow:last-of-type{border-bottom:0}
@@ -1101,9 +1112,40 @@ function goalStats(gid,fromDS,toDS){
   return {done:done,due:due,rate:due?done/due:0,days:days};
 }
 function gnum(v){v=parseFloat(v)||0;return (Math.abs(v)>=1000)?comma(v):((Math.round(v*10)/10)+'');}
+/* --- 앱 데이터 자동 연동: 목표의 '현재값'을 로한북 안에서 직접 끌어온다 --- */
+var GOAL_SOURCES=[
+  {k:'manual', label:'직접 입력'},
+  {k:'weight', label:'체중 (체성분 최신 기록)', unit:'kg'},
+  {k:'cash',   label:'현금성 자산 합계', unit:'원'},
+  {k:'net',    label:'순자산 (자산-부채)', unit:'원'},
+  {k:'debt',   label:'총부채', unit:'원'}
+];
+function sourceValue(src){
+  try{
+    if(src==='weight'){
+      var w=((DB.health&&DB.health.weights)||[]).slice().sort(function(a,b){return a.date<b.date?-1:1;});
+      for(var i=w.length-1;i>=0;i--){if(w[i].kg!=null&&w[i].kg!=='')return parseFloat(w[i].kg);}
+      return null;
+    }
+    if(src==='cash')return DB.accounts.filter(function(a){return a.group==='현금성';}).reduce(function(t,a){return t+accVal(a);},0);
+    if(src==='net') return totalAssets()-totalDebt();
+    if(src==='debt')return totalDebt();
+  }catch(e){}
+  return null;
+}
 function goalValue(g){
   if(!g)return 0;
   if(g.metric&&g.metric.type==='autodays')return monthDoneDays(g.period||todayStr().slice(0,7));
+  if(g.source&&g.source!=='manual'){
+    var v=sourceValue(g.source);
+    if(v!=null)return v;
+  }
+  if(g.progress===''||g.progress==null){
+    /* 미입력이면 시작값으로 간주 — 0으로 두면 감소형 목표가 100%로 튄다 */
+    var b=(g.baseline!=null&&g.baseline!=='')?parseFloat(g.baseline):null;
+    if(b!=null)return b;
+    return 0;
+  }
   return g.progress||0;
 }
 function goalPct(g){
@@ -1111,13 +1153,21 @@ function goalPct(g){
   if(g.status==='done')return 100;
   var mt=(g.metric&&g.metric.type)||'binary';
   if(mt==='binary')return 0;
-  var tg=g.metric.target||0;
-  if(mt==='amount'||mt==='count'){
-    var base=(g.baseline!=null&&g.baseline!=='')?parseFloat(g.baseline):null;
-    if(base!=null&&base!==tg)return Math.max(0,Math.min(100,Math.round(((goalValue(g)-base)/(tg-base))*100)));
-  }
+  var tg=(g.metric.target!=null&&g.metric.target!=='')?parseFloat(g.metric.target):0;
+  var cur=goalValue(g);
+  var base=(g.baseline!=null&&g.baseline!=='')?parseFloat(g.baseline):null;
+  /* 시작값이 있으면 base→target 구간의 진척률. 감소형(체중 68.2→65)도 동일 식으로 처리 */
+  if((mt==='amount'||mt==='count')&&base!=null&&base!==tg)
+    return Math.max(0,Math.min(100,Math.round(((cur-base)/(tg-base))*100)));
   if(!tg)return 0;
-  return Math.round((goalValue(g)/tg)*100);
+  return Math.max(0,Math.min(100,Math.round((cur/tg)*100)));
+}
+/* 목표 달성 방향: 감소형이면 현재값이 목표보다 크면 아직 미달 */
+function goalTrend(g){
+  var base=(g&&g.baseline!=null&&g.baseline!=='')?parseFloat(g.baseline):null;
+  var tg=(g&&g.metric&&g.metric.target!=null)?parseFloat(g.metric.target):null;
+  if(base==null||tg==null)return 0;
+  return tg<base?-1:1;
 }
 
 /* --- 히트맵 --- */
@@ -1189,20 +1239,39 @@ function renderGoal(){
   var st=goalStreaks(),r=dayRate(t);
   var yg=yearGoals(yy),solo=soloGoals(ym);
 
-  /* 컨텍스트바: 연간 → 이달 눈금 */
+  /* 컨텍스트바: 연간 → 월별 눈금 */
   var ctx=yg.map(function(g){
     var ms=milestoneAt(g.id,ym),pct=goalPct(g),open=(DB.ui.goalOpen===g.id);
     var stat=goalStats(g.id,ym+'-01',lastDayOfYM(ym));
-    return '<div class="ctxrow'+(open?' open':'')+'" data-gopen="'+g.id+'">'
-     +'<div class="ctxhead"><span><b class="gcode">'+g.code+'</b> '+sajuEsc(g.title)+'</span>'
-     +'<span class="ctxr">'+(g.metric&&g.metric.type!=='binary'?gnum(goalValue(g))+'/'+gnum(g.metric.target)+' '+(g.metric.unit||'')+' · ':'')
-     +'<b>'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.')+' 까지':'')+'</span> ▾</span></div>'
+    var mt=(g.metric&&g.metric.type)||'binary';
+    var cur=goalValue(g), tr=goalTrend(g);
+    var right=(mt!=='binary'
+        ? gnum(cur)+'/'+gnum(g.metric.target)+' '+(g.metric.unit||'')
+          +(g.source&&g.source!=='manual'?' <span class="chip auto">연동</span>':'')+' · '
+        : '')
+      +'<b>'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.')+' 까지':'')+'</span> ▾';
+    var mlist=milestonesOf(g.id);
+    return '<div class="ctxrow'+(open?' open':'')+(g.status==='done'?' gdone':'')+'" data-gopen="'+g.id+'">'
+     +'<div class="ctxhead"><span><b class="gcode">'+g.code+'</b> '+sajuEsc(g.title)
+       +(g.status==='done'?' <span class="pill">완료</span>':'')+'</span>'
+     +'<span class="ctxr">'+right+'</span></div>'
      +'<div class="ctxbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></div>'
      +(open?('<div class="ctxbody">'
-        +(ms?'<div class="mut" style="font-size:11.5px">이달 눈금 <b>'+ms.code+'</b> — 목표 '+gnum(ms.metric.target)+(ms.metric.unit||'')+'</div>':'<div class="mut" style="font-size:11.5px">이달 눈금 없음</div>')
-        +'<div class="mut" style="font-size:11.5px;margin-top:3px">이달 투입 <b>'+stat.days+'일</b> · 루틴 달성 '+stat.done+'/'+stat.due+' ('+Math.round(stat.rate*100)+'%)</div>'
+        +'<div class="mut" style="font-size:11.5px">이달 투입 <b>'+stat.days+'일</b> · 루틴 달성 '+stat.done+'/'+stat.due+' ('+Math.round(stat.rate*100)+'%)'
+        +(mt!=='binary'&&tr<0?' · <span class="mut">감소형 목표</span>':'')+'</div>'
         +(g.memo?'<div class="mut" style="font-size:11px;margin-top:5px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
-        +'<div style="margin-top:7px"><button class="ghost" data-gedit="'+g.id+'">목표 수정</button></div></div>'):'')
+        +'<div class="msbox"><div class="mshd">월간 세부목표 <span class="mut">'+mlist.length+'개</span>'
+          +'<button class="ghost sm" data-msadd="'+g.id+'">+ 세부목표</button></div>'
+        +(mlist.length?mlist.map(function(m){
+            var isNow=(m.period===ym), mp=goalPct(m);
+            var val=(m.metric&&m.metric.type!=='binary')?(gnum(m.metric.target)+(m.metric.unit||'')):'';
+            return '<div class="msrow'+(isNow?' now':'')+(m.status==='done'?' done':'')+'">'
+              +'<span><b class="gcode">'+m.code+'</b> '+sajuEsc(m.title)+(isNow?' <span class="chip auto">이달</span>':'')+'</span>'
+              +'<span class="msr">'+(val?val+' · ':'')+(m.manual?'<span class="chip check">수동</span> ':'')
+              +'<span class="acts"><span data-gdone="'+m.id+'">'+(m.status==='done'?'↩':'✔')+'</span><span data-gedit="'+m.id+'">✎</span></span></span></div>';
+          }).join(''):'<div class="mut" style="font-size:11px;padding:5px 0">아직 없다. 연간 목표를 달로 쪼개면 실행이 붙는다.</div>')
+        +'</div>'
+        +'<div style="margin-top:9px"><button class="ghost" data-gedit="'+g.id+'">목표 수정</button></div></div>'):'')
      +'</div>';
   }).join('');
 
@@ -1221,8 +1290,9 @@ function renderGoal(){
   var retired=(DB.routines||[]).filter(function(x){return x.status==='retired';}).length;
 
   document.getElementById('v-goal').innerHTML=''
-   +'<div class="ctxwrap">'+(ctx||'<div class="mut" style="font-size:12px;padding:4px 2px">'+yy+'년 목표가 없다. 여기서부터 시작해라. <button class="btn sm" id="addYGoalBtn">+ 연간 목표</button></div>')
-   +(ctx?'<div class="ctxadd"><button class="ghost" id="addYGoalBtn">+ 연간 목표</button> <button class="ghost" id="addSoloBtn">+ '+parseInt(ym.slice(5),10)+'월 단독과제</button></div>':'')+'</div>'
+   +'<div class="ctxwrap"><div class="ctxtop"><span class="ctxtitle">⚑ '+yy+'년 연간 목표</span>'
+   +'<button class="ghost sm" id="addYGoalBtn">+ 연간 목표</button></div>'
+   +(ctx||'<div class="mut" style="font-size:12px;padding:6px 2px">올해 목표가 없다. 여기서부터 시작해라.</div>')+'</div>'
 
    +'<div class="gtoday">'
    +'<h3>'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8,10),10)+'일 ('+DOW_KO[dowOf(t)]+')'+sajuToday+'</h3>'
@@ -1240,7 +1310,7 @@ function renderGoal(){
    +'<div class="hmwrap"><div class="hmdow">'+DOW_KO.map(function(d,i){return '<span>'+(i%2===1?d:'')+'</span>';}).join('')+'</div>'
    +'<div class="hm">'+goalHeatmap()+'</div></div></div>'
 
-   +'<div class="sec"><h4>'+parseInt(ym.slice(5),10)+'월 단독 과제 <span class="mut">이 달에 시작해 이 달에 끝나는 것</span> <button class="btn sm" id="addSoloBtn">+ 추가</button></h4>'
+   +'<div class="sec"><h4>▣ '+parseInt(ym.slice(5),10)+'월 단독 과제 <span class="mut">연간 목표와 무관하게 이 달에 시작해 이 달에 끝나는 것</span> <button class="btn sm" id="addSoloBtn">+ 추가</button></h4>'
    +(solo.length?solo.map(function(g){return goalRow(g);}).join(''):'<div class="mut" style="padding:6px 0">이 달의 단독 과제가 없다.</div>')+'</div>';
 }
 
@@ -1280,9 +1350,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='6.0';
+var APP_VERSION='6.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'6.1',date:'2026-08-18',note:'월간 세부목표 직접 CRUD(binary 목표에도 수동 눈금 생성) · 연간 목표 헤더/버튼 정리 · 단독과제 프레임 분리 · [버그] 감소형 목표(체중) 진행률이 100%로 튀던 문제 수정 · 목표 현재값을 앱 데이터와 자동 연동(체중=체성분 최신, 현금=현금성 계좌 합계, 순자산, 총부채) · ESC/바깥클릭으로 모달 닫기'},
   {v:'6.0',date:'2026-08-18',note:'목표·루틴 전면 재설계 — 연간(대전제)→월별 눈금→일간 루틴 계층 · 계층 코드 자동발급(A/A.8/A1/A.8a/M8.1/Z1) · due 기반 마일스톤 자동생성(선형배분) · 기록 불변성(due 스냅샷, 과거 소급변동 제거) · 삭제 대신 은퇴 · 미달 사유 태그+메모 · 컨텍스트바 + 목표별 그룹핑'},
   {v:'5.0.1',date:'2026-08-18',note:'[버그수정] 현황판이 빈 화면으로 뜨던 문제 — v5.0에서 첫 화면을 목표 탭으로 바꾸면서 renderDash() 호출 지점이 사라졌음. 탭→렌더러를 VIEW_RENDER 맵으로 교체해 누락 시 콘솔 경고. 13개 탭 전수 클릭 검사 추가'},
   {v:'5.0',date:'2026-08-14',note:'🎯 목표·루틴 탭 신설 — 오늘의 루틴 원터치 체크 · 연속기록/완전달성 스트릭 · 12주 잔디 히트맵(사주 주의일 겹침) · 월간 목표 진행률 · 연간 방향 표시등. 가계부 캘린더에 일별 달성 점 표시. 첫 화면을 목표 탭으로 변경'},
@@ -1475,70 +1546,115 @@ function saveMiss(code){
   closeModal();
 }
 /* --- 목표 --- */
-function goalModal(id,kind){
+function goalModal(id,kind,parentId,period){
   var g=id?goalById(id):null;
   var kd=g?g.kind:(kind||'year');
   var today=todayStr();
-  g=g||{title:'',kind:kd,period:(kd==='year'?today.slice(0,4):today.slice(0,7)),
-        metric:{type:(kd==='year'?'amount':'binary'),target:'',unit:''},baseline:'',due:(kd==='year'?today.slice(0,4)+'-12-31':lastDayOfYM(today.slice(0,7))),
-        progress:0,memo:'',status:'active'};
+  var parent=g?goalById(g.parentId):(parentId?goalById(parentId):null);
+  if(!g){
+    var defType=(kd==='year')?'amount':(kd==='milestone'?((parent&&parent.metric&&parent.metric.type!=='binary')?parent.metric.type:'binary'):'binary');
+    g={title:'',kind:kd,parentId:parentId||null,
+       period:(kd==='year'?today.slice(0,4):(period||today.slice(0,7))),
+       metric:{type:defType,target:'',unit:(parent&&parent.metric&&parent.metric.unit)||''},
+       baseline:'',source:'manual',
+       due:(kd==='year'?today.slice(0,4)+'-12-31':lastDayOfYM(period||today.slice(0,7))),
+       progress:'',memo:'',status:'active'};
+  }
   var mt=(g.metric&&g.metric.type)||'binary';
-  var isY=kd==='year',isMs=kd==='milestone';
+  var isY=kd==='year', isMs=kd==='milestone';
   var seg=function(v,label){return '<button class="'+(mt===v?'on':'')+'" onclick="gMet(this,\''+v+'\')">'+label+'</button>';};
-  openModal('<div class="mtop"><h3>'+(id?('수정 <span class="gcode">'+g.code+'</span>'):(isY?'연간 목표 (대전제)':'월간 단독 과제'))+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +(isMs?'<div class="mut" style="font-size:11.5px;margin-bottom:8px">연간 목표 '+((goalById(g.parentId)||{}).code||'')+' 의 '+parseInt(g.period.slice(5),10)+'월 눈금입니다. 목표값을 고치면 자동 배분에서 제외됩니다.</div>':'')
-   +'<div class="field"><label>제목</label><input id="g_title" value="'+sajuEsc(g.title)+'" placeholder="'+(isY?'올해 어디로 갈 것인가':'이 달 안에 끝낼 것')+'"></div>'
-   +(isMs?'':'<div class="field"><label>기간 '+(isY?'(YYYY)':'(YYYY-MM)')+'</label><input id="g_period" value="'+g.period+'"></div>')
-   +(isY?'<div class="field"><label>기한 (due) <span class="mut">— 여기서 월별 눈금이 자동 생성된다</span></label><input id="g_due" type="date" value="'+(g.due||'')+'"></div>':'')
-   +(isMs?'':'<div class="field"><label>측정 방식</label><div class="seg">'+seg('binary','완료/미완')+seg('autodays','체크일수·자동')+seg('count','횟수')+seg('amount','수치')+'</div><div class="hint" id="g_methint"></div></div>')
+  var srcOpts=GOAL_SOURCES.map(function(x){
+    return '<option value="'+x.k+'"'+((g.source||'manual')===x.k?' selected':'')+'>'+x.label+'</option>';}).join('');
+  var title=id?('수정 <span class="gcode">'+g.code+'</span>')
+    :(isY?'연간 목표 (대전제)':(isMs?('월간 세부목표 — '+(parent?parent.code+' '+sajuEsc(parent.title):'')):'월간 단독 과제'));
+
+  openModal('<div class="mtop"><h3>'+title+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +(isMs?'<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
+       +'연간 목표 <b>'+((parent||{}).code||'')+'</b> 를 이 달에 얼마나 진행할지 정하는 <b>눈금</b>입니다.<br>'
+       +'수치형이면 목표값을 고치는 순간 자동 배분에서 제외됩니다(수동 고정).</div>':'')
+   +'<div class="field"><label>'+(isMs?'세부목표 제목':'제목')+'</label><input id="g_title" value="'+sajuEsc(g.title)+'" placeholder="'
+     +(isY?'올해 어디로 갈 것인가':(isMs?'예: 히라가나·가타카나 완성 / 67.6kg 도달':'이 달 안에 끝낼 것'))+'"></div>'
+   +(isY?'':'<div class="field"><label>기간 (YYYY-MM)</label><input id="g_period" value="'+g.period+'"></div>')
+   +(isY?'<div class="field"><label>기간 (YYYY)</label><input id="g_period" value="'+g.period+'"></div>'
+        +'<div class="field"><label>기한 (due) <span class="mut">— 여기서 월별 눈금이 자동 생성된다</span></label><input id="g_due" type="date" value="'+(g.due||'')+'"></div>':'')
+   +'<div class="field"><label>측정 방식</label><div class="seg">'+seg('binary','완료/미완')+seg('autodays','체크일수·자동')+seg('count','횟수')+seg('amount','수치')+'</div><div class="hint" id="g_methint"></div></div>'
    +'<div id="g_mwrap" style="display:'+(mt==='binary'?'none':'block')+'">'
-   +(isY?'<div class="field"><label>시작값 <span class="mut">(선형 배분의 출발점 · 예: 현재 체중 68.2)</span></label><input id="g_base" value="'+(g.baseline!=null?g.baseline:'')+'"></div>':'')
+   +(isY?'<div class="field"><label>현재값 출처 <span class="mut">(앱 안의 데이터와 연동)</span></label><select id="g_src" onchange="gSrc()">'+srcOpts+'</select><div class="hint" id="g_srchint"></div></div>'
+        +'<div class="field"><label>시작값 <span class="mut">(진행률의 출발점 · 예: 현재 체중 68.2)</span></label><input id="g_base" value="'+(g.baseline!=null?g.baseline:'')+'"></div>':'')
    +'<div class="field"><label>목표값</label><input id="g_target" value="'+((g.metric&&g.metric.target)||'')+'"></div>'
    +'<div class="field"><label>단위 <span class="mut">(kg · 원 · 회 · 일)</span></label><input id="g_unit" value="'+((g.metric&&g.metric.unit)||'')+'"></div>'
-   +'<div class="field" id="g_pwrap" style="display:'+(mt==='autodays'?'none':'block')+'"><label>현재 진행</label><input id="g_progress" value="'+(g.progress||0)+'"></div></div>'
+   +'<div class="field" id="g_pwrap" style="display:'+((mt==='autodays'||(isY&&g.source&&g.source!=='manual'))?'none':'block')+'"><label>현재 진행</label><input id="g_progress" value="'+(g.progress!=null?g.progress:'')+'"></div></div>'
    +'<div class="field"><label>메모</label><textarea id="g_memo" rows="3">'+sajuEsc(g.memo||'')+'</textarea></div>'
-   +'<button class="btn" onclick="saveGoal('+(id?"'"+id+"'":'null')+',\''+kd+'\')">저장</button>'
+   +'<button class="btn" onclick="saveGoal('+(id?"'"+id+"'":'null')+',\''+kd+'\','+(parentId?"'"+parentId+"'":'null')+')">저장</button>'
    +(id?' <button class="ghost" onclick="delGoal(\''+id+'\')">삭제</button>':''));
-  modal._gmet=mt;
+  modal._gmet=mt; modal._gkind=kd; modal._gparent=g.parentId||parentId||null;
+  gSrc();
+}
+function gSrc(){
+  var sel=document.getElementById('g_src'); if(!sel)return;
+  var v=sel.value, hi=document.getElementById('g_srchint'), pw=document.getElementById('g_pwrap');
+  var found=GOAL_SOURCES.filter(function(x){return x.k===v;})[0]||{};
+  if(pw)pw.style.display=(v!=='manual'||modal._gmet==='autodays')?'none':'block';
+  if(hi){
+    if(v==='manual')hi.textContent='현재값을 직접 입력합니다.';
+    else{
+      var cur=sourceValue(v);
+      hi.textContent=(cur!=null)?('지금 값 '+gnum(cur)+(found.unit||'')+' — 앱 기록이 바뀌면 진행률이 자동으로 따라갑니다.')
+                                :'아직 해당 데이터가 없습니다.';
+    }
+  }
+  var u=document.getElementById('g_unit');
+  if(u&&!u.value&&found.unit)u.value=found.unit;
 }
 function gMet(b,v){
   modal._gmet=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
   document.getElementById('g_mwrap').style.display=(v==='binary'?'none':'block');
-  var pw=document.getElementById('g_pwrap');if(pw)pw.style.display=(v==='autodays'?'none':'block');
+  var pw=document.getElementById('g_pwrap');
+  var sc=document.getElementById('g_src');
+  if(pw)pw.style.display=(v==='autodays'||(sc&&sc.value!=='manual'))?'none':'block';
   var hi=document.getElementById('g_methint');
   if(hi)hi.textContent=(v==='autodays'?'루틴을 하나라도 체크한 날의 수를 자동으로 셉니다.':(v==='amount'?'체중·금액처럼 시작값에서 목표값으로 가는 수치. 월별 눈금이 선형 배분됩니다.':''));
   var u=document.getElementById('g_unit');if(v==='autodays'&&u&&!u.value)u.value='일';
 }
-function saveGoal(id,kd){
+function saveGoal(id,kd,parentId){
   var title=document.getElementById('g_title').value.trim();
   if(!title)return alert('제목을 입력하세요');
   var g=id?goalById(id):null;
+  var mt=modal._gmet;
   var rec={title:title,memo:document.getElementById('g_memo').value};
-  if(kd!=='milestone'){
-    var per=document.getElementById('g_period').value.trim();
-    var re=(kd==='year')?/^\d{4}$/:/^\d{4}-\d{2}$/;
-    if(!re.test(per))return alert(kd==='year'?'기간은 YYYY (예: 2026)':'기간은 YYYY-MM (예: 2026-08)');
-    rec.period=per;
-    var mt=modal._gmet;
-    rec.metric={type:mt,target:mt==='binary'?0:numv('g_target'),unit:mt==='binary'?'':document.getElementById('g_unit').value.trim()};
-    rec.progress=(mt==='binary'||mt==='autodays')?0:numv('g_progress');
-    if(kd==='year'){
-      rec.due=document.getElementById('g_due').value||(per+'-12-31');
-      var bs=document.getElementById('g_base');
-      rec.baseline=(bs&&bs.value!=='')?numv('g_base'):null;
-      rec.startYM=(g&&g.startYM)||todayStr().slice(0,7);
-    }else rec.due=lastDayOfYM(per);
+  var per=document.getElementById('g_period').value.trim();
+  var re=(kd==='year')?/^\d{4}$/:/^\d{4}-\d{2}$/;
+  if(!re.test(per))return alert(kd==='year'?'기간은 YYYY (예: 2026)':'기간은 YYYY-MM (예: 2026-08)');
+  rec.period=per;
+  rec.metric={type:mt,
+    target:mt==='binary'?0:numv('g_target'),
+    unit:mt==='binary'?'':document.getElementById('g_unit').value.trim()};
+  var pEl=document.getElementById('g_progress');
+  rec.progress=(mt==='binary'||mt==='autodays')?0:((pEl&&pEl.value!=='')?numv('g_progress'):'');
+  if(kd==='year'){
+    rec.due=document.getElementById('g_due').value||(per+'-12-31');
+    var bs=document.getElementById('g_base');
+    rec.baseline=(bs&&bs.value!=='')?numv('g_base'):null;
+    var sc=document.getElementById('g_src');
+    rec.source=sc?sc.value:'manual';
+    rec.startYM=(g&&g.startYM)||todayStr().slice(0,7);
   }else{
-    rec.metric={type:g.metric.type,target:numv('g_target'),unit:document.getElementById('g_unit').value.trim()};
-    rec.progress=numv('g_progress');
-    rec.manual=true;   // 손댄 눈금은 자동 배분에서 제외
+    rec.due=lastDayOfYM(per);
+    if(kd==='milestone')rec.manual=true;   /* 손댄 눈금은 자동 배분에서 제외 */
   }
   DB.goals=DB.goals||[];
   if(id){Object.assign(g,rec);logAct('목표수정 · '+g.code+' '+title);}
   else{
-    rec.id=uid();rec.kind=kd;rec.parentId=null;rec.status='active';
-    rec.code=issueGoalCode(kd,null,rec.period);
-    DB.goals.push(rec);logAct('목표추가 · '+rec.code+' '+title);
+    rec.id=uid(); rec.kind=kd; rec.status='active';
+    rec.parentId=(kd==='milestone')?(parentId||modal._gparent||null):null;
+    if(kd==='milestone'){
+      var p=goalById(rec.parentId);
+      var mnum=parseInt(per.slice(5),10);
+      var base=(p?p.code:'?')+'.'+mnum, c=base, n=2;
+      while(codeTaken(c))c=base+'-'+(n++);
+      rec.code=c;
+    }else rec.code=issueGoalCode(kd,null,rec.period);
+    DB.goals.push(rec); logAct('목표추가 · '+rec.code+' '+title);
   }
   syncAllMilestones();
   save();closeModal();renderGoal();
@@ -1958,6 +2074,7 @@ document.addEventListener('click',function(e){
   if(e.target.id==='addYGoalBtn')return goalModal(null,'year');
   var gde=e.target.closest('[data-gedit]');if(gde)return goalModal(gde.dataset.gedit);
   var gdn=e.target.closest('[data-gdone]');if(gdn)return goalToggle(gdn.dataset.gdone);
+  var msa=e.target.closest('[data-msadd]');if(msa)return goalModal(null,'milestone',msa.dataset.msadd,DB.ui.month||todayStr().slice(0,7));
   var gop=e.target.closest('[data-gopen]');if(gop)return toggleGoalOpen(gop.dataset.gopen);
   var el=e.target.closest('[data-acc]');
   var vd=e.target.closest('[data-vdel]');if(vd)return delVal(vd.dataset.acc,vd.dataset.vdel);
@@ -2009,6 +2126,10 @@ var _labtip=document.createElement('div');_labtip.style.cssText='position:fixed;
 document.addEventListener('mouseover',function(e){var t=e.target.closest('[data-tip]');if(t){_labtip.textContent=t.getAttribute('data-tip');_labtip.style.display='block';}});
 document.addEventListener('mousemove',function(e){if(_labtip.style.display==='block'){var x=e.clientX+14,y=e.clientY+16;if(x>window.innerWidth-250)x=e.clientX-250;_labtip.style.left=x+'px';_labtip.style.top=y+'px';}});
 document.addEventListener('mouseout',function(e){if(e.target.closest('[data-tip]'))_labtip.style.display='none';});
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&ov.classList.contains('on')){e.preventDefault();closeModal();}
+});
+ov.addEventListener('mousedown',function(e){ if(e.target===ov)closeModal(); });
 document.getElementById('reloadBtn').addEventListener('click',function(){location.reload();});
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
