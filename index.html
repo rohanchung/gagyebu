@@ -1087,9 +1087,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='5.0';
+var APP_VERSION='5.0.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'5.0.1',date:'2026-08-18',note:'[버그수정] 현황판이 빈 화면으로 뜨던 문제 — v5.0에서 첫 화면을 목표 탭으로 바꾸면서 renderDash() 호출 지점이 사라졌음. 탭→렌더러를 VIEW_RENDER 맵으로 교체해 누락 시 콘솔 경고. 13개 탭 전수 클릭 검사 추가'},
   {v:'5.0',date:'2026-08-14',note:'🎯 목표·루틴 탭 신설 — 오늘의 루틴 원터치 체크 · 연속기록/완전달성 스트릭 · 12주 잔디 히트맵(사주 주의일 겹침) · 월간 목표 진행률 · 연간 방향 표시등. 가계부 캘린더에 일별 달성 점 표시. 첫 화면을 목표 탭으로 변경'},
   {v:'4.5',date:'2026-08-14',note:'부채 상환스케줄 엔진 교체 — 은행 실제 방식(원금 고정 416,000 + 잔액×3.11%×경과일수/365 일할이자, 납입일 매월 19일·주말 익영업일) 반영. 48회 전액 시뮬레이션 · 계좌·부채 탭에 다음 회차 실금액 표시 · 스케줄 모달에 전체 회차표. 은행앱 6회차와 원 단위 일치 검증'},
   {v:'4.4',date:'2026-08-14',note:'체중→체성분 전체 기록(샤오미 20항목, 비율·BMI·제지방량 자동계산) · 최신 요약카드 · 8지표 탭 그래프 · 그래프 중세풍(양피지·골드) 리디자인'},
@@ -1578,13 +1579,20 @@ function saveTxn(id){
 }
 function delTxn(id){if(!confirm('삭제할까요?'))return;var _t=DB.transactions.filter(function(t){return t.id===id})[0];logAct('거래삭제 · '+(_t?_t.date+' '+_t.cat+' '+won(_t.amt):id));DB.transactions=DB.transactions.filter(function(t){return t.id!==id});save();renderCal();renderDash();}
 
+/* 탭 → 렌더러 매핑. 사이드바에 탭을 추가하면 여기에도 반드시 등록할 것.
+   (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
+var VIEW_RENDER={goal:renderGoal,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
+  acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,
+  saju:renderSaju,journal:renderJournal,items:renderItems,log:renderLog};
+
 /* ====== 이벤트 ====== */
 var navs=document.querySelectorAll('.side .m[data-v]');
 for(var i=0;i<navs.length;i++)(function(m){m.addEventListener('click',function(){
   var all=document.querySelectorAll('.side .m');for(var j=0;j<all.length;j++)all[j].classList.remove('on');m.classList.add('on');
   var vs=document.querySelectorAll('.view');for(var j=0;j<vs.length;j++)vs[j].classList.remove('on');
   document.getElementById('v-'+m.dataset.v).classList.add('on');
-  if(m.dataset.v==='goal')renderGoal();if(m.dataset.v==='cal')renderCal();if(m.dataset.v==='cashflow')renderCashflow();if(m.dataset.v==='acct')renderAcct();if(m.dataset.v==='tax')renderTax();if(m.dataset.v==='items')renderItems();if(m.dataset.v==='budget')renderBudget();if(m.dataset.v==='log')renderLog();if(m.dataset.v==='weight')renderWeight();if(m.dataset.v==='labs')renderLabs();if(m.dataset.v==='saju')renderSaju();if(m.dataset.v==='journal')renderJournal();
+  var _fn=VIEW_RENDER[m.dataset.v];
+  if(_fn)_fn(); else console.warn('[RohanBook] 렌더러가 등록되지 않은 탭: '+m.dataset.v);
 });})(navs[i]);
 document.addEventListener('click',function(e){
   var rte=e.target.closest('[data-rtedit]');if(rte)return routineModal(rte.dataset.rtedit);
