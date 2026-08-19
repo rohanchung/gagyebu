@@ -1535,7 +1535,7 @@ function doClaim(tier,period,rid,isBk){
   logAct('🎁 보상 수령 · '+r.code+' '+r.title+' ('+st.label+' '+st.cur+'/'+st.req+')'
     +(spent?' · '+won(spent):'')+(txnId?' · 가계부 기록':'')+(isBk?' · 버킷 소진':''));
   save();closeModal();
-  if(document.getElementById('v-reward').classList.contains('on'))renderReward(); else renderGoal();
+  renderRW();
 }
 function unclaimTier(tier,period){
   var lg=(DB.rewardLog||{})[logKey(tier,period)];
@@ -1547,7 +1547,7 @@ function unclaimTier(tier,period){
   delete DB.rewardLog[logKey(tier,period)];
   logAct('보상 수령취소 · '+tier+' '+period+(hasTx?' · 거래 삭제':''));
   save();
-  if(document.getElementById('v-reward').classList.contains('on'))renderReward(); else renderGoal();
+  renderRW();
 }
 /* 보상 지출 집계 */
 function rewardSpend(year){
@@ -1676,20 +1676,30 @@ function saveReward(id){
   var rec={title:title,tier:tier,goalId:gid,kind:modal._rwkind||'act',
     budget:numv('rw_budget')||0, timing:(modal._rwkind==='act'&&tmEl)?tmEl.value:'any', active:true};
   DB.rewards=DB.rewards||[];
-  if(id){Object.assign((DB.rewards.filter(function(x){return x.id===id;})[0]),rec);logAct('보상수정 · '+title);}
+  if(id){
+    var ex=(DB.rewards.filter(function(x){return x.id===id;})[0]);
+    Object.assign(ex,rec); ex.updatedAt=todayStr();
+    if(!ex.place)ex.place='reward';
+    logAct('보상수정 · '+title);
+  }
   else{
     var pre=(REWARD_TIERS.filter(function(x){return x.k===tier;})[0]||{}).pre||'R';
     rec.id=uid();
     rec.code=(tier==='goal')?(pre+':'+((goalById(gid)||{}).code||'?')):(pre+seqNext('rw'+pre));
+    /* ⚠️ place/status/기록일을 여기서 채운다. v7.5까지 빠져 있어서 보상함 표(place==='reward' 필터)에
+       안 잡히고, 새로고침해서 마이그레이션이 backfill 해야 비로소 보였다. */
+    rec.place='reward'; rec.status='want';
+    rec.addedAt=todayStr(); rec.updatedAt=rec.addedAt;
+    rec.price=rec.budget||0;
     DB.rewards.push(rec);logAct('보상추가 · '+rec.code+' '+title);
   }
-  save();closeModal();renderGoal();
+  save();closeModal();renderRW();
 }
 function delReward(id){
   var rw=(DB.rewards||[]).filter(function(x){return x.id===id;})[0];if(!rw)return;
   if(!confirm('삭제할까요? 지난 수령 기록은 남습니다.'))return;
   DB.rewards=DB.rewards.filter(function(x){return x.id!==id;});
-  logAct('보상삭제 · '+rw.code+' '+rw.title);save();closeModal();renderGoal();
+  logAct('보상삭제 · '+rw.code+' '+rw.title);save();closeModal();renderRW();
 }
 function rewardCfgModal(){
   var c=rwCfg();
@@ -1706,7 +1716,7 @@ function saveRwCfg(){
   c.monthWeeks=Math.max(1,Math.min(5,numv('cf_m')||4));
   c.yearMonths=Math.max(1,Math.min(12,numv('cf_y')||9));
   logAct('보상 문턱 변경 · 주'+c.weekFullDays+'일/월'+c.monthWeeks+'회/연'+c.yearMonths+'회');
-  save();closeModal();renderGoal();
+  save();closeModal();renderRW();
 }
 function rewardHistory(){
   var keys=Object.keys(DB.rewardLog||{}).sort().reverse();
@@ -1755,7 +1765,7 @@ function toRewardModal(id){
    +'<div class="field" id="mv_twrap" style="display:none"><label>권장일</label>'
    +'<select id="mv_timing"><option value="any">상관없음</option><option value="yin">음기일 (陰)</option></select></div>'
    +'<button class="btn" onclick="doToReward(\''+id+'\')">보상함으로 옮기기</button>');
-  modal._mvtier=null;
+  modal._mvtier=null; modal._mvid=id;   /* _mvid 누락으로 act 보상의 '권장일' 필드가 안 뜨던 버그 */
 }
 function mvTier(el,v){
   modal._mvtier=v;
@@ -1782,14 +1792,14 @@ function doToReward(id){
   if(b.price&&!b.budget)b.budget=b.price;
   var tl=(REWARD_TIERS.filter(function(x){return x.k===b.tier;})[0]||{}).label;
   logAct('🎁 보상함으로 · '+b.code+' '+b.title+' ('+tl+')');
-  save();closeModal();renderReward();
+  save();closeModal();renderRW();
 }
 function toBucket(id){
   var b=bucketById(id); if(!b)return;
   if(!confirm(b.code+' 을(를) 버킷함으로 되돌릴까요?\n단계 지정이 해제되고 수령 선택지에서 빠집니다.'))return;
   b.place='bucket'; b.tier=undefined; b.goalId=undefined; b.movedAt=undefined; b.updatedAt=todayStr();
   logAct('🪣 버킷함으로 · '+b.code+' '+b.title);
-  save();closeModal();renderReward();
+  save();closeModal();renderRW();
 }
 function daysSince(ds){ if(!ds)return 0; var a=new Date(ds+'T00:00:00Z'),b=new Date(todayStr()+'T00:00:00Z');
   return Math.max(0,Math.round((b-a)/86400000)); }
@@ -1862,7 +1872,7 @@ function saveBucket(id){
     rec.id=uid();rec.code=issueBucketCode();rec.status='want';rec.addedAt=todayStr();rec.place='bucket';
     DB.rewards.push(rec);logAct('🪣 버킷담기 · '+rec.code+' '+title+(rec.price?' ('+won(rec.price)+')':''));
   }
-  save();closeModal();renderReward();
+  save();closeModal();renderRW();
 }
 function dropBucket(id){
   var b=bucketById(id);if(!b)return;
@@ -1870,18 +1880,18 @@ function dropBucket(id){
   if(r===null)return;
   b.status='dropped';b.droppedAt=todayStr();b.dropReason=r.trim();b.updatedAt=todayStr();
   logAct('버킷포기 · '+b.code+' '+b.title+(r?' — '+r:''));
-  save();closeModal();renderReward();
+  save();closeModal();renderRW();
 }
 function reviveBucket(id){
   var b=bucketById(id);if(!b)return;
   b.status='want';b.droppedAt=undefined;b.dropReason=undefined;b.gotAt=undefined;b.logKey=undefined;b.updatedAt=todayStr();
-  logAct('버킷되살림 · '+b.code+' '+b.title);save();closeModal();renderReward();
+  logAct('버킷되살림 · '+b.code+' '+b.title);save();closeModal();renderRW();
 }
 function delBucket(id){
   var b=bucketById(id);if(!b)return;
   if(!confirm('완전히 삭제할까요? 포기 기록도 함께 사라집니다.\n(기록을 남기려면 삭제 대신 포기를 쓰세요)'))return;
   DB.rewards=DB.rewards.filter(function(x){return x.id!==id;});
-  logAct('버킷삭제 · '+b.code+' '+b.title);save();closeModal();renderReward();
+  logAct('버킷삭제 · '+b.code+' '+b.title);save();closeModal();renderRW();
 }
 
 /* --- (12주 잔디는 52주 주간 트래커로 대체됨: weekTracker) --- */
@@ -2213,9 +2223,11 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='7.5';
+var APP_VERSION='7.6';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'7.6',date:'2026-08-19',note:"모달 오작동 2건 수정 — ① 입력이 있는 모달(작성 중)은 바깥 클릭으로 닫히지 않는다: 스치듯 눌러 쓰던 내용이 통째로 날아가던 문제. 판정을 모달 안의 input/textarea/select 유무로 하므로 앞으로 추가되는 폼에도 자동 적용된다(ESC·×는 그대로 닫힘) · ② 보상함에 추가·수정·삭제해도 표가 새로고침 전까지 안 바뀌던 문제: saveReward/delReward/saveRwCfg가 renderGoal()만 불렀다. 보상 데이터는 목표 탭(칩)과 보상 탭(표) 양쪽에 나오므로 renderRW()로 두 곳을 함께 갱신 · ③ toRewardModal이 modal._mvid를 안 세워 행동 보상의 '권장일(음기일)' 선택이 한 번도 안 뜨던 버그 수정"},
+  {v:'7.5',date:'2026-08-19',note:"[치명] 마이그레이션이 통째로 스킵되던 구조 결함 — migrateV6() 상단 schemaVersion>=6 게이트에 막혀 v7.0~v7.4의 보정이 한 번도 실행되지 않았다. 버킷 7건이 d.bucket에 남고 화면은 빈 채로 떴다(데이터 손실은 없음) · 마이그레이션을 2층으로 분리: (A) 게이트 안 = 1회성 파괴적 전환, (B) 게이트 밖 = 매 로드 멱등 정규화. 새 필드·새 배열 통합은 반드시 (B)에 · schemaVersion 6→7 · 실제 DB 스냅샷으로 K1~K7 복원·멱등성 검증"},
   {v:'7.4',date:'2026-08-19',note:'버킷함 ⇄ 보상함 연계 — \'고정 메뉴\'를 \'보상함\'으로 개명하고 2열 배치(좌 버킷·우 보상함). → 로 승격, ← 로 되돌리기. 승격 시 단계(주/월/연/목표) 지정 · **보상함에 있는 것만** 계단 수령 선택지에 뜬다(버킷엔 \'스페인 1년 살기\' 같은 게 있어 그대로 두면 수령 모달이 무의미) · bucket 배열을 rewards로 흡수하고 place 필드로 구분 — 이동해도 코드·기록일 유지'},
   {v:'7.3',date:'2026-08-19',note:'🪣 버킷함 + 🎁 보상 탭 신설 — 원하는 것을 미리 담아두고 보상 수령 시 고른다(충동 지출→조건부 허용) · 버킷은 계단(tier)에 묶이지 않는다: \'서울에 집 사기\'처럼 평생 못 받을 수도 있는 것이 같이 사는 욕망의 원장 · 티어는 담을 때가 아니라 고를 때 정해진다(수령 모달에서 예상비용 오름차순) · 정렬 가능한 표 UI + 상태 필터(대기/받음/포기) · 90일 경과 표시 · 포기 사유 기록 · 보상 관리를 목표 탭에서 분리'},
   {v:'7.2',date:'2026-08-19',note:'파트 연계 1차 — 보상 2분류(소비/행동) + 예산(budget) 축 도입, 새 지출이 있으면 가계부 연계 발동 · 소비 보상 수령 시 실제 지출 입력→가계부 거래 자동 생성(rewardId↔txnId 양방향), 상한 초과는 경고만 · 수령 취소 시 연결 거래도 함께 삭제 · 보상 지출이 재정 목표에서 차지하는 비율 표시(의도된 긴장) · 명리 음기일(3점: 음간·음지+水金, 주 1.4회) 캘린더 마커 + 행동 보상 권장일 · 옛 cap→budget 자동 마이그레이션'},
@@ -2555,6 +2567,10 @@ var ov=document.getElementById('ov'),modal=document.getElementById('modal');
 function openModal(h){modal.innerHTML=h;ov.classList.add('on');}
 function postModal(id){var p=(DB.posts||[]).filter(function(x){return x.id===id;})[0];if(!p)return;openModal('<div class="mtop"><h3 style="font-family:var(--serif)">'+sajuEsc(p.title)+'</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut" style="font-size:11px;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:8px">🪶 로버트 · '+(p.date||'')+'</div><div style="font-size:13px;line-height:1.85;white-space:pre-wrap;color:#33425e">'+sajuEsc(p.body)+'</div>');}
 function closeModal(){ov.classList.remove('on');}
+/* 보상·버킷 데이터는 목표 탭(칩)과 보상 탭(표) 양쪽에 나온다.
+   한쪽만 다시 그리면 반대쪽이 새로고침 전까지 옛 화면으로 남는다.
+   (v7.5에서 보상함에 추가해도 표가 그대로던 버그의 원인) */
+function renderRW(){renderGoal();renderReward();}
 /* 모달은 X 버튼으로만 닫힘 (바깥 클릭 무시) */
 function assetModal(id){
   var a=DB.accounts.filter(function(x){return x.id===id})[0];if(!a)return;
@@ -3060,7 +3076,14 @@ document.addEventListener('mouseout',function(e){if(e.target.closest('[data-tip]
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&ov.classList.contains('on')){e.preventDefault();closeModal();}
 });
-ov.addEventListener('mousedown',function(e){ if(e.target===ov)closeModal(); });
+/* 바깥 클릭으로 닫기 — 단, 입력 요소가 있는 모달(= 작성 중)은 닫지 않는다.
+   실수로 한 번 스치면 쓰던 내용이 통째로 날아간다. 닫으려면 ESC 또는 ×.
+   판정을 모달 내용으로 하므로 앞으로 추가되는 폼에도 자동 적용된다. */
+ov.addEventListener('mousedown',function(e){
+  if(e.target!==ov)return;
+  if(modal.querySelector('input,textarea,select'))return;
+  closeModal();
+});
 document.getElementById('reloadBtn').addEventListener('click',function(){location.reload();});
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
