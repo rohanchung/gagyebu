@@ -285,6 +285,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .gcdow.s0{color:var(--neg)}.gcdow.s6{color:var(--accent)}
 .gcell{position:relative;min-height:78px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;gap:1px;overflow:hidden}
 .gcal.wk .gcell{min-height:66px}
+.gcell.fut{min-height:44px}
 .gcell.empty{border:0;background:transparent;cursor:default;min-height:0}
 .gcell:hover{border-color:var(--gold)}
 .gcell .gcd{font-size:10.5px;color:var(--muted);line-height:1}
@@ -313,14 +314,20 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .msrow>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .msr{white-space:nowrap;color:var(--muted)}
 .ctxwrap{background:linear-gradient(180deg,#fbfaf6,#fff);border:1px solid #e8e2cf;border-radius:12px;padding:11px 13px;margin-bottom:12px}
-.ctxrow{padding:7px 0;border-bottom:1px dashed #ece3c9;cursor:pointer}
+.ctxrow{padding:5px 0;border-bottom:1px dashed #ece3c9;cursor:pointer}
 .ctxrow:last-of-type{border-bottom:0}
-.ctxhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12.5px}
-.ctxhead>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctxhead{display:flex;align-items:center;gap:10px;font-size:12.5px}
 .ctxr{white-space:nowrap;font-size:11.5px;color:var(--muted)}
 .ctxr b{color:var(--gold);font-size:12.5px}
-.ctxbar{height:4px;background:#eef0f4;border-radius:3px;overflow:hidden;margin-top:5px}
-.ctxbar span{display:block;height:100%;background:var(--gold)}
+.ctxbar{flex:1 1 auto;min-width:40px;height:5px;background:#eef0f4;border-radius:3px;overflow:hidden;display:block}
+.ctxbar span{display:block;height:100%;background:var(--gold);border-radius:3px}
+.ctxbar.ghost{background:repeating-linear-gradient(90deg,#eef0f4 0 4px,transparent 4px 8px)}
+.ctxnm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctxpct{color:var(--gold)}
+.ctxpct.full{color:var(--pos)}
+.goalrow.one{display:flex;align-items:center;gap:9px;padding:7px 10px;margin:4px 0;font-size:12.5px}
+.goalrow.one .ctxr{display:flex;align-items:center;gap:6px}
+.goalrow.one .acts{margin-left:2px}
 .ctxrow.open{background:#faf7ee;margin:0 -6px;padding:7px 6px;border-radius:7px}
 .ctxbody{margin-top:8px;padding-top:7px;border-top:1px solid #ece3c9}
 .ctxadd{margin-top:9px;padding-top:8px;border-top:1px solid #ece3c9}
@@ -2153,6 +2160,17 @@ function goalRow(g,compact){
   var pct=goalPct(g),mt=(g.metric&&g.metric.type)||'binary',isM=mt!=='binary';
   var val=goalValue(g);
   var par=g.parentId?goalById(g.parentId):null;
+  /* compact(월간 과제 목록)는 한 줄로. 캘린더가 커진 만큼 과제가 세로를 먹으면 안 된다. */
+  if(compact){
+    return '<div class="goalrow one'+(g.status==='done'?' done':'')+(par?' ms':'')+'">'
+     +'<span class="ctxnm"><span class="gcode">'+g.code+'</span> '+sajuEsc(g.title)
+       +(par?' <span class="rg">← '+par.code+' '+sajuEsc(par.title)+'</span>':' <span class="chip check">단발</span>')+'</span>'
+     +(isM?'<span class="ctxbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></span>':'<span class="ctxbar ghost"></span>')
+     +'<span class="ctxr">'+(isM?'<span class="mut">'+gnum(val)+'/'+gnum(g.metric.target)+(g.metric.unit||'')+'</span> '
+        +'<b class="ctxpct'+(pct>=100?' full':'')+'">'+pct+'%</b>':'')
+       +(g.manual?' <span class="chip check">수동</span>':'')
+       +'<span class="acts"><span data-gdone="'+g.id+'" title="'+(g.status==='done'?'되돌리기':'완료')+'">'+(g.status==='done'?'↩':'✔')+'</span><span data-gedit="'+g.id+'">✎</span></span></span></div>';
+  }
   return '<div class="goalrow'+(g.status==='done'?' done':'')+(par?' ms':'')+'">'
    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:13px">'
    +'<span class="gt"><span class="gcode">'+g.code+'</span> '+sajuEsc(g.title)
@@ -2223,14 +2241,16 @@ function renderGoal(){
     var stat=goalStats(g.id,ym+'-01',lastDayOfYM(ym));
     var mlist=milestonesOf(g.id);
     var grw=(DB.rewards||[]).filter(function(r){return r.tier==='goal'&&r.goalId===g.id&&r.active!==false;});
+    /* ⚠️ 전폭 게이지를 따로 한 줄 쓰면 목표 5개가 10줄이 되고 가운데가 텅 빈다(로한 지적).
+       제목과 수치 사이의 빈 공간을 게이지가 채우게 해서 한 줄로 접었다. */
     return '<div class="ctxrow'+(open?' open':'')+(g.status==='done'?' gdone':'')+'" data-gopen="'+g.id+'">'
-     +'<div class="ctxhead"><span><b class="gcode">'+g.code+'</b> '+sajuEsc(g.title)
+     +'<div class="ctxhead"><span class="ctxnm"><b class="gcode">'+g.code+'</b> '+sajuEsc(g.title)
        +(g.status==='done'?' <span class="pill">완료</span>':'')+'</span>'
-     +'<span class="ctxr">'+(mt!=='binary'?gnum(cur)+'/'+gnum(g.metric.target)+(g.metric.unit||'')
+     +'<span class="ctxbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></span>'
+     +'<span class="ctxr">'+(mt!=='binary'?'<span class="mut">'+gnum(cur)+'/'+gnum(g.metric.target)+(g.metric.unit||'')+'</span>'
          +(g.source&&g.source!=='manual'?' <span class="chip auto">연동</span>'
-           :(suggestSource(g)?' <span class="chip warn2" title="로한북에 이 값이 이미 있다 — 목표 수정에서 연결해라">수동</span>':''))+' · ':'')
-       +'<b>'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.'):'')+'</span> ▾</span></div>'
-     +'<div class="ctxbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></div>'
+           :(suggestSource(g)?' <span class="chip warn2" title="로한북에 이 값이 이미 있다 — 목표 수정에서 연결해라">수동</span>':''))+' ':'')
+       +'<b class="ctxpct'+(pct>=100?' full':'')+'">'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.'):'')+'</span> ▾</span></div>'
      +(open?('<div class="ctxbody">'
         +'<div class="ctxstat">'+parseInt(ym.slice(5),10)+'월 투입 <b>'+stat.days+'일</b> · 루틴 '+stat.done+'/'+stat.due
         +' ('+Math.round(stat.rate*100)+'%)'
@@ -2275,12 +2295,12 @@ function renderGoal(){
    +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월</b>'
    +'<span data-mmv="1">▶</span><span id="goalMonthPick" title="월 선택">📅</span></span>'
    +'<span class="hacts">'+rwChip('month',ym,'월간')+'<button class="btn sm" id="addSoloBtn">+ 과제</button></span></h4>'
-   +'<div class="subhd">'+parseInt(ym.slice(5),10)+'월 현황 <span class="mut">'+monthDoneDays(ym)+'일 기록 · 날짜를 눌러 지난 날도 체크</span>'
-   +'<span class="gcalsw" id="gcalToggle">'+(gcalWeekMode()?'월 전체 ▾':'이번 주만 ▴')+'</span></div>'
-   +'<div class="gcal'+(gcalWeekMode()?' wk':'')+'">'+goalCalendar()+'</div>'
-   +'<div class="subhd" style="margin-top:12px">과제 <span class="mut">눈금 '+msThis.length+' · 단발 '+soloThis.length+'</span></div>'
+   +'<div class="subhd">이 달 과제 <span class="mut">눈금 '+msThis.length+' · 단발 '+soloThis.length+'</span></div>'
    +(all.length?all.map(function(g){return goalRow(g,true);}).join('')
      :'<div class="mut" style="padding:5px 0;font-size:11.5px">이 달 과제가 없다.</div>')
+   +'<div class="subhd" style="margin-top:12px">'+parseInt(ym.slice(5),10)+'월 현황 <span class="mut">'+monthDoneDays(ym)+'일 기록 · 날짜를 눌러 지난 날도 체크</span>'
+   +'<span class="gcalsw" id="gcalToggle">'+(gcalWeekMode()?'월 전체 ▾':'이번 주만 ▴')+'</span></div>'
+   +'<div class="gcal'+(gcalWeekMode()?' wk':'')+'">'+goalCalendar()+'</div>'
    +'</div>';
 
   /* ══ 2행 우: 일간 (실제 조작) ══ */
@@ -2448,9 +2468,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='8.3';
+var APP_VERSION='8.4';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'8.4',date:'2026-08-19',note:"연간·월간 행 압축 (로한 지적: '게이지가 저렇게 길 필요 있냐 · 가운데가 비어 있다') — 전폭 게이지를 따로 한 줄 쓰면 목표 5개가 10줄이 되고 제목과 수치 사이가 텅 빈다. 게이지를 그 빈 공간으로 옮겨 flex로 늘렸다: 제목 → 게이지 → 수치/% → 기한이 한 줄. 연간 10줄→5줄, 월간 과제 3개 9줄→3줄 · 월간 과제를 캘린더 위로 (캘린더가 커지면서 아래로 밀려 시인성이 떨어졌다 — 로한 지적) · 100% 도달한 항목은 % 색을 초록으로"},
   {v:'8.3',date:'2026-08-19',note:"목표 탭 레이아웃 재구성 (로한 제안) — 캘린더를 주인공으로. \u26a0\ufe0f 병목은 '캘린더가 작다'가 아니라 '상단이 길다'였다: 연간 5줄 + 펼친 상세 + 52주 트래커 전폭이 화면 절반을 먹어 매일 하는 체크가 아래로 밀렸다. 52주 트래커를 접을 수 있게 하고 캘린더를 키웠다 · 칸을 최대한 활용: 날짜(달성도 배경)·비율·못한 루틴 이름·미달 사유 태그·陰·🎁 를 한 칸에 · 행 끝에 '주' 칸 신설 — 캘린더 한 행이 곧 한 주라 주간 계단이 캘린더 안에서 완결된다(완전달성 4일 → 그 행에 ✓ → 4개면 월간 열림) · 캘린더를 과제 위로 올리고 좌우 비율 1.45:1 · 좁은 화면에서는 이번 주 7칸만 보여주고 '월 전체'로 펼친다(7열에 내용을 넣으면 모바일에서 칸이 40px대가 된다)"},
   {v:'8.2',date:'2026-08-19',note:"[버그] 감소형 목표가 0/65kg 100%로 뜨던 문제 — 미입력 판정이 ''·null만 걸러 숫자 0을 놓쳤다(마이그레이션이 progress:0을 넣음). (0-68.2)/(65-68.2)=2131%→100% 클램프. 목표값이 0인 경우(부채 0원)는 진짜 달성일 수 있어 제외하고 0을 미입력으로 본다 · [신설] 루틴 기간(계속/이 달만/직접 지정) — v8.1까지 종료일 자체가 없어서 8월 눈금에 묶인 루틴이 9월에도 계속 떴다. 코드는 B.8a인데 12월까지 뜨면 기록이 거짓말을 한다. 마일스톤에 붙은 루틴은 기본이 '이 달만', 계속으로 잡으면 경고 · 루틴 행에 종료일 표시, 기간 없는 한시 루틴은 '기간없음' 경고 · 목표 선택에 '계속할 루틴은 연간 목표에 직접 붙여라' 안내 · 수치형 연간 목표인데 연동이 안 걸려 있으면 '수동' 칩으로 알림(체중 79건이 있는데 목표가 안 읽고 있었다) · 단위에 kg/원을 적으면 연동 소스 자동 제안"},
   {v:'8.1',date:'2026-08-19',note:"카드 배치 후보 정리 (로한 지적) — ① 목표 달성 카드에서 아무것도 못 고르던 문제: 후보를 그 단계에 등록된 보상으로만 걸렀는데 목표 tier 등록분이 0개라 빈 목록이 떴다. v8부터 단계는 카드가 들고 있으므로 보상함의 tier 는 '기본 제안'일 뿐 — 다른 단계 보상도 고를 수 있게 열었다(해당 단계 먼저, 그 아래 나머지, 예상비용 오름차순) · ② 배치 모달에서 버킷 제거: 버킷은 목표와 보상이 공존하는 원장이고 '목표가 대가가 될 순 없다'. 보상으로 쓸 거면 보상 탭에서 → 로 보상함에 올린 뒤 배치한다 — 승격이라는 한 단계가 곧 판단이다 · ③ '연간 계단'과 '목표 달성'이 같은 화면에 있어 헷갈리던 라벨 정리"},
