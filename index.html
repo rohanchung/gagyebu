@@ -150,27 +150,27 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .wtab.on{background:var(--gold);color:#fff;border-color:var(--gold)}
 .gcode{font-family:var(--serif);font-size:10.5px;font-weight:700;color:var(--gold);background:#f7f2e2;border:1px solid #e8ddbe;padding:1px 5px;border-radius:4px;letter-spacing:.3px}
 .rcode{font-family:var(--serif);font-size:10px;font-weight:700;color:#8a7c55;letter-spacing:.3px;margin-right:2px}
-.tgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
-@media(max-width:820px){.tgrid{grid-template-columns:1fr}}
-.tcard{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--card)}
-.tcard.earned{border-color:#a8ddc0;background:#f4fbf7;box-shadow:0 0 0 1px #a8ddc0}
-.tcard.claimed{opacity:.55;background:var(--soft)}
-.tchd{display:flex;justify-content:space-between;align-items:baseline;font-size:11px}
-.tclv{font-family:var(--serif);font-weight:700;color:var(--gold);letter-spacing:.5px;font-size:11.5px}
-.tcbig{font-size:21px;font-weight:800;margin:5px 0 6px;line-height:1}
-.tcbig .mut{font-size:11.5px;font-weight:600}
-.tcfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:11px;min-height:26px}
-.grwbox{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)}
-.grw{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;margin:4px 0;background:var(--card)}
-.grw.earned{border-color:#a8ddc0;background:#f4fbf7}
-.grw.claimed{opacity:.55}
-.grw>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rwpick{border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin:6px 0;cursor:pointer;font-size:13px;background:var(--soft)}
-.rwpick:hover{border-color:var(--gold);background:#faf7ee}
-.wtstat{display:flex;gap:16px;margin-bottom:9px;font-size:11px}
-.wtstat b{font-size:16px;font-weight:800;color:var(--gold);margin-right:3px}
-.wtrack{display:grid;grid-template-columns:repeat(27,1fr);gap:3px}
-@media(max-width:900px){.wtrack{grid-template-columns:repeat(18,1fr)}}
+.rwchip{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;padding:3px 9px;border-radius:999px;
+  border:1px solid var(--line);background:var(--soft);color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none}
+.rwchip:hover{border-color:var(--gold)}
+.rwchip.empty{border-style:dashed}
+.rwchip.empty b{color:var(--accent);font-weight:700}
+.rwchip.open{background:#e7f6ee;border-color:#a8ddc0;color:#0b6b3a;font-weight:700}
+.rwchip.done{background:var(--soft);color:#9aa6b6;opacity:.75}
+.ctxacts,.hacts{display:flex;align-items:center;gap:7px}
+.pane h4{align-items:center;gap:8px;flex-wrap:wrap}
+.subhd{font-family:var(--serif);font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--gold);
+  margin:9px 0 5px;padding-bottom:3px;border-bottom:1px dashed #ece3c9}
+.ctxstat{font-size:11.5px;color:var(--muted)}
+.dsum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;margin:2px 0 4px;
+  padding-bottom:7px;border-bottom:1px dashed #ece3c9}
+.dfull{color:var(--pos);font-weight:700}
+.wtwrap{margin-top:11px;padding-top:9px;border-top:1px solid #ece3c9}
+.wthd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:11px;margin-bottom:6px;flex-wrap:wrap}
+.wtt{font-family:var(--serif);font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.4px}
+.wthd b{color:var(--gold);font-size:12.5px}
+.wtrack{display:grid;grid-template-columns:repeat(53,1fr);gap:2px}
+@media(max-width:900px){.wtrack{grid-template-columns:repeat(27,1fr)}}
 .wtrack i{width:100%;aspect-ratio:1;border-radius:3px;background:#eef0f4;display:block;cursor:pointer;border:1px solid transparent}
 .wtrack i.win{background:var(--gold)}
 .wtrack i.miss{background:#e8e4dc}
@@ -190,11 +190,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .mnav2 span{cursor:pointer;color:var(--muted);font-size:13px;padding:0 4px;user-select:none;border-radius:4px}
 .mnav2 span:hover{background:#f3ead2;color:var(--gold)}
 .mnav2 b{font-size:13.5px}
-.gcal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.gcal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .gcdow{text-align:center;font-size:10px;color:var(--muted);padding:2px 0}
 .gcdow.s0{color:var(--neg)}.gcdow.s6{color:var(--accent)}
-.gcell{position:relative;height:44px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;justify-content:space-between}
-.gcell.empty{border:0;background:transparent;cursor:default;height:44px}
+.gcell{position:relative;height:38px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;justify-content:space-between}
+.gcell.empty{border:0;background:transparent;cursor:default;height:38px}
 .gcell:hover{border-color:var(--gold)}
 .gcell .gcd{font-size:10.5px;color:var(--muted);line-height:1}
 .gcell .gcr{font-size:9px;font-weight:700;color:#8a6d12;text-align:right;line-height:1}
@@ -1415,38 +1415,29 @@ function weekTracker(y){
 
 
 /* ── 보상 UI ── */
-function tierCard(tier){
-  var st=tierState(tier); if(!st)return '';
-  var lg=tierClaimed(tier,st.period);
-  var tl=(REWARD_TIERS.filter(function(x){return x.k===tier;})[0]||{}).label;
-  var pct=Math.min(100,Math.round(st.cur/st.req*100));
-  var menu=(DB.rewards||[]).filter(function(r){return r.tier===tier&&r.active!==false;});
-  return '<div class="tcard'+(lg?' claimed':(st.ok?' earned':''))+'">'
-   +'<div class="tchd"><span class="tclv">'+tl+'</span><span class="mut">'+st.label+'</span></div>'
-   +'<div class="tcbig">'+st.cur+'<span class="mut"> / '+st.req+' '+st.unit+'</span></div>'
-   +'<div class="pbar"><span style="width:'+pct+'%;background:'+(st.ok?'var(--pos)':'var(--gold)')+'"></span></div>'
-   +'<div class="tcfoot">'
-   +(lg?('<span class="mut">✓ '+lg.claimedAt+' · '+sajuEsc(lg.title)+'</span><span class="acts"><span data-rwundo="'+tier+'|'+st.period+'">취소</span></span>')
-      :(st.ok?('<button class="btn sm" data-rwclaim="'+tier+'|'+st.period+'">🎁 받기</button><span class="mut">'+menu.length+'개 중 선택</span>')
-             :('<span class="mut">'+Math.max(0,st.req-st.cur)+' '+st.unit.replace(/ .*/,'')+' 남음</span>')))
-   +'</div></div>';
+function rewardManage(tier){
+  var tl=(REWARD_TIERS.filter(function(x){return x.k===tier;})[0]||{}).label||tier;
+  var list=(DB.rewards||[]).filter(function(r){return r.tier===tier;});
+  var c=rwCfg();
+  var cond = tier==='week' ? ('한 주에 <b>완전달성 '+c.weekFullDays+'일</b> 이상이면 열린다')
+    : tier==='month'? ('그 달에 <b>주간 성공 '+c.monthWeeks+'회</b>면 열린다')
+    : tier==='year' ? ('그 해에 <b>월간 성공 '+c.yearMonths+'회</b>면 열린다')
+    : '연간 목표를 <b>완료</b>하면 지급된다';
+  var st=(tier!=='goal')?tierState(tier):null;
+  openModal('<div class="mtop"><h3>🎁 '+tl+' 보상</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
+   +cond+(st?('<br>지금 <b>'+st.cur+'/'+st.req+' '+st.unit+'</b>'+(st.ok?' — 열렸다':' — '+Math.max(0,st.req-st.cur)+' 남음')):'')+'</div>'
+   +(list.length?list.map(function(r){
+      var g=r.goalId?goalById(r.goalId):null;
+      return '<div class="row"><span><span class="gcode">'+r.code+'</span> '+sajuEsc(r.title)
+        +(r.cap?' <span class="mut">≤'+comma(r.cap)+'원</span>':'')+(g?' <span class="mut">← '+g.code+'</span>':'')+'</span>'
+        +'<span class="acts"><span data-rwedit="'+r.id+'">수정</span></span></div>';
+     }).join(''):'<div class="mut" style="padding:6px 0">등록된 보상이 없다.</div>')
+   +'<div style="margin-top:12px"><button class="btn sm" data-rwnew="'+tier+'">+ '+tl+' 보상 추가</button>'
+   +' <button class="ghost" id="rwCfgBtn">문턱 조정</button></div>');
 }
-function goalRewardRows(){
-  var out=[];
-  (DB.rewards||[]).filter(function(r){return r.tier==='goal'&&r.active!==false;}).forEach(function(r){
-    var g=goalById(r.goalId); if(!g)return;
-    var lg=tierClaimed('goal',g.id), ok=(g.status==='done');
-    out.push('<div class="grw'+(lg?' claimed':(ok?' earned':''))+'">'
-     +'<span><span class="gcode">'+r.code+'</span> '+sajuEsc(r.title)
-       +' <span class="mut">← '+g.code+' '+sajuEsc(g.title)+' '+goalPct(g)+'%</span></span>'
-     +'<span class="acts">'+(lg?('<span class="mut">✓ '+lg.claimedAt+'</span> <span data-rwundo="goal|'+g.id+'">취소</span>')
-        :(ok?'<button class="btn sm" data-rwclaim="goal|'+g.id+'">🎁 받기</button>':''))
-     +' <span data-rwedit="'+r.id+'">✎</span></span></div>');
-  });
-  return out.join('');
-}
-function rewardModal(id){
-  var rw=id?(DB.rewards||[]).filter(function(x){return x.id===id;})[0]:{tier:'week',title:'',cap:'',goalId:'',active:true};
+function rewardModal(id,preTier){
+  var rw=id?(DB.rewards||[]).filter(function(x){return x.id===id;})[0]:{tier:preTier||'week',title:'',cap:'',goalId:'',active:true};
   if(!rw)return;
   var yy=todayStr().slice(0,4);
   var gopts='<option value="">— 선택 —</option>'+yearGoals(yy).map(function(g){
@@ -1604,35 +1595,50 @@ function routineRow(t,r,g){
    +'<span class="acts">'+(on?'':'<span data-rmiss="'+r.code+'" title="못한 이유">💬</span>')+'<span data-rtedit="'+r.id+'">✎</span></span></div>';
 }
 
+/* ── 보상 칩: 각 층에 붙어 그 층의 계단 상태를 말한다 ── */
+function rwChip(tier,period,label){
+  var st=(tier==='goal')?goalTierState(goalById(period)):tierState(tier);
+  if(!st)return '';
+  var lg=tierClaimed(tier,st.period||period);
+  var menu=(DB.rewards||[]).filter(function(r){return r.tier===tier&&r.active!==false&&(tier!=='goal'||r.goalId===period);});
+  var key=tier+'|'+(st.period||period);
+  if(lg) return '<span class="rwchip done" data-rwundo="'+key+'" title="'+sajuEsc(lg.title)+' 수령 · 누르면 취소">🎁 '+(label||'')+' ✓ 수령</span>';
+  if(st.ok) return '<span class="rwchip open" data-rwclaim="'+key+'">🎁 '+(label||'')+' '+st.cur+'/'+st.req+' 받기</span>';
+  return '<span class="rwchip'+(menu.length?'':' empty')+'" data-rwmanage="'+tier+'" title="'+(menu.length?(menu.length+'개 등록됨 · 누르면 관리'):'보상 없음 · 누르면 등록')+'">'
+    +'🎁 '+(label||'')+' '+st.cur+'/'+st.req+(menu.length?'':' <b>등록</b>')+'</span>';
+}
+
 function renderGoal(){
   syncAllMilestones();
   var t=todayStr(), d=curDate(), ym=curMonth(), yy=t.slice(0,4);
-  var st=goalStreaks(), r=dayRate(d);
-  var yg=yearGoals(yy);
-  var isToday=(d===t);
+  var yg=yearGoals(yy), isToday=(d===t), cfg=rwCfg();
 
-  /* ── 1행: 연간 목표 (전폭) ── */
+  /* ══ 1행 전폭: 연간 — 목표 + 연간보상 + 52주 트래커 ══ */
   var ctx=yg.map(function(g){
     var pct=goalPct(g),open=(DB.ui.goalOpen===g.id);
+    var mt=(g.metric&&g.metric.type)||'binary', cur=goalValue(g);
     var stat=goalStats(g.id,ym+'-01',lastDayOfYM(ym));
-    var mt=(g.metric&&g.metric.type)||'binary';
-    var cur=goalValue(g), tr=goalTrend(g);
-    var right=(mt!=='binary'
-        ? gnum(cur)+'/'+gnum(g.metric.target)+' '+(g.metric.unit||'')
-          +(g.source&&g.source!=='manual'?' <span class="chip auto">연동</span>':'')+' · '
-        : '')
-      +'<b>'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.')+' 까지':'')+'</span> ▾';
     var mlist=milestonesOf(g.id);
+    var grw=(DB.rewards||[]).filter(function(r){return r.tier==='goal'&&r.goalId===g.id&&r.active!==false;});
     return '<div class="ctxrow'+(open?' open':'')+(g.status==='done'?' gdone':'')+'" data-gopen="'+g.id+'">'
      +'<div class="ctxhead"><span><b class="gcode">'+g.code+'</b> '+sajuEsc(g.title)
        +(g.status==='done'?' <span class="pill">완료</span>':'')+'</span>'
-     +'<span class="ctxr">'+right+'</span></div>'
+     +'<span class="ctxr">'+(mt!=='binary'?gnum(cur)+'/'+gnum(g.metric.target)+(g.metric.unit||'')
+         +(g.source&&g.source!=='manual'?' <span class="chip auto">연동</span>':'')+' · ':'')
+       +'<b>'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.'):'')+'</span> ▾</span></div>'
      +'<div class="ctxbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></div>'
      +(open?('<div class="ctxbody">'
-        +'<div class="mut" style="font-size:11.5px">'+parseInt(ym.slice(5),10)+'월 투입 <b>'+stat.days+'일</b> · 루틴 달성 '+stat.done+'/'+stat.due+' ('+Math.round(stat.rate*100)+'%)'
-        +(mt!=='binary'&&tr<0?' · <span class="mut">감소형 목표</span>':'')+'</div>'
-        +(g.memo?'<div class="mut" style="font-size:11px;margin-top:5px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
-        +'<div class="msbox"><div class="mshd">월간 세부목표 <span class="mut">'+mlist.length+'개</span>'
+        +'<div class="ctxstat">'+parseInt(ym.slice(5),10)+'월 투입 <b>'+stat.days+'일</b> · 루틴 '+stat.done+'/'+stat.due
+        +' ('+Math.round(stat.rate*100)+'%)'
+        +(grw.length?grw.map(function(r){
+            var lg=tierClaimed('goal',g.id);
+            return ' · <span class="rwchip'+(lg?' done':(g.status==='done'?' open':''))+'" '
+              +(lg?'data-rwundo="goal|'+g.id+'"':(g.status==='done'?'data-rwclaim="goal|'+g.id+'"':'data-rwmanage="goal"'))
+              +'>🎁 '+sajuEsc(r.title)+(lg?' ✓':(g.status==='done'?' 받기':''))+'</span>';}).join('')
+          :' · <span class="rwchip empty" data-rwmanage="goal">🎁 달성 보상 <b>등록</b></span>')
+        +'</div>'
+        +(g.memo?'<div class="mut" style="font-size:11px;margin-top:4px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
+        +'<div class="msbox"><div class="mshd">월간 세부목표 <span class="mut">'+mlist.length+'</span>'
           +'<button class="ghost sm" data-msadd="'+g.id+'">+ 세부목표</button></div>'
         +(mlist.length?mlist.map(function(m){
             var isNow=(m.period===ym);
@@ -1641,91 +1647,63 @@ function renderGoal(){
               +'<span><b class="gcode">'+m.code+'</b> '+sajuEsc(m.title)+(isNow?' <span class="chip auto">이달</span>':'')+'</span>'
               +'<span class="msr">'+(val?val+' · ':'')+(m.manual?'<span class="chip check">수동</span> ':'')
               +'<span class="acts"><span data-gdone="'+m.id+'">'+(m.status==='done'?'↩':'✔')+'</span><span data-gedit="'+m.id+'">✎</span></span></span></div>';
-          }).join(''):'<div class="mut" style="font-size:11px;padding:5px 0">아직 없다. 연간 목표를 달로 쪼개면 실행이 붙는다.</div>')
+          }).join(''):'<div class="mut" style="font-size:11px;padding:4px 0">연간 목표를 달로 쪼개면 실행이 붙는다.</div>')
         +'</div>'
-        +'<div style="margin-top:9px"><button class="ghost" data-gedit="'+g.id+'">목표 수정</button></div></div>'):'')
+        +'<div style="margin-top:8px"><button class="ghost" data-gedit="'+g.id+'">목표 수정</button></div></div>'):'')
      +'</div>';
   }).join('');
 
-  /* ── 2행 좌: 그날의 루틴 ── */
-  var sajuD='';
-  try{var ft=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
-    sajuD=' <span class="mut" style="font-size:11px">· '+ft.gz+(ft.flags.length?' '+ft.flags.map(function(f){return f.t;}).join('·'):'')+'</span>';
-  }catch(e){}
-  var groups=todayGroups(d);
-  var tasks=groups.length?groups.map(function(gr){
-    return '<div class="rgroup"><div class="rghd '+gr.cls+'">'+sajuEsc(gr.label)+'</div>'
-     +gr.rows.map(function(x){return routineRow(d,x.r,x.g);}).join('')+'</div>';
-  }).join(''):'<div class="mut" style="padding:12px 0">이 날 해당하는 루틴이 없다.</div>';
-  var paused=(DB.routines||[]).filter(function(x){return x.status==='paused';}).length;
-  var retired=(DB.routines||[]).filter(function(x){return x.status==='retired';}).length;
+  var ws=yearWeekStats(yy), mw=yearMonthWins(yy);
+  var yearPane='<div class="ctxwrap"><div class="ctxtop">'
+   +'<span class="ctxtitle">⚑ '+yy+'년 연간 목표</span>'
+   +'<span class="ctxacts">'+rwChip('year',yy,'연간')+'<button class="ghost sm" id="addYGoalBtn">+ 목표</button></span></div>'
+   +(ctx||'<div class="mut" style="font-size:12px;padding:6px 2px">올해 목표가 없다. 여기서부터 시작해라.</div>')
+   +'<div class="wtwrap"><div class="wthd"><span class="wtt">📊 주간 성공</span>'
+   +'<span class="mut"><b>'+ws.win+'</b>/'+ws.elapsed+'주 · 월 <b>'+mw+'</b>/'+cfg.yearMonths+' · 최장 <b>'+ws.best+'</b>주'
+   +' <span class="mut" style="opacity:.7">(칸 1개=1주, 완전달성 '+cfg.weekFullDays+'일↑)</span></span></div>'
+   +'<div class="wtrack">'+weekTracker(yy)+'</div></div></div>';
 
-  var dayPane='<div class="gtoday">'
-   +'<div class="dnav"><span data-dmv="-1">◀</span>'
-   +'<b>'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8,10),10)+'일 ('+DOW_KO[dowOf(d)]+')</b>'
-   +'<span data-dmv="1"'+(isToday?' class="off"':'')+'>▶</span>'
-   +'<span id="goalDatePick" title="날짜 선택">📅</span>'
-   +(isToday?'<span class="chip auto">오늘</span>':'<span class="chip check" id="goalToday">오늘로</span>')
-   +sajuD+'</div>'
-   +'<div class="gstreak">'
-   +'<div'+(st.any?'':' class="cold"')+'>🔥 연속 '+st.any+'일</div>'
-   +'<div'+(st.full?'':' class="cold"')+'>⭐ 완전달성 '+st.full+'일</div>'
-   +'<div'+(r&&r.done?'':' class="cold"')+'>'+(isToday?'오늘':'이 날')+' '+(r?(r.done+'/'+r.total):'—')+'</div>'
-   +'<div class="cold">'+parseInt(ym.slice(5),10)+'월 '+monthDoneDays(ym)+'일 기록</div>'
-   +'<div'+(isFullDay(d)?'':' class="cold"')+'>'+(isFullDay(d)?'✅ 완전달성':'완전달성 아님')+'</div>'
-   +'<div'+(weekSuccess(weekStart(d))?'':' class="cold"')+'>🎁 이번주 '+fullDaysInWeek(weekStart(d))+'/'+rwCfg().weekFullDays+'일</div>'
-   +'</div>'+tasks
-   +'<div style="margin-top:11px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
-   +' <span class="mut" id="routineListBtn" style="font-size:11px;margin-left:8px;cursor:pointer">📋 전체 루틴'
-   +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span></div></div>';
-
-  /* ── 2행 우: 월간 체크 캘린더 ── */
-  var mDays=monthDoneDays(ym);
-  var calPane='<div class="sec"><h4>📅 '+parseInt(ym.slice(5),10)+'월 체크 <span class="mut">'+mDays+'일 기록 · 날짜를 눌러 지난 날도 체크</span></h4>'
-   +'<div class="gcal">'+goalCalendar()+'</div></div>';
-
-  /* ── 3행 좌: 월간 과제 (연간 눈금 + 단발) ── */
+  /* ══ 2행 좌: 월간 (큰 범위) ══ */
   var msThis=(DB.goals||[]).filter(function(g){return g.kind==='milestone'&&g.period===ym;});
   var soloThis=soloGoals(ym);
   var all=msThis.concat(soloThis);
-  var taskPane='<div class="sec"><h4><span class="mnav2"><span data-mmv="-1">◀</span>'
-   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월 과제</b>'
+  var monthPane='<div class="sec pane"><h4><span class="mnav2"><span data-mmv="-1">◀</span>'
+   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월</b>'
    +'<span data-mmv="1">▶</span><span id="goalMonthPick" title="월 선택">📅</span></span>'
-   +'<button class="btn sm" id="addSoloBtn">+ 과제</button></h4>'
-   +'<div class="mut" style="font-size:11px;margin-bottom:7px">연간 목표의 이 달 눈금 '+msThis.length+'개 · 이 달 단발 과제 '+soloThis.length+'개</div>'
+   +'<span class="hacts">'+rwChip('month',ym,'월간')+'<button class="btn sm" id="addSoloBtn">+ 과제</button></span></h4>'
+   +'<div class="subhd">과제 <span class="mut">눈금 '+msThis.length+' · 단발 '+soloThis.length+'</span></div>'
    +(all.length?all.map(function(g){return goalRow(g,true);}).join('')
-     :'<div class="mut" style="padding:6px 0">이 달 과제가 없다. 연간 목표를 펼쳐 세부목표를 만들거나, <b>+ 과제</b>로 단발 과제를 추가해라.</div>')
-   +'</div>';
+     :'<div class="mut" style="padding:5px 0;font-size:11.5px">이 달 과제가 없다.</div>')
+   +'<div class="subhd" style="margin-top:11px">'+parseInt(ym.slice(5),10)+'월 현황 <span class="mut">'+monthDoneDays(ym)+'일 기록 · 날짜를 눌러 지난 날도 체크</span></div>'
+   +'<div class="gcal">'+goalCalendar()+'</div></div>';
 
-  /* ── 4행: 보상 계단 ── */
-  var nRw=(DB.rewards||[]).filter(function(x){return x.active!==false;}).length;
-  var nLog=Object.keys(DB.rewardLog||{}).length;
-  var grw=goalRewardRows();
-  var rwPane='<div class="sec"><h4>🎁 보상 계단 <span class="mut">일간 완전달성 → 주간 → 월간 → 연간</span>'
-   +'<span><span class="mut" id="rwHistBtn" style="font-size:11px;margin-right:9px;cursor:pointer">📜 수령 '+nLog+'건</span>'
-   +'<button class="btn sm" id="addRewardBtn">+ 보상</button></span></h4>'
-   +(nRw?('<div class="tgrid">'+tierCard('week')+tierCard('month')+tierCard('year')+'</div>'
-        +(grw?'<div class="grwbox">'+grw+'</div>':''))
-     :'<div class="mut" style="padding:8px 0">보상이 없다. 루틴은 본래 재미없는 일이라 외적 보상이 실제로 듣는다 — '
-      +'단 <b>평소 안 하던 것</b>이어야 하고, <b>미달이면 실제로 안 해야</b> 한다.</div>')
-   +'</div>';
+  /* ══ 2행 우: 일간 (실제 조작) ══ */
+  var sajuD='';
+  try{var ft=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
+    sajuD='<span class="mut" style="font-size:10.5px">'+ft.gz+(ft.flags.length?' '+ft.flags.map(function(f){return f.t;}).join('·'):'')+'</span>';
+  }catch(e){}
+  var groups=todayGroups(d), r=dayRate(d);
+  var tasks=groups.length?groups.map(function(gr){
+    return '<div class="rgroup"><div class="rghd '+gr.cls+'">'+sajuEsc(gr.label)+'</div>'
+     +gr.rows.map(function(x){return routineRow(d,x.r,x.g);}).join('')+'</div>';
+  }).join(''):'<div class="mut" style="padding:10px 0;font-size:11.5px">이 날 해당하는 루틴이 없다. <b>+ 루틴</b>으로 추가해라.</div>';
+  var paused=(DB.routines||[]).filter(function(x){return x.status==='paused';}).length;
+  var retired=(DB.routines||[]).filter(function(x){return x.status==='retired';}).length;
+  var full=isFullDay(d);
+  var dayPane='<div class="sec pane"><h4><span class="mnav2"><span data-dmv="-1">◀</span>'
+   +'<b>'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8,10),10)+'일 ('+DOW_KO[dowOf(d)]+')</b>'
+   +'<span data-dmv="1"'+(isToday?' class="off"':'')+'>▶</span><span id="goalDatePick" title="날짜 선택">📅</span>'
+   +(isToday?'':'<span class="chip check" id="goalToday">오늘로</span>')+'</span>'
+   +'<span class="hacts">'+rwChip('week',weekStart(d),'주간')+'</span></h4>'
+   +'<div class="dsum"><span class="'+(full?'dfull':'mut')+'">'+(full?'✅ 완전달성':(r?'오늘 '+r.done+'/'+r.total:'루틴 없음'))+'</span>'
+   +'<span class="mut">이번주 완전달성 '+fullDaysInWeek(weekStart(d))+'/'+cfg.weekFullDays+'일</span>'+sajuD+'</div>'
+   +tasks
+   +'<div style="margin-top:10px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
+   +' <span class="mut" id="routineListBtn" style="font-size:11px;margin-left:8px;cursor:pointer">📋 전체 루틴'
+   +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span>'
+   +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 수령 '+Object.keys(DB.rewardLog||{}).length+'건</span></div></div>';
 
-  /* ── 3행 우: 52주 주간 트래커 ── */
-  var ws=yearWeekStats(yy), mw=yearMonthWins(yy), cfg=rwCfg();
-  var hmPane='<div class="sec"><h4>📊 '+yy+'년 주간 성공 <span class="mut">칸 1개 = 1주 · 색칠 = 완전달성 '+cfg.weekFullDays+'일 이상</span></h4>'
-   +'<div class="wtstat"><span><b>'+ws.win+'</b><span class="mut">/'+ws.elapsed+'주 성공</span></span>'
-   +'<span><b>'+mw+'</b><span class="mut">/'+cfg.yearMonths+'달 (연간 문턱)</span></span>'
-   +'<span><b>'+ws.best+'</b><span class="mut">주 최장연속</span></span></div>'
-   +'<div class="wtrack">'+weekTracker(yy)+'</div>'
-   +'<div class="mut" style="font-size:10.5px;margin-top:7px">칸을 누르면 그 주로 이동한다.</div></div>';
-
-  document.getElementById('v-goal').innerHTML=''
-   +'<div class="ctxwrap"><div class="ctxtop"><span class="ctxtitle">⚑ '+yy+'년 연간 목표</span>'
-   +'<button class="ghost sm" id="addYGoalBtn">+ 연간 목표</button></div>'
-   +(ctx||'<div class="mut" style="font-size:12px;padding:6px 2px">올해 목표가 없다. 여기서부터 시작해라.</div>')+'</div>'
-   +'<div class="g2col">'+taskPane+hmPane+'</div>'
-   +'<div class="g2col">'+dayPane+calPane+'</div>'
-   +rwPane;
+  document.getElementById('v-goal').innerHTML=yearPane+'<div class="g2col">'+monthPane+dayPane+'</div>';
 }
 
 /* ====== 일지 ====== */
@@ -1764,9 +1742,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='7.0';
+var APP_VERSION='7.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'7.1',date:'2026-08-19',note:'[UI원칙] 좌=큰범위·우=조작 으로 좌우 교체 — 왼쪽 8월(과제+현황 캘린더) / 오른쪽 그날 루틴 체크. 모바일에서 연간→월간→일간 순으로 쌓인다 · 별도 보상 프레임 제거하고 각 층에 칩으로 분산(연간 보상→연간 헤더, 월간→8월 헤더, 주간→일간 헤더, 목표달성→목표 펼침) · 칩에 진행률과 남은 수치를 표시하고 누르면 조건·등록 목록이 열려 왜 안 열리는지 바로 보인다 · 52주 트래커를 연간 프레임에 통합 · 8월 체크→8월 현황'},
   {v:'7.0',date:'2026-08-18',note:'🎁 보상 계단 신설 — 일간 완전달성 → 주간(4일) → 월간(주성공 4회) → 연간(월성공 9회). 아래 단계의 성공이 위 단계를 여는 누적 구조 · 티어별 보상 메뉴에서 하나 선택 수령(기간당 1회) · 목표 달성 보상 별도 트랙 · 12주 잔디를 52주 주간 트래커로 교체(캘린더와 중복 제거, 보상 진행률이 그대로 보임) · 문턱 조정 가능 · 화면 순서 연간→월간→일간→보상'},
   {v:'6.2',date:'2026-08-18',note:'레이아웃 2열 재구성 — 연간(전폭) / 그날 루틴·월간 체크 캘린더 / 월간 과제·12주 기록 · 날짜 네비(◀▶📅)로 지난 날 루틴 체크 가능(미래 차단) · 월간 캘린더에서 날짜 클릭 이동 · 단독과제→월간 과제로 통합(연간 눈금+단발 한 화면) · 월 네비 추가 · 월간 눈금이 부모 목표의 연동값·시작값을 승계'},
   {v:'6.1',date:'2026-08-18',note:'월간 세부목표 직접 CRUD(binary 목표에도 수동 눈금 생성) · 연간 목표 헤더/버튼 정리 · 단독과제 프레임 분리 · [버그] 감소형 목표(체중) 진행률이 100%로 튀던 문제 수정 · 목표 현재값을 앱 데이터와 자동 연동(체중=체성분 최신, 현금=현금성 계좌 합계, 순자산, 총부채) · ESC/바깥클릭으로 모달 닫기'},
@@ -2489,7 +2468,8 @@ document.addEventListener('click',function(e){
   var rwu=e.target.closest('[data-rwundo]');if(rwu){var pb=rwu.dataset.rwundo.split('|');return unclaimTier(pb[0],pb[1]);}
   var rwe=e.target.closest('[data-rwedit]');if(rwe)return rewardModal(rwe.dataset.rwedit);
   var wjp=e.target.closest('[data-wjump]');if(wjp)return setGoalDate(wjp.dataset.wjump>todayStr()?todayStr():wjp.dataset.wjump);
-  if(e.target.id==='addRewardBtn')return rewardModal(null);
+  var rwm=e.target.closest('[data-rwmanage]');if(rwm)return rewardManage(rwm.dataset.rwmanage);
+  var rwn=e.target.closest('[data-rwnew]');if(rwn)return rewardModal(null,rwn.dataset.rwnew);
   if(e.target.id==='rwCfgBtn')return rewardCfgModal();
   if(e.target.id==='rwHistBtn')return rewardHistory();
   var dmv=e.target.closest('[data-dmv]');if(dmv)return moveGoalDate(parseInt(dmv.dataset.dmv,10));
