@@ -1595,8 +1595,8 @@ function rwCardModal(tier,period){
   var cond = tier==='week' ? ('한 주에 <b>완전달성 '+cf.weekFullDays+'일</b>')
     : tier==='month'? ('그 달에 <b>주간 성공 '+cf.monthWeeks+'회</b>')
     : tier==='year' ? ('그 해에 <b>월간 성공 '+cf.yearMonths+'회</b>')
-    : '연간 목표 <b>완료</b>';
-  var head='<div class="mtop"><h3>🎁 '+tl+' 보상 카드 <span class="mut" style="font-size:12px">'+(st?sajuEsc(st.label):'')+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+    : '이 목표를 <b>완료</b>하면 지급된다 (루틴 계단과 무관)';
+  var head='<div class="mtop"><h3>🎁 '+tl+(tier==='goal'?'':' 계단')+' 보상 카드 <span class="mut" style="font-size:12px">'+(st?sajuEsc(st.label):'')+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="mut" style="font-size:11.5px;margin-bottom:10px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
    +'조건 — '+cond+(st?('<br>지금 <b>'+st.cur+'/'+st.req+' '+st.unit+'</b>'+(st.ok?' · <b class="pos">열렸다</b>':'')):'')+'</div>';
   if(!c){cardPick(tier,pd,head);return;}
@@ -1619,33 +1619,42 @@ function rwCardModal(tier,period){
   openModal(body);
 }
 /* 배치할 카드 고르기 — 보상함 / 버킷함 / 새로 만들기 (3경로) */
+/* 배치할 카드 고르기.
+   ⚠️ 버킷은 여기 안 뜬다 (로한 지적). 버킷은 목표와 보상이 공존하는 원장이고,
+      '목표가 대가가 될 순 없다'. 보상으로 쓸 거면 보상 탭에서 → 로 보상함에 올린 뒤 배치한다.
+      한 단계를 거치게 하는 게 오히려 옳은 UX다 — 승격 자체가 판단이기 때문이다.
+   ⚠️ 보상함 항목의 tier 는 v8에서 '기본 제안'일 뿐이다. 실제 단계는 카드가 들고 있다.
+      그래서 다른 단계에 등록한 것도 고를 수 있게 열어둔다 — 안 그러면
+      목표 달성 보상처럼 등록분이 0개인 단계에서 아무것도 못 고른다. */
 function cardPick(tier,period,head){
   var tl=(REWARD_TIERS.filter(function(x){return x.k===tier;})[0]||{}).label||tier;
-  var pool=rewardActive().filter(function(r){return r.tier===tier&&(tier!=='goal'||r.goalId===period);})
-    .sort(function(a,b){return (a.budget||0)-(b.budget||0);});
-  var bk=bucketAll().filter(function(b){return b.status==='want';})
-    .sort(function(a,b){return (a.price||0)-(b.price||0);});
-  var rows=pool.length?pool.map(function(r){
+  var all=rewardActive();
+  var byPrice=function(a,b){return (a.budget||a.price||0)-(b.budget||b.price||0);};
+  var mine,others;
+  if(tier==='goal'){
+    mine=all.filter(function(r){return r.tier==='goal'&&r.goalId===period;}).sort(byPrice);
+    others=all.filter(function(r){return !(r.tier==='goal'&&r.goalId===period);}).sort(byPrice);
+  }else{
+    mine=all.filter(function(r){return r.tier===tier;}).sort(byPrice);
+    others=all.filter(function(r){return r.tier!==tier;}).sort(byPrice);
+  }
+  var row=function(r){
+    var g=(r.tier==='goal'&&r.goalId)?goalById(r.goalId):null;
     return '<div class="rwpick" onclick="doPlace(\''+tier+'\',\''+period+'\',\''+r.id+'\')">'
-     +'<div class="rwpt"><span><span class="gcode">'+r.code+'</span> '+sajuEsc(r.title)+'</span>'
-     +'<span class="mut">'+kindLabel(r.kind)+(r.budget?' · '+comma(r.budget)+'원':'')+(r.timing==='yin'?' · 陰':'')+'</span></div></div>';
-  }).join(''):'<div class="mut" style="padding:6px 0;font-size:11.5px">이 단계의 보상함이 비어 있다. 아래에서 만들거나 버킷에서 올려라.</div>';
-  var bkrows=bk.length?bk.slice(0,12).map(function(b){
-    return '<div class="rwpick sm" onclick="bkToCard(\''+tier+'\',\''+period+'\',\''+b.id+'\')">'
-     +'<div class="rwpt"><span><span class="gcode">'+b.code+'</span> '+sajuEsc(b.title)+'</span>'
-     +'<span class="mut">'+(b.price?comma(b.price)+'원':'—')+' →</span></div></div>';}).join(''):'';
+     +'<div class="rwpt"><span><span class="gcode">'+r.code+'</span> '+sajuEsc(r.title)
+       +(g?' <span class="mut">← '+g.code+'</span>':'')+'</span>'
+     +'<span class="mut">'+kindLabel(r.kind)+((r.budget||r.price)?' · '+comma(r.budget||r.price)+'원':'')
+       +(r.timing==='yin'?' · 陰':'')+'</span></div></div>';
+  };
+  var mineHtml=mine.length?mine.map(row).join('')
+    :'<div class="mut" style="padding:6px 0;font-size:11.5px">이 단계에 등록된 것이 없다. 아래에서 고르거나 새로 만들어라.</div>';
+  var otherHtml=others.length?('<div class="pickhd" style="margin-top:11px">🎁 다른 단계 보상 <span class="mut">골라도 된다 — 단계는 카드가 정한다</span></div>'
+    +others.map(row).join('')):'';
   openModal((head||('<div class="mtop"><h3>🎁 '+tl+' 카드 배치</h3><span class="x" onclick="closeModal()">×</span></div>'))
-   +'<div class="pickhd">🎁 보상함 <span class="mut">이 단계에 등록된 것</span></div>'+rows
-   +(bkrows?('<div class="pickhd" style="margin-top:11px">🪣 버킷함에서 올리기 <span class="mut">올리면서 바로 배치된다</span></div>'+bkrows):'')
-   +'<div style="margin-top:12px"><button class="btn sm" onclick="closeModal();rewardModal(null,\''+tier+'\',\''+(tier==='goal'?period:'')+'\',\''+period+'\')">+ 새로 만들기</button></div>');
-}
-function bkToCard(tier,period,bid){
-  var b=bucketById(bid); if(!b)return;
-  b.place='reward'; b.tier=tier; b.active=true; b.movedAt=todayStr(); b.updatedAt=todayStr();
-  if(tier==='goal')b.goalId=period;
-  if(b.price&&!b.budget)b.budget=b.price;
-  logAct('🎁 보상함으로(배치) · '+b.code+' '+b.title);
-  if(placeCard(tier,period,b.id)){save();closeModal();renderRW();}
+   +'<div class="pickhd">🎁 보상함 <span class="mut">'+(tier==='goal'?'이 목표에 걸린 것':'이 단계에 등록된 것')+'</span></div>'+mineHtml
+   +otherHtml
+   +'<div style="margin-top:12px"><button class="btn sm" onclick="closeModal();rewardModal(null,\''+tier+'\',\''+(tier==='goal'?period:'')+'\',\''+period+'\')">+ 새로 만들기</button>'
+   +' <span class="mut" style="font-size:11px;margin-left:8px">버킷은 여기 안 뜬다 — 🎁 보상 탭에서 보상함으로 올린 뒤 고른다</span></div>');
 }
 
 /* ── 52주 트래커 ── */
@@ -2311,9 +2320,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='8.0';
+var APP_VERSION='8.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'8.1',date:'2026-08-19',note:"카드 배치 후보 정리 (로한 지적) — ① 목표 달성 카드에서 아무것도 못 고르던 문제: 후보를 그 단계에 등록된 보상으로만 걸렀는데 목표 tier 등록분이 0개라 빈 목록이 떴다. v8부터 단계는 카드가 들고 있으므로 보상함의 tier 는 '기본 제안'일 뿐 — 다른 단계 보상도 고를 수 있게 열었다(해당 단계 먼저, 그 아래 나머지, 예상비용 오름차순) · ② 배치 모달에서 버킷 제거: 버킷은 목표와 보상이 공존하는 원장이고 '목표가 대가가 될 순 없다'. 보상으로 쓸 거면 보상 탭에서 → 로 보상함에 올린 뒤 배치한다 — 승격이라는 한 단계가 곧 판단이다 · ③ '연간 계단'과 '목표 달성'이 같은 화면에 있어 헷갈리던 라벨 정리"},
   {v:'8.0',date:'2026-08-19',note:"🎁 보상 카드 모델 — 로한 설계. 보상함=카드의 '종류'(덱) → 목표관리에서 배치(예약) → 계단 달성 시 활성 → 실제로 소비하며 가계부를 쓸 때 카드가 소멸. ⚠️ v7까지는 '수령 확정'이 곧 가계부 거래를 만들어서, 받기로 해놓고 안 쓴 보상이 유령 거래로 남아 가계부가 더러워졌다. 거래는 실제 지출 순간에만 생기고 카드는 거기에 붙는다 · 카드 상태는 저장하지 않고 파생(usedAt/tierOpen) — 문턱을 바꿔도 과거 판정이 안 어긋난다 · 카드는 종류를 스냅샷 — 보상함 원본을 고쳐도 발급된 카드는 불변 · 배치 3경로(보상함에서 고르기/버킷에서 올리며 배치/새로 만들기) · 목표 달성 보상에 목표 id가 안 넘어가던 버그 수정 · 행동 보상은 가계부를 안 타므로 목표 탭에서 직접 사용 확정 · 거래 삭제 시 카드 복원, 사용 취소 시 거래는 남기고 연결만 해제(실제로 쓴 돈이므로) · 캘린더 마커 개편: 의미 없는 점 2개 → ✅ 루틴 완전달성 💳 카드 미결제 🎁 보상 사용, 부분달성은 날짜 배경으로(아이콘 남발 방지), 셀 높이 96→112"},
   {v:'7.6',date:'2026-08-19',note:"모달 오작동 2건 수정 — ① 입력이 있는 모달(작성 중)은 바깥 클릭으로 닫히지 않는다: 스치듯 눌러 쓰던 내용이 통째로 날아가던 문제. 판정을 모달 안의 input/textarea/select 유무로 하므로 앞으로 추가되는 폼에도 자동 적용된다(ESC·×는 그대로 닫힘) · ② 보상함에 추가·수정·삭제해도 표가 새로고침 전까지 안 바뀌던 문제: saveReward/delReward/saveRwCfg가 renderGoal()만 불렀다. 보상 데이터는 목표 탭(칩)과 보상 탭(표) 양쪽에 나오므로 renderRW()로 두 곳을 함께 갱신 · ③ toRewardModal이 modal._mvid를 안 세워 행동 보상의 '권장일(음기일)' 선택이 한 번도 안 뜨던 버그 수정"},
   {v:'7.5',date:'2026-08-19',note:"[치명] 마이그레이션이 통째로 스킵되던 구조 결함 — migrateV6() 상단 schemaVersion>=6 게이트에 막혀 v7.0~v7.4의 보정이 한 번도 실행되지 않았다. 버킷 7건이 d.bucket에 남고 화면은 빈 채로 떴다(데이터 손실은 없음) · 마이그레이션을 2층으로 분리: (A) 게이트 안 = 1회성 파괴적 전환, (B) 게이트 밖 = 매 로드 멱등 정규화. 새 필드·새 배열 통합은 반드시 (B)에 · schemaVersion 6→7 · 실제 DB 스냅샷으로 K1~K7 복원·멱등성 검증"},
