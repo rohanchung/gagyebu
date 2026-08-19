@@ -463,7 +463,7 @@ var SEED = {
   rewards:[],
   rewardLog:{},
   rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},
-  schemaVersion:6,
+  schemaVersion:7,
   ui:{month:'2026-08',watchCats:['식비','카페','간식/편의점']}
 };
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
@@ -2213,7 +2213,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='7.4';
+var APP_VERSION='7.5';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
   {v:'7.4',date:'2026-08-19',note:'버킷함 ⇄ 보상함 연계 — \'고정 메뉴\'를 \'보상함\'으로 개명하고 2열 배치(좌 버킷·우 보상함). → 로 승격, ← 로 되돌리기. 승격 시 단계(주/월/연/목표) 지정 · **보상함에 있는 것만** 계단 수령 선택지에 뜬다(버킷엔 \'스페인 1년 살기\' 같은 게 있어 그대로 두면 수령 모달이 무의미) · bucket 배열을 rewards로 흡수하고 place 필드로 구분 — 이동해도 코드·기록일 유지'},
@@ -2738,14 +2738,22 @@ var SAJU_SEED={birth:{solar:'1986-05-10',lunar:'1986-04-02',gender:'M'},natal:{y
 function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health){d.health.metrics=JSON.parse(JSON.stringify(HEALTH_SEED.metrics));d.health.catOrder=HEALTH_SEED.catOrder.slice();}
  if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=[]; if(d&&!d.routines)d.routines=[]; if(d&&!d.checks)d.checks={}; if(d)d=migrateV6(d); return d; }
 
-/* ====== v6.0 마이그레이션 — 목표·루틴 구조 전환 (기록 무손실) ====== */
+/* ====== 마이그레이션 ======
+   ⚠️ 구조 규칙 (v7.5에서 사고 겪고 확정)
+   이 함수는 두 부분이다.
+   (A) 버전 게이트 안 = 한 번만 도는 파괴적 전환 (checks 재구성 등)
+   (B) 게이트 밖 = 매 로드마다 도는 멱등 정규화 (전부 if(!x) 가드)
+   새 필드·새 배열 통합은 반드시 (B)에 넣는다.
+   사고 이력: v7.0~v7.4의 보정을 (A) 안에 넣었는데 상단 `schemaVersion>=6` 게이트에
+   막혀 한 번도 안 돌았다. 버킷 7건이 d.bucket에 남고 화면은 빈 채로 떴다. */
 function migrateV6(d){
-  if(d.schemaVersion>=6)return d;
+  var today=(function(){var x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');})();
+  if((d.schemaVersion||0)<6){  /* ===== (A) 1회성 전환 시작 ===== */
   d.meta=d.meta||{}; d.meta.seq=d.meta.seq||{};
   var seq=function(k){d.meta.seq[k]=(d.meta.seq[k]||0)+1;return d.meta.seq[k];};
   var alpha=function(n){var s='';while(n>0){var r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s;};
   var lower=function(n){var s='';while(n>0){var r=(n-1)%26;s=String.fromCharCode(97+r)+s;n=Math.floor((n-1)/26);}return s;};
-  var today=(function(){var x=new Date();return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');})();
+  /* today 는 함수 최상단에서 선언됨 */
 
   /* 1) 목표: level → kind, 코드 부여 */
   (d.goals||[]).forEach(function(g){
@@ -2798,15 +2806,20 @@ function migrateV6(d){
     if(done.length)nc[k]={done:done,due:[],miss:{}};
   });
   d.checks=nc;
+  }  /* ===== (A) 1회성 전환 끝 ===== */
+
+  /* ===== (B) 매 로드 멱등 정규화 — 새 필드는 반드시 여기에 ===== */
 
   if(!d.missTags)d.missTags=MISS_TAGS.slice();
   if(!d.rewards)d.rewards=[];
   if(!d.rewardLog)d.rewardLog={};
 
   /* v7.4 — bucket 배열을 rewards로 흡수하고 place로 구분 */
-  if(d.bucket&&d.bucket.length){
-    d.bucket.forEach(function(b){b.place='bucket';d.rewards.push(b);});
-    delete d.bucket;
+  if(d.bucket){
+    (d.bucket||[]).forEach(function(b){
+      if(!d.rewards.some(function(x){return x.id===b.id;})){b.place='bucket';d.rewards.push(b);}
+    });
+    delete d.bucket;   /* 빈 배열이어도 지운다 — 남아 있으면 다음 판단이 헷갈린다 */
   }
   (d.rewards||[]).forEach(function(b){
     if(!b.place)b.place=(b.tier?'reward':'bucket');
@@ -2827,7 +2840,7 @@ function migrateV6(d){
   if(d.ui&&d.ui.goalOpen===undefined)d.ui.goalOpen=null;
   if(d.ui&&!d.ui.goalDate)d.ui.goalDate=today;
   if(d.ui&&!d.ui.goalMonth)d.ui.goalMonth=today.slice(0,7);
-  d.schemaVersion=6;
+  d.schemaVersion=7;
   return d;
 }
 function catModal(id){
