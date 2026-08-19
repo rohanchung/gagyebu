@@ -88,6 +88,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .cardbig .cbs{font-size:11.5px;color:var(--muted);margin-top:7px;padding-top:7px;border-top:1px dashed var(--line)}
 .rwpick.sm{padding:7px 10px}
 .rwchip.set{background:#fdf7e6;border-color:#e3d3a4}
+.chip.warn2{background:#fdf0e0;border:1px solid #e8c9a0;color:#8a5a1f;font-size:10px;padding:1px 5px;border-radius:5px;cursor:help}
 .cell .dn{font-size:11px;color:var(--muted)}
 .cell .dsum{font-size:9.5px;color:var(--neg);font-weight:700;font-variant-numeric:tabular-nums}
 .cell .cl{display:flex;justify-content:space-between;gap:5px;font-size:9.5px;line-height:1.45}
@@ -1286,6 +1287,30 @@ function msBaseline(m){
   if(idx>0){var pv=list[idx-1].metric&&list[idx-1].metric.target;return (pv!=null&&pv!=='')?parseFloat(pv):null;}
   return (p.baseline!=null&&p.baseline!=='')?parseFloat(p.baseline):null;
 }
+/* '현재값 미입력' 판정.
+   ⚠️ v6.1에선 ''·null만 걸렀는데, 마이그레이션이 progress:0 을 넣는 바람에
+      체중 목표가 (0-68.2)/(65-68.2)=2131% → 100% 로 튀었다(실측).
+      숫자 0도 미입력으로 본다 — 단 목표값이 0인 경우(부채 0원 만들기)는
+      0이 진짜 달성값일 수 있으므로 제외한다. */
+function unsetProgress(g){
+  if(g.progress===''||g.progress==null)return true;
+  if(g.progress!==0)return false;
+  var tg=(g.metric&&g.metric.target!=null&&g.metric.target!=='')?parseFloat(g.metric.target):0;
+  if(tg===0)return false;
+  var b=(g.baseline!=null&&g.baseline!=='')?parseFloat(g.baseline):(g.kind==='milestone'?msBaseline(g):null);
+  return b!=null;
+}
+/* 이 목표에 어울리는 연동 소스가 로한북 안에 이미 있는가.
+   있는데 수동이면 화면에 알린다 — v8.1까지 체중 79건이 있는데 목표가 안 읽고 있었다. */
+function suggestSource(g){
+  if(!g||g.kind!=='year')return null;
+  var mt=(g.metric&&g.metric.type)||'binary';
+  if(mt!=='amount'&&mt!=='count')return null;
+  var u=((g.metric&&g.metric.unit)||'').trim();
+  if(/kg/i.test(u)&&sourceValue('weight')!=null)return 'weight';
+  if(/원|만원/.test(u))return 'cash';
+  return null;
+}
 function goalValue(g){
   if(!g)return 0;
   if(g.metric&&g.metric.type==='autodays')return monthDoneDays(g.period||todayStr().slice(0,7));
@@ -1296,7 +1321,7 @@ function goalValue(g){
       var pv=sourceValue(p.source);
       if(pv!=null)return pv;
     }
-    if(g.progress===''||g.progress==null){
+    if(unsetProgress(g)){
       var mb=msBaseline(g);
       if(mb!=null)return mb;
     }
@@ -1306,7 +1331,7 @@ function goalValue(g){
     var v=sourceValue(g.source);
     if(v!=null)return v;
   }
-  if(g.progress===''||g.progress==null){
+  if(unsetProgress(g)){
     /* 미입력이면 시작값으로 간주 — 0으로 두면 감소형 목표가 100%로 튄다 */
     var b=(g.baseline!=null&&g.baseline!=='')?parseFloat(g.baseline):null;
     if(b!=null)return b;
@@ -2064,7 +2089,8 @@ function routineRow(t,r,g){
   return '<div class="rtask'+(on?' on':'')+'" data-rcheck="'+r.code+'">'
    +'<span class="bx">'+(on?'✓':'')+'</span>'
    +'<span class="rn"><span class="rcode">'+r.code+'</span> '+sajuEsc(r.title)
-   +(g&&g.kind==='milestone'?'<span class="rg">'+g.code+' 한시</span>':'')
+   +(g&&g.kind==='milestone'?'<span class="rg">'+g.code+(r.end?'':' <b style="color:var(--warn)">기간없음</b>')+'</span>':'')
+   +(r.end?'<span class="rg">~'+parseInt(r.end.slice(5,7),10)+'/'+parseInt(r.end.slice(8),10)+'</span>':'')
    +(ms?'<span class="misstag">'+sajuEsc(ms.tag||'사유')+(ms.memo?' · '+sajuEsc(ms.memo):'')+'</span>':'')
    +'</span>'
    +'<span class="acts">'+(on?'':'<span data-rmiss="'+r.code+'" title="못한 이유">💬</span>')+'<span data-rtedit="'+r.id+'">✎</span></span></div>';
@@ -2102,7 +2128,8 @@ function renderGoal(){
      +'<div class="ctxhead"><span><b class="gcode">'+g.code+'</b> '+sajuEsc(g.title)
        +(g.status==='done'?' <span class="pill">완료</span>':'')+'</span>'
      +'<span class="ctxr">'+(mt!=='binary'?gnum(cur)+'/'+gnum(g.metric.target)+(g.metric.unit||'')
-         +(g.source&&g.source!=='manual'?' <span class="chip auto">연동</span>':'')+' · ':'')
+         +(g.source&&g.source!=='manual'?' <span class="chip auto">연동</span>'
+           :(suggestSource(g)?' <span class="chip warn2" title="로한북에 이 값이 이미 있다 — 목표 수정에서 연결해라">수동</span>':''))+' · ':'')
        +'<b>'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.'):'')+'</span> ▾</span></div>'
      +'<div class="ctxbar"><span style="width:'+Math.min(100,Math.max(0,pct))+'%"></span></div>'
      +(open?('<div class="ctxbody">'
@@ -2320,9 +2347,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='8.1';
+var APP_VERSION='8.2';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'8.2',date:'2026-08-19',note:"[버그] 감소형 목표가 0/65kg 100%로 뜨던 문제 — 미입력 판정이 ''·null만 걸러 숫자 0을 놓쳤다(마이그레이션이 progress:0을 넣음). (0-68.2)/(65-68.2)=2131%→100% 클램프. 목표값이 0인 경우(부채 0원)는 진짜 달성일 수 있어 제외하고 0을 미입력으로 본다 · [신설] 루틴 기간(계속/이 달만/직접 지정) — v8.1까지 종료일 자체가 없어서 8월 눈금에 묶인 루틴이 9월에도 계속 떴다. 코드는 B.8a인데 12월까지 뜨면 기록이 거짓말을 한다. 마일스톤에 붙은 루틴은 기본이 '이 달만', 계속으로 잡으면 경고 · 루틴 행에 종료일 표시, 기간 없는 한시 루틴은 '기간없음' 경고 · 목표 선택에 '계속할 루틴은 연간 목표에 직접 붙여라' 안내 · 수치형 연간 목표인데 연동이 안 걸려 있으면 '수동' 칩으로 알림(체중 79건이 있는데 목표가 안 읽고 있었다) · 단위에 kg/원을 적으면 연동 소스 자동 제안"},
   {v:'8.1',date:'2026-08-19',note:"카드 배치 후보 정리 (로한 지적) — ① 목표 달성 카드에서 아무것도 못 고르던 문제: 후보를 그 단계에 등록된 보상으로만 걸렀는데 목표 tier 등록분이 0개라 빈 목록이 떴다. v8부터 단계는 카드가 들고 있으므로 보상함의 tier 는 '기본 제안'일 뿐 — 다른 단계 보상도 고를 수 있게 열었다(해당 단계 먼저, 그 아래 나머지, 예상비용 오름차순) · ② 배치 모달에서 버킷 제거: 버킷은 목표와 보상이 공존하는 원장이고 '목표가 대가가 될 순 없다'. 보상으로 쓸 거면 보상 탭에서 → 로 보상함에 올린 뒤 배치한다 — 승격이라는 한 단계가 곧 판단이다 · ③ '연간 계단'과 '목표 달성'이 같은 화면에 있어 헷갈리던 라벨 정리"},
   {v:'8.0',date:'2026-08-19',note:"🎁 보상 카드 모델 — 로한 설계. 보상함=카드의 '종류'(덱) → 목표관리에서 배치(예약) → 계단 달성 시 활성 → 실제로 소비하며 가계부를 쓸 때 카드가 소멸. ⚠️ v7까지는 '수령 확정'이 곧 가계부 거래를 만들어서, 받기로 해놓고 안 쓴 보상이 유령 거래로 남아 가계부가 더러워졌다. 거래는 실제 지출 순간에만 생기고 카드는 거기에 붙는다 · 카드 상태는 저장하지 않고 파생(usedAt/tierOpen) — 문턱을 바꿔도 과거 판정이 안 어긋난다 · 카드는 종류를 스냅샷 — 보상함 원본을 고쳐도 발급된 카드는 불변 · 배치 3경로(보상함에서 고르기/버킷에서 올리며 배치/새로 만들기) · 목표 달성 보상에 목표 id가 안 넘어가던 버그 수정 · 행동 보상은 가계부를 안 타므로 목표 탭에서 직접 사용 확정 · 거래 삭제 시 카드 복원, 사용 취소 시 거래는 남기고 연결만 해제(실제로 쓴 돈이므로) · 캘린더 마커 개편: 의미 없는 점 2개 → ✅ 루틴 완전달성 💳 카드 미결제 🎁 보상 사용, 부분달성은 날짜 배경으로(아이콘 남발 방지), 셀 높이 96→112"},
   {v:'7.6',date:'2026-08-19',note:"모달 오작동 2건 수정 — ① 입력이 있는 모달(작성 중)은 바깥 클릭으로 닫히지 않는다: 스치듯 눌러 쓰던 내용이 통째로 날아가던 문제. 판정을 모달 안의 input/textarea/select 유무로 하므로 앞으로 추가되는 폼에도 자동 적용된다(ESC·×는 그대로 닫힘) · ② 보상함에 추가·수정·삭제해도 표가 새로고침 전까지 안 바뀌던 문제: saveReward/delReward/saveRwCfg가 renderGoal()만 불렀다. 보상 데이터는 목표 탭(칩)과 보상 탭(표) 양쪽에 나오므로 renderRW()로 두 곳을 함께 갱신 · ③ toRewardModal이 modal._mvid를 안 세워 행동 보상의 '권장일(음기일)' 선택이 한 번도 안 뜨던 버그 수정"},
@@ -2430,18 +2458,61 @@ function routineModal(id){
   if(!r)return;
   var chips=DOW_KO.map(function(d,i){return '<span class="dchip'+(((r.days||[]).indexOf(i)>=0)?' on':'')+'" data-dow="'+i+'" onclick="this.classList.toggle(\'on\')">'+d+'</span>';}).join('');
   var nChk=0;for(var k in (DB.checks||{})){if((DB.checks[k].done||[]).indexOf(r.code)>=0)nChk++;}
+  /* 기간 — '계속'이면 end 없음. 마일스톤(월간 눈금)에 붙은 루틴은 기본이 '이 달만'이다.
+     ⚠️ v8.1까지 종료일 자체가 없어서, 8월 눈금에 묶인 루틴이 9월에도 계속 떴다.
+        코드는 B.8a(8월)인데 12월까지 뜨면 기록이 거짓말을 한다. */
+  var _pg=r.goalId?goalById(r.goalId):null;
+  var _msYM=(_pg&&_pg.kind==='milestone')?_pg.period:null;
+  var _defEnd=lastDayOfYM(_msYM||(r.start||todayStr()).slice(0,7));
+  var _span=r.end?((r.end===lastDayOfYM(r.end.slice(0,7)))?'month':'date'):'on';
   openModal('<div class="mtop"><h3>'+(id?('루틴 수정 <span class="gcode">'+r.code+'</span>'):'루틴 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +(id&&nChk?'<div class="mut" style="font-size:11px;margin-bottom:8px">체크 기록 '+nChk+'일 — 삭제해도 이 기록은 남는다</div>':'')
    +'<div class="field"><label>루틴 이름</label><input id="rt_title" value="'+sajuEsc(r.title)+'" placeholder="예: 아침 스트레칭 10분"></div>'
-   +'<div class="field"><label>어느 목표를 위한 것인가 <span class="mut">(코드가 여기서 정해진다)</span></label><select id="rt_goal">'+goalOptions(r.goalId)+'</select></div>'
+   +'<div class="field"><label>어느 목표를 위한 것인가 <span class="mut">(코드가 여기서 정해진다)</span></label>'
+   +'<div class="hint" style="margin:0 0 5px">계속할 루틴은 <b>연간 목표</b>에 직접 붙여라 — 월이 바뀌어도 안 끊긴다. 눈금(한시)은 그 달에만 하는 것에 쓴다.</div><select id="rt_goal" onchange="rtSpanHint()">'+goalOptions(r.goalId)+'</select></div>'
    +'<div class="field"><label>빈도</label><div class="seg"><button class="'+(r.freq==='daily'?'on':'')+'" onclick="rtFreq(this,\'daily\')">매일</button><button class="'+(r.freq==='weekly'?'on':'')+'" onclick="rtFreq(this,\'weekly\')">요일 지정</button></div></div>'
    +'<div class="field" id="rt_dayswrap" style="display:'+(r.freq==='weekly'?'block':'none')+'"><label>요일</label><div id="rt_days">'+chips+'</div></div>'
    +'<div class="field"><label>시작일 <span class="mut">(이 날짜부터 집계 — 과거는 건드리지 않는다)</span></label><input id="rt_start" type="date" value="'+(r.start||todayStr())+'"></div>'
+   +'<div class="field"><label>기간</label><div class="seg">'
+     +'<button class="'+(_span==='on'?'on':'')+'" onclick="rtSpan(this,\'on\')">계속</button>'
+     +'<button class="'+(_span==='month'?'on':'')+'" onclick="rtSpan(this,\'month\')">이 달만</button>'
+     +'<button class="'+(_span==='date'?'on':'')+'" onclick="rtSpan(this,\'date\')">직접 지정</button>'
+     +'</div><div class="hint" id="rt_spanhint"></div></div>'
+   +'<div class="field" id="rt_endwrap" style="display:'+(_span==='on'?'none':'block')+'"><label>종료일 <span class="mut">(이 날까지만 뜬다 · 기록은 남는다)</span></label>'
+     +'<input id="rt_end" type="date" value="'+(r.end||_defEnd)+'"></div>'
    +'<button class="btn" onclick="saveRoutine('+(id?"'"+id+"'":'null')+')">저장</button>'
    +(id?(' <button class="ghost" onclick="retireRoutine(\''+id+'\')">'+(r.status==='retired'?'복귀':'은퇴')+'</button>'
         +' <button class="ghost" onclick="pauseRoutine(\''+id+'\')">'+(r.status==='paused'?'재개':'잠시 쉼')+'</button>'
         +(nChk?'':' <button class="ghost" style="color:var(--neg)" onclick="delRoutine(\''+id+'\')">삭제</button>')):''));
-  modal._rfreq=r.freq;
+  modal._rfreq=r.freq; modal._rspan=_span;
+  rtSpanHint();
+}
+function rtSpan(b,v){
+  modal._rspan=v;
+  var bs=b.parentNode.querySelectorAll('button');
+  for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');
+  b.classList.add('on');
+  document.getElementById('rt_endwrap').style.display=(v==='on')?'none':'block';
+  if(v==='month'){
+    var g=document.getElementById('rt_goal').value;
+    var pg=g?goalById(g):null;
+    var ym=(pg&&pg.kind==='milestone')?pg.period:(document.getElementById('rt_start').value||todayStr()).slice(0,7);
+    document.getElementById('rt_end').value=lastDayOfYM(ym);
+  }
+  rtSpanHint();
+}
+function rtSpanHint(){
+  var h=document.getElementById('rt_spanhint'); if(!h)return;
+  var g=document.getElementById('rt_goal'), pg=(g&&g.value)?goalById(g.value):null;
+  var isMs=!!(pg&&pg.kind==='milestone');
+  var v=modal._rspan;
+  if(v==='on'){
+    h.innerHTML=isMs
+      ? '<b style="color:var(--warn)">이 루틴은 '+(pg.code||'')+' (그 달 눈금)에 묶여 있는데 계속으로 잡혀 있다.</b> 코드가 그 달을 가리키므로, 계속할 거면 <b>연간 목표에 직접</b> 붙이는 게 맞다.'
+      : '월이 바뀌어도 안 끊긴다. 루틴의 기본값은 이쪽이다.';
+  }
+  else if(v==='month')h.textContent='그 달 말일에 자동 종료된다. 그 달에만 하는 것에 쓴다.';
+  else h.textContent='종료일까지만 뜬다. 지난 기록은 그대로 남는다.';
 }
 function rtFreq(b,v){modal._rfreq=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('rt_dayswrap').style.display=(v==='weekly'?'block':'none');}
 function saveRoutine(id){
@@ -2451,7 +2522,11 @@ function saveRoutine(id){
   for(var i=0;i<ch.length;i++)days.push(parseInt(ch[i].dataset.dow,10));
   if(modal._rfreq==='weekly'&&!days.length)return alert('요일을 하나 이상 선택하세요');
   var gid=document.getElementById('rt_goal').value||null;
-  var rec={title:title,freq:modal._rfreq,days:days,goalId:gid,start:document.getElementById('rt_start').value||todayStr()};
+  var _endEl=document.getElementById('rt_end');
+  var _end=(modal._rspan==='on')?'':((_endEl&&_endEl.value)||'');
+  var rec={title:title,freq:modal._rfreq,days:days,goalId:gid,
+    start:document.getElementById('rt_start').value||todayStr(), end:_end};
+  if(_end&&_end<rec.start)return alert('종료일이 시작일보다 빠릅니다');
   DB.routines=DB.routines||[];
   if(id){
     var r=routineById(id),old=r.goalId;
@@ -2562,7 +2637,7 @@ function goalModal(id,kind,parentId,period){
    +(isY?'<div class="field"><label>현재값 출처 <span class="mut">(앱 안의 데이터와 연동)</span></label><select id="g_src" onchange="gSrc()">'+srcOpts+'</select><div class="hint" id="g_srchint"></div></div>'
         +'<div class="field"><label>시작값 <span class="mut">(진행률의 출발점 · 예: 현재 체중 68.2)</span></label><input id="g_base" value="'+(g.baseline!=null?g.baseline:'')+'"></div>':'')
    +'<div class="field"><label>목표값</label><input id="g_target" value="'+((g.metric&&g.metric.target)||'')+'"></div>'
-   +'<div class="field"><label>단위 <span class="mut">(kg · 원 · 회 · 일)</span></label><input id="g_unit" value="'+((g.metric&&g.metric.unit)||'')+'"></div>'
+   +'<div class="field"><label>단위 <span class="mut">(kg · 원 · 회 · 일)</span></label><input id="g_unit" value="'+((g.metric&&g.metric.unit)||'')+'"'+(isY?' oninput="gUnitSuggest()"':'')+'></div>'
    +'<div class="field" id="g_pwrap" style="display:'+((mt==='autodays'||(isY&&g.source&&g.source!=='manual'))?'none':'block')+'"><label>현재 진행</label><input id="g_progress" value="'+(g.progress!=null?g.progress:'')+'"></div></div>'
    +'<div class="field"><label>메모</label><textarea id="g_memo" rows="3">'+sajuEsc(g.memo||'')+'</textarea></div>'
    +'<button class="btn" onclick="saveGoal('+(id?"'"+id+"'":'null')+',\''+kd+'\','+(parentId?"'"+parentId+"'":'null')+')">저장</button>'
@@ -2585,6 +2660,14 @@ function gSrc(){
   }
   var u=document.getElementById('g_unit');
   if(u&&!u.value&&found.unit)u.value=found.unit;
+}
+/* 단위만 적어도 연동을 제안한다. 이미 고른 게 있으면 건드리지 않는다. */
+function gUnitSuggest(){
+  var sel=document.getElementById('g_src'); if(!sel||sel.value!=='manual')return;
+  var u=(document.getElementById('g_unit').value||'').trim();
+  var want=/kg/i.test(u)?'weight':(/원|만원/.test(u)?'cash':null);
+  if(!want)return;
+  for(var i=0;i<sel.options.length;i++)if(sel.options[i].value===want){sel.selectedIndex=i;gSrc();return;}
 }
 function gMet(b,v){
   modal._gmet=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
