@@ -70,11 +70,24 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .calside .detail{margin-top:0}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .dow{color:var(--muted);font-size:11px;text-align:center;padding:4px 0}.dow.s0{color:var(--neg)}.dow.s6{color:var(--accent)}
-.cell{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:96px;padding:5px 6px;cursor:pointer;position:relative;overflow:hidden}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:8px;min-height:112px;padding:5px 6px;cursor:pointer;position:relative;overflow:hidden}
 .cell:hover{border-color:var(--accent)}.cell.empty{background:transparent;border:0;cursor:default}
 .cell.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .cell.today .dn{color:var(--accent);font-weight:800}
-.cell .dhdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
+.cell .dhdr{display:flex;justify-content:space-between;align-items:center;gap:3px;margin-bottom:4px}
+.dhdr .dn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:5px;font-variant-numeric:tabular-nums}
+.dhdr .dn.part{background:#f6efdb;color:#8a6d1f;font-weight:800}
+.dhdr .dn.full{background:var(--gold);color:#fff;font-weight:800}
+.mkw{flex:1 1 auto;display:flex;align-items:center;gap:2px;font-style:normal;line-height:1}
+.mk{font-style:normal;font-size:11px;line-height:1;cursor:default}
+.rwtxn select{border-color:#d9c79a;background:#fffdf6}
+.cardbig{border:1px solid var(--line);border-radius:9px;padding:11px 13px;background:var(--soft);margin-bottom:11px}
+.cardbig.open{border-color:#a8ddc0;background:#f4fbf7}
+.cardbig.used{opacity:.72}
+.cardbig .cbt{font-family:var(--serif);font-size:14px;font-weight:700;margin-bottom:3px}
+.cardbig .cbs{font-size:11.5px;color:var(--muted);margin-top:7px;padding-top:7px;border-top:1px dashed var(--line)}
+.rwpick.sm{padding:7px 10px}
+.rwchip.set{background:#fdf7e6;border-color:#e3d3a4}
 .cell .dn{font-size:11px;color:var(--muted)}
 .cell .dsum{font-size:9.5px;color:var(--neg);font-weight:700;font-variant-numeric:tabular-nums}
 .cell .cl{display:flex;justify-content:space-between;gap:5px;font-size:9.5px;line-height:1.45}
@@ -461,7 +474,7 @@ var SEED = {
   checks:{},
   missTags:['야근','피로','날씨','약속','무기력','아픔','일정충돌','의지부족','기타'],
   rewards:[],
-  rewardLog:{},
+  rewardCards:{},
   rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},
   schemaVersion:7,
   ui:{month:'2026-08',watchCats:['식비','카페','간식/편의점']}
@@ -574,9 +587,19 @@ function renderCal(){
       else{var b=t.scope==='business';lines+='<div class="cl ex"><span class="c"><span class="sc '+(b?'b':'p')+'">'+(b?'사':'개')+'</span>'+t.cat+'</span><span class="a">-'+comma(t.amt)+'</span></div>';}
     });
     if(tx.length>10)lines+='<div class="mut" style="font-size:9px">+'+(tx.length-10)+'건 더</div>';
-    var _gr=dayRate(ds),_gd=_gr?('<span class="gdot'+(_gr.done>=_gr.total?' full':(_gr.done?' part':''))+'" data-tip="루틴 '+_gr.done+'/'+_gr.total+'"></span>'):'';
-    var hdr='<div class="dhdr"><span class="dn">'+d+_gd+'</span>'+(daysum?'<span class="dsum">-'+comma(daysum)+'</span>':'')+'</div>';
-    cells+='<div class="cell'+(ds===today?' today':'')+(ds===selDate?' sel':'')+'" data-date="'+ds+'">'+hdr+lines+(card?'<div class="dot"></div>':'')+'</div>';
+    /* 마커 — 점만 찍으면 뜻이 안 읽힌다. 의미가 있는 것만 아이콘으로 보여준다.
+       루틴 부분달성은 아이콘을 늘리지 않고 날짜 숫자 배경으로 표현한다(아이콘 남발 방지). */
+    var _gr=dayRate(ds), _full=!!(_gr&&_gr.total>0&&_gr.done>=_gr.total),
+        _part=!!(_gr&&_gr.total>0&&_gr.done>0&&!_full), mk='';
+    if(_full)mk+='<i class="mk" data-tip="루틴 완전달성 '+_gr.done+'/'+_gr.total+'">✅</i>';
+    if(card)mk+='<i class="mk" data-tip="신용카드 미결제 있음">💳</i>';
+    var _rc=cardsUsedOn(ds);
+    if(_rc.length)mk+='<i class="mk" data-tip="'+sajuEsc(_rc.map(function(c){return c.code+' '+c.title+(c.spent?' '+comma(c.spent)+'원':'');}).join(' / '))+'">🎁</i>';
+    var hdr='<div class="dhdr"><span class="dn'+(_full?' full':(_part?' part':''))+'"'
+      +(_gr&&_gr.total>0?' data-tip="루틴 '+_gr.done+'/'+_gr.total+'"':'')+'>'+d+'</span>'
+      +'<span class="mkw">'+mk+'</span>'
+      +(daysum?'<span class="dsum">-'+comma(daysum)+'</span>':'')+'</div>';
+    cells+='<div class="cell'+(ds===today?' today':'')+(ds===selDate?' sel':'')+'" data-date="'+ds+'">'+hdr+lines+'</div>';
   }
   var WATCH=(DB.ui.watchCats&&DB.ui.watchCats.length)?DB.ui.watchCats:['식비','카페','간식/편의점'];
   var catSum={};monthTxns(m).forEach(function(t){if(t.type==='expense')catSum[t.cat]=(catSum[t.cat]||0)+t.amt;});
@@ -1456,107 +1479,173 @@ function goalTierState(g){
   return {period:g.id,label:g.code+' '+g.title,cur:goalPct(g),req:100,unit:'%',ok:(g.status==='done')};
 }
 function logKey(tier,period){return tier+'@'+period;}
-function tierClaimed(tier,period){var l=(DB.rewardLog||{})[logKey(tier,period)];return l||null;}
-
-/* 보상 수령 — 기간당 1회, 메뉴에서 하나 선택 */
-function claimTier(tier,period){
-  var menu=rewardActive().filter(function(r){return r.tier===tier&&(tier!=='goal'||r.goalId===period);})
-    .sort(function(x,y){return (x.price||x.budget||0)-(y.price||y.budget||0);});
-  if(!menu.length)return alert('이 단계의 보상이 없다.\n\n🎁 보상 탭 → 버킷함에서 → 를 눌러 보상함으로 올려라.\n보상함에 있는 것만 여기 뜬다.');
-  var st=(tier==='goal')?goalTierState(goalById(period)):tierState(tier);
-  var t=todayStr(), yin=isYinDay(t);
-  function row(o,isBk){
-    var kd=(REWARD_KINDS.filter(function(x){return x.k===(o.kind||'act');})[0]||{}).label||'';
-    var price=isBk?(o.price||0):(o.budget||0);
-    var wantYin=(!isBk&&o.timing==='yin');
-    var d=isBk?daysSince(o.addedAt):0;
-    return '<div class="rwpick'+(wantYin&&!yin?' offday':'')+'" onclick="pickReward(\''+tier+'\',\''+period+'\',\''+o.id+'\','+(isBk?'1':'0')+')">'
-      +'<div class="rwpt"><span><span class="gcode">'+o.code+'</span> '+sajuEsc(o.title)+'</span>'
-      +'<span class="mut">'+kd+(price?' · '+comma(price)+'원':'')+'</span></div>'
-      +(isBk&&d>=90?'<div class="mut" style="font-size:10.5px;margin-top:3px">'+d+'일째 담겨 있었다</div>':'')
-      +(wantYin?('<div class="mut" style="font-size:10.5px;margin-top:3px">陰 음기일 권장'
-         +(yin?' · <b class="pos">오늘 해당</b>':' · 오늘은 아님 (다음: '+(nextYinDays(t,1)[0]||'-').slice(5)+')')+'</div>'):'')
-      +'</div>';
-  }
-  openModal('<div class="mtop"><h3>🎁 보상 받기 <span class="mut" style="font-size:12px">'+st.label+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:10px">'+st.cur+'/'+st.req+' '+st.unit+' 달성 · <b>하나만</b> 고를 수 있다'
-   +(yin?' · <span class="yinbadge">陰 오늘 음기일</span>':'')+'</div>'
-   +'<div class="pickhd">🎁 보상함 <span class="mut">예상비용 낮은 순</span></div>'
-   +menu.map(function(o){return row(o,true);}).join(''));
+/* ════ 🎁 보상 카드 (v8.0) ════
+   보상함 = 카드의 '종류'(덱). 목표관리에서 배치하면 예약,
+   계단을 달성하면 활성, 실제로 소비하며 가계부를 쓸 때 카드가 소멸한다.
+   ⚠️ v7까지는 '수령 확정'이 곳 가계부 거래를 만들었다. 그러면 받기로 해놓고
+      안 쓴 보상이 유령 거래로 남아 가계부가 더러워진다.
+      거래는 실제 지출이 발생하는 순간에만 생기고, 카드는 거기에 '붙는' 것이다.
+   ⚠️ 상태는 저장하지 않고 파생한다. 저장하는 사실은 배치와 사용뿐이다.
+      usedAt 있으면 used, 없으면 tierOpen() 계산 → open / placed.
+      문턱을 바꾸거나 과거를 다시 볼 때 판정이 어긋나지 않는다.
+   ⚠️ 카드는 종류를 스냅샷한다. 보상함 원본을 나중에 고쳐도 발급된 카드는 안 변한다.
+      (v6.0 '과거 달성률 소급변동'과 같은 실수를 반복하지 않는다) */
+/* ⚠️ 이름 주의: DB.cards 는 '신용카드', rwCards() 는 '보상 카드'다. 섞으면 안 된다. */
+function rwCards(){DB.rewardCards=DB.rewardCards||{};return DB.rewardCards;}
+function cardOf(tier,period){return rwCards()[logKey(tier,period)]||null;}
+function tierOpen(tier,period){
+  if(tier==='week')return weekSuccess(period);
+  if(tier==='month')return monthSuccess(period);
+  if(tier==='year')return yearSuccess(period);
+  if(tier==='goal'){var g=goalById(period);return !!(g&&g.status==='done');}
+  return false;
 }
-/* 선택 → 소비면 지출 입력, 행동이면 메모 */
-function pickReward(tier,period,rid,isBk){
-  var r=isBk?bucketById(rid):(DB.rewards||[]).filter(function(x){return x.id===rid;})[0]; if(!r)return;
-  var cap=isBk?(r.price||0):(r.budget||0);
-  var spend=cap>0;
-  var st=(tier==='goal')?goalTierState(goalById(period)):tierState(tier);
-  openModal('<div class="mtop"><h3>🎁 '+sajuEsc(r.title)+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:10px">'+st.label+' · '+st.cur+'/'+st.req+' '+st.unit+'</div>'
-   +(isBk?'<div class="mut" style="font-size:11px;margin-bottom:9px">🪣 버킷 항목 — 받으면 목록에서 소진된다 ('+daysSince(r.addedAt)+'일째 담겨 있었다)</div>':'')
-   +(spend?('<div class="field"><label>실제로 얼마 썼나 <span class="mut">('+(isBk?'예상':'상한')+' '+comma(cap)+'원)</span></label>'
-       +'<input id="rw_spent" value="'+cap+'" oninput="rwSpentHint('+cap+')"><div class="hint" id="rw_sphint"></div></div>'
-       +'<div class="field"><label style="display:flex;align-items:center;gap:7px;cursor:pointer">'
-       +'<input type="checkbox" id="rw_totxn" checked style="width:auto"> 가계부에 기록 <span class="mut">(카테고리 · 보상)</span></label></div>'):'')
-   +'<div class="field"><label>메모 <span class="mut">(선택)</span></label><input id="rw_memo" placeholder="'+(spend?'어디서 뭘 샀나':'무엇을 했나')+'"></div>'
-   +'<button class="btn" onclick="doClaim(\''+tier+'\',\''+period+'\',\''+rid+'\','+(isBk?'1':'0')+')">수령 확정</button>'
-   +' <button class="ghost" onclick="claimTier(\''+tier+'\',\''+period+'\')">← 다시 고르기</button>');
-  if(spend)rwSpentHint(cap);
+function cardStatus(c){
+  if(!c)return null;
+  if(c.usedAt)return 'used';
+  return tierOpen(c.tier,c.period)?'open':'placed';
 }
-function rwSpentHint(cap){
-  var el=document.getElementById('rw_sphint'); if(!el)return;
-  var v=numv('rw_spent');
-  if(v>cap){el.innerHTML='<b style="color:var(--neg)">상한 '+comma(v-cap)+'원 초과</b> — 막지는 않는다. 기록이 목적이다.';}
-  else el.textContent='상한 이내 ('+comma(cap-v)+'원 여유)';
+function kindLabel(k){return (REWARD_KINDS.filter(function(x){return x.k===(k||'act');})[0]||{}).label||'';}
+/* ⚠️ 가계부를 타는 기준은 kind 가 아니라 budget 이다.
+   '일본 3박4일 = 행동 + 예산 80만' 같은 복합 보상이 kind 기준이면 가계부를 못 탄다.
+   budget>0 → 지출이 생긴다 → 가계부에서 소멸 / budget=0 → 목표 탭에서 직접 완료. */
+function isSpendCard(c){return !!(c&&(c.budget||0)>0);}
+/* 지금 쓸 수 있는 카드. kind를 주면 그 분류만 */
+function openCards(kind){
+  var m=rwCards(),out=[];
+  for(var k in m){var c=m[k];
+    if(cardStatus(c)!=='open')continue;
+    if(kind&&(c.kind||'act')!==kind)continue;
+    out.push(c);}
+  return out.sort(function(a,b){return (a.placedAt||'')<(b.placedAt||'')?-1:1;});
 }
-function doClaim(tier,period,rid,isBk){
-  var r=isBk?bucketById(rid):(DB.rewards||[]).filter(function(x){return x.id===rid;})[0]; if(!r)return;
-  var st=(tier==='goal')?goalTierState(goalById(period)):tierState(tier);
-  var t=todayStr(), spend=(isBk?(r.price||0):(r.budget||0))>0;
-  var spent=0, txnId=null;
-  var memoEl=document.getElementById('rw_memo');
-  var memo=memoEl?memoEl.value.trim():'';
-  if(spend){
-    spent=numv('rw_spent');
-    var toTxn=document.getElementById('rw_totxn');
-    if(toTxn&&toTxn.checked&&spent>0){
-      ensureRewardCat();
-      var tx={id:uid(),date:t,type:'expense',scope:'personal',cat:'보상',
-        method:(DB.cards[0]||{}).name||'현금',amt:spent,card:false,
-        memo:'🎁 '+r.code+' '+r.title+(memo?' · '+memo:''),rewardId:r.id};
-      DB.transactions.push(tx); txnId=tx.id;
-    }
-  }
-  DB.rewardLog=DB.rewardLog||{};
-  var key=logKey(tier,period);
-  DB.rewardLog[key]={rewardId:isBk?null:rid,bucketId:isBk?rid:null,code:r.code,title:r.title,kind:r.kind||'act',
-    claimedAt:t,spent:spent,txnId:txnId,memo:memo,yin:isYinDay(t),
-    metric:{cur:st.cur,req:st.req,unit:st.unit}};
-  if(isBk){r.status='got';r.gotAt=t;r.logKey=key;r.updatedAt=t;}
-  logAct('🎁 보상 수령 · '+r.code+' '+r.title+' ('+st.label+' '+st.cur+'/'+st.req+')'
-    +(spent?' · '+won(spent):'')+(txnId?' · 가계부 기록':'')+(isBk?' · 버킷 소진':''));
-  save();closeModal();
-  renderRW();
+function cardByTxn(txnId){var m=rwCards();for(var k in m){if(m[k].txnId===txnId)return m[k];}return null;}
+function cardsUsedOn(ds){var m=rwCards(),o=[];for(var k in m){if(m[k].usedAt===ds)o.push(m[k]);}return o;}
+function usedCards(){var m=rwCards(),o=[];for(var k in m){if(m[k].usedAt)o.push(m[k]);}
+  return o.sort(function(a,b){return a.usedAt<b.usedAt?1:-1;});}
+function cardTierLabel(c){
+  if(c.tier==='goal'){var g=goalById(c.period);return (g?g.code+' 달성':'목표 달성');}
+  if(c.tier==='week')return weekLabel(c.period)+' 주간';
+  if(c.tier==='month')return parseInt(c.period.slice(5),10)+'월 월간';
+  return c.period+'년 연간';
 }
-function unclaimTier(tier,period){
-  var lg=(DB.rewardLog||{})[logKey(tier,period)];
-  var hasTx=!!(lg&&lg.txnId&&DB.transactions.filter(function(t){return t.id===lg.txnId;})[0]);
-  if(!confirm('수령 기록을 취소할까요?'+(hasTx?'\n연결된 가계부 거래('+won(lg.spent)+')도 함께 삭제됩니다.':'')))return;
-  if(hasTx)DB.transactions=DB.transactions.filter(function(t){return t.id!==lg.txnId;});
-  if(lg&&lg.bucketId){var bb=bucketById(lg.bucketId);
-    if(bb){bb.status='want';bb.gotAt=undefined;bb.logKey=undefined;bb.updatedAt=todayStr();}}
-  delete DB.rewardLog[logKey(tier,period)];
-  logAct('보상 수령취소 · '+tier+' '+period+(hasTx?' · 거래 삭제':''));
-  save();
-  renderRW();
+/* ── 배치(예약) ── */
+function placeCard(tier,period,rewardId){
+  var r=(DB.rewards||[]).filter(function(x){return x.id===rewardId;})[0]; if(!r)return null;
+  var k=logKey(tier,period),old=rwCards()[k];
+  if(old&&old.usedAt){alert('이미 사용한 카드는 바꿀 수 없다.');return null;}
+  rwCards()[k]={key:k,tier:tier,period:period,rewardId:r.id,
+    code:r.code,title:r.title,kind:r.kind||'act',budget:r.budget||0,timing:r.timing||'any',
+    placedAt:todayStr(),usedAt:null,txnId:null,spent:0,memo:''};
+  logAct('🎁 카드 배치 · '+r.code+' '+r.title+' ('+k+')');
+  return rwCards()[k];
 }
-/* 보상 지출 집계 */
+function doPlace(tier,period,rid){ if(placeCard(tier,period,rid)){save();closeModal();renderRW();} }
+function doUnplace(tier,period){
+  var k=logKey(tier,period),c=rwCards()[k]; if(!c)return;
+  if(c.usedAt)return alert('이미 사용한 카드는 해제할 수 없다.');
+  if(!confirm(c.code+' '+c.title+' 배치를 해제할까요?'))return;
+  delete rwCards()[k];
+  logAct('🎁 카드 해제 · '+c.code+' '+c.title);
+  save();closeModal();renderRW();
+}
+/* ── 사용 ── */
+function useActModal(tier,period){
+  var c=cardOf(tier,period); if(!c)return;
+  var t=todayStr();
+  openModal('<div class="mtop"><h3>🎁 '+sajuEsc(c.title)+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:10px">'+cardTierLabel(c)+' · 행동 보상 — 가계부를 타지 않는다</div>'
+   +(c.timing==='yin'?('<div class="mut" style="font-size:11px;margin-bottom:8px">陰 음기일 권장 · '
+      +(isYinDay(t)?'<b class="pos">오늘 해당</b>':'오늘은 아님 (다음: '+(nextYinDays(t,1)[0]||'-').slice(5)+')')+'</div>'):'')
+   +'<div class="field"><label>무엇을 했나 <span class="mut">(선택)</span></label><input id="uc_memo" placeholder="예: 게임 1시간"></div>'
+   +'<button class="btn" onclick="doUseAct(\''+tier+'\',\''+period+'\')">사용 확정</button>');
+}
+function doUseAct(tier,period){
+  var k=logKey(tier,period),c=rwCards()[k]; if(!c)return;
+  if(cardStatus(c)!=='open')return alert('아직 열리지 않은 카드다.');
+  if(isSpendCard(c))return alert('예산이 있는 카드다. 가계부에서 지출을 적을 때 고르면 소멸한다.');
+  var el=document.getElementById('uc_memo');
+  c.usedAt=todayStr(); c.memo=el?el.value.trim():''; c.spent=0; c.txnId=null;
+  logAct('🎁 보상 사용 · '+c.code+' '+c.title+' ('+cardTierLabel(c)+')');
+  save();closeModal();renderRW();renderCal();
+}
+function doUnuse(tier,period){
+  var k=logKey(tier,period),c=rwCards()[k]; if(!c)return;
+  var tx=c.txnId?DB.transactions.filter(function(t){return t.id===c.txnId;})[0]:null;
+  if(!confirm('사용을 취소할까요?'+(tx?'\n연결된 가계부 거래('+won(c.spent)+')는 지우지 않고 연결만 끊는다.\n실제로 쓴 돈이기 때문이다.':'')))return;
+  if(tx)delete tx.rewardKey;
+  c.usedAt=null;c.txnId=null;c.spent=0;c.memo='';
+  logAct('🎁 보상 사용취소 · '+c.code+' '+c.title);
+  save();closeModal();renderRW();renderCal();
+}
+/* 올해 보상으로 나간 돈 */
 function rewardSpend(year){
-  var t=0,n=0;
-  for(var k in (DB.rewardLog||{})){
-    var lg=DB.rewardLog[k];
-    if(lg.claimedAt&&lg.claimedAt.slice(0,4)===year&&lg.spent){t+=lg.spent;n++;}
-  }
+  var m=rwCards(),t=0,n=0;
+  for(var k in m){var c=m[k];
+    if(c.usedAt&&c.usedAt.slice(0,4)===year){n++;t+=(c.spent||0);}}
   return {total:t,count:n};
+}
+/* ── 배치 · 상세 모달 ── */
+function rwCardModal(tier,period){
+  var st=(tier==='goal')?goalTierState(goalById(period)):tierState(tier);
+  var pd=(tier==='goal')?period:((st&&st.period)||period);
+  var c=cardOf(tier,pd), sx=cardStatus(c);
+  var tl=(REWARD_TIERS.filter(function(x){return x.k===tier;})[0]||{}).label||tier;
+  var cf=rwCfg();
+  var cond = tier==='week' ? ('한 주에 <b>완전달성 '+cf.weekFullDays+'일</b>')
+    : tier==='month'? ('그 달에 <b>주간 성공 '+cf.monthWeeks+'회</b>')
+    : tier==='year' ? ('그 해에 <b>월간 성공 '+cf.yearMonths+'회</b>')
+    : '연간 목표 <b>완료</b>';
+  var head='<div class="mtop"><h3>🎁 '+tl+' 보상 카드 <span class="mut" style="font-size:12px">'+(st?sajuEsc(st.label):'')+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:10px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
+   +'조건 — '+cond+(st?('<br>지금 <b>'+st.cur+'/'+st.req+' '+st.unit+'</b>'+(st.ok?' · <b class="pos">열렸다</b>':'')):'')+'</div>';
+  if(!c){cardPick(tier,pd,head);return;}
+  var body=head+'<div class="cardbig'+(sx==='used'?' used':(sx==='open'?' open':''))+'">'
+   +'<div class="cbt"><span class="gcode">'+c.code+'</span> '+sajuEsc(c.title)+'</div>'
+   +'<div class="mut" style="font-size:11px">'+kindLabel(c.kind)
+     +(c.budget?' · 예산 '+comma(c.budget)+'원':'')+(c.timing==='yin'?' · 陰':'')
+     +' · '+c.placedAt+' 배치</div>'
+   +'<div class="cbs">'+(sx==='used'
+      ?('✓ '+c.usedAt+' 사용'+(c.spent?' · '+won(c.spent):'')+(c.memo?' · '+sajuEsc(c.memo):''))
+      :(sx==='open'
+        ?(isSpendCard(c)?'열렸다 — <b>가계부에 지출을 적을 때</b> 이 카드를 고르면 소멸한다':'열렸다 — 아래에서 사용 확정')
+        :'배치됨 — 조건을 채우면 열린다'))+'</div></div>';
+  if(sx==='used')body+='<button class="ghost" onclick="doUnuse(\''+tier+'\',\''+pd+'\')">사용 취소</button>';
+  else{
+    if(sx==='open'&&!isSpendCard(c))body+='<button class="btn" onclick="useActModal(\''+tier+'\',\''+pd+'\')">사용 확정</button> ';
+    body+='<button class="ghost" onclick="cardPick(\''+tier+'\',\''+pd+'\')">다른 카드로</button>'
+        +' <button class="ghost" onclick="doUnplace(\''+tier+'\',\''+pd+'\')">배치 해제</button>';
+  }
+  openModal(body);
+}
+/* 배치할 카드 고르기 — 보상함 / 버킷함 / 새로 만들기 (3경로) */
+function cardPick(tier,period,head){
+  var tl=(REWARD_TIERS.filter(function(x){return x.k===tier;})[0]||{}).label||tier;
+  var pool=rewardActive().filter(function(r){return r.tier===tier&&(tier!=='goal'||r.goalId===period);})
+    .sort(function(a,b){return (a.budget||0)-(b.budget||0);});
+  var bk=bucketAll().filter(function(b){return b.status==='want';})
+    .sort(function(a,b){return (a.price||0)-(b.price||0);});
+  var rows=pool.length?pool.map(function(r){
+    return '<div class="rwpick" onclick="doPlace(\''+tier+'\',\''+period+'\',\''+r.id+'\')">'
+     +'<div class="rwpt"><span><span class="gcode">'+r.code+'</span> '+sajuEsc(r.title)+'</span>'
+     +'<span class="mut">'+kindLabel(r.kind)+(r.budget?' · '+comma(r.budget)+'원':'')+(r.timing==='yin'?' · 陰':'')+'</span></div></div>';
+  }).join(''):'<div class="mut" style="padding:6px 0;font-size:11.5px">이 단계의 보상함이 비어 있다. 아래에서 만들거나 버킷에서 올려라.</div>';
+  var bkrows=bk.length?bk.slice(0,12).map(function(b){
+    return '<div class="rwpick sm" onclick="bkToCard(\''+tier+'\',\''+period+'\',\''+b.id+'\')">'
+     +'<div class="rwpt"><span><span class="gcode">'+b.code+'</span> '+sajuEsc(b.title)+'</span>'
+     +'<span class="mut">'+(b.price?comma(b.price)+'원':'—')+' →</span></div></div>';}).join(''):'';
+  openModal((head||('<div class="mtop"><h3>🎁 '+tl+' 카드 배치</h3><span class="x" onclick="closeModal()">×</span></div>'))
+   +'<div class="pickhd">🎁 보상함 <span class="mut">이 단계에 등록된 것</span></div>'+rows
+   +(bkrows?('<div class="pickhd" style="margin-top:11px">🪣 버킷함에서 올리기 <span class="mut">올리면서 바로 배치된다</span></div>'+bkrows):'')
+   +'<div style="margin-top:12px"><button class="btn sm" onclick="closeModal();rewardModal(null,\''+tier+'\',\''+(tier==='goal'?period:'')+'\',\''+period+'\')">+ 새로 만들기</button></div>');
+}
+function bkToCard(tier,period,bid){
+  var b=bucketById(bid); if(!b)return;
+  b.place='reward'; b.tier=tier; b.active=true; b.movedAt=todayStr(); b.updatedAt=todayStr();
+  if(tier==='goal')b.goalId=period;
+  if(b.price&&!b.budget)b.budget=b.price;
+  logAct('🎁 보상함으로(배치) · '+b.code+' '+b.title);
+  if(placeCard(tier,period,b.id)){save();closeModal();renderRW();}
 }
 
 /* ── 52주 트래커 ── */
@@ -1603,9 +1692,11 @@ function rewardManage(tier){
    +'<div class="mut" style="font-size:11px;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)">'
    +'버킷함과 전체 목록은 <b>🎁 보상</b> 탭에서 관리한다.</div>');
 }
-function rewardModal(id,preTier){
+/* preGoal: 목표 달성 보상을 만들 때 어느 목표에 붙일지 (v8.0 — 안 넘겨서 '— 선택 —'으로만 뜨던 버그)
+   placeFor: 만들자마자 그 기간의 카드로 배치할지 (배치 모달에서 '새로 만들기'로 들어온 경우) */
+function rewardModal(id,preTier,preGoal,placeFor){
   var rw=id?(DB.rewards||[]).filter(function(x){return x.id===id;})[0]
-          :{tier:preTier||'week',kind:'act',budget:'',timing:'any',title:'',goalId:'',active:true};
+          :{tier:preTier||'week',kind:'act',budget:'',timing:'any',title:'',goalId:preGoal||'',active:true};
   if(!rw)return;
   var yy=todayStr().slice(0,4);
   var gopts='<option value="">— 선택 —</option>'+yearGoals(yy).map(function(g){
@@ -1633,6 +1724,7 @@ function rewardModal(id,preTier){
    +' <span id="rwCfgBtn" style="cursor:pointer;color:var(--accent)">조정</span></div>'
    +'<button class="btn" onclick="saveReward('+(id?"'"+id+"'":'null')+')">저장</button>'
    +(id?' <button class="ghost" onclick="delReward(\''+id+'\')">삭제</button>':''));
+  modal._placeFor=placeFor||null;
   modal._rwtier=rw.tier; modal._rwkind=rw.kind||'act';
   rwHint(); rwKindHint(); rwBudgetHint();
 }
@@ -1692,6 +1784,9 @@ function saveReward(id){
     rec.addedAt=todayStr(); rec.updatedAt=rec.addedAt;
     rec.price=rec.budget||0;
     DB.rewards.push(rec);logAct('보상추가 · '+rec.code+' '+title);
+    /* 배치 모달에서 '새로 만들기'로 들어왔으면 만든 즉시 그 기간의 카드로 배치한다.
+       한 번 더 고르게 만들면 흐름이 끊긴다. */
+    if(modal._placeFor)placeCard(tier,modal._placeFor,rec.id);
   }
   save();closeModal();renderRW();
 }
@@ -1719,17 +1814,18 @@ function saveRwCfg(){
   save();closeModal();renderRW();
 }
 function rewardHistory(){
-  var keys=Object.keys(DB.rewardLog||{}).sort().reverse();
+  var cs=usedCards();
   var byTier={week:0,month:0,year:0,goal:0};
-  keys.forEach(function(k){var t=k.split('@')[0];if(byTier[t]!==undefined)byTier[t]++;});
-  openModal('<div class="mtop"><h3>🎁 보상 수령 기록 <span class="mut" style="font-size:12px">'+keys.length+'건</span></h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">주간 '+byTier.week+' · 월간 '+byTier.month+' · 연간 '+byTier.year+' · 목표 '+byTier.goal+'</div>'
-   +(keys.length?keys.map(function(k){
-      var lg=DB.rewardLog[k],tier=k.split('@')[0],per=k.split('@')[1];
-      var tl=(REWARD_TIERS.filter(function(x){return x.k===tier;})[0]||{}).label||tier;
-      return '<div class="row"><span><span class="pill">'+tl+'</span><span class="gcode">'+(lg.code||'')+'</span> '+sajuEsc(lg.title||'')
-        +'</span><span class="mut">'+lg.claimedAt+' · '+(lg.metric?lg.metric.cur+'/'+lg.metric.req:'')+'</span></div>';
-     }).join(''):'<div class="mut">아직 수령한 보상이 없다.</div>'));
+  cs.forEach(function(c){if(byTier[c.tier]!==undefined)byTier[c.tier]++;});
+  var spent=cs.reduce(function(a,c){return a+(c.spent||0);},0);
+  openModal('<div class="mtop"><h3>🎁 보상 사용 기록 <span class="mut" style="font-size:12px">'+cs.length+'건</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">주간 '+byTier.week+' · 월간 '+byTier.month+' · 연간 '+byTier.year+' · 목표 '+byTier.goal
+   +(spent?' · 지출 합계 <b>'+won(spent)+'</b>':'')+'</div>'
+   +(cs.length?cs.map(function(c){
+      return '<div class="row"><span><span class="pill">'+cardTierLabel(c)+'</span><span class="gcode">'+(c.code||'')+'</span> '+sajuEsc(c.title||'')
+        +(c.memo?' <span class="mut">'+sajuEsc(c.memo)+'</span>':'')
+        +'</span><span class="mut">'+c.usedAt+(c.spent?' · '+won(c.spent):'')+(c.txnId?' · 가계부':'')+'</span></div>';
+     }).join(''):'<div class="mut">아직 사용한 보상이 없다.</div>'));
 }
 
 
@@ -1969,13 +2065,16 @@ function routineRow(t,r,g){
 function rwChip(tier,period,label){
   var st=(tier==='goal')?goalTierState(goalById(period)):tierState(tier);
   if(!st)return '';
-  var lg=tierClaimed(tier,st.period||period);
-  var menu=(DB.rewards||[]).filter(function(r){return r.tier===tier&&r.active!==false&&(tier!=='goal'||r.goalId===period);});
-  var key=tier+'|'+(st.period||period);
-  if(lg) return '<span class="rwchip done" data-rwundo="'+key+'" title="'+sajuEsc(lg.title)+' 수령 · 누르면 취소">🎁 '+(label||'')+' ✓ 수령</span>';
-  if(st.ok) return '<span class="rwchip open" data-rwclaim="'+key+'">🎁 '+(label||'')+' '+st.cur+'/'+st.req+' 받기</span>';
-  return '<span class="rwchip'+(menu.length?'':' empty')+'" data-rwmanage="'+tier+'" title="'+(menu.length?(menu.length+'개 등록됨 · 누르면 관리'):'보상 없음 · 누르면 등록')+'">'
-    +'🎁 '+(label||'')+' '+st.cur+'/'+st.req+(menu.length?'':' <b>등록</b>')+'</span>';
+  var pd=(tier==='goal')?period:(st.period||period);
+  var key=tier+'|'+pd, c=cardOf(tier,pd), sx=cardStatus(c);
+  var L=(label||'');
+  if(sx==='used')
+    return '<span class="rwchip done" data-rwcard="'+key+'" title="'+sajuEsc(c.title)+' 사용 · 누르면 상세">🎁 '+L+' ✓ '+sajuEsc(c.title)+'</span>';
+  if(sx==='open')
+    return '<span class="rwchip open" data-rwcard="'+key+'" title="'+(isSpendCard(c)?'가계부에 지출을 적을 때 고른다':'누르면 사용 확정')+'">🎁 '+L+' '+sajuEsc(c.title)+' <b>'+(isSpendCard(c)?'가계부에서':'받기')+'</b></span>';
+  if(sx==='placed')
+    return '<span class="rwchip set" data-rwcard="'+key+'" title="배치됨 · 누르면 변경">🎁 '+L+' '+st.cur+'/'+st.req+' · '+sajuEsc(c.title)+'</span>';
+  return '<span class="rwchip empty" data-rwcard="'+key+'" title="카드 미배치 · 누르면 배치">🎁 '+L+' '+st.cur+'/'+st.req+' <b>카드 배치</b></span>';
 }
 
 function renderGoal(){
@@ -2000,13 +2099,8 @@ function renderGoal(){
      +(open?('<div class="ctxbody">'
         +'<div class="ctxstat">'+parseInt(ym.slice(5),10)+'월 투입 <b>'+stat.days+'일</b> · 루틴 '+stat.done+'/'+stat.due
         +' ('+Math.round(stat.rate*100)+'%)'
-        +(grw.length?grw.map(function(r){
-            var lg=tierClaimed('goal',g.id);
-            return ' · <span class="rwchip'+(lg?' done':(g.status==='done'?' open':''))+'" '
-              +(lg?'data-rwundo="goal|'+g.id+'"':(g.status==='done'?'data-rwclaim="goal|'+g.id+'"':'data-rwmanage="goal"'))
-              +'>🎁 '+sajuEsc(r.title)+(lg?' ✓':(g.status==='done'?' 받기':''))+'</span>';}).join('')
-          :' · <span class="rwchip empty" data-rwmanage="goal">🎁 달성 보상 <b>등록</b></span>')
-        +'</div>'
+                +' · '+rwChip('goal',g.id,'달성')
++'</div>'
         +(g.memo?'<div class="mut" style="font-size:11px;margin-top:4px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
         +'<div class="msbox"><div class="mshd">월간 세부목표 <span class="mut">'+mlist.length+'</span>'
           +'<button class="ghost sm" data-msadd="'+g.id+'">+ 세부목표</button></div>'
@@ -2076,7 +2170,7 @@ function renderGoal(){
    +'<div style="margin-top:10px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
    +' <span class="mut" id="routineListBtn" style="font-size:11px;margin-left:8px;cursor:pointer">📋 전체 루틴'
    +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span>'
-   +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 수령 '+Object.keys(DB.rewardLog||{}).length+'건</span></div></div>';
+   +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 사용 '+usedCards().length+'건</span></div></div>';
 
   document.getElementById('v-goal').innerHTML=yearPane+'<div class="g2col">'+monthPane+dayPane+'</div>';
 }
@@ -2144,33 +2238,27 @@ function renderReward(){
   var t=todayStr(), yy=t.slice(0,4), cfg=rwCfg();
   var tiers=['week','month','year'].map(function(k){
     var st=tierState(k); if(!st)return '';
-    var lg=tierClaimed(k,st.period);
+    var c=cardOf(k,st.period), sx=cardStatus(c);
     var pct=Math.min(100,Math.round(st.cur/st.req*100));
     var tl=(REWARD_TIERS.filter(function(x){return x.k===k;})[0]||{}).label;
-    return '<div class="tcard2'+(lg?' claimed':(st.ok?' earned':''))+'">'
+    return '<div class="tcard2'+(sx==='used'?' claimed':(st.ok?' earned':''))+'">'
      +'<div class="tchd"><span class="tclv">'+tl+'</span><span class="mut">'+st.label+'</span></div>'
      +'<div class="tcbig">'+st.cur+'<span class="mut"> / '+st.req+' '+st.unit+'</span></div>'
      +'<div class="pbar"><span style="width:'+pct+'%;background:'+(st.ok?'var(--pos)':'var(--gold)')+'"></span></div>'
-     +'<div class="tcfoot">'
-     +(lg?('<span class="mut">✓ '+lg.claimedAt+' '+sajuEsc(lg.title)+'</span><span class="acts"><span data-rwundo="'+k+'|'+st.period+'">취소</span></span>')
-        :(st.ok?'<button class="btn sm" data-rwclaim="'+k+'|'+st.period+'">🎁 받기</button>'
-               :'<span class="mut">'+Math.max(0,st.req-st.cur)+' '+st.unit.replace(/ .*/,'')+' 남음</span>'))
-     +'</div></div>';
+     +'<div class="tcfoot">'+rwChip(k,st.period,'')+'</div></div>';
   }).join('');
 
   var grw=(DB.rewards||[]).filter(function(r){return r.tier==='goal'&&r.active!==false;});
   var goalRows=grw.map(function(r){
     var g=goalById(r.goalId); if(!g)return '';
-    var lg=tierClaimed('goal',g.id), ok=(g.status==='done');
-    return '<div class="grw'+(lg?' claimed':(ok?' earned':''))+'">'
+    var c=cardOf('goal',g.id), sx=cardStatus(c);
+    return '<div class="grw'+(sx==='used'?' claimed':(g.status==='done'?' earned':''))+'">'
      +'<span><span class="gcode">'+r.code+'</span> '+sajuEsc(r.title)
        +' <span class="mut">← '+g.code+' '+sajuEsc(g.title)+' '+goalPct(g)+'%</span></span>'
-     +'<span class="acts">'+(lg?('<span class="mut">✓ '+lg.claimedAt+'</span> <span data-rwundo="goal|'+g.id+'">취소</span>')
-        :(ok?'<button class="btn sm" data-rwclaim="goal|'+g.id+'">🎁 받기</button>':''))
-     +' <span data-rwedit="'+r.id+'">✎</span></span></div>';
+     +'<span class="acts">'+rwChip('goal',g.id,'')+' <span data-rwedit="'+r.id+'">✎</span></span></div>';
   }).join('');
 
-  var rs=rewardSpend(yy), logN=Object.keys(DB.rewardLog||{}).length;
+  var rs=rewardSpend(yy), logN=usedCards().length;
   var real=bucketRealistic().length;
 
   document.getElementById('v-reward').innerHTML=''
@@ -2223,9 +2311,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='7.6';
+var APP_VERSION='8.0';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'8.0',date:'2026-08-19',note:"🎁 보상 카드 모델 — 로한 설계. 보상함=카드의 '종류'(덱) → 목표관리에서 배치(예약) → 계단 달성 시 활성 → 실제로 소비하며 가계부를 쓸 때 카드가 소멸. ⚠️ v7까지는 '수령 확정'이 곧 가계부 거래를 만들어서, 받기로 해놓고 안 쓴 보상이 유령 거래로 남아 가계부가 더러워졌다. 거래는 실제 지출 순간에만 생기고 카드는 거기에 붙는다 · 카드 상태는 저장하지 않고 파생(usedAt/tierOpen) — 문턱을 바꿔도 과거 판정이 안 어긋난다 · 카드는 종류를 스냅샷 — 보상함 원본을 고쳐도 발급된 카드는 불변 · 배치 3경로(보상함에서 고르기/버킷에서 올리며 배치/새로 만들기) · 목표 달성 보상에 목표 id가 안 넘어가던 버그 수정 · 행동 보상은 가계부를 안 타므로 목표 탭에서 직접 사용 확정 · 거래 삭제 시 카드 복원, 사용 취소 시 거래는 남기고 연결만 해제(실제로 쓴 돈이므로) · 캘린더 마커 개편: 의미 없는 점 2개 → ✅ 루틴 완전달성 💳 카드 미결제 🎁 보상 사용, 부분달성은 날짜 배경으로(아이콘 남발 방지), 셀 높이 96→112"},
   {v:'7.6',date:'2026-08-19',note:"모달 오작동 2건 수정 — ① 입력이 있는 모달(작성 중)은 바깥 클릭으로 닫히지 않는다: 스치듯 눌러 쓰던 내용이 통째로 날아가던 문제. 판정을 모달 안의 input/textarea/select 유무로 하므로 앞으로 추가되는 폼에도 자동 적용된다(ESC·×는 그대로 닫힘) · ② 보상함에 추가·수정·삭제해도 표가 새로고침 전까지 안 바뀌던 문제: saveReward/delReward/saveRwCfg가 renderGoal()만 불렀다. 보상 데이터는 목표 탭(칩)과 보상 탭(표) 양쪽에 나오므로 renderRW()로 두 곳을 함께 갱신 · ③ toRewardModal이 modal._mvid를 안 세워 행동 보상의 '권장일(음기일)' 선택이 한 번도 안 뜨던 버그 수정"},
   {v:'7.5',date:'2026-08-19',note:"[치명] 마이그레이션이 통째로 스킵되던 구조 결함 — migrateV6() 상단 schemaVersion>=6 게이트에 막혀 v7.0~v7.4의 보정이 한 번도 실행되지 않았다. 버킷 7건이 d.bucket에 남고 화면은 빈 채로 떴다(데이터 손실은 없음) · 마이그레이션을 2층으로 분리: (A) 게이트 안 = 1회성 파괴적 전환, (B) 게이트 밖 = 매 로드 멱등 정규화. 새 필드·새 배열 통합은 반드시 (B)에 · schemaVersion 6→7 · 실제 DB 스냅샷으로 K1~K7 복원·멱등성 검증"},
   {v:'7.4',date:'2026-08-19',note:'버킷함 ⇄ 보상함 연계 — \'고정 메뉴\'를 \'보상함\'으로 개명하고 2열 배치(좌 버킷·우 보상함). → 로 승격, ← 로 되돌리기. 승격 시 단계(주/월/연/목표) 지정 · **보상함에 있는 것만** 계단 수령 선택지에 뜬다(버킷엔 \'스페인 1년 살기\' 같은 게 있어 그대로 두면 수령 모달이 무의미) · bucket 배열을 rewards로 흡수하고 place 필드로 구분 — 이동해도 코드·기록일 유지'},
@@ -2828,7 +2917,21 @@ function migrateV6(d){
 
   if(!d.missTags)d.missTags=MISS_TAGS.slice();
   if(!d.rewards)d.rewards=[];
-  if(!d.rewardLog)d.rewardLog={};
+  /* v8.0 — rewardLog(수령 기록) → rewardCards(카드) 승계.
+     v7까지는 '수령'이 곧 가계부 거래였고, v8은 배치 → 활성 → 사용 카드 모델이다. */
+  if(!d.rewardCards)d.rewardCards={};
+  if(d.rewardLog){
+    for(var _lk in d.rewardLog){
+      if(d.rewardCards[_lk])continue;
+      var _lg=d.rewardLog[_lk], _pp=_lk.split('@');
+      d.rewardCards[_lk]={key:_lk,tier:_pp[0],period:_pp[1],
+        rewardId:_lg.rewardId||_lg.bucketId||null,
+        code:_lg.code||'',title:_lg.title||'',kind:_lg.kind||'act',budget:_lg.spent||0,timing:'any',
+        placedAt:_lg.claimedAt||today,usedAt:_lg.claimedAt||today,
+        txnId:_lg.txnId||null,spent:_lg.spent||0,memo:_lg.memo||''};
+    }
+    delete d.rewardLog;
+  }
 
   /* v7.4 — bucket 배열을 rewards로 흡수하고 place로 구분 */
   if(d.bucket){
@@ -2888,6 +2991,23 @@ function saveCat(id){
   save();closeModal();renderAcct();
 }
 function delCat(id){if(!confirm('삭제할까요?'))return;var _k=DB.categories.filter(function(c){return c.id===id})[0];logAct('카테고리삭제 · '+(_k?_k.name:id));DB.categories=DB.categories.filter(function(c){return c.id!==id});save();renderAcct();}
+/* 🎁 보상 카드 사용 — 활성 소비 카드가 있을 때만 뜬다.
+   없으면 한 줄도 차지하지 않는다: 평소 가계부 입력을 방해하면 안 된다.
+   ⚠️ 카테고리는 바꾸지 않는다. 배달은 식비로 남아야 통계가 안 망가진다.
+      '보상으로 허용된 지출'이라는 사실만 카드 연결로 남긴다. */
+function rwCardField(t){
+  var cur=(t&&t.rewardKey)?rwCards()[t.rewardKey]:null;
+  var list=openCards().filter(isSpendCard);
+  if(cur){var has=false;for(var i=0;i<list.length;i++)if(list[i].key===cur.key)has=true;
+    if(!has)list=[cur].concat(list);}
+  if(!list.length)return '';
+  var opts='<option value="">해당없음</option>'+list.map(function(c){
+    return '<option value="'+c.key+'"'+((cur&&c.key===cur.key)?' selected':'')+'>'
+      +c.code+' · '+sajuEsc(c.title)+' ('+cardTierLabel(c)+(c.budget?' ≤'+comma(c.budget)+'원':'')+')</option>';}).join('');
+  return '<div class="field rwtxn"><label>🎁 보상 사용 <span class="mut">— 이 지출이 보상이면 카드를 고른다</span></label>'
+    +'<select id="fRwCard">'+opts+'</select>'
+    +'<div class="hint">고르면 그 카드가 소멸한다. 계정과목은 안 바뀐다 — 배달은 식비로 남는다.</div></div>';
+}
 function txnModal(id){
   var _defM=(DB.cards.filter(function(c){return /K패스/i.test(c.name);})[0]||DB.cards[0]||{}).name;
   var t=id?DB.transactions.filter(function(x){return x.id===id})[0]:{date:selDate||todayStr(),type:'expense',scope:'personal',cat:'식비',method:_defM,amt:'',memo:''};
@@ -2915,6 +3035,7 @@ function txnModal(id){
    +'<div class="field"><label>도착계좌 <span class="mut">(저축·투자 포함)</span></label><select id="fTo">'+allOpts(t.to)+'</select></div>'
    +'</div>'
    +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900"></div>'
+   +rwCardField(t)
    +'<div class="field"><label>날짜</label><input id="fDate" value="'+t.date+'"></div>'
    +'<div class="field"><label>메모</label><textarea id="fMemo" rows="2">'+(t.memo||'')+'</textarea></div>'
    +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
@@ -2966,11 +3087,30 @@ function saveTxn(id){
   var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
   if(id){Object.assign(DB.transactions.filter(function(x){return x.id===id})[0],rec);}else{rec.id=uid();DB.transactions.push(rec);}
   logAct((id?'거래수정':'거래추가')+' · '+rec.date+' '+rec.cat+' '+(rec.type==='income'?'+':'-')+won(rec.amt));
+  /* 🎁 보상 카드 연결 — 거래가 생긴 뒤에 붙인다 */
+  var _rwEl=document.getElementById('fRwCard');
+  if(_rwEl){
+    var _tid=id||rec.id, _nk=_rwEl.value;
+    var _txo=DB.transactions.filter(function(x){return x.id===_tid;})[0];
+    var _prev=cardByTxn(_tid);
+    if(_prev&&_prev.key!==_nk){_prev.usedAt=null;_prev.txnId=null;_prev.spent=0;_prev.memo='';}
+    var _tg=_nk?rwCards()[_nk]:null;
+    if(_tg){
+      _tg.usedAt=rec.date;_tg.txnId=_tid;_tg.spent=rec.amt;_tg.memo=rec.memo||'';
+      if(_txo)_txo.rewardKey=_nk;
+      logAct('🎁 보상 사용 · '+_tg.code+' '+_tg.title+' · '+won(rec.amt)+' (가계부)');
+      if(_tg.budget&&rec.amt>_tg.budget)
+        setTimeout(function(){alert('상한 '+comma(rec.amt-_tg.budget)+'원 초과 — 막지는 않는다. 기록이 목적이다.');},60);
+    } else if(_txo) delete _txo.rewardKey;
+    renderRW();
+  }
   var reg=document.getElementById('fAsset')&&document.getElementById('fAsset').checked;
   save();closeModal();renderCal();renderDash();
   if(reg&&rec.type==='expense')itemModal(null,{name:rec.cat,detail:rec.memo||'',cat:(itemCat&&itemCat!=='해당없음')?itemCat:'전자기기',cond:'신품',price:rec.amt,buy:rec.date,end:'',basis:'일간',units:'',status:'사용중'});
 }
-function delTxn(id){if(!confirm('삭제할까요?'))return;var _t=DB.transactions.filter(function(t){return t.id===id})[0];logAct('거래삭제 · '+(_t?_t.date+' '+_t.cat+' '+won(_t.amt):id));DB.transactions=DB.transactions.filter(function(t){return t.id!==id});save();renderCal();renderDash();}
+function delTxn(id){if(!confirm('삭제할까요?'))return;var _t=DB.transactions.filter(function(t){return t.id===id})[0];
+  /* 거래가 사라지면 붙어 있던 보상 카드는 되살아난다 */
+  var _c=cardByTxn(id); if(_c){_c.usedAt=null;_c.txnId=null;_c.spent=0;_c.memo='';logAct('🎁 보상 카드 복원 · '+_c.code+' '+_c.title);}logAct('거래삭제 · '+(_t?_t.date+' '+_t.cat+' '+won(_t.amt):id));DB.transactions=DB.transactions.filter(function(t){return t.id!==id});save();renderCal();renderDash();}
 
 /* 탭 → 렌더러 매핑. 사이드바에 탭을 추가하면 여기에도 반드시 등록할 것.
    (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
@@ -2988,8 +3128,7 @@ for(var i=0;i<navs.length;i++)(function(m){m.addEventListener('click',function()
   if(_fn)_fn(); else console.warn('[RohanBook] 렌더러가 등록되지 않은 탭: '+m.dataset.v);
 });})(navs[i]);
 document.addEventListener('click',function(e){
-  var rwc=e.target.closest('[data-rwclaim]');if(rwc){var pa=rwc.dataset.rwclaim.split('|');return claimTier(pa[0],pa[1]);}
-  var rwu=e.target.closest('[data-rwundo]');if(rwu){var pb=rwu.dataset.rwundo.split('|');return unclaimTier(pb[0],pb[1]);}
+  var rwk=e.target.closest('[data-rwcard]');if(rwk){var pa=rwk.dataset.rwcard.split('|');return rwCardModal(pa[0],pa[1]);}
   var rwe=e.target.closest('[data-rwedit]');if(rwe)return rewardModal(rwe.dataset.rwedit);
   var wjp=e.target.closest('[data-wjump]');if(wjp)return setGoalDate(wjp.dataset.wjump>todayStr()?todayStr():wjp.dataset.wjump);
   var bks=e.target.closest('[data-bksort]');if(bks)return bkSort(bks.dataset.bksort);
