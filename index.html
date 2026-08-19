@@ -178,7 +178,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .tcard2.claimed{opacity:.55;background:var(--soft)}
 .subhd2{font-family:var(--serif);font-size:12px;font-weight:700;letter-spacing:.4px;color:var(--gold)}
 .bkhd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-.bkfil{display:flex;gap:5px;margin-left:auto}
 .fchip{font-size:10.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--muted);cursor:pointer;user-select:none}
 .fchip.on{background:var(--gold);color:#fff;border-color:var(--gold);font-weight:700}
 .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px}
@@ -201,6 +200,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .bkst.want{background:#f3ead2;color:#8a6d12}
 .bkst.got{background:#e7f6ee;color:#0b6b3a}
 .bkst.dropped{background:#f0f0f4;color:#8a8a9a}
+.mvbtn{display:inline-block;width:22px;height:22px;line-height:20px;text-align:center;border:1px solid var(--line);
+  border-radius:6px;background:var(--soft);color:var(--gold);cursor:pointer;font-weight:700;font-size:12px;user-select:none}
+.mvbtn:hover{background:var(--gold);color:#fff;border-color:var(--gold)}
+.mvbtn.back{color:var(--muted)}
+.mvbtn.back:hover{background:#e8e4dc;color:var(--ink);border-color:#cfc7ae}
+.g2col>.pane{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.bkfil{display:flex;gap:5px;margin-bottom:7px}
 .pickhd{font-family:var(--serif);font-size:10.5px;font-weight:700;color:var(--gold);letter-spacing:.4px;margin:11px 0 5px;padding-bottom:3px;border-bottom:1px dashed #ece3c9}
 .rwchip{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;padding:3px 9px;border-radius:999px;
   border:1px solid var(--line);background:var(--soft);color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none}
@@ -456,7 +462,6 @@ var SEED = {
   missTags:['야근','피로','날씨','약속','무기력','아픔','일정충돌','의지부족','기타'],
   rewards:[],
   rewardLog:{},
-  bucket:[],
   rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},
   schemaVersion:6,
   ui:{month:'2026-08',watchCats:['식비','카페','간식/편의점']}
@@ -1455,9 +1460,9 @@ function tierClaimed(tier,period){var l=(DB.rewardLog||{})[logKey(tier,period)];
 
 /* 보상 수령 — 기간당 1회, 메뉴에서 하나 선택 */
 function claimTier(tier,period){
-  var menu=(DB.rewards||[]).filter(function(r){return r.tier===tier&&r.active!==false&&(tier!=='goal'||r.goalId===period);});
-  var bks=bucketWant().slice().sort(function(x,y){return (x.price||0)-(y.price||0);});
-  if(!menu.length&&!bks.length)return alert('받을 것이 없다.\n🎁 보상 탭에서 고정 메뉴를 만들거나 버킷에 담아라.');
+  var menu=rewardActive().filter(function(r){return r.tier===tier&&(tier!=='goal'||r.goalId===period);})
+    .sort(function(x,y){return (x.price||x.budget||0)-(y.price||y.budget||0);});
+  if(!menu.length)return alert('이 단계의 보상이 없다.\n\n🎁 보상 탭 → 버킷함에서 → 를 눌러 보상함으로 올려라.\n보상함에 있는 것만 여기 뜬다.');
   var st=(tier==='goal')?goalTierState(goalById(period)):tierState(tier);
   var t=todayStr(), yin=isYinDay(t);
   function row(o,isBk){
@@ -1476,9 +1481,8 @@ function claimTier(tier,period){
   openModal('<div class="mtop"><h3>🎁 보상 받기 <span class="mut" style="font-size:12px">'+st.label+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="mut" style="font-size:11.5px;margin-bottom:10px">'+st.cur+'/'+st.req+' '+st.unit+' 달성 · <b>하나만</b> 고를 수 있다'
    +(yin?' · <span class="yinbadge">陰 오늘 음기일</span>':'')+'</div>'
-   +(menu.length?'<div class="pickhd">🔁 고정 메뉴</div>'+menu.map(function(o){return row(o,false);}).join(''):'')
-   +(bks.length?'<div class="pickhd">🪣 버킷에서 <span class="mut">예상비용 낮은 순</span></div>'
-       +bks.map(function(o){return row(o,true);}).join(''):''));
+   +'<div class="pickhd">🎁 보상함 <span class="mut">예상비용 낮은 순</span></div>'
+   +menu.map(function(o){return row(o,true);}).join(''));
 }
 /* 선택 → 소비면 지출 입력, 행동이면 메모 */
 function pickReward(tier,period,rid,isBk){
@@ -1723,10 +1727,70 @@ function rewardHistory(){
    설계: integration-design.md 7장.
    계단(tier)에 묶이지 않는다. 티어는 담을 때가 아니라 '고를 때' 정해진다.
    "서울에 집 사기"처럼 평생 못 받을 수도 있는 것이 같이 산다 — 그게 원장인 이유다. */
-function bucketAll(){return DB.bucket||[];}
-function bucketById(id){return bucketAll().filter(function(b){return b.id===id;})[0];}
+/* 버킷함과 보상함은 같은 배열에 산다. place 필드로 갈린다.
+   이동이 빈번하므로 배열을 나누면 id·기록일·코드가 깨진다. */
+function allItems(){return DB.rewards||[];}
+function bucketAll(){return allItems().filter(function(b){return (b.place||'bucket')==='bucket';});}
+function rewardAll(){return allItems().filter(function(b){return b.place==='reward';});}
+function bucketById(id){return allItems().filter(function(b){return b.id===id;})[0];}
 function bucketWant(){return bucketAll().filter(function(b){return b.status==='want';});}
-function issueBucketCode(){var c;do{c='K'+seqNext('K');}while(bucketAll().some(function(b){return b.code===c;}));return c;}
+function rewardActive(){return rewardAll().filter(function(b){return b.status!=='got'&&b.status!=='dropped'&&b.active!==false;});}
+function issueBucketCode(){var c;do{c='K'+seqNext('K');}while(allItems().some(function(b){return b.code===c;}));return c;}
+
+/* ── 버킷함 ⇄ 보상함 이동 ── */
+function toRewardModal(id){
+  var b=bucketById(id); if(!b)return;
+  var yy=todayStr().slice(0,4);
+  var gopts=yearGoals(yy).map(function(g){
+    return '<option value="'+g.id+'">'+g.code+' · '+sajuEsc(g.title)+'</option>';}).join('');
+  var seg=REWARD_TIERS.map(function(x){
+    return '<button onclick="mvTier(this,\''+x.k+'\')">'+x.label+'</button>';}).join('');
+  openModal('<div class="mtop"><h3>🎁 보상함으로 <span class="gcode">'+b.code+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:12px;margin-bottom:10px">'+sajuEsc(b.title)+(b.price?' <span class="mut">· '+comma(b.price)+'원</span>':'')+'</div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
+   +'보상함에 올리면 <b>계단 달성 시 선택지</b>에 뜬다. 어느 단계에서 받을지 정해라.<br>'
+   +'언제든 <b>버킷으로 되돌릴 수 있다</b> — 가볍게 결정해도 된다.</div>'
+   +'<div class="field"><label>어느 단계</label><div class="seg" id="mv_seg">'+seg+'</div><div class="hint" id="mv_hint"></div></div>'
+   +'<div class="field" id="mv_gwrap" style="display:none"><label>연결할 연간 목표</label><select id="mv_goal">'+(gopts||'<option value="">연간 목표가 없다</option>')+'</select></div>'
+   +'<div class="field" id="mv_twrap" style="display:none"><label>권장일</label>'
+   +'<select id="mv_timing"><option value="any">상관없음</option><option value="yin">음기일 (陰)</option></select></div>'
+   +'<button class="btn" onclick="doToReward(\''+id+'\')">보상함으로 옮기기</button>');
+  modal._mvtier=null;
+}
+function mvTier(el,v){
+  modal._mvtier=v;
+  var bs=el.parentNode.querySelectorAll('button');
+  for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');
+  el.classList.add('on');
+  document.getElementById('mv_gwrap').style.display=(v==='goal'?'block':'none');
+  var b=bucketById(modal._mvid);
+  document.getElementById('mv_twrap').style.display=((b&&b.kind==='act')?'block':'none');
+  var c=rwCfg(),h=document.getElementById('mv_hint');
+  h.textContent = v==='week' ? ('주 완전달성 '+c.weekFullDays+'일이면 열린다 — 가장 자주 온다')
+    : v==='month'? ('그 달 주간 성공 '+c.monthWeeks+'회면 열린다')
+    : v==='year' ? ('그 해 월간 성공 '+c.yearMonths+'회면 열린다 — 크게 잡아라')
+    : '연간 목표를 완료하면 지급된다';
+}
+function doToReward(id){
+  var b=bucketById(id); if(!b)return;
+  if(!modal._mvtier)return alert('어느 단계에서 받을지 선택하세요');
+  b.place='reward'; b.tier=modal._mvtier; b.active=true; b.movedAt=todayStr(); b.updatedAt=todayStr();
+  if(b.tier==='goal'){var g=document.getElementById('mv_goal');b.goalId=g?g.value:null;
+    if(!b.goalId)return alert('연결할 목표를 선택하세요');}
+  var tm=document.getElementById('mv_timing');
+  b.timing=(b.kind==='act'&&tm)?tm.value:'any';
+  if(b.price&&!b.budget)b.budget=b.price;
+  var tl=(REWARD_TIERS.filter(function(x){return x.k===b.tier;})[0]||{}).label;
+  logAct('🎁 보상함으로 · '+b.code+' '+b.title+' ('+tl+')');
+  save();closeModal();renderReward();
+}
+function toBucket(id){
+  var b=bucketById(id); if(!b)return;
+  if(!confirm(b.code+' 을(를) 버킷함으로 되돌릴까요?\n단계 지정이 해제되고 수령 선택지에서 빠집니다.'))return;
+  b.place='bucket'; b.tier=undefined; b.goalId=undefined; b.movedAt=undefined; b.updatedAt=todayStr();
+  logAct('🪣 버킷함으로 · '+b.code+' '+b.title);
+  save();closeModal();renderReward();
+}
 function daysSince(ds){ if(!ds)return 0; var a=new Date(ds+'T00:00:00Z'),b=new Date(todayStr()+'T00:00:00Z');
   return Math.max(0,Math.round((b-a)/86400000)); }
 /* 현실적 가격대(주간 보상으로 받을 만한) 대기 수 — 좌절 지표. 큰 항목은 세지 않는다 */
@@ -1778,10 +1842,12 @@ function bucketModal(id){
    +(id?('<div class="mut" style="font-size:10.5px;margin:8px 0">기록 '+(b.addedAt||'-')+(b.updatedAt&&b.updatedAt!==b.addedAt?' · 수정 '+b.updatedAt:'')
         +' · '+daysSince(b.addedAt)+'일째</div>'):'')
    +'<button class="btn" onclick="saveBucket('+(id?"'"+id+"'":'null')+')">저장</button>'
+   +(id&&b.status==='want'&&(b.place||'bucket')==='bucket'?' <button class="ghost" onclick="closeModal();toRewardModal(\''+id+'\')">🎁 보상함으로</button>':'')
+   +(id&&b.place==='reward'?' <button class="ghost" onclick="toBucket(\''+id+'\')">🪣 버킷으로</button>':'')
    +(id&&b.status==='want'?' <button class="ghost" onclick="dropBucket(\''+id+'\')">포기</button>':'')
    +(id&&b.status!=='want'?' <button class="ghost" onclick="reviveBucket(\''+id+'\')">되살리기</button>':'')
    +(id?' <button class="ghost" style="color:var(--neg)" onclick="delBucket(\''+id+'\')">삭제</button>':''));
-  modal._bkkind=b.kind||'spend';
+  modal._bkkind=b.kind||'spend'; modal._mvid=id;
 }
 function bkKind(el,v){modal._bkkind=v;var bs=el.parentNode.querySelectorAll('button');
   for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');el.classList.add('on');}
@@ -1790,11 +1856,11 @@ function saveBucket(id){
   if(!title)return alert('내용을 입력하세요');
   var rec={title:title,kind:modal._bkkind||'spend',price:numv('bk_price')||0,
     memo:document.getElementById('bk_memo').value.trim(),updatedAt:todayStr()};
-  DB.bucket=DB.bucket||[];
+  DB.rewards=DB.rewards||[];
   if(id){Object.assign(bucketById(id),rec);logAct('버킷수정 · '+bucketById(id).code+' '+title);}
   else{
-    rec.id=uid();rec.code=issueBucketCode();rec.status='want';rec.addedAt=todayStr();
-    DB.bucket.push(rec);logAct('🪣 버킷담기 · '+rec.code+' '+title+(rec.price?' ('+won(rec.price)+')':''));
+    rec.id=uid();rec.code=issueBucketCode();rec.status='want';rec.addedAt=todayStr();rec.place='bucket';
+    DB.rewards.push(rec);logAct('🪣 버킷담기 · '+rec.code+' '+title+(rec.price?' ('+won(rec.price)+')':''));
   }
   save();closeModal();renderReward();
 }
@@ -1814,7 +1880,7 @@ function reviveBucket(id){
 function delBucket(id){
   var b=bucketById(id);if(!b)return;
   if(!confirm('완전히 삭제할까요? 포기 기록도 함께 사라집니다.\n(기록을 남기려면 삭제 대신 포기를 쓰세요)'))return;
-  DB.bucket=DB.bucket.filter(function(x){return x.id!==id;});
+  DB.rewards=DB.rewards.filter(function(x){return x.id!==id;});
   logAct('버킷삭제 · '+b.code+' '+b.title);save();closeModal();renderReward();
 }
 
@@ -2012,52 +2078,57 @@ function bkTh(key,label,align){
   return '<th class="'+(align||'')+(on?' on':'')+'" data-bksort="'+key+'">'+label+(on?' '+dir:'')+'</th>';
 }
 function bucketTable(){
-  var rows=bucketSorted(), f=(DB.ui.bkFilter||'want'), st=bucketStats();
+  var rows=bucketSorted().filter(function(x){return (x.place||'bucket')==='bucket';});
+  var f=(DB.ui.bkFilter||'want'), st=bucketStats();
   var body=rows.length?rows.map(function(b){
     var d=daysSince(b.addedAt), stale=(b.status==='want'&&d>=90);
     var stx=b.status==='want'?'대기':(b.status==='got'?'받음':'포기');
-    return '<tr class="bkrow '+b.status+'" data-bkedit="'+b.id+'">'
-     +'<td><span class="gcode">'+b.code+'</span></td>'
-     +'<td class="bkt">'+sajuEsc(b.title)+(b.memo?'<span class="mut"> · '+sajuEsc(b.memo)+'</span>':'')
+    return '<tr class="bkrow '+b.status+'">'
+     +'<td data-bkedit="'+b.id+'"><span class="gcode">'+b.code+'</span></td>'
+     +'<td class="bkt" data-bkedit="'+b.id+'">'+sajuEsc(b.title)
        +(b.status==='dropped'&&b.dropReason?'<span class="mut"> — '+sajuEsc(b.dropReason)+'</span>':'')+'</td>'
-     +'<td><span class="kchip '+(b.kind||'spend')+'">'+((REWARD_KINDS.filter(function(x){return x.k===(b.kind||'spend');})[0]||{}).label||'')+'</span></td>'
-     +'<td class="r num">'+(b.price?comma(b.price):'—')+'</td>'
-     +'<td class="r mut">'+(b.addedAt||'').slice(2).replace(/-/g,'.')+'</td>'
-     +'<td class="r'+(stale?' stale':' mut')+'">'+(b.status==='want'?d+'일'+(stale?' ⚠':''):(b.gotAt||b.droppedAt||'').slice(5).replace('-','/'))+'</td>'
-     +'<td class="r"><span class="bkst '+b.status+'">'+stx+'</span></td></tr>';
-  }).join(''):'<tr><td colspan="7" class="mut" style="padding:14px 6px;text-align:center">'
+     +'<td data-bkedit="'+b.id+'"><span class="kchip '+(b.kind||'spend')+'">'+((REWARD_KINDS.filter(function(x){return x.k===(b.kind||'spend');})[0]||{}).label||'')+'</span></td>'
+     +'<td class="r num" data-bkedit="'+b.id+'">'+(b.price?comma(b.price):'—')+'</td>'
+     +'<td class="r'+(stale?' stale':' mut')+'" data-bkedit="'+b.id+'">'+(b.status==='want'?d+'일'+(stale?' ⚠':''):stx)+'</td>'
+     +'<td class="r">'+(b.status==='want'?'<span class="mvbtn" data-tor="'+b.id+'" title="보상함으로">→</span>':'')+'</td></tr>';
+  }).join(''):'<tr><td colspan="6" class="mut" style="padding:14px 6px;text-align:center">'
     +(f==='want'?'담긴 것이 없다. <b>+ 담기</b>로 지금 원하는 걸 적어라.':'해당 항목이 없다.')+'</td></tr>';
-  return '<div class="bkhd"><span class="subhd2">🪣 버킷함</span>'
-   +'<span class="bkfil">'
+  return '<div class="pane"><div class="bkhd"><span class="subhd2">🪣 버킷함 <span class="mut">원하는 것 전부</span></span>'
+   +'<button class="btn sm" id="addBucketBtn">+ 담기</button></div>'
+   +'<div class="bkfil">'
    +['want|대기 '+st.want,'got|받음 '+st.got,'dropped|포기 '+st.dropped,'all|전체 '+(st.want+st.got+st.dropped)]
       .map(function(x){var p=x.split('|');
-        return '<span class="fchip'+(f===p[0]?' on':'')+'" data-bkfil="'+p[0]+'">'+p[1]+'</span>';}).join('')
-   +'</span><button class="btn sm" id="addBucketBtn">+ 담기</button></div>'
-   +(st.stale?'<div class="mut" style="font-size:11px;margin:0 0 6px">⚠ 90일 넘게 담겨 있는 것 '+st.stale+'개 — 아직 원하는지 물어볼 때다. 재촉이 아니다.</div>':'')
+        return '<span class="fchip'+(f===p[0]?' on':'')+'" data-bkfil="'+p[0]+'">'+p[1]+'</span>';}).join('')+'</div>'
+   +(st.stale?'<div class="mut" style="font-size:10.5px;margin:0 0 6px">⚠ 90일 넘게 담긴 것 '+st.stale+'개 — 아직 원하는지 물어볼 때다</div>':'')
    +'<div class="tblwrap"><table class="btbl"><thead><tr>'
    +bkTh('code','코드')+bkTh('title','내용')+bkTh('kind','분류')+bkTh('price','예상비용','r')
-   +bkTh('added','기록일','r')+'<th class="r">경과</th><th class="r">상태</th>'
-   +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+   +bkTh('added','경과','r')+'<th class="r"></th>'
+   +'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
 }
-function fixedTable(){
-  var rows=(DB.rewards||[]).filter(function(r){return r.active!==false;})
-    .sort(function(a,b){return (a.code||'')<(b.code||'')?-1:1;});
+function rewardTable(){
+  var rows=rewardAll().slice().sort(function(x,y){
+    var o={week:1,month:2,year:3,goal:4};
+    return (o[x.tier]||9)-(o[y.tier]||9)||((x.price||0)-(y.price||0));});
   var body=rows.length?rows.map(function(r){
     var tl=(REWARD_TIERS.filter(function(x){return x.k===r.tier;})[0]||{}).label||'';
     var g=r.goalId?goalById(r.goalId):null;
-    return '<tr class="bkrow" data-rwedit="'+r.id+'">'
-     +'<td><span class="gcode">'+r.code+'</span></td>'
-     +'<td class="bkt">'+sajuEsc(r.title)+(g?'<span class="mut"> ← '+g.code+'</span>':'')+'</td>'
-     +'<td><span class="pill">'+tl+'</span></td>'
-     +'<td><span class="kchip '+(r.kind||'act')+'">'+((REWARD_KINDS.filter(function(x){return x.k===(r.kind||'act');})[0]||{}).label||'')+'</span></td>'
-     +'<td class="r num">'+(r.budget?comma(r.budget):'—')+'</td>'
-     +'<td class="r">'+(r.timing==='yin'?'<span class="yinbadge">陰</span>':'<span class="mut">—</span>')+'</td></tr>';
-  }).join(''):'<tr><td colspan="6" class="mut" style="padding:14px 6px;text-align:center">반복해서 받을 고정 메뉴가 없다.</td></tr>';
-  return '<div class="bkhd" style="margin-top:16px"><span class="subhd2">🔁 고정 메뉴 <span class="mut">반복 가능</span></span>'
-   +'<button class="btn sm" id="addFixedBtn">+ 고정메뉴</button></div>'
+    var used=(r.status==='got');
+    return '<tr class="bkrow'+(used?' got':'')+'">'
+     +'<td data-bkedit="'+r.id+'"><span class="gcode">'+r.code+'</span></td>'
+     +'<td class="bkt" data-bkedit="'+r.id+'">'+sajuEsc(r.title)+(g?'<span class="mut"> ← '+g.code+'</span>':'')
+       +(r.timing==='yin'?' <span class="yinbadge">陰</span>':'')+'</td>'
+     +'<td data-bkedit="'+r.id+'"><span class="pill">'+tl+'</span></td>'
+     +'<td data-bkedit="'+r.id+'"><span class="kchip '+(r.kind||'act')+'">'+((REWARD_KINDS.filter(function(x){return x.k===(r.kind||'act');})[0]||{}).label||'')+'</span></td>'
+     +'<td class="r num" data-bkedit="'+r.id+'">'+((r.price||r.budget)?comma(r.price||r.budget):'—')+'</td>'
+     +'<td class="r"><span class="mvbtn back" data-tob="'+r.id+'" title="버킷함으로">←</span></td></tr>';
+  }).join(''):'<tr><td colspan="6" class="mut" style="padding:14px 6px;text-align:center">'
+    +'보상함이 비어 있다.<br><span style="font-size:11px">왼쪽 버킷에서 <b>→</b> 를 눌러 올려라. 여기 있는 것만 계단 달성 시 받을 수 있다.</span></td></tr>';
+  return '<div class="pane"><div class="bkhd"><span class="subhd2">🎁 보상함 <span class="mut">계단에서 받을 것</span></span>'
+   +'<button class="btn sm" id="addFixedBtn">+ 직접 추가</button></div>'
+   +'<div class="mut" style="font-size:10.5px;margin-bottom:6px">여기 있는 것만 주간·월간·연간 달성 시 선택지에 뜬다</div>'
    +'<div class="tblwrap"><table class="btbl"><thead><tr>'
-   +'<th>코드</th><th>내용</th><th>단계</th><th>분류</th><th class="r">예상비용</th><th class="r">권장</th>'
-   +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+   +'<th>코드</th><th>내용</th><th>단계</th><th>분류</th><th class="r">예상비용</th><th class="r"></th>'
+   +'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
 }
 function renderReward(){
   var t=todayStr(), yy=t.slice(0,4), cfg=rwCfg();
@@ -2103,7 +2174,7 @@ function renderReward(){
    +(rs.total?' · 🎁 올해 보상 지출 <b>'+won(rs.total)+'</b> ('+rs.count+'건)':'')
    +(real>=20?' · <b style="color:var(--warn)">현실적 가격대 대기 '+real+'개 — 문턱이 높은지 검토해라</b>':'')
    +'</div></div>'
-   +'<div class="sec">'+bucketTable()+fixedTable()+'</div>';
+   +'<div class="g2col">'+bucketTable()+rewardTable()+'</div>';
 }
 
 /* ====== 일지 ====== */
@@ -2142,9 +2213,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='7.3';
+var APP_VERSION='7.4';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'7.4',date:'2026-08-19',note:'버킷함 ⇄ 보상함 연계 — \'고정 메뉴\'를 \'보상함\'으로 개명하고 2열 배치(좌 버킷·우 보상함). → 로 승격, ← 로 되돌리기. 승격 시 단계(주/월/연/목표) 지정 · **보상함에 있는 것만** 계단 수령 선택지에 뜬다(버킷엔 \'스페인 1년 살기\' 같은 게 있어 그대로 두면 수령 모달이 무의미) · bucket 배열을 rewards로 흡수하고 place 필드로 구분 — 이동해도 코드·기록일 유지'},
   {v:'7.3',date:'2026-08-19',note:'🪣 버킷함 + 🎁 보상 탭 신설 — 원하는 것을 미리 담아두고 보상 수령 시 고른다(충동 지출→조건부 허용) · 버킷은 계단(tier)에 묶이지 않는다: \'서울에 집 사기\'처럼 평생 못 받을 수도 있는 것이 같이 사는 욕망의 원장 · 티어는 담을 때가 아니라 고를 때 정해진다(수령 모달에서 예상비용 오름차순) · 정렬 가능한 표 UI + 상태 필터(대기/받음/포기) · 90일 경과 표시 · 포기 사유 기록 · 보상 관리를 목표 탭에서 분리'},
   {v:'7.2',date:'2026-08-19',note:'파트 연계 1차 — 보상 2분류(소비/행동) + 예산(budget) 축 도입, 새 지출이 있으면 가계부 연계 발동 · 소비 보상 수령 시 실제 지출 입력→가계부 거래 자동 생성(rewardId↔txnId 양방향), 상한 초과는 경고만 · 수령 취소 시 연결 거래도 함께 삭제 · 보상 지출이 재정 목표에서 차지하는 비율 표시(의도된 긴장) · 명리 음기일(3점: 음간·음지+水金, 주 1.4회) 캘린더 마커 + 행동 보상 권장일 · 옛 cap→budget 자동 마이그레이션'},
   {v:'7.1',date:'2026-08-19',note:'[UI원칙] 좌=큰범위·우=조작 으로 좌우 교체 — 왼쪽 8월(과제+현황 캘린더) / 오른쪽 그날 루틴 체크. 모바일에서 연간→월간→일간 순으로 쌓인다 · 별도 보상 프레임 제거하고 각 층에 칩으로 분산(연간 보상→연간 헤더, 월간→8월 헤더, 주간→일간 헤더, 목표달성→목표 펼침) · 칩에 진행률과 남은 수치를 표시하고 누르면 조건·등록 목록이 열려 왜 안 열리는지 바로 보인다 · 52주 트래커를 연간 프레임에 통합 · 8월 체크→8월 현황'},
@@ -2730,8 +2802,20 @@ function migrateV6(d){
   if(!d.missTags)d.missTags=MISS_TAGS.slice();
   if(!d.rewards)d.rewards=[];
   if(!d.rewardLog)d.rewardLog={};
-  if(!d.bucket)d.bucket=[];
-  (d.bucket||[]).forEach(function(b){if(!b.status)b.status='want';if(!b.addedAt)b.addedAt=today;if(!b.updatedAt)b.updatedAt=b.addedAt;if(b.price===undefined)b.price=0;});
+
+  /* v7.4 — bucket 배열을 rewards로 흡수하고 place로 구분 */
+  if(d.bucket&&d.bucket.length){
+    d.bucket.forEach(function(b){b.place='bucket';d.rewards.push(b);});
+    delete d.bucket;
+  }
+  (d.rewards||[]).forEach(function(b){
+    if(!b.place)b.place=(b.tier?'reward':'bucket');
+    if(!b.status)b.status='want';
+    if(!b.addedAt)b.addedAt=today;
+    if(!b.updatedAt)b.updatedAt=b.addedAt;
+    if(b.price===undefined)b.price=b.budget||0;
+    if(b.budget===undefined)b.budget=b.price||0;
+  });
   if(d.ui&&!d.ui.bkSort){d.ui.bkSort='price';d.ui.bkDir=1;d.ui.bkFilter='want';}
   if(!d.rewardCfg)d.rewardCfg={weekFullDays:4,monthWeeks:4,yearMonths:9};
   (d.rewards||[]).forEach(function(r){
@@ -2881,6 +2965,8 @@ document.addEventListener('click',function(e){
   var wjp=e.target.closest('[data-wjump]');if(wjp)return setGoalDate(wjp.dataset.wjump>todayStr()?todayStr():wjp.dataset.wjump);
   var bks=e.target.closest('[data-bksort]');if(bks)return bkSort(bks.dataset.bksort);
   var bkf=e.target.closest('[data-bkfil]');if(bkf)return bkFilter(bkf.dataset.bkfil);
+  var tor=e.target.closest('[data-tor]');if(tor)return toRewardModal(tor.dataset.tor);
+  var tob=e.target.closest('[data-tob]');if(tob)return toBucket(tob.dataset.tob);
   var bke=e.target.closest('[data-bkedit]');if(bke)return bucketModal(bke.dataset.bkedit);
   if(e.target.id==='addBucketBtn')return bucketModal(null);
   if(e.target.id==='addFixedBtn')return rewardModal(null,'week');
