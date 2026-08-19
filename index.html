@@ -59,8 +59,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .row:last-child{border-bottom:0}
 .pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10px;background:#eef2f8;color:#5a6b86;margin-right:5px}
 .badge{font-size:9px;color:#fff;background:var(--warn);padding:1px 5px;border-radius:4px;margin-left:5px}
-.acts span{color:var(--muted);cursor:pointer;font-size:11px;margin-left:8px}
-.acts span:hover{color:var(--accent)}
+/* 11px 글자를 손가락으로 누르라는 건 무리다. 히트 영역을 26px로 넓힌다. */
+.acts span{display:inline-flex;align-items:center;justify-content:center;
+  min-width:26px;height:26px;border-radius:6px;color:var(--muted);cursor:pointer;font-size:12px;margin-left:4px;
+  transition:background .12s,color .12s}
+.acts span:hover{color:var(--accent);background:var(--soft)}
 .mhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
 .mnav{display:flex;align-items:center;gap:12px}.mnav b{font-size:16px}.mnav span{cursor:pointer;color:var(--muted);padding:2px 8px;user-select:none;font-size:15px}
 .msum{display:flex;gap:8px}.msum div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:11.5px;text-align:right}.msum .l{color:var(--muted);font-size:9.5px}
@@ -86,7 +89,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .cardbig.used{opacity:.72}
 .cardbig .cbt{font-family:var(--serif);font-size:14px;font-weight:700;margin-bottom:3px}
 .cardbig .cbs{font-size:11.5px;color:var(--muted);margin-top:7px;padding-top:7px;border-top:1px dashed var(--line)}
-.rwpick.sm{padding:7px 10px}
+/* ⚠️ 이 base 규칙이 통째로 없었다(v8.4까지). 클릭 가능한 목록이 글줄로만 보였다.
+   교훈: 클릭되는 것은 반드시 (1) 경계 (2) cursor (3) hover/active 반응 (4) 의도 라벨 을 갖는다. */
+.rwpick{position:relative;border:1px solid var(--line);border-radius:9px;background:var(--card);
+  padding:10px 58px 10px 12px;margin:5px 0;cursor:pointer;font-size:12.5px;
+  transition:border-color .12s,background .12s,box-shadow .12s}
+.rwpick:hover{border-color:var(--gold);background:#fdfaf1;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.rwpick:active{background:#f7f0dd}
+.rwpick::after{content:'선택';position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  font-size:10px;font-weight:700;color:var(--muted);border:1px solid var(--line);
+  border-radius:5px;padding:2px 6px;background:var(--soft);transition:all .12s}
+.rwpick:hover::after{content:'선택 →';color:#fff;background:var(--gold);border-color:var(--gold)}
+.rwpick.sm{padding:7px 58px 7px 10px}
 .rwchip.set{background:#fdf7e6;border-color:#e3d3a4}
 .chip.warn2{background:#fdf0e0;border:1px solid #e8c9a0;color:#8a5a1f;font-size:10px;padding:1px 5px;border-radius:5px;cursor:help}
 .cell .dn{font-size:11px;color:var(--muted)}
@@ -112,7 +126,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .overlay{position:fixed;inset:0;background:rgba(20,30,50,.4);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
 .overlay.on{display:flex}
 .modal{background:var(--card);border-radius:14px;width:100%;max-width:460px;padding:20px;box-shadow:0 16px 50px rgba(0,0,0,.22);max-height:90vh;overflow:auto}
-.mtop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}.modal h3{margin:0;font-size:16px}
+/* 모달은 max-height 90vh + overflow auto 다. 헤더가 같이 밀리면 닫기(×)를 잃는다. */
+.mtop{position:sticky;top:-20px;z-index:3;background:var(--card);
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  margin:-20px -20px 8px;padding:16px 20px 10px;border-bottom:1px solid var(--line)}
+.x{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;flex-shrink:0}
+.x:hover{background:var(--soft);color:var(--ink)}
+/* 목록형 모달의 액션 바 — 버튼은 상단, 내용과 선으로 구분한다 */
+.mact{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:0 0 10px;margin-bottom:4px;border-bottom:1px dashed var(--line)}
+.mact .mnote{font-size:10.5px;color:var(--muted);line-height:1.35}
+.mfoot{font-size:10.5px;color:var(--muted);margin-top:12px;padding-top:9px;border-top:1px dashed var(--line);line-height:1.4}
+/* 키보드 접근성 — 전역 포커스 링이 없었다 */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}.modal h3{margin:0;font-size:16px}
 .x{cursor:pointer;color:var(--muted);font-size:20px;line-height:1}
 .mcur{font-size:22px;font-weight:800;margin:4px 0}
 .logrow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
@@ -214,7 +240,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .bkst.want{background:#f3ead2;color:#8a6d12}
 .bkst.got{background:#e7f6ee;color:#0b6b3a}
 .bkst.dropped{background:#f0f0f4;color:#8a8a9a}
-.mvbtn{display:inline-block;width:22px;height:22px;line-height:20px;text-align:center;border:1px solid var(--line);
+.mvbtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;text-align:center;border:1px solid var(--line);
   border-radius:6px;background:var(--soft);color:var(--gold);cursor:pointer;font-weight:700;font-size:12px;user-select:none}
 .mvbtn:hover{background:var(--gold);color:#fff;border-color:var(--gold)}
 .mvbtn.back{color:var(--muted)}
@@ -325,7 +351,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .ctxnm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctxpct{color:var(--gold)}
 .ctxpct.full{color:var(--pos)}
-.goalrow.one{display:flex;align-items:center;gap:9px;padding:7px 10px;margin:4px 0;font-size:12.5px}
+.goalrow.one{display:flex;align-items:center;gap:9px;padding:7px 10px;margin:4px 0;font-size:12.5px;transition:border-color .12s,background .12s}
+.goalrow.one:hover{border-color:#e3d3a0;background:#fdfaf1}
+.msrow{transition:border-color .12s,background .12s}
+.msrow:hover{border-color:#e3d3a0;background:#fdfaf1}
 .goalrow.one .ctxr{display:flex;align-items:center;gap:6px}
 .goalrow.one .acts{margin-left:2px}
 .ctxrow.open{background:#faf7ee;margin:0 -6px;padding:7px 6px;border-radius:7px}
@@ -1662,12 +1691,14 @@ function rwCardModal(tier,period){
       :(sx==='open'
         ?(isSpendCard(c)?'열렸다 — <b>가계부에 지출을 적을 때</b> 이 카드를 고르면 소멸한다':'열렸다 — 아래에서 사용 확정')
         :'배치됨 — 조건을 채우면 열린다'))+'</div></div>';
+  body+='<div class="mact" style="border-bottom:0;border-top:1px dashed var(--line);padding:10px 0 0;margin:0">';
   if(sx==='used')body+='<button class="ghost" onclick="doUnuse(\''+tier+'\',\''+pd+'\')">사용 취소</button>';
   else{
-    if(sx==='open'&&!isSpendCard(c))body+='<button class="btn" onclick="useActModal(\''+tier+'\',\''+pd+'\')">사용 확정</button> ';
+    if(sx==='open'&&!isSpendCard(c))body+='<button class="btn" onclick="useActModal(\''+tier+'\',\''+pd+'\')">사용 확정</button>';
     body+='<button class="ghost" onclick="cardPick(\''+tier+'\',\''+pd+'\')">다른 카드로</button>'
-        +' <button class="ghost" onclick="doUnplace(\''+tier+'\',\''+pd+'\')">배치 해제</button>';
+        +'<button class="ghost" onclick="doUnplace(\''+tier+'\',\''+pd+'\')">배치 해제</button>';
   }
+  body+='</div>';
   openModal(body);
 }
 /* 배치할 카드 고르기 — 보상함 / 버킷함 / 새로 만들기 (3경로) */
@@ -1702,11 +1733,15 @@ function cardPick(tier,period,head){
     :'<div class="mut" style="padding:6px 0;font-size:11.5px">이 단계에 등록된 것이 없다. 아래에서 고르거나 새로 만들어라.</div>';
   var otherHtml=others.length?('<div class="pickhd" style="margin-top:11px">🎁 다른 단계 보상 <span class="mut">골라도 된다 — 단계는 카드가 정한다</span></div>'
     +others.map(row).join('')):'';
+  /* ⚠️ 액션 버튼은 상단에 두고 내용과 선으로 가른다.
+     v8.4까지 '+ 새로 만들기'가 목록 맨 아래에 있고 옆에 긴 설명이 인라인으로 붙어
+     버튼이 문장 속에 묻혔다. 목록형 모달의 액션은 위, 폼 모달의 저장은 아래가 맞다. */
   openModal((head||('<div class="mtop"><h3>🎁 '+tl+' 카드 배치</h3><span class="x" onclick="closeModal()">×</span></div>'))
+   +'<div class="mact"><button class="btn sm" onclick="closeModal();rewardModal(null,\''+tier+'\',\''+(tier==='goal'?period:'')+'\',\''+period+'\')">+ 새로 만들기</button>'
+   +'<span class="mnote">아래에서 고르거나, 없으면 새로 만든다</span></div>'
    +'<div class="pickhd">🎁 보상함 <span class="mut">'+(tier==='goal'?'이 목표에 걸린 것':'이 단계에 등록된 것')+'</span></div>'+mineHtml
    +otherHtml
-   +'<div style="margin-top:12px"><button class="btn sm" onclick="closeModal();rewardModal(null,\''+tier+'\',\''+(tier==='goal'?period:'')+'\',\''+period+'\')">+ 새로 만들기</button>'
-   +' <span class="mut" style="font-size:11px;margin-left:8px">버킷은 여기 안 뜬다 — 🎁 보상 탭에서 보상함으로 올린 뒤 고른다</span></div>');
+   +'<div class="mfoot">🪣 버킷은 여기 안 뜬다 — 🎁 보상 탭에서 보상함으로 올린 뒤 고른다</div>');
 }
 
 /* ── 52주 트래커 ── */
@@ -1739,6 +1774,8 @@ function rewardManage(tier){
   openModal('<div class="mtop"><h3>🎁 '+tl+' 보상</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
    +cond+(st?('<br>지금 <b>'+st.cur+'/'+st.req+' '+st.unit+'</b>'+(st.ok?' — 열렸다':' — '+Math.max(0,st.req-st.cur)+' 남음')):'')+'</div>'
+   +'<div class="mact"><button class="btn sm" data-rwnew="'+tier+'">+ '+tl+' 보상 추가</button>'
+   +'<button class="ghost" id="rwCfgBtn">문턱 조정</button></div>'
    +(list.length?list.map(function(r){
       var g=r.goalId?goalById(r.goalId):null;
       return '<div class="row"><span><span class="gcode">'+r.code+'</span> '+sajuEsc(r.title)
@@ -1748,10 +1785,7 @@ function rewardManage(tier){
         +(g?' <span class="mut">← '+g.code+'</span>':'')+'</span>'
         +'<span class="acts"><span data-rwedit="'+r.id+'">수정</span></span></div>';
      }).join(''):'<div class="mut" style="padding:6px 0">등록된 보상이 없다.</div>')
-   +'<div style="margin-top:12px"><button class="btn sm" data-rwnew="'+tier+'">+ '+tl+' 보상 추가</button>'
-   +' <button class="ghost" id="rwCfgBtn">문턱 조정</button></div>'
-   +'<div class="mut" style="font-size:11px;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)">'
-   +'버킷함과 전체 목록은 <b>🎁 보상</b> 탭에서 관리한다.</div>');
+   +'<div class="mfoot">버킷함과 전체 목록은 <b>🎁 보상</b> 탭에서 관리한다.</div>');
 }
 /* preGoal: 목표 달성 보상을 만들 때 어느 목표에 붙일지 (v8.0 — 안 넘겨서 '— 선택 —'으로만 뜨던 버그)
    placeFor: 만들자마자 그 기간의 카드로 배치할지 (배치 모달에서 '새로 만들기'로 들어온 경우) */
@@ -2363,7 +2397,7 @@ function bucketTable(){
    +(st.stale?'<div class="mut" style="font-size:10.5px;margin:0 0 6px">⚠ 90일 넘게 담긴 것 '+st.stale+'개 — 아직 원하는지 물어볼 때다</div>':'')
    +'<div class="tblwrap"><table class="btbl"><thead><tr>'
    +bkTh('code','코드')+bkTh('title','내용')+bkTh('kind','분류')+bkTh('price','예상비용','r')
-   +bkTh('added','경과','r')+'<th class="r"></th>'
+   +bkTh('added','경과','r')+'<th class="r">이동</th>'
    +'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
 }
 function rewardTable(){
@@ -2388,7 +2422,7 @@ function rewardTable(){
    +'<button class="btn sm" id="addFixedBtn">+ 직접 추가</button></div>'
    +'<div class="mut" style="font-size:10.5px;margin-bottom:6px">여기 있는 것만 주간·월간·연간 달성 시 선택지에 뜬다</div>'
    +'<div class="tblwrap"><table class="btbl"><thead><tr>'
-   +'<th>코드</th><th>내용</th><th>단계</th><th>분류</th><th class="r">예상비용</th><th class="r"></th>'
+   +'<th>코드</th><th>내용</th><th>단계</th><th>분류</th><th class="r">예상비용</th><th class="r">이동</th>'
    +'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
 }
 function renderReward(){
@@ -2420,7 +2454,7 @@ function renderReward(){
 
   document.getElementById('v-reward').innerHTML=''
    +'<div class="sec"><h4>🎁 보상 계단 <span class="mut">일간 완전달성 → 주간 → 월간 → 연간</span>'
-   +'<span class="hacts"><span class="mut" id="rwHistBtn2" style="font-size:11px;cursor:pointer">📜 수령 '+logN+'건</span>'
+   +'<span class="hacts"><span class="mut" id="rwHistBtn2" style="font-size:11px;cursor:pointer">📜 사용 '+logN+'건</span>'
    +'<button class="ghost sm" id="rwCfgBtn2">문턱 조정</button></span></h4>'
    +'<div class="tgrid3">'+tiers+'</div>'
    +(goalRows?'<div class="grwbox">'+goalRows+'</div>':'')
@@ -2468,9 +2502,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='8.4';
+var APP_VERSION='8.5';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'8.5',date:'2026-08-19',note:"[UI/UX 감사] 목표·루틴 / 보상 페이지. 로한 지적: '저 보상들이 결국 버튼인데 버튼으로 안 보인다 · 마우스 오버 반응이라도 있든가 · 버튼은 최대한 상단에, 내용과 구분될 것' — 전부 맞다. ⚠️ 근본 원인: .rwpick 의 base CSS 규칙이 통째로 없었다(.rwpick.sm / .rwpick .rwpt / .rwpick.offday 만 존재). 클릭 가능한 목록 전체가 '그냥 글줄'로 렌더됐다. v7.1 .tcard 삭제 사고와 같은 계열 — 클래스 사용 목록 vs CSS base 규칙 대조 스크립트로 잡았다 · 복원 + hover/active 반응 + 우측에 '선택' 배지(hover 시 '선택 →')로 클릭 대상임을 명시 · 모달 헤더 sticky — max-height 90vh + overflow auto 인데 헤더가 같이 밀려 긴 목록에서 제목과 ×를 잃었다 · 목록형 모달의 액션 버튼을 상단 .mact 바로 이동하고 점선으로 내용과 구분(폼 모달의 저장은 입력 흐름의 끝이므로 하단 유지) · 아이콘 액션(✔✎💬) 히트 영역 11px → 26px, 이동 버튼 22 → 28px · 전역 :focus-visible 포커스 링 신설(없었다) · 월간 과제·세부목표 행 hover 반응 · 표의 이동 열 헤더를 '이동'으로 명시 · 용어 통일 '수령' → '사용'"},
   {v:'8.4',date:'2026-08-19',note:"연간·월간 행 압축 (로한 지적: '게이지가 저렇게 길 필요 있냐 · 가운데가 비어 있다') — 전폭 게이지를 따로 한 줄 쓰면 목표 5개가 10줄이 되고 제목과 수치 사이가 텅 빈다. 게이지를 그 빈 공간으로 옮겨 flex로 늘렸다: 제목 → 게이지 → 수치/% → 기한이 한 줄. 연간 10줄→5줄, 월간 과제 3개 9줄→3줄 · 월간 과제를 캘린더 위로 (캘린더가 커지면서 아래로 밀려 시인성이 떨어졌다 — 로한 지적) · 100% 도달한 항목은 % 색을 초록으로"},
   {v:'8.3',date:'2026-08-19',note:"목표 탭 레이아웃 재구성 (로한 제안) — 캘린더를 주인공으로. \u26a0\ufe0f 병목은 '캘린더가 작다'가 아니라 '상단이 길다'였다: 연간 5줄 + 펼친 상세 + 52주 트래커 전폭이 화면 절반을 먹어 매일 하는 체크가 아래로 밀렸다. 52주 트래커를 접을 수 있게 하고 캘린더를 키웠다 · 칸을 최대한 활용: 날짜(달성도 배경)·비율·못한 루틴 이름·미달 사유 태그·陰·🎁 를 한 칸에 · 행 끝에 '주' 칸 신설 — 캘린더 한 행이 곧 한 주라 주간 계단이 캘린더 안에서 완결된다(완전달성 4일 → 그 행에 ✓ → 4개면 월간 열림) · 캘린더를 과제 위로 올리고 좌우 비율 1.45:1 · 좁은 화면에서는 이번 주 7칸만 보여주고 '월 전체'로 펼친다(7열에 내용을 넣으면 모바일에서 칸이 40px대가 된다)"},
   {v:'8.2',date:'2026-08-19',note:"[버그] 감소형 목표가 0/65kg 100%로 뜨던 문제 — 미입력 판정이 ''·null만 걸러 숫자 0을 놓쳤다(마이그레이션이 progress:0을 넣음). (0-68.2)/(65-68.2)=2131%→100% 클램프. 목표값이 0인 경우(부채 0원)는 진짜 달성일 수 있어 제외하고 0을 미입력으로 본다 · [신설] 루틴 기간(계속/이 달만/직접 지정) — v8.1까지 종료일 자체가 없어서 8월 눈금에 묶인 루틴이 9월에도 계속 떴다. 코드는 B.8a인데 12월까지 뜨면 기록이 거짓말을 한다. 마일스톤에 붙은 루틴은 기본이 '이 달만', 계속으로 잡으면 경고 · 루틴 행에 종료일 표시, 기간 없는 한시 루틴은 '기간없음' 경고 · 목표 선택에 '계속할 루틴은 연간 목표에 직접 붙여라' 안내 · 수치형 연간 목표인데 연동이 안 걸려 있으면 '수동' 칩으로 알림(체중 79건이 있는데 목표가 안 읽고 있었다) · 단위에 kg/원을 적으면 연동 소스 자동 제안"},
