@@ -251,7 +251,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .wtrack i.mstart{border-left:1px solid #cfc7ae}
 .g2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;margin-bottom:12px}
 .g2col>.sec,.g2col>.gtoday{margin-bottom:0}
-@media(max-width:1080px){.g2col{grid-template-columns:1fr}}
+@media(max-width:1080px){.g2col,.g2col.gcalcol{grid-template-columns:1fr}
+/* 모바일: 매일 하는 체크가 먼저다. 캘린더가 커지면서 일간이 800px 아래로 밀렸다.
+   좌=큰범위 원칙은 데스크톱 규칙이고, 좁은 화면에서는 '자주 쓰는 것 먼저'가 이긴다. */
+.g2col.gcalcol>.pane:nth-child(2){order:-1}}
 .dnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
 .dnav b{font-family:var(--serif);font-size:16px;color:var(--gold)}
 .dnav>span[data-dmv],.dnav #goalDatePick{cursor:pointer;color:var(--muted);font-size:14px;padding:1px 5px;user-select:none;border-radius:5px}
@@ -262,14 +265,31 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .mnav2 span{cursor:pointer;color:var(--muted);font-size:13px;padding:0 4px;user-select:none;border-radius:4px}
 .mnav2 span:hover{background:#f3ead2;color:var(--gold)}
 .mnav2 b{font-size:13.5px}
-.gcal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.gcal{display:grid;grid-template-columns:repeat(7,1fr) 30px;gap:3px}
+.gcal.wk{grid-template-columns:repeat(7,1fr) 34px}
+.gcalcol{grid-template-columns:1.45fr 1fr}
+.gcalsw{float:right;font-size:10.5px;color:var(--accent);cursor:pointer;font-weight:700}
+.gchd{display:flex;align-items:center;justify-content:space-between;gap:2px}
+.gcmks{display:flex;gap:1px;line-height:1}
+.gmk{font-style:normal;font-size:9px;line-height:1;opacity:.9}
+.gmk.yin{color:#7b6bb0;font-size:8px}
+.gcmi{font-size:8.5px;line-height:1.25;color:#8a5a1f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcmi b{font-weight:700;color:var(--neg);margin-left:3px}
+.gcx{color:var(--neg);font-weight:800}
+.gcmi.mut{color:var(--muted)}
+.gcok{font-size:8.5px;color:#0b6b3a;font-weight:700}
+.gwk{display:flex;align-items:center;justify-content:center;border:1px dashed var(--line);border-radius:7px;background:#fcfbf7;font-size:10px;color:var(--muted);cursor:pointer}
+.gwk.ok{background:#e7f6ee;border:1px solid #a8ddc0;color:#0b6b3a;font-weight:800}
+.gwk.fut{opacity:.35;cursor:default}
 .gcdow{text-align:center;font-size:10px;color:var(--muted);padding:2px 0}
 .gcdow.s0{color:var(--neg)}.gcdow.s6{color:var(--accent)}
-.gcell{position:relative;height:38px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;justify-content:space-between}
-.gcell.empty{border:0;background:transparent;cursor:default;height:38px}
+.gcell{position:relative;min-height:78px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+.gcal.wk .gcell{min-height:66px}
+.gcell.empty{border:0;background:transparent;cursor:default;min-height:0}
 .gcell:hover{border-color:var(--gold)}
 .gcell .gcd{font-size:10.5px;color:var(--muted);line-height:1}
-.gcell .gcr{font-size:9px;font-weight:700;color:#8a6d12;text-align:right;line-height:1}
+.gcell .gcr{font-size:10px;font-weight:800;color:#8a6d12;line-height:1;margin:1px 0 2px}
+.gcell .gcd{font-size:12px;font-weight:700}
 .gcell.l0{background:#fafafa}
 .gcell.l1{background:#f6efdc;border-color:#ece0bf}
 .gcell.l2{background:#ecdcaf;border-color:#ddc27c}
@@ -2027,26 +2047,105 @@ function delBucket(id){
 /* --- (12주 잔디는 52주 주간 트래커로 대체됨: weekTracker) --- */
 
 /* --- 월간 체크 캘린더 --- */
+/* ══ 월간 캘린더 (v8.3)
+   로한 제안: "캘린더를 크게 두고 칸을 최대한 활용".
+   ⚠️ 칸을 키운 것만으론 의미가 없다. 넣을 것을 정하는 게 설계다:
+      날짜(달성도 배경) · 비율 · 못한 루틴 이름 · 미달 사유 · 陰 · 🎁
+   ⚠️ 행 끝에 '주' 칸을 붙였다. 캘린더 한 행 = 한 주이므로
+      주간 계단이 캘린더 안에서 완결된다(4일 완전달성 → 이 행에 ✓ → 4개면 월간 열림).
+   ⚠️ 좁은 화면에서는 7열에 내용을 못 넣는다. 이번 주 7칸만 보여주고 '월 전체'로 펼친다. */
+function cut(t,n){t=t||'';return t.length>n?t.slice(0,n)+'…':t;}
+function gcalWeekMode(){
+  if(DB.ui.gcalMode==='week')return true;
+  if(DB.ui.gcalMode==='month')return false;
+  return (typeof window!=='undefined'&&window.innerWidth<=720);
+}
+function gcalToggle(){
+  DB.ui.gcalMode=gcalWeekMode()?'month':'week';
+  save();renderGoal();
+}
+/* 그날 못 한 루틴 — 이름과 사유를 같이 낸다. 무엇이 무너졌는지가 달력 위에서 보여야 한다. */
+function missRows(ds){
+  var due=dueOf(ds),done=doneOf(ds),ms=missOf(ds),out=[];
+  for(var i=0;i<due.length;i++){
+    var c=due[i]; if(done.indexOf(c)>=0)continue;
+    var r=routineByCode(c), m=ms[c];
+    out.push({code:c,title:(r&&r.title)||c,tag:(m&&m.tag)||''});
+  }
+  return out;
+}
+function gcalCell(ds,compact){
+  var sel=curDate(),t=todayStr();
+  var dd=parseInt(ds.slice(8),10);
+  var r=dayRate(ds),lv='';
+  if(r)lv=(r.rate>=1?' l3':(r.rate>=0.5?' l2':(r.rate>0?' l1':' l0')));
+  var future=ds>t, yin=isYinDay(ds);
+  var used=cardsUsedOn(ds);
+  var mk=(yin?'<i class="gmk yin" title="陰 음기일">陰</i>':'')
+        +(used.length?'<i class="gmk" title="'+sajuEsc(used.map(function(c){return c.code+' '+c.title;}).join(', '))+'">🎁</i>':'');
+  var body='',tip='';
+  if(!future&&compact){
+    /* 주간 스트립(모바일)은 칸이 좁다. 이름은 못 넣어도 '몇 개 무너졌나'는 넣는다. */
+    var mc=missRows(ds);
+    if(mc.length){body='<div class="gcmi"><span class="gcx">✗'+mc.length+'</span></div>';
+      tip=mc.map(function(x){return x.title+(x.tag?' ('+x.tag+')':'');}).join(', ');}
+    else if(r&&r.total)body='<div class="gcok">✓</div>';
+  }
+  if(!future&&!compact){
+    var mr=missRows(ds);
+    if(mr.length){
+      /* 칸 폭이 100px 안팎이다. 이름과 사유를 다 넣으면 둘 다 안 읽힌다.
+         1개면 이름을, 2개 이상이면 개수 + 사유 태그를 낸다. 전체는 title 툴팁으로. */
+      var tags=[];for(var q=0;q<mr.length;q++)if(mr[q].tag&&tags.indexOf(mr[q].tag)<0)tags.push(mr[q].tag);
+      if(mr.length===1){
+        body='<div class="gcmi">'+sajuEsc(cut(mr[0].title,7))+(mr[0].tag?'<b>'+sajuEsc(mr[0].tag)+'</b>':'')+'</div>';
+      }else{
+        body='<div class="gcmi"><span class="gcx">✗'+mr.length+'</span>'
+          +(tags.length?'<b>'+sajuEsc(tags.slice(0,2).join('·'))+'</b>':' <span class="mut">'+sajuEsc(cut(mr[0].title,5))+'…</span>')
+          +'</div>';
+      }
+      tip=mr.map(function(x){return x.title+(x.tag?' ('+x.tag+')':'');}).join(', ');
+    }else if(r&&r.total){ body='<div class="gcok">완전달성</div>'; }
+  }
+  return '<div class="gcell'+lv+(ds===sel?' sel':'')+(ds===t?' today':'')+(future?' fut':'')+(yin?' yin':'')+'" data-gcal="'+ds+'"'
+    +(tip?' title="못한 것 — '+sajuEsc(tip)+'"':'')+'>'
+    +'<div class="gchd"><span class="gcd">'+dd+'</span><span class="gcmks">'+mk+'</span></div>'
+    +(r&&!future?'<span class="gcr">'+r.done+'/'+r.total+'</span>':'')
+    +body+'</div>';
+}
+/* 주 칸 — 그 주의 완전달성 일수와 성공 여부 */
+function gcalWeekCell(ws){
+  var t=todayStr(),cfg=rwCfg();
+  if(ws>t)return '<div class="gwk fut"></div>';
+  var n=fullDaysInWeek(ws), ok=n>=cfg.weekFullDays;
+  return '<div class="gwk'+(ok?' ok':'')+'" data-wjump="'+ws+'" title="'+weekLabel(ws)+' · 완전달성 '+n+'/'+cfg.weekFullDays+'일">'
+    +(ok?'<b>✓</b>':'<span>'+n+'</span>')+'</div>';
+}
 function goalCalendar(){
-  var ym=curMonth(),sel=curDate(),t=todayStr();
+  var ym=curMonth(),sel=curDate();
+  if(gcalWeekMode()){
+    var wsx=weekStart(sel),cells='';
+    cells+=DOW_KO.map(function(d,i){return '<div class="gcdow s'+i+'">'+d+'</div>';}).join('')+'<div class="gcdow">주</div>';
+    for(var k=0;k<7;k++)cells+=gcalCell(addDays(wsx,k),true);
+    cells+=gcalWeekCell(wsx);
+    return cells;
+  }
   var y=parseInt(ym.slice(0,4),10),mo=parseInt(ym.slice(5),10);
   var first=new Date(Date.UTC(y,mo-1,1)).getUTCDay(),dim=new Date(Date.UTC(y,mo,0)).getUTCDate();
-  var cells=DOW_KO.map(function(d,i){return '<div class="gcdow s'+i+'">'+d+'</div>';}).join('');
-  for(var i=0;i<first;i++)cells+='<div class="gcell empty"></div>';
+  var out=DOW_KO.map(function(d,i){return '<div class="gcdow s'+i+'">'+d+'</div>';}).join('')+'<div class="gcdow">주</div>';
+  var col=0, rowStart=null;
+  for(var i=0;i<first;i++){ out+='<div class="gcell empty"></div>'; col++; }
   for(var dd=1;dd<=dim;dd++){
     var ds=ym+'-'+String(dd).padStart(2,'0');
-    var r=dayRate(ds),lv='';
-    if(r)lv=(r.rate>=1?' l3':(r.rate>=0.5?' l2':(r.rate>0?' l1':' l0')));
-    var future=ds>t;
-    var nm=Object.keys(missOf(ds)).length;
-    var yin=isYinDay(ds);
-    cells+='<div class="gcell'+lv+(ds===sel?' sel':'')+(ds===t?' today':'')+(future?' fut':'')+(yin?' yin':'')+'" data-gcal="'+ds+'"'
-      +(yin?' title="陰 음기일"':'')+'>'
-      +'<span class="gcd">'+dd+(yin?'<i class="yindot">陰</i>':'')+'</span>'
-      +(r&&!future?'<span class="gcr">'+r.done+'/'+r.total+'</span>':'')
-      +(nm?'<span class="gcm"></span>':'')+'</div>';
+    if(rowStart===null)rowStart=weekStart(ds);
+    out+=gcalCell(ds,false); col++;
+    if(col===7){ out+=gcalWeekCell(rowStart); col=0; rowStart=null; }
   }
-  return cells;
+  if(col>0){
+    for(var z=col;z<7;z++)out+='<div class="gcell empty"></div>';
+    out+=gcalWeekCell(rowStart||weekStart(ym+'-01'));
+  }
+  return out;
 }
 
 /* --- 목표 진행 행 --- */
@@ -2158,10 +2257,10 @@ function renderGoal(){
    +'<span class="ctxtitle">⚑ '+yy+'년 연간 목표</span>'
    +'<span class="ctxacts">'+rwChip('year',yy,'연간')+'<button class="ghost sm" id="addYGoalBtn">+ 목표</button></span></div>'
    +(ctx||'<div class="mut" style="font-size:12px;padding:6px 2px">올해 목표가 없다. 여기서부터 시작해라.</div>')
-   +'<div class="wtwrap"><div class="wthd"><span class="wtt">📊 주간 성공</span>'
+   +'<div class="wtwrap"><div class="wthd" id="wtToggle" style="cursor:pointer"><span class="wtt">📊 주간 성공 '+(DB.ui.wtOpen?'▴':'▾')+'</span>'
    +'<span class="mut"><b>'+ws.win+'</b>/'+ws.elapsed+'주 · 월 <b>'+mw+'</b>/'+cfg.yearMonths+' · 최장 <b>'+ws.best+'</b>주'
    +' <span class="mut" style="opacity:.7">(칸 1개=1주, 완전달성 '+cfg.weekFullDays+'일↑)</span></span></div>'
-   +'<div class="wtrack">'+weekTracker(yy)+'</div>'   +(function(){
+   +(DB.ui.wtOpen?('<div class="wtrack">'+weekTracker(yy)+'</div>'):'')   +(function(){
       var rs=rewardSpend(yy); if(!rs.total)return '';
       var fin=(DB.goals||[]).filter(function(g){return g.kind==='year'&&g.period===yy&&g.source==='cash'&&g.metric&&g.metric.target;})[0];
       var ratio=fin?(' · <b>'+((rs.total/fin.metric.target)*100).toFixed(1)+'%</b> <span class="mut">of '+fin.code+' '+sajuEsc(fin.title)+'</span>'):'';
@@ -2176,11 +2275,13 @@ function renderGoal(){
    +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월</b>'
    +'<span data-mmv="1">▶</span><span id="goalMonthPick" title="월 선택">📅</span></span>'
    +'<span class="hacts">'+rwChip('month',ym,'월간')+'<button class="btn sm" id="addSoloBtn">+ 과제</button></span></h4>'
-   +'<div class="subhd">과제 <span class="mut">눈금 '+msThis.length+' · 단발 '+soloThis.length+'</span></div>'
+   +'<div class="subhd">'+parseInt(ym.slice(5),10)+'월 현황 <span class="mut">'+monthDoneDays(ym)+'일 기록 · 날짜를 눌러 지난 날도 체크</span>'
+   +'<span class="gcalsw" id="gcalToggle">'+(gcalWeekMode()?'월 전체 ▾':'이번 주만 ▴')+'</span></div>'
+   +'<div class="gcal'+(gcalWeekMode()?' wk':'')+'">'+goalCalendar()+'</div>'
+   +'<div class="subhd" style="margin-top:12px">과제 <span class="mut">눈금 '+msThis.length+' · 단발 '+soloThis.length+'</span></div>'
    +(all.length?all.map(function(g){return goalRow(g,true);}).join('')
      :'<div class="mut" style="padding:5px 0;font-size:11.5px">이 달 과제가 없다.</div>')
-   +'<div class="subhd" style="margin-top:11px">'+parseInt(ym.slice(5),10)+'월 현황 <span class="mut">'+monthDoneDays(ym)+'일 기록 · 날짜를 눌러 지난 날도 체크</span></div>'
-   +'<div class="gcal">'+goalCalendar()+'</div></div>';
+   +'</div>';
 
   /* ══ 2행 우: 일간 (실제 조작) ══ */
   var sajuD='';
@@ -2208,7 +2309,7 @@ function renderGoal(){
    +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span>'
    +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 사용 '+usedCards().length+'건</span></div></div>';
 
-  document.getElementById('v-goal').innerHTML=yearPane+'<div class="g2col">'+monthPane+dayPane+'</div>';
+  document.getElementById('v-goal').innerHTML=yearPane+'<div class="g2col gcalcol">'+monthPane+dayPane+'</div>';
 }
 
 
@@ -2347,9 +2448,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='8.2';
+var APP_VERSION='8.3';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'8.3',date:'2026-08-19',note:"목표 탭 레이아웃 재구성 (로한 제안) — 캘린더를 주인공으로. \u26a0\ufe0f 병목은 '캘린더가 작다'가 아니라 '상단이 길다'였다: 연간 5줄 + 펼친 상세 + 52주 트래커 전폭이 화면 절반을 먹어 매일 하는 체크가 아래로 밀렸다. 52주 트래커를 접을 수 있게 하고 캘린더를 키웠다 · 칸을 최대한 활용: 날짜(달성도 배경)·비율·못한 루틴 이름·미달 사유 태그·陰·🎁 를 한 칸에 · 행 끝에 '주' 칸 신설 — 캘린더 한 행이 곧 한 주라 주간 계단이 캘린더 안에서 완결된다(완전달성 4일 → 그 행에 ✓ → 4개면 월간 열림) · 캘린더를 과제 위로 올리고 좌우 비율 1.45:1 · 좁은 화면에서는 이번 주 7칸만 보여주고 '월 전체'로 펼친다(7열에 내용을 넣으면 모바일에서 칸이 40px대가 된다)"},
   {v:'8.2',date:'2026-08-19',note:"[버그] 감소형 목표가 0/65kg 100%로 뜨던 문제 — 미입력 판정이 ''·null만 걸러 숫자 0을 놓쳤다(마이그레이션이 progress:0을 넣음). (0-68.2)/(65-68.2)=2131%→100% 클램프. 목표값이 0인 경우(부채 0원)는 진짜 달성일 수 있어 제외하고 0을 미입력으로 본다 · [신설] 루틴 기간(계속/이 달만/직접 지정) — v8.1까지 종료일 자체가 없어서 8월 눈금에 묶인 루틴이 9월에도 계속 떴다. 코드는 B.8a인데 12월까지 뜨면 기록이 거짓말을 한다. 마일스톤에 붙은 루틴은 기본이 '이 달만', 계속으로 잡으면 경고 · 루틴 행에 종료일 표시, 기간 없는 한시 루틴은 '기간없음' 경고 · 목표 선택에 '계속할 루틴은 연간 목표에 직접 붙여라' 안내 · 수치형 연간 목표인데 연동이 안 걸려 있으면 '수동' 칩으로 알림(체중 79건이 있는데 목표가 안 읽고 있었다) · 단위에 kg/원을 적으면 연동 소스 자동 제안"},
   {v:'8.1',date:'2026-08-19',note:"카드 배치 후보 정리 (로한 지적) — ① 목표 달성 카드에서 아무것도 못 고르던 문제: 후보를 그 단계에 등록된 보상으로만 걸렀는데 목표 tier 등록분이 0개라 빈 목록이 떴다. v8부터 단계는 카드가 들고 있으므로 보상함의 tier 는 '기본 제안'일 뿐 — 다른 단계 보상도 고를 수 있게 열었다(해당 단계 먼저, 그 아래 나머지, 예상비용 오름차순) · ② 배치 모달에서 버킷 제거: 버킷은 목표와 보상이 공존하는 원장이고 '목표가 대가가 될 순 없다'. 보상으로 쓸 거면 보상 탭에서 → 로 보상함에 올린 뒤 배치한다 — 승격이라는 한 단계가 곧 판단이다 · ③ '연간 계단'과 '목표 달성'이 같은 화면에 있어 헷갈리던 라벨 정리"},
   {v:'8.0',date:'2026-08-19',note:"🎁 보상 카드 모델 — 로한 설계. 보상함=카드의 '종류'(덱) → 목표관리에서 배치(예약) → 계단 달성 시 활성 → 실제로 소비하며 가계부를 쓸 때 카드가 소멸. ⚠️ v7까지는 '수령 확정'이 곧 가계부 거래를 만들어서, 받기로 해놓고 안 쓴 보상이 유령 거래로 남아 가계부가 더러워졌다. 거래는 실제 지출 순간에만 생기고 카드는 거기에 붙는다 · 카드 상태는 저장하지 않고 파생(usedAt/tierOpen) — 문턱을 바꿔도 과거 판정이 안 어긋난다 · 카드는 종류를 스냅샷 — 보상함 원본을 고쳐도 발급된 카드는 불변 · 배치 3경로(보상함에서 고르기/버킷에서 올리며 배치/새로 만들기) · 목표 달성 보상에 목표 id가 안 넘어가던 버그 수정 · 행동 보상은 가계부를 안 타므로 목표 탭에서 직접 사용 확정 · 거래 삭제 시 카드 복원, 사용 취소 시 거래는 남기고 연결만 해제(실제로 쓴 돈이므로) · 캘린더 마커 개편: 의미 없는 점 2개 → ✅ 루틴 완전달성 💳 카드 미결제 🎁 보상 사용, 부분달성은 날짜 배경으로(아이콘 남발 방지), 셀 높이 96→112"},
@@ -3224,6 +3326,8 @@ document.addEventListener('click',function(e){
   var rwk=e.target.closest('[data-rwcard]');if(rwk){var pa=rwk.dataset.rwcard.split('|');return rwCardModal(pa[0],pa[1]);}
   var rwe=e.target.closest('[data-rwedit]');if(rwe)return rewardModal(rwe.dataset.rwedit);
   var wjp=e.target.closest('[data-wjump]');if(wjp)return setGoalDate(wjp.dataset.wjump>todayStr()?todayStr():wjp.dataset.wjump);
+  if(e.target.closest('#gcalToggle'))return gcalToggle();
+  if(e.target.closest('#wtToggle')){DB.ui.wtOpen=!DB.ui.wtOpen;save();return renderGoal();}
   var bks=e.target.closest('[data-bksort]');if(bks)return bkSort(bks.dataset.bksort);
   var bkf=e.target.closest('[data-bkfil]');if(bkf)return bkFilter(bkf.dataset.bkfil);
   var tor=e.target.closest('[data-tor]');if(tor)return toRewardModal(tor.dataset.tor);
