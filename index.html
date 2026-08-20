@@ -555,6 +555,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
   .mtop{top:-16px;margin:-16px -16px 8px;padding:14px 16px 10px}
 }
 @media(max-width:640px){.msum div{padding:5px 7px}}
+
+/* ── 저장 상태 배지 (v1.1) — 저장은 조용히 성공하고 시끄럽게 실패해야 한다 ── */
+.savebadge{position:fixed;right:14px;bottom:14px;z-index:200;display:none;
+  padding:7px 12px;border-radius:999px;font-size:11.5px;font-weight:700;
+  box-shadow:0 3px 12px rgba(0,0,0,.14);border:1px solid var(--line);background:var(--card);color:var(--mut,#7a8296);
+  pointer-events:none;transition:opacity .18s}
+.savebadge.wait{background:#fff8e6;border-color:#e6c86a;color:#8a6d1f}
+.savebadge.ok{background:#eef8f0;border-color:#9ecfa8;color:#256b34}
+.savebadge.bad{background:#fdeeee;border-color:#e0a0a0;color:#a52a2a;pointer-events:auto}
+@media(max-width:900px){.savebadge{right:10px;bottom:10px;font-size:11px;padding:6px 10px}}
 </style>
 </head>
 <body>
@@ -572,6 +582,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
   </div>
 </div>
 
+<div id="savebadge" class="savebadge"></div>
 <div class="app" id="app">
   <div class="side">
     <div class="brand"><img src="favicon.png" class="brand-crest" alt=""><br>Rohan Book</div>
@@ -701,8 +712,126 @@ var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 var USER=null, DB=null, saveTimer=null;
-function save(){ if(!USER||!DB)return; clearTimeout(saveTimer); saveTimer=setTimeout(function(){ SB.from('app_state').upsert({user_id:USER.id,data:DB,updated_at:new Date().toISOString()}).then(function(){},function(){}); },400); }
-function loadState(){ return SB.from('app_state').select('data').eq('user_id',USER.id).maybeSingle().then(function(r){ if(r&&r.data&&r.data.data&&Object.keys(r.data.data).length)return r.data.data; return JSON.parse(JSON.stringify(SEED)); },function(){ return JSON.parse(JSON.stringify(SEED)); }); }
+/* ====== 동기화 엔진 (v1.1) ======
+   ⚠ 이 앱에서 가장 위험한 코드다. 저장 한 번이 **문서 전체**(현재 약 250KB)를 덮어쓴다.
+   v1.0까지의 결함 3가지:
+   (1) `.then(function(){},function(){})` — 저장 실패를 통째로 삼켰다. 안 저장돼도 화면에 아무 표시가 없었다.
+   (2) 조건 없는 upsert — 폰과 PC를 같이 켜두면 **나중에 저장한 쪽이 앞의 것을 통째로 지운다.**
+   (3) 복구 경로가 없었다.
+   → updated_at 기반 낙관적 잠금 + 상태 배지 + 재시도 + 로컬/JSON 백업.
+   향후 이 함수들을 고칠 때는 **저장이 실패해도 사용자가 반드시 알게 된다**는 성질을 깨지 마라. */
+var saveTimer=null, LAST_SYNC=null, SAVE_TRIES=0, SAVE_DIRTY=false, LOCAL_BAK_DONE=false;
+function saveBadge(t,c){var el=document.getElementById('savebadge');if(!el)return;
+  el.textContent=t||''; el.className='savebadge '+(c||''); el.style.display=t?'block':'none';}
+function save(){ if(!USER||!DB)return; SAVE_DIRTY=true; saveBadge('● 저장 중…','wait');
+  clearTimeout(saveTimer); saveTimer=setTimeout(doSave,400); }
+function doSave(){
+  if(!USER||!DB)return;
+  var stamp=new Date().toISOString();
+  var q=SB.from('app_state').update({data:DB,updated_at:stamp}).eq('user_id',USER.id);
+  if(LAST_SYNC)q=q.eq('updated_at',LAST_SYNC);
+  q.select('updated_at').then(function(r){
+    var rows=(r&&r.data)||[];
+    if(rows.length){ syncOK(stamp); return; }
+    syncConflict(stamp);
+  },function(e){ saveFail(e); });
+}
+function syncOK(stamp){ LAST_SYNC=stamp; SAVE_TRIES=0; SAVE_DIRTY=false;
+  saveBadge('✓ 저장됨 '+String(stamp).slice(11,16),'ok');
+  setTimeout(function(){ if(!SAVE_DIRTY)saveBadge('',''); },2500); }
+function saveFail(e){
+  SAVE_TRIES++;
+  if(SAVE_TRIES<=5){ saveBadge('⚠ 저장 실패 · 재시도 '+SAVE_TRIES+'/5','bad');
+    setTimeout(doSave,1200*SAVE_TRIES); return; }
+  saveBadge('✕ 저장 안 됨 — 백업하라','bad');
+  alert('서버 저장에 5번 실패했다.\n\n지금 창을 닫으면 방금 입력은 사라진다.\n🪶 로그 탭 → ⬇ JSON 내려받기 를 먼저 하라.\n\n'+((e&&e.message)||''));
+}
+function syncConflict(stamp){
+  SB.from('app_state').select('updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
+    var srv=r&&r.data&&r.data.updated_at;
+    if(!srv){ forceSave(stamp); return; }                 /* 행 자체가 없다 = 최초 저장 */
+    if(srv===LAST_SYNC){ forceSave(stamp); return; }       /* 버전은 같은데 0행 = 다른 이유. 그대로 쓴다 */
+    saveBadge('⚠ 다른 기기에서 수정됨','bad');
+    if(confirm('다른 기기(또는 다른 탭)에서 이 데이터가 수정됐다.\n서버 최종수정: '+String(srv).replace('T',' ').slice(0,16)+'\n\n[확인] 내 화면 내용으로 덮어쓴다 — 저쪽 변경은 사라진다\n[취소] 새로고침해서 저쪽 것을 불러온다 — 내 변경이 사라진다'))
+      { forceSave(new Date().toISOString()); }
+    else { SAVE_DIRTY=false; location.reload(); }   /* 사용자가 명시적으로 버리기를 고른 것이다 — beforeunload 가 막지 않게 한다 */
+  },function(e){ saveFail(e); });
+}
+function forceSave(stamp){
+  SB.from('app_state').upsert({user_id:USER.id,data:DB,updated_at:stamp}).then(function(){ syncOK(stamp); },function(e){ saveFail(e); });
+}
+function loadState(){ return SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
+  var row=r&&r.data; LAST_SYNC=(row&&row.updated_at)||null;
+  if(row&&row.data&&Object.keys(row.data).length)return row.data;
+  return JSON.parse(JSON.stringify(SEED));
+},function(){ LAST_SYNC=null; return JSON.parse(JSON.stringify(SEED)); }); }
+
+/* ---- 로컬 복원지점: 접속 직후 상태를 하루에 한 번 localStorage 에 박아둔다.
+     저장마다 쓰지 않는 이유: 사고가 난 뒤에 써버리면 복원지점이 아니라 사고 사본이 된다. ---- */
+function localBackup(){
+  if(LOCAL_BAK_DONE)return; LOCAL_BAK_DONE=true;
+  try{
+    var s=JSON.stringify(DB); if(s.length>4000000)return;
+    localStorage.setItem('rb_bak_'+todayStr(),s);
+    var keys=[],i;
+    for(i=0;i<localStorage.length;i++){var k=localStorage.key(i); if(k&&k.indexOf('rb_bak_')===0)keys.push(k);}
+    keys.sort(); while(keys.length>3){ localStorage.removeItem(keys.shift()); }
+  }catch(err){}
+}
+function localBakList(){
+  var o=[];try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);
+    if(k&&k.indexOf('rb_bak_')===0)o.push({k:k,d:k.slice(7),n:(localStorage.getItem(k)||'').length});}}catch(e){}
+  o.sort(function(a,b){return a.d<b.d?1:-1});return o;
+}
+
+/* ---- JSON 내보내기 / 복원 ---- */
+function exportJSON(){
+  var s=JSON.stringify(DB), d=new Date(), p=function(n){return (n<10?'0':'')+n;};
+  var name='rohanbook_'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes())+'.json';
+  try{
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([s],{type:'application/json'}));
+    a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.parentNode&&a.parentNode.removeChild(a); },1500);
+  }catch(e){ return alert('내려받기 실패: '+e.message); }
+  logAct('💾 백업 내려받기 · '+name+' ('+Math.round(s.length/1024)+'KB)'); save();
+}
+function dbSummary(d){
+  return '거래 '+((d.transactions||[]).length)+'건 · 목표 '+((d.goals||[]).length)+'개 · 루틴 '+((d.routines||[]).length)+'개'
+   +' · 체크 '+Object.keys(d.checks||{}).length+'일 · 타임로그 '+Object.keys(d.timelog||{}).length+'일'
+   +' · 보상카드 '+Object.keys(d.rewardCards||{}).length+'장';
+}
+function applyRestore(d,src){
+  var bad=[];
+  if(!d||typeof d!=='object'||Array.isArray(d))bad.push('객체가 아니다');
+  else{
+    ['transactions','goals','routines','rewards'].forEach(function(k){ if(d[k]!==undefined&&!Array.isArray(d[k]))bad.push(k+' 이 배열이 아니다'); });
+    if(d.schemaVersion==null&&d.transactions==null)bad.push('로한북 백업 형식이 아니다');
+  }
+  if(bad.length)return alert('복원할 수 없다:\n- '+bad.join('\n- '));
+  if(!confirm('복원하면 서버의 현재 데이터를 이 내용으로 **통째로** 바꿈다.\n\n[불러올 것] '+src+'\n'+dbSummary(d)+'\n\n[지금 서버] '+dbSummary(DB)+'\n\n계속할까?'))return;
+  if(!confirm('마지막 확인이다. 되돌릴 수 없다.'))return;
+  DB=migrateDB(d); logAct('♻️ 백업 복원 · '+src);
+  var stamp=new Date().toISOString();
+  SB.from('app_state').upsert({user_id:USER.id,data:DB,updated_at:stamp}).then(function(){
+    LAST_SYNC=stamp; SAVE_DIRTY=false; alert('복원했다. 새로고침한다.'); location.reload();
+  },function(e){ alert('복원 저장 실패: '+((e&&e.message)||'')+'\n서버는 그대로다.'); });
+}
+function importJSON(inp){
+  var f=inp&&inp.files&&inp.files[0]; if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){ var d; try{ d=JSON.parse(rd.result); }catch(e){ return alert('JSON 파싱 실패: '+e.message); }
+    applyRestore(d,f.name); };
+  rd.onerror=function(){ alert('파일을 읽지 못했다.'); };
+  rd.readAsText(f); inp.value='';
+}
+function restoreLocal(key){
+  var s=null; try{ s=localStorage.getItem(key); }catch(e){}
+  if(!s)return alert('그 복원지점이 없다.');
+  var d; try{ d=JSON.parse(s); }catch(e){ return alert('복원지점이 깨졌다: '+e.message); }
+  applyRestore(d,'로컬 복원지점 '+key.slice(7));
+}
+window.addEventListener('beforeunload',function(e){ if(SAVE_DIRTY){ e.preventDefault(); e.returnValue=''; } });
 
 /* ====== 유틸 ====== */
 function won(n){return '₩'+Math.round(Math.abs(n)).toLocaleString('ko-KR');}
@@ -2979,13 +3108,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.0';
+var APP_VERSION='1.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.1',date:'2026-08-20',note:"<b>동기화·백업.</b> 저장은 조용히 성공하고 시끄럽게 실패해야 한다 — v1.0까지 저장 실패를 <code>.then(f(){},f(){})</code>로 통째로 삼켰고, 조건 없는 upsert라 <b>폰과 PC를 같이 켜두면 나중에 저장한 쪽이 앞의 것을 통째로 지웠다.</b> updated_at 낙관적 잠금 + 충돌 시 선택(덮어쓰기/새로고침) + 5회 재시도 + 우하단 저장 배지. 💾 JSON 내려받기/복원 + 접속 직후 로컬 복원지점 3일치(📍 로그 탭). 마이그레이션 함수가 둘(migrateDB → migrateV6)이라는 사실을 코드에 명시."},
   {v:'1.0',date:'2026-08-20',note:"<b>정식 버전.</b> 9일간의 개발 이터레이션을 여기서 마감한다. 재정(가계부·현금흐름·계좌·부채·세무·예산) + 건강(체성분·피검사) + 명리(자체 만세력 엔진) + 성찰(일지) + 실행(데일리·목표·루틴·보상·타임로그) 15개 탭. \u26a0\ufe0f <b>앞으로 기능 추가는 0.1, 세부 수정은 0.01 단위로 올린다</b>(v1.1 / v1.11)."},
   {v:'—',date:'',note:"<b>─── 아래는 개발 이터레이션 로그 (2026-08-11 ~ 08-20) ───</b> 당시 번호 체계이며 위 v1.0 이후의 버전과는 별개다."},
   {v:'12.2',date:'2026-08-20',note:"타임로그 ✎ 빠른 수정 (로한 제안) — 단순히 태그나 텍스트만 바꾸는데도 시작·끝을 다시 눌러야 해서 UX 손실이 있었다. 마우스를 올리면 그 블록 전체가 강조되고 끝 칸에 ✎ 가 뜬다. ✎ 클릭 = 그 구간의 내용 수정(시각 select 는 그대로 있으니 필요하면 시간도 조절 가능), 두 칸 탭 = 신설·덮어쓰기 — 두 동작이 충돌 없이 공존한다 · data-blk 로 같은 블록 칸을 묶어 hover 시 전체 강조(한 칸만 밝아지면 어디부터 어디까지인지 안 보인다) · 터치 기기엔 hover 가 없으므로 @media(hover:none) 에서 ✎ 을 항상 노출 · 범위 선택 중에는 ✎ 을 무시(칸 클릭 우선)"},
@@ -3047,7 +3177,19 @@ function renderLog(){
   var rows=DB.logs2.slice().sort(function(a,b){return a.date<b.date?1:-1}).map(function(g){
     return '<div style="border-left:2px solid var(--accent);padding:2px 0 2px 12px;margin-bottom:14px"><div class="mut">'+g.date+' <span class="acts"><span data-editlog="'+g.id+'">수정</span><span data-dellog="'+g.id+'">삭제</span></span></div><div style="font-weight:600;font-size:13px;margin:2px 0">'+g.title+'</div><div style="color:#41506a;font-size:12px;line-height:1.55">'+(g.body||'')+'</div></div>';
   }).join('');
+  var _bk=localBakList().map(function(b){return '<button class="ghost sm" onclick="restoreLocal(\''+b.k+'\')">🕓 '+b.d+' 접속시점 ('+Math.round(b.n/1024)+'KB)</button>';}).join(' ');
+  var _sz=0; try{_sz=JSON.stringify(DB).length;}catch(e){}
   document.getElementById('v-log').innerHTML=''
+   +'<div class="sec"><h4>💾 백업 <span class="mut">서버 사고 · 기기 분실 · 덮어쓰기 대비</span></h4>'
+     +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">현재 데이터 <b>'+Math.round(_sz/1024)+'KB</b> · '+dbSummary(DB)
+       +'<br>서버 최종저장 '+(LAST_SYNC?String(LAST_SYNC).replace('T',' ').slice(0,16):'—')+'</div>'
+     +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+       +'<button class="btn" onclick="exportJSON()">⬇ JSON 내려받기</button>'
+       +'<label class="ghost" style="display:inline-block">⬆ 파일에서 복원<input type="file" accept="application/json,.json" style="display:none" onchange="importJSON(this)"></label>'
+     +'</div>'
+     +(_bk?('<div class="mut" style="font-size:11px;margin:10px 0 5px">이 브라우저에 남은 복원지점 — 접속 직후 상태다 (최근 3일)</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+_bk+'</div>'):'')
+     +'<div class="mut" style="font-size:11px;margin-top:10px">⚠ 복원은 서버 데이터를 통째로 덮어쓴다. 되돌릴 수 없다.</div>'
+   +'</div>'
    +'<div class="sec"><h4>📦 업데이트 기록 <span class="mut">현재 v'+APP_VERSION+' · 앱 변경이력</span></h4>'+cl+'</div>'
    +'<div class="sec"><h4>🕑 내 활동 로그 <span class="mut">최근 40건 · CRUD 자동기록</span></h4>'+act+'</div>'
    +'<div class="sec"><h4>재정경제부 로그 <button class="ghost" id="addLogBtn">+ 기록</button></h4>'+(rows||'<div class="mut">기록 없음</div>')+'</div>';
@@ -3583,6 +3725,10 @@ var INC_TYPES=['사업소득','근로소득','이자소득','배당소득','기�
 var WEIGHT_IMPORT_2026=[{"date":"2026-01-01","kg":72.6,"memo":"식단 수행"},{"date":"2026-01-03","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-06","kg":72.8,"memo":"식단 수행"},{"date":"2026-01-07","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-08","kg":71.8,"memo":"식단 수행"},{"date":"2026-01-10","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-11","kg":72.6,"memo":"식단 수행"},{"date":"2026-01-12","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-13","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-14","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-15","kg":71.8,"memo":"식단 수행"},{"date":"2026-01-16","kg":71.4,"memo":"식단 수행"},{"date":"2026-01-17","kg":71.6,"memo":"식단 수행"},{"date":"2026-01-20","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-21","kg":71.0,"memo":"식단 수행"},{"date":"2026-01-23","kg":70.6,"memo":"식단 수행"},{"date":"2026-01-24","kg":70.4,"memo":"식단 수행"},{"date":"2026-01-25","kg":71.2,"memo":"식단 수행"},{"date":"2026-01-26","kg":70.2,"memo":"식단 수행"},{"date":"2026-01-27","kg":70.4,"memo":"식단 수행"},{"date":"2026-01-28","kg":70.2,"memo":"식단 수행"},{"date":"2026-01-29","kg":70.0,"memo":"식단 수행"},{"date":"2026-01-30","kg":69.8,"memo":"식단 수행"},{"date":"2026-01-31","kg":70.2,"memo":"식단 수행"},{"date":"2026-02-02","kg":70.4,"memo":"식단 수행"},{"date":"2026-02-03","kg":70.0,"memo":"식단 수행"},{"date":"2026-02-04","kg":70.0,"memo":"식단 수행"},{"date":"2026-02-05","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-06","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-07","kg":69.6,"memo":"식단 수행"},{"date":"2026-02-08","kg":69.4,"memo":"식단 수행"},{"date":"2026-02-09","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-10","kg":69.6,"memo":"식단 수행"},{"date":"2026-02-11","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-12","kg":69.2,"memo":"식단 수행"},{"date":"2026-02-13","kg":69.2,"memo":"식단 수행"},{"date":"2026-02-20","kg":68.8,"memo":"식단 미수행 · 설 연휴"},{"date":"2026-02-21","kg":68.6,"memo":"식단 수행"},{"date":"2026-02-22","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-23","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-24","kg":68.6,"memo":"식단 수행"},{"date":"2026-02-25","kg":68.2,"memo":"식단 수행"},{"date":"2026-02-26","kg":68.2,"memo":"식단 수행"},{"date":"2026-02-27","kg":67.6,"memo":"식단 수행"},{"date":"2026-02-28","kg":68.2,"memo":"식단 수행"},{"date":"2026-03-05","kg":68.0,"memo":"식단 미수행 · 피검사날"},{"date":"2026-03-07","kg":67.6,"memo":"식단 수행"},{"date":"2026-03-08","kg":68.0,"memo":"식단 수행"},{"date":"2026-03-10","kg":67.8,"memo":"식단 수행"},{"date":"2026-03-11","kg":67.8,"memo":"식단 수행"},{"date":"2026-03-15","kg":67.2,"memo":"식단 수행"},{"date":"2026-03-16","kg":67.4,"memo":"식단 수행"},{"date":"2026-03-17","kg":67.0,"memo":"식단 수행"},{"date":"2026-04-01","kg":68.8,"memo":"식단 미수행"},{"date":"2026-04-02","kg":68.0,"memo":"식단 수행"},{"date":"2026-04-07","kg":68.2,"memo":"식단 미수행 · 그냥"},{"date":"2026-04-10","kg":67.4,"memo":"식단 미수행"},{"date":"2026-04-13","kg":68.0,"memo":"식단 미수행 · 재시작"},{"date":"2026-05-10","kg":68.2,"memo":"식단 미수행"},{"date":"2026-05-12","kg":67.8,"memo":"식단 수행"},{"date":"2026-08-04","kg":69.0,"memo":"식단 미수행"},{"date":"2026-08-05","kg":68.2,"memo":"식단 수행"}];
 var HEALTH_SEED={"labDates":["2021-02-01","2021-02-08","2021-02-22","2021-03-31","2021-05-18","2021-07-13","2021-12-29","2022-03-08","2022-05-18","2022-05-27","2022-11-22","2023-03-16","2023-07-14","2023-11-16","2024-03-16","2024-06-11","2024-10-07","2025-03-27","2025-09-18","2026-03-12","2026-09-03"],"labTypes":["응급실","입원","외래","외래","외래","외래","외래","외래","응급실","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래"],"labMeds":[{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":[],"pm":[]}],"metrics":[{"name":"HDL-콜레스테롤","func":"좋은 콜레스테롤(높을수록 유리)","low":40.0,"high":85.0,"range":"40-85","cat":"지질"},{"name":"LDL-콜레스테롤","func":"나쁜 콜레스테롤(동맥경화 위험)","low":50.0,"high":159.0,"range":"50-159","cat":"지질"},{"name":"LDH","func":"젖산탈수소효소(간·심근·조직손상)","low":238.0,"high":422.0,"range":"238-422","cat":"심장"},{"name":"Triglyceride","func":"중성지방","low":35.0,"high":199.9,"range":"35-199.9","cat":"지질"},{"name":"AST(SGOT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Glucose(Quant)","func":"포도당","low":74.0,"high":106.0,"range":"74-106","cat":"대사·당"},{"name":"BUN","func":"혈액요소질소(신장)","low":7.0,"high":23.0,"range":"7-23","cat":"신장"},{"name":"Creatine (Serum)","func":"크레아티닌 · 신장 기능","low":0.7,"high":1.44,"range":"0.7-1.44","cat":"신장"},{"name":"eGFR","func":"추정 사구체여과율 · 신장 기능","low":null,"high":null,"range":"","cat":"신장"},{"name":"Uric Acid (Serum)","func":"요산(통풍·신장)","low":3.5,"high":7.2,"range":"3.5-7.2","cat":"신장"},{"name":"Total 콜레스테롤","func":"총 콜레스테롤","low":130.0,"high":239.9,"range":"130-239.9","cat":"지질"},{"name":"ALT(SGPT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Trpopin T (HS)","func":"심근경색","low":0.0,"high":0.014,"range":"0-0.014","cat":"심장"},{"name":"CK-MB","func":"흉통, 심근경색","low":0.0,"high":4.87,"range":"0-4.87","cat":"심장"},{"name":"NT Pro BNP","func":"심부전 지표(심장 부담)","low":0.0,"high":125.0,"range":"0-125","cat":"심장"},{"name":"Na (Serum)","func":"나트륨","low":136.0,"high":146.0,"range":"136-146","cat":"전해질"},{"name":"K (Serum)","func":"칼륨","low":3.5,"high":5.1,"range":"3.5-5.1","cat":"전해질"},{"name":"CI","func":"염소(전해질)","low":98.0,"high":107.0,"range":"98-107","cat":"전해질"},{"name":"HbA1c","func":"당화혈색소","low":4.0,"high":6.0,"range":"4.0-6.0","cat":"대사·당"},{"name":"Total Ca (Serum)","func":"칼슘","low":8.8,"high":10.6,"range":"8.8-10.6","cat":"전해질"},{"name":"CRP(Quant HS)","func":"염증상태","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Total Protein","func":"총 단백질","low":6.6,"high":8.3,"range":"6.6-8.3","cat":"간"},{"name":"Albumin","func":"알부민(영양·간)","low":3.5,"high":5.2,"range":"3.5-5.2","cat":"간"},{"name":"CPK","func":"크레아틴키나제(근육·심장 부하)","low":43.0,"high":198.0,"range":"43-198","cat":"심장"},{"name":"P (Serum)","func":"인(혈중 인산염)","low":2.5,"high":4.5,"range":"2.5-4.5","cat":"전해질"},{"name":"Mg (Serum)","func":"마그네슘","low":0.73,"high":1.06,"range":"0.73-1.06","cat":"전해질"},{"name":"C-peptide(120min)","func":"식후 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"C-peptide(Basal)","func":"공복 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"Glucose (PP2)","func":"식후 2시간 혈당","low":85.0,"high":120.0,"range":"85-120","cat":"대사·당"},{"name":"UA(7종) & Image Micro","func":"소변검사 종합 패널","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"Osmolality","func":"혈액 삼투질농도(수분·전해질 균형)","low":275.0,"high":295.0,"range":"275-295","cat":"전해질"},{"name":"Total Bilirubin","func":"총 빌리루빈(간·황달)","low":0.3,"high":1.4,"range":"0.3-1.4","cat":"간"},{"name":"Amylase","func":"아밀라제(췌장)","low":22.0,"high":80.0,"range":"22-80","cat":"간"},{"name":"CRP(Quant)","func":"감염","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Lactic Acid","func":"젖산(조직 산소부족)","low":0.5,"high":2.2,"range":"0.5-2.2","cat":"전해질"},{"name":"Total IgE(RIA)","func":"총 면역글로불린E(알레르기)","low":0.0,"high":100.0,"range":"0-100","cat":"염증·면역"},{"name":"UA SG","func":"소변 비중(농축 정도)","low":1.005,"high":1.03,"range":"1.005-1.030","cat":"소변(UA)"},{"name":"UA pH","func":"소변 산성도","low":5.0,"high":8.0,"range":"5.0-8.0","cat":"소변(UA)"},{"name":"UA Glucose","func":"요당(소변 속 포도당)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Bilirubin","func":"소변 빌리루빈(간·담도)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Ketone","func":"소변 케톤체(지방 대사)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Protein","func":"요단백(신장 손상 지표)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Urobilinogen","func":"소변 유로빌리노겐(간 기능)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Nitrite","func":"소변 아질산염(요로감염)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA WBC","func":"소변 백혈구(요로 염증·감염)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"UMicro R.B.C","func":"소변 적혈구(혈뇨)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"CBC[G]","func":"전혈구계산(CBC) 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"Hb(Colorimetry)","func":"혈색소(빈혈)","low":13.0,"high":17.0,"range":"13-17","cat":"혈액(CBC)"},{"name":"Hct","func":"적혈구용적률","low":39.0,"high":51.0,"range":"39-51","cat":"혈액(CBC)"},{"name":"RBC Court","func":"적혈구 수","low":4.2,"high":5.9,"range":"4.2-5.9","cat":"혈액(CBC)"},{"name":"MCV","func":"평균 적혈구 용적","low":80.0,"high":100.0,"range":"80-100","cat":"혈액(CBC)"},{"name":"MCH","func":"평균 적혈구 혈색소량","low":25.0,"high":34.0,"range":"25-34","cat":"혈액(CBC)"},{"name":"MCHC","func":"평균 적혈구 혈색소 농도","low":31.5,"high":35.0,"range":"31.5-35.0","cat":"혈액(CBC)"},{"name":"WBC Count","func":"백혈구 수(감염·염증)","low":4.0,"high":10.0,"range":"4.0-10","cat":"혈액(CBC)"},{"name":"PLT Count","func":"혈소판 수(지혈)","low":150.0,"high":400.0,"range":"150-400","cat":"혈액(CBC)"},{"name":"Eosinophil Count","func":"호산구 수(알레르기·기생충)","low":0.05,"high":0.5,"range":"0.05-0.50","cat":"혈액(CBC)"},{"name":"WBC Diff.Neut","func":"호중구 분율(세균 감염 반응)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Lymp","func":"림프구 분율(바이러스·면역)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Mono","func":"단핵구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC.Diff.Eosi","func":"호산구 분율(알레르기·기생충)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Baso","func":"호염기구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC ANC","func":"절대호중구수(감염 방어력)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT & PT-STAT-Panel","func":"혈액응고 검사 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT","func":"활성화 부분트롬보플라스틴시간(응고)","low":30.7,"high":43.0,"range":"30.7-43.0","cat":"혈액(CBC)"},{"name":"PT Sec","func":"프로트롬빈 시간(초) · 응고","low":11.5,"high":14.5,"range":"11.5-14.5","cat":"혈액(CBC)"},{"name":"PT %","func":"프로트롬빈 활성도(%)","low":86.0,"high":143.0,"range":"86-143","cat":"혈액(CBC)"},{"name":"PT INR","func":"항응고 표준화 지표(INR)","low":0.8,"high":1.2,"range":"0.80-1.20","cat":"혈액(CBC)"},{"name":"ACTH(ECLIA)","func":"부신피질자극호르몬","low":7.2,"high":63.3,"range":"7.20-63.30","cat":"호르몬·내분비"},{"name":"Cortisol","func":"코르티솔(스트레스 호르몬)","low":null,"high":null,"range":"","cat":"호르몬·내분비"},{"name":"Free Cortisol","func":"유리 코르티솔","low":6.0,"high":75.0,"range":"6-75","cat":"호르몬·내분비"},{"name":"VMA(HPLC)","func":"소변 VMA(카테콜아민 대사물)","low":0.0,"high":8.0,"range":"0-8","cat":"호르몬·내분비"},{"name":"Total Metanephrine","func":"메타네프린(부신 종양 지표)","low":0.0,"high":0.8,"range":"0-0.8","cat":"호르몬·내분비"},{"name":"Epinephrine, Free","func":"에피네프린(아드레날린)","low":0.0,"high":17.0,"range":"0-17","cat":"호르몬·내분비"},{"name":"Norepinephrine, Free","func":"노르에피네프린","low":8.0,"high":79.0,"range":"8-79","cat":"호르몬·내분비"},{"name":"Lipoprotein","func":"지단백(a) · 심혈관 위험","low":0.0,"high":34.0,"range":"0-34","cat":"심장"},{"name":"Free T4(RIA)","func":"갑상선호르몬 T4","low":0.89,"high":1.79,"range":"0.89-1.79","cat":"호르몬·내분비"},{"name":"TSH(RIA)","func":"갑상선자극호르몬(TSH)","low":0.17,"high":4.05,"range":"0.17-4.05","cat":"호르몬·내분비"}],"labValues":{"HDL-콜레스테롤":[55.0,null,null,null,38.0,null,43.0,null,null,null,40.0,33.0,36.0,34.0,40.0,33.0,null,39.0,null,37.0,null],"LDL-콜레스테롤":[163.0,null,null,null,null,null,null,null,null,null,93.0,52.0,87.0,90.0,88.0,88.0,null,89.0,null,63.0,null],"LDH":[506.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Triglyceride":[155.0,null,null,null,99.0,null,82.0,null,null,null,110.0,94.0,144.0,145.0,103.0,130.0,null,90.0,null,138.0,null],"AST(SGOT)":[23.0,19.0,19.0,null,18.0,null,20.0,null,21.0,null,18.0,21.0,20.0,21.0,null,null,null,22.0,null,21.0,null],"Glucose(Quant)":[166.0,null,null,null,195.0,189.0,127.0,176.0,167.0,null,108.0,120.0,115.0,138.0,125.0,96.0,null,120.0,null,101.0,null],"BUN":[19.3,17.8,17.3,null,15.1,null,18.0,21.6,23.4,null,12.6,null,null,null,15.1,null,17.4,14.8,15.1,16.0,null],"Creatine (Serum)":[1.32,1.27,1.13,null,1.23,null,1.16,1.37,1.27,null,1.14,null,null,null,1.24,null,1.19,1.07,1.26,1.08,null],"eGFR":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,91.0,74.4,null,null],"Uric Acid (Serum)":[null,null,null,null,6.09,null,6.31,null,null,null,5.17,null,null,null,5.06,null,6.59,6.16,7.28,5.87,null],"Total 콜레스테롤":[242.0,null,null,null,144.0,null,132.0,null,null,null,152.0,97.0,134.0,138.0,147.0,133.0,null,139.0,null,111.0,null],"ALT(SGPT)":[28.0,17.0,23.0,null,25.0,null,17.0,null,20.0,null,17.0,20.0,22.0,27.0,null,null,null,29.0,null,22.0,null],"Trpopin T (HS)":[0.04,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CK-MB":[2.0,0.695,null,null,null,null,null,null,0.7,null,null,null,null,null,null,null,null,null,null,null,null],"NT Pro BNP":[1447.0,169.0,null,null,17.6,null,5.0,null,5.0,null,6.34,null,5.0,null,null,null,5.0,null,5.0,null,null],"Na (Serum)":[138.0,141.0,139.0,null,141.0,null,138.0,143.0,139.0,null,139.0,null,null,null,138.0,null,139.0,139.0,138.0,138.0,null],"K (Serum)":[4.1,3.9,3.9,null,4.7,null,4.4,4.4,4.0,null,4.6,null,null,null,4.8,null,5.0,4.8,5.3,5.1,null],"CI":[100.0,104.0,101.0,null,null,null,null,null,103.0,null,null,null,null,null,null,null,null,null,null,null,null],"HbA1c":[null,null,null,null,null,6.8,6.5,6.6,null,null,6.1,6.6,6.2,7.0,7.4,6.4,null,6.4,6.3,6.0,null],"Total Ca (Serum)":[null,9.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant HS)":[null,11.43,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.82,null,0.47,null],"Total Protein":[7.4,7.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Albumin":[4.6,4.1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CPK":[102.0,48.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"P (Serum)":[null,3.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Mg (Serum)":[null,0.9,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(120min)":[null,null,null,null,null,9.11,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(Basal)":[null,null,null,null,null,4.94,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Glucose (PP2)":[null,null,null,null,null,209.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA(7종) & Image Micro":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Osmolality":[292.0,null,null,null,null,null,null,null,295.0,null,null,null,null,null,null,null,null,null,null,null,null],"Total Bilirubin":[1.37,1.25,null,null,null,null,null,null,0.63,null,null,null,null,null,null,null,null,null,null,null,null],"Amylase":[42.0,null,null,null,null,null,null,null,40.0,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant)":[6.22,null,null,null,null,null,null,null,2.61,null,null,null,null,null,null,null,null,null,null,null,null],"Lactic Acid":[1.6,null,null,null,null,null,null,null,1.1,null,null,null,null,null,null,null,null,null,null,null,null],"Total IgE(RIA)":[null,null,null,null,null,null,null,null,null,20.5,null,null,null,null,null,null,null,null,null,null,null],"UA SG":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.034,null],"UA pH":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,5.5,null],"UA Glucose":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"3+",null],"UA Bilirubin":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Ketone":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"1+",null],"UA Protein":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Urobilinogen":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Nitrite":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA WBC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"UMicro R.B.C":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"CBC[G]":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Hb(Colorimetry)":[16.3,null,15.2,null,14.9,null,15.0,null,16.0,15.4,null,null,null,null,null,16.2,null,null,16.5,null,null],"Hct":[49.1,null,44.8,null,42.9,null,44.7,null,46.4,44.8,null,null,null,null,null,47.6,null,null,47.9,null,null],"RBC Court":[5.51,null,5.18,null,5.0,null,4.98,null,5.42,5.1,null,null,null,null,null,5.26,null,null,5.35,null,null],"MCV":[89.0,null,86.5,null,85.8,null,89.8,null,85.6,87.9,null,null,null,null,null,90.6,null,null,89.7,null,null],"MCH":[29.6,null,29.3,null,29.8,null,30.1,null,29.5,30.2,null,null,null,null,null,30.8,null,null,30.8,null,null],"MCHC":[33.3,null,33.9,null,34.7,null,33.6,null,34.5,34.3,null,null,null,null,null,34.0,null,null,34.3,null,null],"WBC Count":[10.03,null,11.37,null,7.61,null,7.93,null,1.1,7.14,null,null,null,null,null,8.99,null,null,7.35,null,null],"PLT Count":[224.0,null,295.0,null,259.0,null,249.0,null,241.0,232.0,null,null,null,null,null,212.0,null,null,228.0,null,null],"Eosinophil Count":[null,null,null,null,null,null,null,null,null,0.29,null,null,null,null,null,null,null,null,0.22,null,null],"WBC Diff.Neut":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,59.3,null,null],"WBC Diff.Lymp":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,27.2,null,null],"WBC Diff.Mono":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,9.8,null,null],"WBC.Diff.Eosi":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.0,null,null],"WBC Diff.Baso":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.7,null,null],"WBC ANC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,4359.0,null,null],"aPTT & PT-STAT-Panel":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"aPTT":[31.9,34.1,null,null,null,null,null,null,32.3,null,null,null,null,null,null,null,null,null,null,null,null],"PT Sec":[12.5,13.1,null,null,null,null,null,null,12.8,null,null,null,null,null,null,null,null,null,null,null,null],"PT %":[104.0,94.0,null,null,null,null,null,null,99.0,null,null,null,null,null,null,null,null,null,null,null,null],"PT INR":[0.97,1.04,null,null,null,null,null,null,1.0,null,null,null,null,null,null,null,null,null,null,null,null],"ACTH(ECLIA)":[null,null,null,54.06,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Cortisol":[null,null,null,19.27,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Free Cortisol":[null,100.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"VMA(HPLC)":[null,5.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Total Metanephrine":[null,0.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Epinephrine, Free":[null,13.3,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Norepinephrine, Free":[null,98.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Lipoprotein":[null,null,null,null,null,null,null,null,null,null,null,null,27.5,null,null,null,null,null,null,null,null],"Free T4(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.26,null],"TSH(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.45,null]},"weights":[{"date":"2021-02-01","kg":78.0},{"date":"2021-02-08","kg":74.0},{"date":"2021-12-29","kg":73.9},{"date":"2022-05-18","kg":73.8},{"date":"2022-11-22","kg":71.25},{"date":"2023-03-16","kg":73.4},{"date":"2023-07-14","kg":73.5},{"date":"2023-11-16","kg":74.9},{"date":"2024-03-16","kg":74.1},{"date":"2024-06-11","kg":74.5},{"date":"2025-03-27","kg":74.0},{"date":"2025-09-18","kg":74.0},{"date":"2026-03-12","kg":68.2}],"events":[],"catOrder":["심장","신장","전해질","대사·당","지질","간","염증·면역","혈액(CBC)","소변(UA)","호르몬·내분비"]};
 var SAJU_SEED={birth:{solar:'1986-05-10',lunar:'1986-04-02',gender:'M'},natal:{year:'丙寅',month:'癸巳',day:'甲寅',hour:'乙亥'},ilgan:'甲',gongmang:['子','丑'],gyeok:'식신격',daeun:{startAge:9,dir:'순행',list:[[9,'甲午'],[19,'乙未'],[29,'丙申'],[39,'丁酉'],[49,'戊戌'],[59,'己亥'],[69,'庚子'],[79,'辛丑'],[89,'壬寅'],[99,'癸卯']]}};
+/* ⚠️ **마이그레이션 함수는 둘이다.** 순서: loadState → migrateDB → (마지막에) migrateV6
+   ・ migrateDB  = 독립 시드가 있는 큰 구조 (health / saju / journal / posts / activity)
+   ・ migrateV6  = 나머지 전부. (A)1회성 게이트 + (B)매 로드 멱등 정규화
+   새 필드를 넣을 때 어디에 넣을지 헷갈리면 **migrateV6의 (B)층**이 정답이다. */
 function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health){d.health.metrics=JSON.parse(JSON.stringify(HEALTH_SEED.metrics));d.health.catOrder=HEALTH_SEED.catOrder.slice();}
  if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=[]; if(d&&!d.routines)d.routines=[]; if(d&&!d.checks)d.checks={}; if(d)d=migrateV6(d); return d; }
 
@@ -3709,6 +3855,21 @@ function migrateV6(d){
   if(d.ui&&d.ui.goalOpen===undefined)d.ui.goalOpen=null;
   if(d.ui&&!d.ui.goalDate)d.ui.goalDate=today;
   if(d.ui&&!d.ui.goalMonth)d.ui.goalMonth=today.slice(0,7);
+  /* ⚠️ **SEED 최상위 키는 전부 존재를 보장한다.**
+     transactions / categories / cards / accounts / debts / items / budgets 중 하나라도 없으면
+     해당 재정 탭이 통째로 죽는다(`.filter of undefined`). v1.0에서 logs2/activity/taxParams 세 개만
+     개별로 막았는데, 같은 결함이 7개 더 남아 있었다. 개별 나열 대신 SEED를 기준으로 돌린다 —
+     앞으로 SEED 에 키를 추가하면 자동으로 보장된다. **값이 있으면 절대 건드리지 않는다.** */
+  for(var _sk in SEED){ var _sv=SEED[_sk];
+    if(d[_sk]===undefined||d[_sk]===null){ d[_sk]=(_sv&&typeof _sv==='object')?JSON.parse(JSON.stringify(_sv)):_sv; continue; }
+    if(Array.isArray(_sv)&&!Array.isArray(d[_sk])) d[_sk]=[];
+    else if(_sv&&typeof _sv==='object'&&!Array.isArray(_sv)&&(typeof d[_sk]!=='object'||Array.isArray(d[_sk]))) d[_sk]=JSON.parse(JSON.stringify(_sv)); }
+  /* ⚠ d.ui 는 SEED 에만 있고 어느 마이그레이션도 만들지 않았다.
+     DB.ui.xxx 를 19군데에서 직접 읽는다 — ui 가 없는 행이나 오래된 백업을 복원하면 데일리 탭이 즉사한다.
+     v1.1 복원 기능을 넣으면서 실제로 재현돼 막았다. */
+  if(!d.ui||typeof d.ui!=='object')d.ui={};
+  if(!d.ui.month)d.ui.month=todayStr().slice(0,7);
+  if(!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점'];
   d.schemaVersion=7;
   return d;
 }
@@ -4004,7 +4165,7 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);renderDaily();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();renderDaily();});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
