@@ -171,6 +171,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .tlpick i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .tlmiss{background:#fdf4ee;border:1px solid #f0d9c6;border-radius:8px;padding:8px 10px;margin-bottom:9px;font-size:11.5px}
 .tlmiss b{margin-right:6px}
+.tltime{display:flex;align-items:center;gap:8px}
+.tltime select{flex:1}
+.tltime span{color:var(--muted);font-size:12px}
+.tlov{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:11.5px}
+.tlov b{display:block;margin-bottom:5px;font-size:11px;color:var(--muted)}
+.tlov .chip{margin:0 4px 4px 0;display:inline-flex;align-items:center;gap:4px}
+.tlov .chip i{width:8px;height:8px;border-radius:2px;display:inline-block}
 .tlnudge{margin-top:10px;padding:9px 11px;border-radius:8px;background:#fdf4ee;border:1px solid #f0d9c6;
   font-size:11.5px;cursor:pointer;transition:border-color .12s}
 .tlnudge:hover{border-color:var(--warn)}
@@ -2480,6 +2487,17 @@ function tlPut(ds,blk){
   out.sort(function(a,b){return a.s-b.s;});
   all[ds]=out;
 }
+/* 구간만 지운다 — 블록 한가운데를 지우면 앞뒤가 남는다 */
+function tlDelRange(ds,a,z){
+  var all=tlAll(), out=[];
+  (all[ds]||[]).forEach(function(b){
+    if(b.e<a||b.s>z){out.push(b);return;}
+    if(b.s<a)out.push({s:b.s,e:a-1,tag:b.tag,title:b.title,code:b.code});
+    if(b.e>z)out.push({s:z+1,e:b.e,tag:b.tag,title:b.title,code:b.code});
+  });
+  out.sort(function(x,y){return x.s-y.s;});
+  if(out.length)all[ds]=out; else delete all[ds];
+}
 function tlDel(ds,i){
   var all=tlAll(); all[ds]=(all[ds]||[]).filter(function(b){return !(i>=b.s&&i<=b.e);});
   if(!all[ds].length)delete all[ds];
@@ -2609,41 +2627,72 @@ function tlPanel(ds){
    +(bars?'<div class="tlsums">'+bars+'</div>':'')
    +'<div class="mut tlhint">'+(pick!=null
       ? ('<b class="acc">'+slotLabel(pick)+'</b> 부터 — <b>끝나는 칸</b>을 눌러라 (같은 칸을 다시 누르면 30분)  <span class="chip check" data-tlcancel="1">취소</span>')
-      : '시작 칸을 누르고 끝 칸을 눌러라 · 기록된 칸을 누르면 수정')+'</div>'
+      : '시작 칸을 누르고 끝 칸을 눌러라 · <b>기록된 칸 위에도 덮어쓸 수 있다</b> (앞뒤는 남는다)')+'</div>'
    +'<div class="tlgrid">'+tlGrid(ds)+'</div>'
    +'<div class="tllegend">'+TL_TAGS.map(function(x){
       return '<span class="tlsum"><i style="background:'+x.c+'"></i>'+x.label+'</span>';}).join('')+'</div>';
 }
 /* 칸 클릭 — 두 번 눌러 범위를 잡는다(모바일에서 드래그보다 확실하다) */
+/* ⚠️ v12.0까지 기록된 칸을 누르면 '블록 전체 수정'만 됐다.
+   그래서 08:30–11:00 림월드 중 10:00–10:30만 식사로 바꾸려면 전체를 지우고 다시 써야 했다(로한 지적).
+   → **규칙을 하나로 통일한다: 항상 두 칸을 눌러 범위를 정하고, 그 범위가 곧 편집 대상이다.**
+   데이터 계층(tlPut)은 처음부터 겹침 분할을 지원했다. UI만 막고 있었다. */
 function tlSlotClick(i){
   var ds=tlDate();
-  var b=tlAt(ds,i);
   var pick=(DB.ui&&DB.ui.tlPick);
-  if(pick==null){
-    if(b)return tlBlockModal(ds,b);      /* 이미 기록된 칸 → 수정 */
-    DB.ui.tlPick=i;save();return renderDaily();
-  }
+  if(pick==null){ DB.ui.tlPick=i;save();return renderDaily(); }
   var a=Math.min(pick,i), z=Math.max(pick,i);
   DB.ui.tlPick=null;save();
-  tlBlockModal(ds,{s:a,e:z,tag:'',title:'',code:null},true);
+  tlRangeModal(ds,a,z);
 }
-function tlBlockModal(ds,blk,isNew){
+/* 구간 편집 모달 — 시작·끝을 직접 조절할 수 있어야 '시간 조절'이 된다 */
+function tlRangeModal(ds,a,z){
   var routines=dueOf(ds).map(function(c){var r=routineByCode(c);return r?{code:c,title:r.title}:null;}).filter(Boolean);
+  /* 이 구간에 걸친 기존 기록 — 덮어쓸 것을 미리 보여준다 */
+  var ov=tlOf(ds).filter(function(b){return !(b.e<a||b.s>z);});
+  var base=ov.length===1?ov[0]:null;   /* 하나에 완전히 걸치면 그 값을 이어받는다 */
+  var cur=base||{tag:'',title:'',code:null};
   var opts='<option value="">— 연결 안 함 —</option>'+routines.map(function(r){
-    return '<option value="'+r.code+'"'+(blk.code===r.code?' selected':'')+'>'+r.code+' · '+sajuEsc(r.title)+'</option>';}).join('');
+    return '<option value="'+r.code+'"'+(cur.code===r.code?' selected':'')+'>'+r.code+' · '+sajuEsc(r.title)+'</option>';}).join('');
   var seg=TL_TAGS.map(function(x){
-    return '<button class="tlpick'+(blk.tag===x.k?' on':'')+'" style="--tc:'+x.c+'" onclick="tlSetTag(this,\''+x.k+'\')">'
+    return '<button class="tlpick'+(cur.tag===x.k?' on':'')+'" style="--tc:'+x.c+'" onclick="tlSetTag(this,\''+x.k+'\')">'
       +'<i style="background:'+x.c+'"></i>'+x.label+'</button>';}).join('');
-  openModal('<div class="mtop"><h3>⏳ '+slotRange(blk.s,blk.e)+' <span class="mut" style="font-size:12px">'
-      +hrs(blk.e-blk.s+1)+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+  var slotOpts=function(sel,from){var o='';
+    for(var k=(from||0);k<48;k++)o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+slotLabel(k)+'</option>';
+    return o;};
+  var endOpts=function(sel){var o='';
+    for(var k=0;k<48;k++)o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+slotLabel(k+1>47?48:k+1)+'</option>';
+    return o;};
+  openModal('<div class="mtop"><h3>⏳ <span id="tl_lab">'+slotRange(a,z)+'</span> <span class="mut" style="font-size:12px" id="tl_dur">'
+      +hrs(z-a+1)+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>시간 <span class="mut">(끌어서 정한 뒤에도 여기서 조절할 수 있다)</span></label>'
+   +'<div class="tltime"><select id="tl_s" onchange="tlTimeSync()">'+slotOpts(a)+'</select>'
+   +'<span>→</span><select id="tl_e" onchange="tlTimeSync()">'+endOpts(z)+'</select></div></div>'
+   +(ov.length?('<div class="tlov"><b>여기에 이미 있는 기록</b>'
+      +ov.map(function(b){return '<span class="chip check"><i style="background:'+tlTag(b.tag).c+'"></i>'
+        +slotRange(b.s,b.e)+' '+sajuEsc(b.title||tlTag(b.tag).label)+'</span>';}).join('')
+      +'<div class="mut" style="font-size:10.5px;margin-top:4px">저장하면 이 구간만 덮어쓴다. 앞뒤는 그대로 남는다.</div></div>'):'')
    +'<div class="field"><label>무엇을 했나</label><div class="tlpicks">'+seg+'</div></div>'
    +'<div class="field"><label>내용 <span class="mut">(선택 · 구체적일수록 회고가 정확해진다)</span></label>'
-   +'<input id="tl_title" value="'+sajuEsc(blk.title||'')+'" placeholder="예: 유튜브 · 뽀모 3회 · 지하철"></div>'
+   +'<input id="tl_title" value="'+sajuEsc(cur.title||'')+'" placeholder="예: 유튜브 · 뽀모 3회 · 지하철"></div>'
    +(routines.length?('<div class="field"><label>루틴 연결 <span class="mut">(이 시간이 그 루틴 수행이었나)</span></label>'
    +'<select id="tl_code">'+opts+'</select></div>'):'')
-   +'<button class="btn" onclick="tlSave(\''+ds+'\','+blk.s+','+blk.e+')">저장</button>'
-   +(isNew?'':' <button class="ghost" onclick="tlRemove(\''+ds+'\','+blk.s+')">삭제</button>'));
-  modal._tltag=blk.tag||'';
+   +'<button class="btn" onclick="tlSave(\''+ds+'\')">저장</button>'
+   +(ov.length?' <button class="ghost" onclick="tlWipe(\''+ds+'\')">이 구간 비우기</button>':''));
+  modal._tltag=cur.tag||'';
+}
+function tlTimeSync(){
+  var a=parseInt(document.getElementById('tl_s').value,10);
+  var z=parseInt(document.getElementById('tl_e').value,10);
+  if(z<a){z=a;document.getElementById('tl_e').value=a;}
+  document.getElementById('tl_lab').textContent=slotRange(a,z);
+  document.getElementById('tl_dur').textContent=hrs(z-a+1);
+}
+function tlBounds(){
+  var a=parseInt(document.getElementById('tl_s').value,10);
+  var z=parseInt(document.getElementById('tl_e').value,10);
+  if(z<a)z=a;
+  return [a,z];
 }
 function tlSetTag(el,k){
   modal._tltag=k;
@@ -2651,16 +2700,18 @@ function tlSetTag(el,k){
   for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');
   el.classList.add('on');
 }
-function tlSave(ds,a,z){
+function tlSave(ds){
   if(!modal._tltag)return alert('무엇을 했는지 골라라');
+  var b=tlBounds(), a=b[0], z=b[1];
   var el=document.getElementById('tl_title'), ce=document.getElementById('tl_code');
   tlPut(ds,{s:a,e:z,tag:modal._tltag,title:el?el.value.trim():'',code:(ce&&ce.value)||null});
   logAct('⏳ '+ds+' '+slotRange(a,z)+' '+tlTag(modal._tltag).label+(el&&el.value?' · '+el.value.trim():''));
   save();closeModal();renderDaily();
 }
-function tlRemove(ds,i){
-  if(!confirm('이 기록을 지울까요?'))return;
-  tlDel(ds,i);logAct('⏳ 기록 삭제 · '+ds+' '+slotLabel(i));
+function tlWipe(ds){
+  var b=tlBounds(), a=b[0], z=b[1];
+  if(!confirm(slotRange(a,z)+' 구간의 기록을 지울까요?\n앞뒤 기록은 그대로 남습니다.'))return;
+  tlDelRange(ds,a,z);logAct('⏳ 구간 비움 · '+ds+' '+slotRange(a,z));
   save();closeModal();renderDaily();
 }
 
@@ -2916,9 +2967,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='12.0';
+var APP_VERSION='12.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'12.1',date:'2026-08-20',note:"타임로그 구간 수정 자유화 (로한: '한번 정한 구획을 삭제하고 다시 써야 한다 — 결론은 시간 조절이 안 된다는 뜻') — \u26a0\ufe0f 기록된 칸을 누르면 '블록 전체 수정'만 됐다. 08:30–11:00 림월드 중 10:00–10:30만 식사로 바꾸려면 전체를 지워야 했다. 데이터 계층(tlPut)은 처음부터 겹침 분할을 지원했는데 UI만 막고 있었다 · 규칙을 하나로 통일: 항상 두 칸을 눌러 범위를 정하고 그 범위가 곧 편집 대상. 기록된 칸 위에도 그대로 덮어쓸 수 있고 앞뒤는 남는다 · 모달에 시작·끝 시각 select 추가 — 끌어서 정한 뒤에도 30분 단위로 미세 조절 가능 · 겹치는 기존 기록을 모달에 미리 보여주고, 하나에만 걸치면 태그·내용·루틴연결을 자동으로 이어받는다 · '이 구간 비우기' 신설(tlDelRange) — 블록 한가운데를 지우면 앞뒤가 남는다"},
   {v:'12.0',date:'2026-08-20',note:"데일리 + 타임로그 통합 (로한 설계) — 캘린더 하나에 계획(루틴 ✗이름·사유)과 실제(24시간 색띠)를 겹쳐 본다. 두 페이지가 각자 캘린더를 들고 있을 이유가 없었다 · 우측은 날짜 네비를 고정하고 내용만 [✓ 루틴 | ⏳ 로그] 탭으로 교체 — 같은 날짜로 계획과 실제를 바로 대조한다 · \u26a0\ufe0f 날짜 상태를 curDate() 하나로 통일(tlDate/tlMonth 제거). 두 페이지가 각자 날짜를 들면 반드시 어긋난다 · 탭 16 → 15개 · 캘린더 칸: 루틴 줄을 3→2로 줄여 색띠 자리를 만들고 높이 112px"},
   {v:'11.1',date:'2026-08-20',note:"데일리 캘린더 확대 (로한: '눌러보지 않아도 루틴을 지키고 있는지 알게 · 기록 칸 좌우를 줄여서라도 캘린더 비율을 맞춰라') — 칸에 그날 루틴을 ✗ 이름+사유 로 최대 3개, 나머지는 ✗+N, 한 것은 '✓ N개 완료'로 접는다(다 펼치면 루틴 5개일 때 칸이 172px 이 되어 실측상 달력이 세로로 늘어졌다) · 좌우 비율 1.6:1 → 2.1:1 로 기록 칸을 줄이고 칸 높이 78→108px → 칸이 106x108, 거의 정사각 · \u26a0\ufe0f .g2col 기본 규칙이 뒤에 있어 .dcol/.tlcol/.gcalcol 이 통째로 무시되고 있었다(특이도 동률, 뒤가 승) → .g2col.dcol 로 승격 · \u26a0\ufe0f 줄 높이를 px 로 못박음: flex+baseline+overflow 조합이 line box 를 줄당 20px 로 부풀렸다 · \u26a0\ufe0f .gcli 에 width:100% — 부모 flex column 의 cross-stretch 가 안 먹어 줄이 content 폭 30px 로 쪼그라들어 이름이 '매…' 로만 보였다(실측) · 타임로그 칸도 52→70px 로 키워 색띠 가독성 확보"},
   {v:'11.0',date:'2026-08-20',note:"\u23f3 타임로그 신설 (로한 설계) — '루틴 안 지키고 시간별로 무엇을 했는지, 하루를 어떻게 보냈는지 낱낱이 드러내고 싶다'. \u26a0\ufe0f 지금까지 X의 이유는 미달 사유 태그 하나뿐이었다. 그건 라벨이지 사실이 아니다 — '무기력' 대신 '21:00–23:30 유튜브'가 남아야 반성이 된다 · \u26a0\ufe0f 가계부와 구조가 다르다: 가계부=건·순서 무관·총량 무제한 / 타임로그=구간·순서가 의미·하루 24시간 고정 총량. 총량이 고정이라 '이만큼 썼다'가 아니라 '이만큼밖에 안 남았다'가 보인다 · 30분 슬롯 48칸, 시작 칸→끝 칸 두 번 탭으로 범위 지정(모바일에서 드래그보다 확실) · 12개 태그(수면·일·학습·창작·운동·식사·이동·휴식·낭비·사교·집안일·기타), 낭비가 드러내려는 대상 · 블록에 루틴 코드 연결 → '뽀모를 못 한 날 그 시간에 뭘 했나'가 붙는다 · 월 캘린더 칸마다 하루 색띠 → 한 달 생활 패턴이 그림으로 · \u26a0\ufe0f 기록 안 된 시간은 채우지 않는다. 비어 있는 것 자체가 데이터다(미기록 N시간으로 집계) · 데일리에 못 한 루틴이 있으면 타임로그로 유도하는 배너"},
