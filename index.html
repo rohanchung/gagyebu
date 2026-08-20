@@ -340,11 +340,15 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .bkst.got{background:#e7f6ee;color:#0b6b3a}
 .bkst.dropped{background:#f0f0f4;color:#8a8a9a}
 .mvbtn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;text-align:center;border:1px solid var(--line);
-  border-radius:6px;background:var(--soft);color:var(--gold);cursor:pointer;font-weight:700;font-size:12px;user-select:none}
+  border-radius:6px;background:var(--soft);color:var(--gold);cursor:pointer;font-weight:700;font-size:12px;user-select:none;flex:0 0 auto}
 .mvbtn:hover{background:var(--gold);color:#fff;border-color:var(--gold)}
 .mvbtn.back{color:var(--muted)}
 .mvbtn.back:hover{background:#e8e4dc;color:var(--ink);border-color:#cfc7ae}
-.g2col>.pane{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.mvbtn.up{color:var(--gold);border-color:#e8ddbe}
+.mvbtn.up:hover{background:var(--gold);color:#fff;border-color:var(--gold)}
+.mvbtn+.mvbtn{margin-left:3px}
+.bkpro{display:inline-flex;align-items:center;gap:4px;justify-content:flex-end}
+.g2col>.pane{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
 .bkfil{display:flex;gap:5px;margin-bottom:7px}
 .pickhd{font-family:var(--serif);font-size:10.5px;font-weight:700;color:var(--gold);letter-spacing:.4px;margin:11px 0 5px;padding-bottom:3px;border-bottom:1px dashed #ece3c9}
 .rwchip{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;padding:3px 9px;border-radius:999px;
@@ -1559,14 +1563,51 @@ function issueGoalCode(kind,parentId,period){
   do{c=mk+'.'+seqNext(mk);}while(codeTaken(c));
   return c;
 }
-function issueRoutineCode(goalId){
+/* peek=true 면 seq 를 소비하지 않고 '다음에 나올 코드'만 미리 본다.
+   소속 이동 confirm 에서 새 코드를 보여줘야 하는데, 취소할 수도 있으므로 번호를 태우면 안 된다. */
+function issueRoutineCode(goalId,peek){
+  var g=goalId?goalById(goalId):null;
+  var key=g?g.code:'Z';
+  var mk=g?(g.kind==='year'?function(n){return g.code+n;}:function(n){return g.code+numToLower(n);})
+         :function(n){return 'Z'+n;};
   var c;
-  if(!goalId){do{c='Z'+seqNext('Z');}while(codeTaken(c));return c;}
-  var g=goalById(goalId);
-  if(!g){do{c='Z'+seqNext('Z');}while(codeTaken(c));return c;}
-  if(g.kind==='year'){do{c=g.code+seqNext(g.code);}while(codeTaken(c));return c;}
-  do{c=g.code+numToLower(seqNext(g.code));}while(codeTaken(c));
+  if(peek){var n=(((DB.meta||{}).seq||{})[key]||0);do{n++;c=mk(n);}while(codeTaken(c));return c;}
+  do{c=mk(seqNext(key));}while(codeTaken(c));
   return c;
+}
+/* ⚠️ checks 는 전부 '코드 문자열' 기반이다 — done[] / due[] / miss{} 셋 다.
+   루틴 소속이 바뀌면 코드가 재발급되므로, 이 함수가 없으면 과거 기록이 통째로 고아가 된다.
+   분모(due)의 길이는 바뀌지 않는다. 라벨만 갈아끼우는 것이라 v6.0 '과거 불변성'과 충돌하지 않는다. */
+function renameRoutineCode(oldC,newC){
+  if(!oldC||!newC||oldC===newC)return 0;
+  var n=0,ck=DB.checks||{};
+  Object.keys(ck).forEach(function(k){
+    var v=ck[k];if(!v)return;
+    ['done','due'].forEach(function(f){
+      var a=v[f];if(!a||a.length===undefined)return;
+      for(var i=0;i<a.length;i++){
+        if(a[i]!==oldC)continue;
+        if(a.indexOf(newC)>=0)a.splice(i--,1);   /* 이미 있으면 중복 대신 제거 */
+        else a[i]=newC;
+        n++;
+      }
+    });
+    if(v.miss&&v.miss[oldC]!==undefined){
+      if(v.miss[newC]===undefined)v.miss[newC]=v.miss[oldC];
+      delete v.miss[oldC];n++;
+    }
+  });
+  return n;
+}
+/* 그 코드가 checks 에 흔적을 남긴 '날짜 수' — done 뿐 아니라 due·miss 도 기록이다 */
+function routineCodeDays(c){
+  if(!c)return 0;
+  var n=0,ck=DB.checks||{};
+  Object.keys(ck).forEach(function(k){
+    var v=ck[k]||{};
+    if((v.done||[]).indexOf(c)>=0||(v.due||[]).indexOf(c)>=0||(v.miss&&v.miss[c]!==undefined))n++;
+  });
+  return n;
 }
 
 /* --- 목표 조회 --- */
@@ -2379,6 +2420,41 @@ function toBucket(id){
   logAct('🪣 버킷함으로 · '+b.code+' '+b.title);
   save();closeModal();renderRW();
 }
+/* ── 버킷 → 연간 목표 승격 ──
+   integration-design.md 7장: "버킷 항목이 커져서 보상으로는 도저히 안 되는 것이 명확해지면 연간 목표로 전환한다."
+   ⚠️ 최소 침습이 원칙이다. status/place 를 건드리지 않고 링크 필드만 양쪽에 심는다.
+      (건드리면 '받음/포기' 판정과 보상함 이동이 같이 흔들린다) */
+function promotedGoal(b){return (b&&b.promotedTo)?goalById(b.promotedTo):null;}
+function promoteBucketModal(id){
+  var b=bucketById(id); if(!b)return;
+  var pg=promotedGoal(b);
+  if(pg)return alert(b.code+' 는 이미 연간 목표 '+pg.code+' 로 올라가 있다.');
+  /* 폼을 새로 만들지 않는다. 기존 연간 목표 모달을 그대로 열고 프리필만 한다. */
+  goalModal(null,'year');
+  var t=document.getElementById('g_title'); if(t)t.value=b.title;
+  if(b.price>0){
+    var tg=document.getElementById('g_target'); if(tg&&!tg.value)tg.value=b.price;
+    var u=document.getElementById('g_unit');    if(u&&!u.value)u.value='원';
+  }
+  var mm=document.getElementById('g_memo');
+  if(mm&&!mm.value)mm.value='🪣 '+b.code+' 에서 올라옴'+(b.price?' · 예상 '+comma(b.price)+'원':'')+(b.memo?'\n'+b.memo:'');
+  var top=modal.querySelector('.mtop');
+  if(top)top.insertAdjacentHTML('afterend',
+    '<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
+    +'🪣 <b>'+sajuEsc(b.code)+' '+sajuEsc(b.title)+'</b> 를 <b>연간 목표</b>로 올린다.<br>'
+    +'버킷 항목은 그대로 남고 <b>목표와 링크만 걸린다</b> — 언제든 ↩ 로 끊을 수 있다.</div>');
+  modal._fromBk=id;
+}
+function unpromoteBucket(id){
+  var b=bucketById(id); if(!b||!b.promotedTo)return;
+  var g=promotedGoal(b);
+  if(!confirm(b.code+' 와 목표 '+(g?g.code+' '+g.title:'(이미 삭제됨)')+' 의 연결을 끊을까요?\n\n'
+    +'목표 자체는 지워지지 않습니다. 목표를 없애려면 목표 탭에서 삭제하세요.'))return;
+  if(g)delete g.fromBucket;
+  delete b.promotedTo; b.updatedAt=todayStr();
+  logAct('버킷 목표연결 해제 · '+b.code+(g?' ↮ '+g.code:''));
+  save();closeModal();renderRW();
+}
 function daysSince(ds){ if(!ds)return 0; var a=new Date(ds+'T00:00:00Z'),b=new Date(todayStr()+'T00:00:00Z');
   return Math.max(0,Math.round((b-a)/86400000)); }
 /* 현실적 가격대(주간 보상으로 받을 만한) 대기 수 — 좌절 지표. 큰 항목은 세지 않는다 */
@@ -2431,6 +2507,8 @@ function bucketModal(id){
         +' · '+daysSince(b.addedAt)+'일째</div>'):'')
    +'<button class="btn" onclick="saveBucket('+(id?"'"+id+"'":'null')+')">저장</button>'
    +(id&&b.status==='want'&&(b.place||'bucket')==='bucket'?' <button class="ghost" onclick="closeModal();toRewardModal(\''+id+'\')">🎁 보상함으로</button>':'')
+   +(id&&b.status==='want'&&(b.place||'bucket')==='bucket'&&!b.promotedTo?' <button class="ghost" onclick="closeModal();promoteBucketModal(\''+id+'\')">🎯 연간 목표로</button>':'')
+   +(id&&b.promotedTo?' <button class="ghost" onclick="unpromoteBucket(\''+id+'\')">🎯 목표연결 해제</button>':'')
    +(id&&b.place==='reward'?' <button class="ghost" onclick="toBucket(\''+id+'\')">🪣 버킷으로</button>':'')
    +(id&&b.status==='want'?' <button class="ghost" onclick="dropBucket(\''+id+'\')">포기</button>':'')
    +(id&&b.status!=='want'?' <button class="ghost" onclick="reviveBucket(\''+id+'\')">되살리기</button>':'')
@@ -3075,7 +3153,14 @@ function bucketTable(){
      +'<td data-bkedit="'+b.id+'"><span class="kchip '+(b.kind||'spend')+'">'+((REWARD_KINDS.filter(function(x){return x.k===(b.kind||'spend');})[0]||{}).label||'')+'</span></td>'
      +'<td class="r num" data-bkedit="'+b.id+'">'+(b.price?comma(b.price):'—')+'</td>'
      +'<td class="r'+(stale?' stale':' mut')+'" data-bkedit="'+b.id+'">'+(b.status==='want'?d+'일'+(stale?' ⚠':''):stx)+'</td>'
-     +'<td class="r">'+(b.status==='want'?'<span class="mvbtn" data-tor="'+b.id+'" title="보상함으로">→</span>':'')+'</td></tr>';
+     +'<td class="r">'+(function(){
+        var pg=promotedGoal(b);
+        if(pg)return '<span class="bkpro"><span class="gcode">🎯 '+pg.code+'</span>'
+          +'<span class="mvbtn back" data-unbk="'+b.id+'" title="목표 연결 해제">↩</span></span>';
+        if(b.status!=='want')return '';
+        return '<span class="mvbtn" data-tor="'+b.id+'" title="보상함으로 — 계단 달성 시 받는다">→</span>'
+             +'<span class="mvbtn up" data-tog="'+b.id+'" title="연간 목표로 — 보상으로는 못 받을 만큼 큰 것">⬆</span>';
+      })()+'</td></tr>';
   }).join(''):'<tr><td colspan="6" class="mut" style="padding:14px 6px;text-align:center">'
     +(f==='want'?'담긴 것이 없다. <b>+ 담기</b>로 지금 원하는 걸 적어라.':'해당 항목이 없다.')+'</td></tr>';
   return '<div class="pane"><div class="bkhd"><span class="subhd2">🪣 버킷함 <span class="mut">원하는 것 전부</span></span>'
@@ -3192,13 +3277,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.2';
+var APP_VERSION='1.3';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.3',date:'2026-08-20',note:"<b>루틴 이사 · 버킷 승격.</b> \u26a0\ufe0f <b>[결함] 루틴 소속을 바꾸면 과거 체크 기록이 조용히 고아가 됐다.</b> <code>checks</code> 는 <code>done[]/due[]/miss{}</code> 전부 <b>코드 문자열</b> 기반인데, 소속이 바뀌면 코드가 재발급된다(<code>E.8a</code> → <code>E1</code>). 경고도 없었다 — <b>기능은 있는데 기록이 따라오지 않는</b> 꼴 · <code>renameRoutineCode()</code> 신설로 세 곳을 한꺼번에 옮긴다. <b>분모(due) 길이는 그대로다</b> — 라벨만 갈아끼우는 것이라 v6.0 '과거 불변성'과 충돌하지 않는다 · 소속 변경 시 <b>먼저 묻는다</b>(옛→새 코드, 옮길 기록 일수). 취소하면 저장 자체를 중단 · <b>「코드 고정」 체크박스</b> — <code>lockCode</code> 필드는 v6.0부터 코드에 있었는데 <b>읽기만 하고 아무도 설정할 수 없었다</b>(입구 막힘 4회차) · 목표 삭제로 루틴이 미연결(Z)로 내려갈 때도 같은 구멍이 있었다 → 함께 막음 · 🎯 <b>버킷 → 연간 목표 승격</b>: 버킷 ⇄ 보상함은 원래 양방향이었고 빠진 조각은 이것 하나였다. 표의 이동 칸에 <b>⬆</b>, 승격된 항목은 <b>🎯 코드</b> 뱃지 + <b>↩</b> 로 연결 해제. 최소 침습 — <code>status</code>/<code>place</code> 를 건드리지 않고 링크만 양방향으로 심는다. 목표를 지우면 버킷 쪽 유령 링크도 정리한다."},
   {v:'1.2',date:'2026-08-20',note:"<b>📀 스냅샷 백업.</b> 로한 제안 — <i>“JSON을 내 하드에만 두지 말고 Supabase 다른 쪽에도 두는 게 낫지 않냐”</i>. 맞다. 단 <b>층이 다르다</b>: 스냅샷 테이블은 <b>논리적 사고</b>(코드 버그·덮어쓰기·실수 삭제)를, JSON 파일은 <b>물리적 사고</b>(프로젝트·계정 소실)를 막는다. 서로 대체 못 한다. <code>app_state_snap</code> 신설(RLS 적용) · 접속 시 <b>하루 1개 자동</b>(부분 유니크 인덱스로 강제) · <b>📍 수동 지점</b> · <b>복원 직전 자동 보관</b>(잘못 되돌려도 돌아올 자리가 있다) · 종류별 보관 상한 자동 정리(자동30/수동15/복원직전10). 🪶 로그 탭."},
   {v:'1.1',date:'2026-08-20',note:"<b>동기화·백업.</b> 저장은 조용히 성공하고 시끄럽게 실패해야 한다 — v1.0까지 저장 실패를 <code>.then(f(){},f(){})</code>로 통째로 삼켰고, 조건 없는 upsert라 <b>폰과 PC를 같이 켜두면 나중에 저장한 쪽이 앞의 것을 통째로 지웠다.</b> updated_at 낙관적 잠금 + 충돌 시 선택(덮어쓰기/새로고침) + 5회 재시도 + 우하단 저장 배지. 💾 JSON 내려받기/복원 + 접속 직후 로컬 복원지점 3일치(📍 로그 탭). 마이그레이션 함수가 둘(migrateDB → migrateV6)이라는 사실을 코드에 명시."},
   {v:'1.0',date:'2026-08-20',note:"<b>정식 버전.</b> 9일간의 개발 이터레이션을 여기서 마감한다. 재정(가계부·현금흐름·계좌·부채·세무·예산) + 건강(체성분·피검사) + 명리(자체 만세력 엔진) + 성찰(일지) + 실행(데일리·목표·루틴·보상·타임로그) 15개 탭. \u26a0\ufe0f <b>앞으로 기능 추가는 0.1, 세부 수정은 0.01 단위로 올린다</b>(v1.1 / v1.11)."},
@@ -3340,7 +3426,7 @@ function routineModal(id){
   var r=id?routineById(id):{title:'',freq:'daily',days:[1,2,3,4,5],goalId:'',status:'active',start:todayStr()};
   if(!r)return;
   var chips=DOW_KO.map(function(d,i){return '<span class="dchip'+(((r.days||[]).indexOf(i)>=0)?' on':'')+'" data-dow="'+i+'" onclick="this.classList.toggle(\'on\')">'+d+'</span>';}).join('');
-  var nChk=0;for(var k in (DB.checks||{})){if((DB.checks[k].done||[]).indexOf(r.code)>=0)nChk++;}
+  var nChk=routineCodeDays(r.code);   /* done 뿐 아니라 due·miss 도 기록이다 */
   /* 기간 — '계속'이면 end 없음. 마일스톤(월간 눈금)에 붙은 루틴은 기본이 '이 달만'이다.
      ⚠️ v8.1까지 종료일 자체가 없어서, 8월 눈금에 묶인 루틴이 9월에도 계속 떴다.
         코드는 B.8a(8월)인데 12월까지 뜨면 기록이 거짓말을 한다. */
@@ -3352,7 +3438,11 @@ function routineModal(id){
    +(id&&nChk?'<div class="mut" style="font-size:11px;margin-bottom:8px">체크 기록 '+nChk+'일 — 삭제해도 이 기록은 남는다</div>':'')
    +'<div class="field"><label>루틴 이름</label><input id="rt_title" value="'+sajuEsc(r.title)+'" placeholder="예: 아침 스트레칭 10분"></div>'
    +'<div class="field"><label>어느 목표를 위한 것인가 <span class="mut">(코드가 여기서 정해진다)</span></label>'
-   +'<div class="hint" style="margin:0 0 5px">계속할 루틴은 <b>연간 목표</b>에 직접 붙여라 — 월이 바뀌어도 안 끊긴다. 눈금(한시)은 그 달에만 하는 것에 쓴다.</div><select id="rt_goal" onchange="rtSpanHint()">'+goalOptions(r.goalId)+'</select></div>'
+   +'<div class="hint" style="margin:0 0 5px">계속할 루틴은 <b>연간 목표</b>에 직접 붙여라 — 월이 바뀌어도 안 끊긴다. 눈금(한시)은 그 달에만 하는 것에 쓴다.</div><select id="rt_goal" onchange="rtSpanHint()">'+goalOptions(r.goalId)+'</select>'
+   +(id?('<label style="display:flex;align-items:center;gap:7px;font-size:11px;margin-top:7px;cursor:pointer" class="mut">'
+        +'<input type="checkbox" id="rt_lock" style="width:auto"'+(r.lockCode?' checked':'')+'>'
+        +'<span>코드 <b class="gcode">'+r.code+'</b> 고정 — 소속을 바꿔도 코드를 그대로 둔다</span></label>'):'')
+   +'</div>'
    +'<div class="field"><label>빈도</label><div class="seg"><button class="'+(r.freq==='daily'?'on':'')+'" onclick="rtFreq(this,\'daily\')">매일</button><button class="'+(r.freq==='weekly'?'on':'')+'" onclick="rtFreq(this,\'weekly\')">요일 지정</button></div></div>'
    +'<div class="field" id="rt_dayswrap" style="display:'+(r.freq==='weekly'?'block':'none')+'"><label>요일</label><div id="rt_days">'+chips+'</div></div>'
    +'<div class="field"><label>시작일 <span class="mut">(이 날짜부터 집계 — 과거는 건드리지 않는다)</span></label><input id="rt_start" type="date" value="'+(r.start||todayStr())+'"></div>'
@@ -3412,10 +3502,27 @@ function saveRoutine(id){
   if(_end&&_end<rec.start)return alert('종료일이 시작일보다 빠릅니다');
   DB.routines=DB.routines||[];
   if(id){
-    var r=routineById(id),old=r.goalId;
+    var r=routineById(id),old=r.goalId,oldCode=r.code;
+    var _lk=document.getElementById('rt_lock');
+    var lock=_lk?_lk.checked:!!r.lockCode;
+    /* ⚠️ 소속이 바뀌면 코드가 재발급되는데 checks 는 코드 문자열 기반이다.
+       옮겨주지 않으면 과거 기록이 조용히 고아가 된다 — 그래서 먼저 묻고, 옮기고, 저장한다.
+       Object.assign 은 confirm 뒤에 한다. 취소인데 객체가 이미 바뀌어 있으면 안 된다. */
+    var move=(old!==gid&&!lock), nDays=0;
+    if(move){
+      nDays=routineCodeDays(oldCode);
+      var peek=issueRoutineCode(gid,true);   /* 아직 소비하지 않는다 */
+      if(nDays&&!confirm('소속이 바뀌므로 코드가 '+oldCode+' → '+peek+' 로 재발급된다.\n\n'
+        +'체크 기록 '+nDays+'일치도 새 코드로 함께 옮긴다 — 지난 달성률은 그대로 유지된다.\n'
+        +'코드를 그대로 두려면 취소하고 「코드 고정」을 켜라.'))return;
+    }
     Object.assign(r,rec);
-    if(old!==gid&&!r.lockCode)r.code=issueRoutineCode(gid);   // 소속이 바뀌면 코드 재발급
-    logAct('루틴수정 · '+r.code+' '+title);
+    if(lock)r.lockCode=true; else delete r.lockCode;
+    if(move){
+      r.code=issueRoutineCode(gid);
+      var moved=renameRoutineCode(oldCode,r.code);
+      logAct('루틴이동 · '+oldCode+' → '+r.code+' '+title+(moved?' · 기록 '+moved+'건 이관':''));
+    }else logAct('루틴수정 · '+r.code+' '+title);
   }else{
     rec.id=uid();rec.code=issueRoutineCode(gid);rec.status='active';rec.order=DB.routines.length+1;
     DB.routines.push(rec);logAct('루틴추가 · '+rec.code+' '+title);
@@ -3601,6 +3708,13 @@ function saveGoal(id,kd,parentId){
       rec.code=c;
     }else rec.code=issueGoalCode(kd,null,rec.period);
     DB.goals.push(rec); logAct('목표추가 · '+rec.code+' '+title);
+    /* 버킷에서 올라온 것이면 양방향 링크. 한쪽만 남기면 나중에 추적이 끊긴다. */
+    if(modal._fromBk){
+      var _bk=bucketById(modal._fromBk);
+      if(_bk){rec.fromBucket=_bk.id;_bk.promotedTo=rec.id;_bk.updatedAt=todayStr();
+        logAct('🎯 버킷승격 · '+_bk.code+' → '+rec.code+' '+title);}
+      modal._fromBk=null;
+    }
   }
   syncAllMilestones();
   save();closeModal();renderDG();
@@ -3620,7 +3734,11 @@ function delGoal(id){
   if(!confirm(msg))return;
   var ids=[id];
   if(g.kind==='year')milestonesOf(id).forEach(function(m){ids.push(m.id);});
-  (DB.routines||[]).forEach(function(r){if(ids.indexOf(r.goalId)>=0){r.goalId=null;r.code=issueRoutineCode(null);}});
+  /* ⚠️ 미연결로 내려갈 때도 코드가 바뀐다 — 기록을 같이 옮기지 않으면 고아가 된다 */
+  (DB.routines||[]).forEach(function(r){if(ids.indexOf(r.goalId)>=0){
+    var _oc=r.code; r.goalId=null; r.code=issueRoutineCode(null); renameRoutineCode(_oc,r.code);}});
+  /* 버킷에서 승격된 목표였다면 버킷 쪽 링크도 지운다. 안 하면 유령 링크가 남는다. */
+  (DB.rewards||[]).forEach(function(bk){if(bk.promotedTo&&ids.indexOf(bk.promotedTo)>=0)delete bk.promotedTo;});
   DB.goals=DB.goals.filter(function(x){return ids.indexOf(x.id)<0;});
   logAct('목표삭제 · '+g.code+' '+g.title);
   save();closeModal();renderDG();
@@ -3629,7 +3747,9 @@ function toggleGoalOpen(gid){DB.ui.goalOpen=(DB.ui.goalOpen===gid)?null:gid;save
 
 /* ====== 모달 ====== */
 var ov=document.getElementById('ov'),modal=document.getElementById('modal');
-function openModal(h){modal.innerHTML=h;ov.classList.add('on');}
+/* ⚠️ modal 은 DOM 노드다. innerHTML 을 갈아치워도 _fromBk 같은 JS 속성은 살아남는다.
+   승격 모달을 취소한 뒤 그냥 '+ 목표'를 열면 엉뚱한 버킷에 링크가 걸린다 → 여기서 끊는다. */
+function openModal(h){modal._fromBk=null;modal.innerHTML=h;ov.classList.add('on');}
 function postModal(id){var p=(DB.posts||[]).filter(function(x){return x.id===id;})[0];if(!p)return;openModal('<div class="mtop"><h3 style="font-family:var(--serif)">'+sajuEsc(p.title)+'</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut" style="font-size:11px;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:8px">🪶 로버트 · '+(p.date||'')+'</div><div style="font-size:13px;line-height:1.85;white-space:pre-wrap;color:#33425e">'+sajuEsc(p.body)+'</div>');}
 function closeModal(){ov.classList.remove('on');}
 /* 보상·버킷 데이터는 목표 탭(칩)과 보상 탭(표) 양쪽에 나온다.
@@ -3937,6 +4057,17 @@ function migrateV6(d){
     if(b.price===undefined)b.price=b.budget||0;
     if(b.budget===undefined)b.budget=b.price||0;
   });
+  /* v1.3 — 버킷 ↔ 연간목표 승격 링크 정합. 한쪽이 사라지면 유령 링크가 남는다.
+     양쪽 다 없어도 되는 선택 필드이므로 '만들지' 않고 '끊어진 것만 지운다'. */
+  (function(){
+    var gid={},bid={};
+    (d.goals||[]).forEach(function(g){gid[g.id]=1;});
+    (d.rewards||[]).forEach(function(b){bid[b.id]=1;});
+    (d.rewards||[]).forEach(function(b){if(b.promotedTo&&!gid[b.promotedTo])delete b.promotedTo;});
+    (d.goals||[]).forEach(function(g){if(g.fromBucket&&!bid[g.fromBucket])delete g.fromBucket;});
+  })();
+  /* v1.3 — lockCode 는 false 를 저장할 이유가 없다. 켜진 것만 남긴다. */
+  (d.routines||[]).forEach(function(r){if(!r.lockCode)delete r.lockCode;});
   if(d.ui&&!d.ui.bkSort){d.ui.bkSort='price';d.ui.bkDir=1;d.ui.bkFilter='want';}
   if(!d.rewardCfg)d.rewardCfg={weekFullDays:4,monthWeeks:4,yearMonths:9};
   (d.rewards||[]).forEach(function(r){
@@ -4153,6 +4284,8 @@ document.addEventListener('click',function(e){
   var bkf=e.target.closest('[data-bkfil]');if(bkf)return bkFilter(bkf.dataset.bkfil);
   var tor=e.target.closest('[data-tor]');if(tor)return toRewardModal(tor.dataset.tor);
   var tob=e.target.closest('[data-tob]');if(tob)return toBucket(tob.dataset.tob);
+  var tog=e.target.closest('[data-tog]');if(tog)return promoteBucketModal(tog.dataset.tog);
+  var unb=e.target.closest('[data-unbk]');if(unb)return unpromoteBucket(unb.dataset.unbk);
   var bke=e.target.closest('[data-bkedit]');if(bke)return bucketModal(bke.dataset.bkedit);
   if(e.target.id==='addBucketBtn')return bucketModal(null);
   if(e.target.id==='addFixedBtn')return rewardModal(null,'week');

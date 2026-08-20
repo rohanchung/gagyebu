@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');const fs=require('fs');
 const file=process.argv[2];
-const D=JSON.parse(fs.readFileSync('/home/claude/state_rw.json','utf8'));
+const D=JSON.parse(fs.readFileSync(require('path').join(__dirname,'state_rw.json'),'utf8'));
 const STATE={schemaVersion:7,goals:D.goals,routines:[],checks:{},rewards:D.rewards,rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},ui:{month:'2026-08'},
  accounts:[],transactions:[],categories:[{id:'c1',name:'식비',type:'expense'}],cards:[{id:'cd1',name:'현금',type:'check'}],debts:[],fixed:[],events:[],posts:[],
  health:{weights:[],labs:[],labDates:[],labTypes:[],labMeds:[],labValues:{},events:[]},journal:[],items:[],logs:[],budgets:{}};
