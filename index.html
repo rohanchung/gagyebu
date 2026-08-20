@@ -106,6 +106,74 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .rwpick:hover::after{content:'선택 →';color:#fff;background:var(--gold);border-color:var(--gold)}
 .rwpick.sm{padding:7px 58px 7px 10px}
 .rwchip.set{background:#fdf7e6;border-color:#e3d3a4}
+/* ── 📅 데일리 ── */
+.dtop{background:linear-gradient(180deg,#fbfaf6,#fff);border:1px solid #e8e2cf;border-radius:12px;padding:10px 13px;margin-bottom:12px}
+.dtl{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:11.5px}
+.dtd{font-family:var(--serif);font-size:15px;color:var(--gold)}
+.dfull{color:var(--pos);font-weight:800;font-size:11.5px}
+.dgs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed #ece3c9}
+.dgchip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;padding:3px 9px;border-radius:999px;
+  border:1px solid var(--line);background:var(--soft);cursor:pointer;transition:border-color .12s,background .12s}
+.dgchip:hover{border-color:var(--gold);background:#fdfaf1}
+.dgchip i{font-style:normal;font-weight:800;color:var(--gold)}
+.dgchip.full i{color:var(--pos)}
+/* 칸 높이를 키웠으면 폭도 따라와야 한다 — 세로로 긴 칸은 달력으로 안 읽힌다.
+   기록 칸을 줄여서 캘린더 칸을 1:1 에 가깝게 맞춘다(로한 지시). */
+.g2col.dcol{grid-template-columns:2.1fr 1fr}
+/* ── ⚙ 루틴 요일 매트릭스 ── */
+.btbl.rtm th.c,.btbl.rtm td.c{text-align:center;padding:6px 2px;width:30px}
+.btbl.rtm th.dw0{color:var(--neg)}
+.btbl.rtm th.dw6{color:var(--accent)}
+.btbl.rtm td.nw{white-space:nowrap}
+.dwcell{display:inline-block;width:20px;height:20px;border-radius:6px;border:1px solid var(--line);
+  background:#fafafa;cursor:pointer;transition:background .12s,border-color .12s;vertical-align:middle}
+.dwcell:hover{border-color:var(--gold)}
+.dwcell.on{background:var(--gold);border-color:var(--gold);box-shadow:inset 0 0 0 2px #fff}
+.rtmrow.paused{opacity:.5}
+.warn3{color:var(--warn)}
+/* ── ⏳ 타임로그 ── */
+.g2col.tlcol{grid-template-columns:1.35fr 1fr}
+.tlstrip{display:flex;width:100%;border-radius:3px;overflow:hidden;background:#f0f2f6;margin-top:auto}
+.tlstrip i{display:block;height:100%}
+.gcell.tlcell .tlstrip{height:11px!important}
+.tlstrip.empty{background:repeating-linear-gradient(90deg,#f0f2f6 0 3px,transparent 3px 6px)}
+.gcell.tlcell{min-height:70px}
+.gcell.tlcell .gcr{font-size:9px;font-weight:700}
+/* 미기록 칸은 비워두되 '비었다'가 읽혀야 한다 — 흰색이면 그냥 여백으로 보인다 */
+.tlq:not(.has){background:repeating-linear-gradient(135deg,#fafbfc 0 5px,#f2f4f7 5px 10px)}
+.gcell.tlcell.fut{min-height:40px}
+.tllegend,.tlsums{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)}
+.tlsums{margin:0 0 9px;padding:8px 0 0}
+.tlsum{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--muted)}
+.tlsum i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.tlsum b{color:var(--ink)}
+.tlhint{font-size:11px;margin:0 0 7px;padding:7px 9px;background:var(--soft);border-radius:7px}
+.tlhint .acc{color:var(--accent)}
+.tlgrid{border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.tlrow{display:flex;align-items:stretch;border-bottom:1px solid #f3f5f8}
+.tlrow:last-child{border-bottom:0}
+.tlh{flex:0 0 30px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);
+  background:var(--soft);border-right:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tlq{flex:1;min-height:22px;border-right:1px solid #f3f5f8;cursor:pointer;position:relative;
+  transition:background .1s,box-shadow .1s;display:flex;align-items:center;padding:0 6px}
+.tlq:last-child{border-right:0}
+.tlq:hover{background:#f6f1e3;box-shadow:inset 0 0 0 1px var(--gold)}
+.tlq.has{color:#fff}
+.tlq.has em{font-style:normal;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.tlq.pick{box-shadow:inset 0 0 0 2px var(--accent);background:#e8effd}
+.tlpicks{display:flex;flex-wrap:wrap;gap:5px}
+.tlpick{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);
+  background:var(--card);font-size:11.5px;cursor:pointer;font-weight:600;transition:border-color .12s,background .12s}
+.tlpick:hover{border-color:var(--tc)}
+.tlpick.on{border-color:var(--tc);background:var(--tc);color:#fff}
+.tlpick.on i{box-shadow:0 0 0 2px rgba(255,255,255,.7)}
+.tlpick i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.tlmiss{background:#fdf4ee;border:1px solid #f0d9c6;border-radius:8px;padding:8px 10px;margin-bottom:9px;font-size:11.5px}
+.tlmiss b{margin-right:6px}
+.tlnudge{margin-top:10px;padding:9px 11px;border-radius:8px;background:#fdf4ee;border:1px solid #f0d9c6;
+  font-size:11.5px;cursor:pointer;transition:border-color .12s}
+.tlnudge:hover{border-color:var(--warn)}
 .chip.warn2{background:#fdf0e0;border:1px solid #e8c9a0;color:#8a5a1f;font-size:10px;padding:1px 5px;border-radius:5px;cursor:help}
 .cell .dn{font-size:11px;color:var(--muted)}
 .cell .dsum{font-size:9.5px;color:var(--neg);font-weight:700;font-variant-numeric:tabular-nums}
@@ -282,10 +350,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .wtrack i.mstart{border-left:1px solid #cfc7ae}
 .g2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;margin-bottom:12px}
 .g2col>.sec,.g2col>.gtoday{margin-bottom:0}
-@media(max-width:1080px){.g2col,.g2col.gcalcol{grid-template-columns:1fr}
+@media(max-width:1080px){.g2col,.g2col.gcalcol,.g2col.dcol,.g2col.tlcol{grid-template-columns:1fr}
 /* 모바일: 매일 하는 체크가 먼저다. 캘린더가 커지면서 일간이 800px 아래로 밀렸다.
    좌=큰범위 원칙은 데스크톱 규칙이고, 좁은 화면에서는 '자주 쓰는 것 먼저'가 이긴다. */
-.g2col.gcalcol>.pane:nth-child(2){order:-1}}
+.g2col.gcalcol>.pane:nth-child(2),.g2col.dcol>.pane:nth-child(2),.g2col.tlcol>.pane:nth-child(2){order:-1}}
 .dnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
 .dnav b{font-family:var(--serif);font-size:16px;color:var(--gold)}
 .dnav>span[data-dmv],.dnav #goalDatePick{cursor:pointer;color:var(--muted);font-size:14px;padding:1px 5px;user-select:none;border-radius:5px}
@@ -298,12 +366,23 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .mnav2 b{font-size:13.5px}
 .gcal{display:grid;grid-template-columns:repeat(7,1fr) 30px;gap:3px}
 .gcal.wk{grid-template-columns:repeat(7,1fr) 34px}
-.gcalcol{grid-template-columns:1.45fr 1fr}
+.g2col.gcalcol{grid-template-columns:1.45fr 1fr}
 .gcalsw{float:right;font-size:10.5px;color:var(--accent);cursor:pointer;font-weight:700}
 .gchd{display:flex;align-items:center;justify-content:space-between;gap:2px}
 .gcmks{display:flex;gap:1px;line-height:1}
 .gmk{font-style:normal;font-size:9px;line-height:1;opacity:.9}
 .gmk.yin{color:#7b6bb0;font-size:8px}
+/* ⚠️ 줄 높이를 px 로 못박는다. flex+baseline+overflow 조합이면 line box 가 예상보다 커져
+   (실측 줄당 20px) 5줄이 154px 이 됐다. 달력 칸은 높이가 예측 가능해야 한다. */
+/* width:100% — 부모가 flex column 인데 cross-stretch 가 안 먹어 줄이 content 폭(30px)으로 쪼그라들었다(실측) */
+.gcli{display:flex;align-items:center;gap:3px;width:100%;font-size:9px;line-height:13px;height:13px;white-space:nowrap;overflow:hidden}
+.gcli span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;line-height:13px}
+.gcli b{line-height:13px}
+.gcli.o{color:#6f8a6f}
+.gcli.x{color:#b4482f;font-weight:600}
+.gcli.x b{font-weight:700;color:var(--neg);font-size:8.5px;flex:0 0 auto;max-width:38%;overflow:hidden;text-overflow:ellipsis}
+.gcli.more{color:var(--muted);font-size:8.5px}
+.gcell.l3 .gcli.o{color:#4a6b3f}
 .gcmi{font-size:8.5px;line-height:1.25;color:#8a5a1f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gcmi b{font-weight:700;color:var(--neg);margin-left:3px}
 .gcx{color:var(--neg);font-weight:800}
@@ -314,9 +393,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .gwk.fut{opacity:.35;cursor:default}
 .gcdow{text-align:center;font-size:10px;color:var(--muted);padding:2px 0}
 .gcdow.s0{color:var(--neg)}.gcdow.s6{color:var(--accent)}
-.gcell{position:relative;min-height:78px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;gap:1px;overflow:hidden}
-.gcal.wk .gcell{min-height:66px}
-.gcell.fut{min-height:44px}
+.gcell{position:relative;min-height:108px;border:1px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;padding:4px 5px;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+.gcal.wk .gcell{min-height:78px}
+.gcell.fut{min-height:46px}
 .gcell.empty{border:0;background:transparent;cursor:default;min-height:0}
 .gcell:hover{border-color:var(--gold)}
 .gcell .gcd{font-size:10.5px;color:var(--muted);line-height:1}
@@ -471,7 +550,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
   <div class="side">
     <div class="brand"><img src="favicon.png" class="brand-crest" alt=""><br>Rohan Book</div>
     <div class="sub">🎯 실행</div>
-    <div class="m on" data-v="goal">🎯 목표·루틴</div>
+    <div class="m on" data-v="daily">📅 데일리</div>
+    <div class="m" data-v="goal">🎯 목표·루틴</div>
+    <div class="m" data-v="timelog">⏳ 타임로그</div>
     <div class="m" data-v="reward">🎁 보상</div>
     <div class="sub">⚜ 재정</div>
     <div class="m" data-v="dash">🏰 현황판</div>
@@ -492,7 +573,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="m" data-v="log">🪶 로그</div>
   </div>
   <div class="main">
-    <div class="view on" id="v-goal"></div>
+    <div class="view on" id="v-daily"></div>
+    <div class="view" id="v-goal"></div>
+    <div class="view" id="v-timelog"></div>
     <div class="view" id="v-reward"></div>
     <div class="view" id="v-dash"></div>
     <div class="view" id="v-cal"></div>
@@ -585,6 +668,7 @@ var SEED = {
   missTags:['야근','피로','날씨','약속','무기력','아픔','일정충돌','의지부족','기타'],
   rewards:[],
   rewardCards:{},
+  timelog:{},
   rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},
   schemaVersion:7,
   ui:{month:'2026-08',watchCats:['식비','카페','간식/편의점']}
@@ -1328,13 +1412,13 @@ function checkToggle(ds,code){
   var c=ensureDay(ds), i=c.done.indexOf(code);
   if(i>=0)c.done.splice(i,1);
   else{c.done.push(code);if(c.miss[code])delete c.miss[code];}
-  pruneDay(ds);save();renderGoal();
+  pruneDay(ds);save();renderDG();
 }
 function setMiss(ds,code,tag,memo){
   var c=ensureDay(ds);
   if(!tag&&!memo)delete c.miss[code];
   else c.miss[code]={tag:tag||'',memo:memo||''};
-  pruneDay(ds);save();renderGoal();
+  pruneDay(ds);save();renderDG();
 }
 
 /* --- 집계 --- */
@@ -1489,11 +1573,11 @@ function curDate(){var d=(DB.ui&&DB.ui.goalDate)||todayStr();return d>todayStr()
 function curMonth(){return (DB.ui&&DB.ui.goalMonth)||todayStr().slice(0,7);}
 function setGoalDate(ds){
   if(ds>todayStr())return;
-  DB.ui.goalDate=ds; DB.ui.goalMonth=ds.slice(0,7); save(); renderGoal();
+  DB.ui.goalDate=ds; DB.ui.goalMonth=ds.slice(0,7); save(); renderDG();
 }
 function moveGoalDate(n){setGoalDate(addDays(curDate(),n));}
 function moveGoalMonth(n){
-  DB.ui.goalMonth=ymAdd(curMonth(),n); save(); renderGoal();
+  DB.ui.goalMonth=ymAdd(curMonth(),n); save(); renderDG();
 }
 function goalDatePicker(){
   var d=curDate();
@@ -1518,7 +1602,7 @@ function goalMonthPicker(){
    +'<div style="display:flex;flex-wrap:wrap;justify-content:center">'+months+'</div>');
 }
 function shiftGoalYear(d){DB.ui.goalMonth=(parseInt(curMonth().slice(0,4),10)+d)+'-'+curMonth().slice(5);goalMonthPicker();}
-function jumpGoalMonth(mm){DB.ui.goalMonth=mm;save();closeModal();renderGoal();}
+function jumpGoalMonth(mm){DB.ui.goalMonth=mm;save();closeModal();renderDG();}
 
 
 
@@ -2169,7 +2253,7 @@ function gcalWeekMode(){
 }
 function gcalToggle(){
   DB.ui.gcalMode=gcalWeekMode()?'month':'week';
-  save();renderGoal();
+  save();renderDG();
 }
 /* 그날 못 한 루틴 — 이름과 사유를 같이 낸다. 무엇이 무너졌는지가 달력 위에서 보여야 한다. */
 function missRows(ds){
@@ -2199,23 +2283,27 @@ function gcalCell(ds,compact){
     else if(r&&r.total)body='<div class="gcok">✓</div>';
   }
   if(!future&&!compact){
-    var mr=missRows(ds);
-    if(mr.length){
-      /* 칸 폭이 100px 안팎이다. 이름과 사유를 다 넣으면 둘 다 안 읽힌다.
-         1개면 이름을, 2개 이상이면 개수 + 사유 태그를 낸다. 전체는 title 툴팁으로. */
-      var tags=[];for(var q=0;q<mr.length;q++)if(mr[q].tag&&tags.indexOf(mr[q].tag)<0)tags.push(mr[q].tag);
-      if(mr.length===1){
-        body='<div class="gcmi">'+sajuEsc(cut(mr[0].title,7))+(mr[0].tag?'<b>'+sajuEsc(mr[0].tag)+'</b>':'')+'</div>';
-      }else{
-        body='<div class="gcmi"><span class="gcx">✗'+mr.length+'</span>'
-          +(tags.length?'<b>'+sajuEsc(tags.slice(0,2).join('·'))+'</b>':' <span class="mut">'+sajuEsc(cut(mr[0].title,5))+'…</span>')
-          +'</div>';
-      }
-      tip=mr.map(function(x){return x.title+(x.tag?' ('+x.tag+')':'');}).join(', ');
-    }else if(r&&r.total){ body='<div class="gcok">완전달성</div>'; }
+    /* ⚠️ 칸을 키운 목적은 여백이 아니라 정보다(로한: "눌러보지 않아도 지키고 있는지 알게").
+       그날 루틴을 ✓/✗ 로 낱낱이 적는다. **못 한 것을 위로** — 그게 더 중요한 정보다.
+       넘치면 +N 으로 접고 전체는 툴팁에 남긴다. */
+    /* ⚠️ 핵심 정보는 '못 한 것의 이름과 이유'다. 한 것은 개수로 접는다.
+       다 펼치면 루틴 5개일 때 칸이 172px 이 되어(실측) 달력이 세로로 늘어진다. */
+    var mr=missRows(ds), dn=doneOf(ds), MAXL=3, rows=[];
+    for(var q=0;q<mr.length&&q<MAXL;q++)
+      rows.push('<div class="gcli x">✗<span>'+sajuEsc(cut(mr[q].title,mr[q].tag?8:12))+'</span>'
+        +(mr[q].tag?'<b>'+sajuEsc(mr[q].tag)+'</b>':'')+'</div>');
+    if(mr.length>MAXL)rows.push('<div class="gcli more">✗ +'+(mr.length-MAXL)+'</div>');
+    if(dn.length)rows.push('<div class="gcli o">✓<span>'
+      +(mr.length?dn.length+'개 완료':'완전달성')+'</span></div>');
+    if(rows.length){
+      body=rows.join('');
+      tip=(mr.length?'못한 것 — '+mr.map(function(x){return x.title+(x.tag?'('+x.tag+')':'');}).join(', '):'')
+        +(mr.length&&dn.length?' / ':'')
+        +(dn.length?'한 것 — '+dn.map(function(c){var z=routineByCode(c);return (z&&z.title)||c;}).join(', '):'');
+    }
   }
   return '<div class="gcell'+lv+(ds===sel?' sel':'')+(ds===t?' today':'')+(future?' fut':'')+(yin?' yin':'')+'" data-gcal="'+ds+'"'
-    +(tip?' title="못한 것 — '+sajuEsc(tip)+'"':'')+'>'
+    +(tip?' title="'+sajuEsc(tip)+'"':'')+'>'
     +'<div class="gchd"><span class="gcd">'+dd+'</span><span class="gcmks">'+mk+'</span></div>'
     +(r&&!future?'<span class="gcr">'+r.done+'/'+r.total+'</span>':'')
     +body+'</div>';
@@ -2329,20 +2417,273 @@ function rwChip(tier,period,label){
   return '<span class="rwchip empty" data-rwcard="'+key+'" title="카드 미배치 · 누르면 배치">🎁 '+L+' '+st.cur+'/'+st.req+' <b>카드 배치</b></span>';
 }
 
-function renderGoal(){
+/* ══════════ ⏳ 타임로그 (v11.0) ══════════
+   로한: *"루틴 안 지키고 시간별로 무엇을 했는지 적고 싶다. 하루를 어떻게 보냈는지 낱낱이 드러내고 싶다."*
+   ⚠️ 지금 X의 이유는 미달 사유 태그 하나뿐이다. 그건 라벨이지 사실이 아니다.
+      '무기력' 대신 '21:00–23:30 유튜브'가 남아야 반성이 된다.
+   ⚠️ 가계부와 구조가 다르다:
+      가계부 = 건(件)·순서 무관·총량 무제한 / 타임로그 = 구간·순서가 의미·**하루 24시간 고정 총량**.
+      총량이 고정이라 "이만큼 썼다"가 아니라 **"이만큼밖에 안 남았다"**가 보인다.
+   ⚠️ 기록 안 된 시간은 채우지 않는다. **비어 있는 것 자체가 데이터다.**
+   저장 단위: 30분 슬롯(0~47). blocks=[{s,e,tag,title,code}] — 슬롯 배열보다 훨씬 가볍다. */
+var TL_TAGS=[
+  {k:'sleep', label:'수면',  c:'#8b93a8'},
+  {k:'work',  label:'일',    c:'#3f6fd8'},
+  {k:'study', label:'학습',  c:'#2f9e6e'},
+  {k:'make',  label:'창작',  c:'#a067d8'},
+  {k:'move',  label:'운동',  c:'#e08a2f'},
+  {k:'meal',  label:'식사',  c:'#d8a13f'},
+  {k:'trip',  label:'이동',  c:'#6bb3c9'},
+  {k:'rest',  label:'휴식',  c:'#7fc08a'},
+  {k:'waste', label:'낭비',  c:'#d64545'},
+  {k:'social',label:'사교',  c:'#d87fae'},
+  {k:'home',  label:'집안일',c:'#a89070'},
+  {k:'etc',   label:'기타',  c:'#9aa6b6'}
+];
+function tlTag(k){return TL_TAGS.filter(function(x){return x.k===k;})[0]||TL_TAGS[TL_TAGS.length-1];}
+function tlAll(){DB.timelog=DB.timelog||{};return DB.timelog;}
+function tlOf(ds){return (tlAll()[ds]||[]).slice().sort(function(a,b){return a.s-b.s;});}
+function slotLabel(i){return String(Math.floor(i/2)).padStart(2,'0')+':'+((i%2)?'30':'00');}
+function slotRange(a,b){return slotLabel(a)+'–'+slotLabel(b+1>47?48:b+1).replace('24:00','24:00');}
+/* 슬롯 i 를 덮는 블록 */
+function tlAt(ds,i){var b=tlOf(ds);for(var k=0;k<b.length;k++)if(i>=b[k].s&&i<=b[k].e)return b[k];return null;}
+function tlUsed(ds){var n=0;tlOf(ds).forEach(function(b){n+=(b.e-b.s+1);});return n;}
+/* 태그별 슬롯 수 */
+function tlSum(ds){
+  var m={};tlOf(ds).forEach(function(b){m[b.tag]=(m[b.tag]||0)+(b.e-b.s+1);});return m;
+}
+function tlMonthSum(ym){
+  var m={},days=0,all=tlAll();
+  for(var k in all){ if(k.slice(0,7)!==ym)continue; days++;
+    var d=tlSum(k); for(var t in d)m[t]=(m[t]||0)+d[t]; }
+  return {tags:m,days:days};
+}
+function hrs(slots){var h=slots/2;return (h%1?h.toFixed(1):h)+'h';}
+/* 겹치는 구간을 잘라낸다 — 같은 시간에 두 가지를 했다고 기록할 순 없다 */
+function tlPut(ds,blk){
+  var all=tlAll(); var list=(all[ds]||[]).slice(), out=[];
+  list.forEach(function(b){
+    if(b.e<blk.s||b.s>blk.e){out.push(b);return;}
+    if(b.s<blk.s)out.push({s:b.s,e:blk.s-1,tag:b.tag,title:b.title,code:b.code});
+    if(b.e>blk.e)out.push({s:blk.e+1,e:b.e,tag:b.tag,title:b.title,code:b.code});
+  });
+  out.push(blk);
+  out.sort(function(a,b){return a.s-b.s;});
+  all[ds]=out;
+}
+function tlDel(ds,i){
+  var all=tlAll(); all[ds]=(all[ds]||[]).filter(function(b){return !(i>=b.s&&i<=b.e);});
+  if(!all[ds].length)delete all[ds];
+}
+
+/* ══════════ 📅 데일리 — 매일 여는 화면 (v10.0) ══════════
+   로한 설계: *"목표루틴 / 보상 / 데일리로 나누고, 캘린더를 데일리로 이관해 최대한 크게"*.
+   ⚠️ '상단이 길다 → 과제가 캘린더 밑이라 안 보인다 → 게이지가 길 필요 있냐'
+      이 세 지적은 전부 같은 뿌리였다. **사용 빈도가 다른 것을 한 페이지에 넣은 것.**
+      루틴 설계는 월 1~2회, 체크는 매일. 레이아웃으로 풀 문제가 아니라 정보구조로 풀 문제였다.
+   ⚠️ 다만 연계성이 끊기면 그냥 할 일 목록이 된다.
+      → 상단에 연간 목표 진행률 칩을 두고, 체크리스트는 목표별로 묶는다. */
+function gotoTab(v){var m=document.querySelector('.side .m[data-v="'+v+'"]');if(m)m.click();}
+function renderDaily(){
   syncAllMilestones();
   var t=todayStr(), d=curDate(), ym=curMonth(), yy=t.slice(0,4);
-  var yg=yearGoals(yy), isToday=(d===t), cfg=rwCfg();
+  var isToday=(d===t), cfg=rwCfg(), r=dayRate(d), full=isFullDay(d);
+  var yg=yearGoals(yy);
 
-  /* ══ 1행 전폭: 연간 — 목표 + 연간보상 + 52주 트래커 ══ */
+  /* ── 상단: 연계성 유지 장치. 오늘 상태 + 연간 목표 진행률 ── */
+  var gchips=yg.map(function(g){
+    var pct=goalPct(g);
+    return '<span class="dgchip'+(pct>=100?' full':'')+'" data-gojump="'+g.id+'" title="'+sajuEsc(g.title)+' · 누르면 목표·루틴 탭">'
+      +'<b class="gcode">'+g.code+'</b>'+sajuEsc(cut(g.title,10))+' <i>'+pct+'%</i></span>';}).join('');
+  var sajuD='';
+  try{var ft=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
+    sajuD='<span class="mut">'+ft.gz+(ft.flags.length?' '+ft.flags.map(function(f){return f.t;}).join('·'):'')+'</span>';
+  }catch(e){}
+  var topbar='<div class="dtop">'
+   +'<div class="dtl"><b class="dtd">'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8),10)+'일 ('+DOW_KO[dowOf(d)]+')</b>'
+   +'<span class="'+(full?'dfull':'mut')+'">'+(full?'✅ 완전달성':(r?'오늘 '+r.done+'/'+r.total:'루틴 없음'))+'</span>'
+   +'<span class="mut">이번주 '+fullDaysInWeek(weekStart(d))+'/'+cfg.weekFullDays+'일</span>'+sajuD+'</div>'
+   +'<div class="dgs">'+(gchips||'<span class="mut" data-gojump="">목표가 없다 — 목표·루틴 탭에서 시작해라</span>')+'</div></div>';
+
+  /* ── 좌: 월 캘린더 (주인공) ── */
+  var calPane='<div class="sec pane"><h4><span class="mnav2"><span data-mmv="-1">◀</span>'
+   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월</b>'
+   +'<span data-mmv="1">▶</span><span id="goalMonthPick" title="월 선택">📅</span></span>'
+   +'<span class="hacts">'+rwChip('month',ym,'월간')
+   +'<span class="gcalsw" id="gcalToggle">'+(gcalWeekMode()?'월 전체 ▾':'이번 주만 ▴')+'</span></span></h4>'
+   +'<div class="mut" style="font-size:10.5px;margin:-2px 0 7px">'+monthDoneDays(ym)+'일 기록 · 날짜를 눌러 지난 날도 체크</div>'
+   +'<div class="gcal'+(gcalWeekMode()?' wk':'')+'">'+goalCalendar()+'</div></div>';
+
+  /* ── 우: 그날 체크 (실제 조작) ── */
+  var groups=todayGroups(d);
+  var tasks=groups.length?groups.map(function(gr){
+    return '<div class="rgroup"><div class="rghd '+gr.cls+'">'+sajuEsc(gr.label)+'</div>'
+     +gr.rows.map(function(x){return routineRow(d,x.r,x.g);}).join('')+'</div>';
+  }).join(''):'<div class="mut" style="padding:10px 0;font-size:11.5px">이 날 해당하는 루틴이 없다. <b>목표·루틴</b> 탭에서 설계해라.</div>';
+  var dayPane='<div class="sec pane"><h4><span class="mnav2"><span data-dmv="-1">◀</span>'
+   +'<b>'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8),10)+'일</b>'
+   +'<span data-dmv="1"'+(isToday?' class="off"':'')+'>▶</span><span id="goalDatePick" title="날짜 선택">📅</span>'
+   +(isToday?'':'<span class="chip check" id="goalToday">오늘로</span>')+'</span>'
+   +'<span class="hacts">'+rwChip('week',weekStart(d),'주간')+'</span></h4>'
+   +tasks
+   +(missRows(d).length?('<div class="tlnudge" onclick="setTlDate(\''+d+'\');gotoTab(\'timelog\')">'
+      +'⏳ 못 한 게 '+missRows(d).length+'개다 — <b>그 시간에 뭘 했는지</b> 적어라</div>'):'')
+   +'<div style="margin-top:10px"><button class="ghost sm" onclick="gotoTab(\'goal\')">⚙ 루틴 설계</button>'
+   +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 사용 '+usedCards().length+'건</span></div></div>';
+
+  document.getElementById('v-daily').innerHTML=topbar+'<div class="g2col dcol">'+calPane+dayPane+'</div>';
+}
+
+/* ── ⏳ 타임로그 화면 ── */
+function tlDate(){var d=(DB.ui&&DB.ui.tlDate)||todayStr();return d>todayStr()?todayStr():d;}
+function tlMonth(){return (DB.ui&&DB.ui.tlMonth)||tlDate().slice(0,7);}
+function setTlDate(ds){if(ds>todayStr())ds=todayStr();DB.ui.tlDate=ds;DB.ui.tlMonth=ds.slice(0,7);DB.ui.tlPick=null;save();renderTimelog();}
+function moveTlDate(n){setTlDate(addDays(tlDate(),n));}
+function moveTlMonth(n){DB.ui.tlMonth=ymAdd(tlMonth(),n);save();renderTimelog();}
+/* 하루를 가로 색띠 하나로 — 한 달을 펼치면 생활 패턴이 그림으로 드러난다 */
+function tlStrip(ds,h){
+  var b=tlOf(ds); if(!b.length)return '<div class="tlstrip empty" style="height:'+(h||6)+'px"></div>';
+  var seg='',cur=0;
+  b.forEach(function(x){
+    if(x.s>cur)seg+='<i style="flex:'+(x.s-cur)+'"></i>';
+    seg+='<i style="flex:'+(x.e-x.s+1)+';background:'+tlTag(x.tag).c+'"></i>';
+    cur=x.e+1;
+  });
+  if(cur<48)seg+='<i style="flex:'+(48-cur)+'"></i>';
+  return '<div class="tlstrip" style="height:'+(h||6)+'px">'+seg+'</div>';
+}
+function tlCalendar(){
+  var ym=tlMonth(),sel=tlDate(),t=todayStr();
+  var y=parseInt(ym.slice(0,4),10),mo=parseInt(ym.slice(5),10);
+  var first=new Date(Date.UTC(y,mo-1,1)).getUTCDay(),dim=new Date(Date.UTC(y,mo,0)).getUTCDate();
+  var out=DOW_KO.map(function(d,i){return '<div class="gcdow s'+i+'">'+d+'</div>';}).join('');
+  for(var i=0;i<first;i++)out+='<div class="gcell empty"></div>';
+  for(var dd=1;dd<=dim;dd++){
+    var ds=ym+'-'+String(dd).padStart(2,'0');
+    var used=tlUsed(ds), future=ds>t;
+    out+='<div class="gcell tlcell'+(ds===sel?' sel':'')+(ds===t?' today':'')+(future?' fut':'')+'" data-tlcal="'+ds+'">'
+      +'<div class="gchd"><span class="gcd">'+dd+'</span>'
+      +(used&&!future?'<span class="gcr">'+hrs(used)+'</span>':'')+'</div>'
+      +(future?'':tlStrip(ds,8))+'</div>';
+  }
+  return out;
+}
+/* 30분 그리드 — 한 행이 1시간, 좌우 반칸 */
+function tlGrid(ds){
+  var pick=(DB.ui&&DB.ui.tlPick), rows='';
+  for(var h=0;h<24;h++){
+    var cells='';
+    for(var q=0;q<2;q++){
+      var i=h*2+q, b=tlAt(ds,i);
+      var st=b?(' has'+(b.s===i?' st':'')):'';
+      var sel=(pick!=null&&((i>=Math.min(pick,pick))&&i===pick))?' pick':'';
+      cells+='<span class="tlq'+st+sel+'" data-tlq="'+i+'"'
+        +(b?' style="background:'+tlTag(b.tag).c+'"':'')
+        +' title="'+slotLabel(i)+(b?' · '+tlTag(b.tag).label+(b.title?' '+sajuEsc(b.title):''):'')+'">'
+        +(b&&b.s===i?'<em>'+sajuEsc(b.title||tlTag(b.tag).label)+'</em>':'')+'</span>';
+    }
+    rows+='<div class="tlrow"><span class="tlh">'+String(h).padStart(2,'0')+'</span>'+cells+'</div>';
+  }
+  return rows;
+}
+function renderTimelog(){
+  var ds=tlDate(), ym=tlMonth(), t=todayStr();
+  var used=tlUsed(ds), sum=tlSum(ds), pick=(DB.ui&&DB.ui.tlPick);
+  var isToday=(ds===t);
+  var bars=TL_TAGS.filter(function(x){return sum[x.k];})
+    .sort(function(a,b){return sum[b.k]-sum[a.k];})
+    .map(function(x){return '<span class="tlsum"><i style="background:'+x.c+'"></i>'+x.label+' <b>'+hrs(sum[x.k])+'</b></span>';}).join('');
+  var miss=missRows(ds);
+  var missBox=miss.length?('<div class="tlmiss"><b>못 한 루틴</b> '
+    +miss.map(function(m){return '<span class="chip check">'+sajuEsc(m.title)+(m.tag?' · '+sajuEsc(m.tag):'')+'</span>';}).join('')
+    +'<div class="mut" style="font-size:10.5px;margin-top:5px">그 시간에 실제로 뭘 했는지 아래에 적어라. 그게 반성의 재료다.</div></div>'):'';
+
+  var calPane='<div class="sec pane"><h4><span class="mnav2"><span data-tlmv="-1">◀</span>'
+   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월</b>'
+   +'<span data-tlmv="1">▶</span></span>'
+   +'<span class="hacts mut" style="font-size:10.5px">'+(function(){
+      var ms=tlMonthSum(ym); var tot=0; for(var k in ms.tags)tot+=ms.tags[k];
+      return ms.days?(ms.days+'일 기록 · '+hrs(tot)):'기록 없음';})()+'</span></h4>'
+   +'<div class="gcal tlcal">'+tlCalendar()+'</div>'
+   +'<div class="tllegend">'+TL_TAGS.map(function(x){
+      return '<span class="tlsum"><i style="background:'+x.c+'"></i>'+x.label+'</span>';}).join('')+'</div></div>';
+
+  var dayPane='<div class="sec pane"><h4><span class="mnav2"><span data-tldv="-1">◀</span>'
+   +'<b>'+parseInt(ds.slice(5,7),10)+'월 '+parseInt(ds.slice(8),10)+'일 ('+DOW_KO[dowOf(ds)]+')</b>'
+   +'<span data-tldv="1"'+(isToday?' class="off"':'')+'>▶</span>'
+   +(isToday?'':'<span class="chip check" data-tltoday="1">오늘로</span>')+'</span>'
+   +'<span class="hacts"><span class="mut" style="font-size:11px">기록 <b>'+hrs(used)+'</b> · 미기록 <b>'+hrs(48-used)+'</b></span></span></h4>'
+   +missBox
+   +(bars?'<div class="tlsums">'+bars+'</div>':'')
+   +'<div class="mut tlhint">'+(pick!=null
+      ? ('<b class="acc">'+slotLabel(pick)+'</b> 부터 — <b>끝나는 칸</b>을 눌러라 (같은 칸을 다시 누르면 30분)  <span class="chip check" data-tlcancel="1">취소</span>')
+      : '시작 칸을 누르고 끝 칸을 눌러라 · 기록된 칸을 누르면 수정')+'</div>'
+   +'<div class="tlgrid">'+tlGrid(ds)+'</div></div>';
+
+  document.getElementById('v-timelog').innerHTML='<div class="g2col tlcol">'+calPane+dayPane+'</div>';
+}
+/* 칸 클릭 — 두 번 눌러 범위를 잡는다(모바일에서 드래그보다 확실하다) */
+function tlSlotClick(i){
+  var ds=tlDate();
+  var b=tlAt(ds,i);
+  var pick=(DB.ui&&DB.ui.tlPick);
+  if(pick==null){
+    if(b)return tlBlockModal(ds,b);      /* 이미 기록된 칸 → 수정 */
+    DB.ui.tlPick=i;save();return renderTimelog();
+  }
+  var a=Math.min(pick,i), z=Math.max(pick,i);
+  DB.ui.tlPick=null;save();
+  tlBlockModal(ds,{s:a,e:z,tag:'',title:'',code:null},true);
+}
+function tlBlockModal(ds,blk,isNew){
+  var routines=dueOf(ds).map(function(c){var r=routineByCode(c);return r?{code:c,title:r.title}:null;}).filter(Boolean);
+  var opts='<option value="">— 연결 안 함 —</option>'+routines.map(function(r){
+    return '<option value="'+r.code+'"'+(blk.code===r.code?' selected':'')+'>'+r.code+' · '+sajuEsc(r.title)+'</option>';}).join('');
+  var seg=TL_TAGS.map(function(x){
+    return '<button class="tlpick'+(blk.tag===x.k?' on':'')+'" style="--tc:'+x.c+'" onclick="tlSetTag(this,\''+x.k+'\')">'
+      +'<i style="background:'+x.c+'"></i>'+x.label+'</button>';}).join('');
+  openModal('<div class="mtop"><h3>⏳ '+slotRange(blk.s,blk.e)+' <span class="mut" style="font-size:12px">'
+      +hrs(blk.e-blk.s+1)+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>무엇을 했나</label><div class="tlpicks">'+seg+'</div></div>'
+   +'<div class="field"><label>내용 <span class="mut">(선택 · 구체적일수록 회고가 정확해진다)</span></label>'
+   +'<input id="tl_title" value="'+sajuEsc(blk.title||'')+'" placeholder="예: 유튜브 · 뽀모 3회 · 지하철"></div>'
+   +(routines.length?('<div class="field"><label>루틴 연결 <span class="mut">(이 시간이 그 루틴 수행이었나)</span></label>'
+   +'<select id="tl_code">'+opts+'</select></div>'):'')
+   +'<button class="btn" onclick="tlSave(\''+ds+'\','+blk.s+','+blk.e+')">저장</button>'
+   +(isNew?'':' <button class="ghost" onclick="tlRemove(\''+ds+'\','+blk.s+')">삭제</button>'));
+  modal._tltag=blk.tag||'';
+}
+function tlSetTag(el,k){
+  modal._tltag=k;
+  var bs=el.parentNode.querySelectorAll('button');
+  for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');
+  el.classList.add('on');
+}
+function tlSave(ds,a,z){
+  if(!modal._tltag)return alert('무엇을 했는지 골라라');
+  var el=document.getElementById('tl_title'), ce=document.getElementById('tl_code');
+  tlPut(ds,{s:a,e:z,tag:modal._tltag,title:el?el.value.trim():'',code:(ce&&ce.value)||null});
+  logAct('⏳ '+ds+' '+slotRange(a,z)+' '+tlTag(modal._tltag).label+(el&&el.value?' · '+el.value.trim():''));
+  save();closeModal();renderTimelog();
+}
+function tlRemove(ds,i){
+  if(!confirm('이 기록을 지울까요?'))return;
+  tlDel(ds,i);logAct('⏳ 기록 삭제 · '+ds+' '+slotLabel(i));
+  save();closeModal();renderTimelog();
+}
+
+/* ══════════ 🎯 목표·루틴 — 설계 전용 (v10.0) ══════════
+   여기서는 '무엇을 할 것인가'만 정한다. '했는가'는 데일리에서. */
+function renderGoal(){
+  syncAllMilestones();
+  var t=todayStr(), ym=curMonth(), yy=t.slice(0,4), cfg=rwCfg();
+  var yg=yearGoals(yy);
+
   var ctx=yg.map(function(g){
     var pct=goalPct(g),open=(DB.ui.goalOpen===g.id);
     var mt=(g.metric&&g.metric.type)||'binary', cur=goalValue(g);
     var stat=goalStats(g.id,ym+'-01',lastDayOfYM(ym));
     var mlist=milestonesOf(g.id);
-    var grw=(DB.rewards||[]).filter(function(r){return r.tier==='goal'&&r.goalId===g.id&&r.active!==false;});
-    /* ⚠️ 전폭 게이지를 따로 한 줄 쓰면 목표 5개가 10줄이 되고 가운데가 텅 빈다(로한 지적).
-       제목과 수치 사이의 빈 공간을 게이지가 채우게 해서 한 줄로 접었다. */
     return '<div class="ctxrow'+(open?' open':'')+(g.status==='done'?' gdone':'')+'" data-gopen="'+g.id+'">'
      +'<div class="ctxhead"><span class="ctxnm"><b class="gcode">'+g.code+'</b> '+sajuEsc(g.title)
        +(g.status==='done'?' <span class="pill">완료</span>':'')+'</span>'
@@ -2353,9 +2694,7 @@ function renderGoal(){
        +'<b class="ctxpct'+(pct>=100?' full':'')+'">'+pct+'%</b> <span class="mut">'+(g.due?g.due.slice(2).replace(/-/g,'.'):'')+'</span> ▾</span></div>'
      +(open?('<div class="ctxbody">'
         +'<div class="ctxstat">'+parseInt(ym.slice(5),10)+'월 투입 <b>'+stat.days+'일</b> · 루틴 '+stat.done+'/'+stat.due
-        +' ('+Math.round(stat.rate*100)+'%)'
-                +' · '+rwChip('goal',g.id,'달성')
-+'</div>'
+        +' ('+Math.round(stat.rate*100)+'%) · '+rwChip('goal',g.id,'달성')+'</div>'
         +(g.memo?'<div class="mut" style="font-size:11px;margin-top:4px;white-space:pre-wrap">'+sajuEsc(g.memo)+'</div>':'')
         +'<div class="msbox"><div class="mshd">월간 세부목표 <span class="mut">'+mlist.length+'</span>'
           +'<button class="ghost sm" data-msadd="'+g.id+'">+ 세부목표</button></div>'
@@ -2380,58 +2719,75 @@ function renderGoal(){
    +'<div class="wtwrap"><div class="wthd" id="wtToggle" style="cursor:pointer"><span class="wtt">📊 주간 성공 '+(DB.ui.wtOpen?'▴':'▾')+'</span>'
    +'<span class="mut"><b>'+ws.win+'</b>/'+ws.elapsed+'주 · 월 <b>'+mw+'</b>/'+cfg.yearMonths+' · 최장 <b>'+ws.best+'</b>주'
    +' <span class="mut" style="opacity:.7">(칸 1개=1주, 완전달성 '+cfg.weekFullDays+'일↑)</span></span></div>'
-   +(DB.ui.wtOpen?('<div class="wtrack">'+weekTracker(yy)+'</div>'):'')   +(function(){
+   +(DB.ui.wtOpen?('<div class="wtrack">'+weekTracker(yy)+'</div>'):'')+(function(){
       var rs=rewardSpend(yy); if(!rs.total)return '';
       var fin=(DB.goals||[]).filter(function(g){return g.kind==='year'&&g.period===yy&&g.source==='cash'&&g.metric&&g.metric.target;})[0];
       var ratio=fin?(' · <b>'+((rs.total/fin.metric.target)*100).toFixed(1)+'%</b> <span class="mut">of '+fin.code+' '+sajuEsc(fin.title)+'</span>'):'';
       return '<div class="rwspend">🎁 올해 보상 지출 <b>'+won(rs.total)+'</b> <span class="mut">'+rs.count+'건</span>'+ratio+'</div>';
    })()+'</div></div>';
 
-  /* ══ 2행 좌: 월간 (큰 범위) ══ */
   var msThis=(DB.goals||[]).filter(function(g){return g.kind==='milestone'&&g.period===ym;});
   var soloThis=soloGoals(ym);
   var all=msThis.concat(soloThis);
   var monthPane='<div class="sec pane"><h4><span class="mnav2"><span data-mmv="-1">◀</span>'
-   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월</b>'
+   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월 과제</b>'
    +'<span data-mmv="1">▶</span><span id="goalMonthPick" title="월 선택">📅</span></span>'
-   +'<span class="hacts">'+rwChip('month',ym,'월간')+'<button class="btn sm" id="addSoloBtn">+ 과제</button></span></h4>'
-   +'<div class="subhd">이 달 과제 <span class="mut">눈금 '+msThis.length+' · 단발 '+soloThis.length+'</span></div>'
+   +'<span class="hacts"><button class="btn sm" id="addSoloBtn">+ 과제</button></span></h4>'
+   +'<div class="mut" style="font-size:10.5px;margin:-2px 0 6px">눈금 '+msThis.length+' · 단발 '+soloThis.length+'</div>'
    +(all.length?all.map(function(g){return goalRow(g,true);}).join('')
      :'<div class="mut" style="padding:5px 0;font-size:11.5px">이 달 과제가 없다.</div>')
-   +'<div class="subhd" style="margin-top:12px">'+parseInt(ym.slice(5),10)+'월 현황 <span class="mut">'+monthDoneDays(ym)+'일 기록 · 날짜를 눌러 지난 날도 체크</span>'
-   +'<span class="gcalsw" id="gcalToggle">'+(gcalWeekMode()?'월 전체 ▾':'이번 주만 ▴')+'</span></div>'
-   +'<div class="gcal'+(gcalWeekMode()?' wk':'')+'">'+goalCalendar()+'</div>'
    +'</div>';
 
-  /* ══ 2행 우: 일간 (실제 조작) ══ */
-  var sajuD='';
-  try{var ft=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
-    sajuD='<span class="mut" style="font-size:10.5px">'+ft.gz+(ft.flags.length?' '+ft.flags.map(function(f){return f.t;}).join('·'):'')+'</span>';
-  }catch(e){}
-  var groups=todayGroups(d), r=dayRate(d);
-  var tasks=groups.length?groups.map(function(gr){
-    return '<div class="rgroup"><div class="rghd '+gr.cls+'">'+sajuEsc(gr.label)+'</div>'
-     +gr.rows.map(function(x){return routineRow(d,x.r,x.g);}).join('')+'</div>';
-  }).join(''):'<div class="mut" style="padding:10px 0;font-size:11.5px">이 날 해당하는 루틴이 없다. <b>+ 루틴</b>으로 추가해라.</div>';
-  var paused=(DB.routines||[]).filter(function(x){return x.status==='paused';}).length;
-  var retired=(DB.routines||[]).filter(function(x){return x.status==='retired';}).length;
-  var full=isFullDay(d);
-  var dayPane='<div class="sec pane"><h4><span class="mnav2"><span data-dmv="-1">◀</span>'
-   +'<b>'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8,10),10)+'일 ('+DOW_KO[dowOf(d)]+')</b>'
-   +'<span data-dmv="1"'+(isToday?' class="off"':'')+'>▶</span><span id="goalDatePick" title="날짜 선택">📅</span>'
-   +(isToday?'':'<span class="chip check" id="goalToday">오늘로</span>')+'</span>'
-   +'<span class="hacts">'+rwChip('week',weekStart(d),'주간')+'</span></h4>'
-   +'<div class="dsum"><span class="'+(full?'dfull':'mut')+'">'+(full?'✅ 완전달성':(r?'오늘 '+r.done+'/'+r.total:'루틴 없음'))+'</span>'
-   +'<span class="mut">이번주 완전달성 '+fullDaysInWeek(weekStart(d))+'/'+cfg.weekFullDays+'일</span>'+sajuD+'</div>'
-   +tasks
-   +'<div style="margin-top:10px"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
-   +' <span class="mut" id="routineListBtn" style="font-size:11px;margin-left:8px;cursor:pointer">📋 전체 루틴'
-   +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span>'
-   +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 사용 '+usedCards().length+'건</span></div></div>';
-
-  document.getElementById('v-goal').innerHTML=yearPane+'<div class="g2col gcalcol">'+monthPane+dayPane+'</div>';
+  document.getElementById('v-goal').innerHTML=yearPane+monthPane+routineMatrix();
 }
 
+/* ── 루틴 설계 — 요일 매트릭스 ──
+   ⚠️ 요일별 루틴은 v5.0부터 데이터에 있었다(freq:'weekly' + days[]). 화면에 안 보였을 뿐이다.
+      격자로 펼치면 '월수금만 운동, 주말만 글쓰기' 같은 주간 설계가 한눈에 잡힌다. */
+function rtActiveDow(r,dw){ return (r.freq==='daily')?true:((r.days||[]).indexOf(dw)>=0); }
+function rtDayToggle(id,dw){
+  var r=routineById(id); if(!r)return;
+  var days;
+  if(r.freq==='daily')days=[0,1,2,3,4,5,6];
+  else days=(r.days||[]).slice();
+  var i=days.indexOf(dw);
+  if(i>=0)days.splice(i,1); else days.push(dw);
+  days.sort(function(a,b){return a-b;});
+  if(!days.length)return alert('요일을 하나 이상 남겨야 한다. 쉬려면 루틴 수정에서 잠시 쉼/은퇴를 써라.');
+  if(days.length===7){r.freq='daily';r.days=[];}
+  else{r.freq='weekly';r.days=days;}
+  logAct('루틴 요일 변경 · '+r.code+' '+r.title+' ('+(r.freq==='daily'?'매일':r.days.map(function(x){return DOW_KO[x];}).join('')) +')');
+  save();renderGoal();
+}
+function routineMatrix(){
+  var rs=(DB.routines||[]).filter(function(r){return r.status!=='retired';})
+    .sort(function(a,b){return (a.code||'')<(b.code||'')?-1:1;});
+  var head='<tr><th>코드</th><th>루틴</th><th>목표</th>'
+    +DOW_KO.map(function(d,i){return '<th class="c dw'+i+'">'+d+'</th>';}).join('')
+    +'<th>기간</th><th class="r"></th></tr>';
+  var body=rs.length?rs.map(function(r){
+    var g=r.goalId?goalById(r.goalId):null;
+    var par=(g&&g.kind==='milestone')?goalById(g.parentId):null;
+    var span=r.end?('~'+parseInt(r.end.slice(5,7),10)+'/'+parseInt(r.end.slice(8),10))
+      :((g&&g.kind==='milestone')?'<b class="warn3">기간없음</b>':'계속');
+    return '<tr class="rtmrow'+(r.status==='paused'?' paused':'')+'">'
+     +'<td><span class="gcode">'+r.code+'</span></td>'
+     +'<td class="bkt" data-rtedit="'+r.id+'">'+sajuEsc(r.title)+(r.status==='paused'?' <span class="chip check">쉼</span>':'')+'</td>'
+     +'<td class="mut">'+(g?(par?par.code+'.':'')+g.code:'—')+'</td>'
+     +DOW_KO.map(function(d,i){
+        return '<td class="c"><span class="dwcell'+(rtActiveDow(r,i)?' on':'')+'" data-rtdow="'+r.id+'|'+i+'" title="'+d+'요일 켜기/끄기"></span></td>';}).join('')
+     +'<td class="mut nw">'+span+'</td>'
+     +'<td class="r"><span class="acts"><span data-rtedit="'+r.id+'">✎</span></span></td></tr>';
+  }).join(''):'<tr><td colspan="12" class="mut" style="padding:14px 6px;text-align:center">루틴이 없다. <b>+ 루틴</b>으로 시작해라.</td></tr>';
+  var paused=(DB.routines||[]).filter(function(x){return x.status==='paused';}).length;
+  var retired=(DB.routines||[]).filter(function(x){return x.status==='retired';}).length;
+  return '<div class="sec pane"><h4><span class="subhd2">⚙ 루틴 설계</span>'
+   +'<span class="hacts"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
+   +'<span class="mut" id="routineListBtn" style="font-size:11px;cursor:pointer">📋 전체'
+   +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span></span></h4>'
+   +'<div class="mut" style="font-size:10.5px;margin:-2px 0 7px">요일 칸을 눌러 켜고 끈다 · 여기서 정한 것이 데일리에 뜬다</div>'
+   +'<div class="tblwrap"><table class="btbl rtm"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
+}
 
 /* ====== 🎁 보상 탭 (단독 페이지) ====== */
 function bkTh(key,label,align){
@@ -2568,9 +2924,12 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='9.0';
+var APP_VERSION='11.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'11.1',date:'2026-08-20',note:"데일리 캘린더 확대 (로한: '눌러보지 않아도 루틴을 지키고 있는지 알게 · 기록 칸 좌우를 줄여서라도 캘린더 비율을 맞춰라') — 칸에 그날 루틴을 ✗ 이름+사유 로 최대 3개, 나머지는 ✗+N, 한 것은 '✓ N개 완료'로 접는다(다 펼치면 루틴 5개일 때 칸이 172px 이 되어 실측상 달력이 세로로 늘어졌다) · 좌우 비율 1.6:1 → 2.1:1 로 기록 칸을 줄이고 칸 높이 78→108px → 칸이 106x108, 거의 정사각 · \u26a0\ufe0f .g2col 기본 규칙이 뒤에 있어 .dcol/.tlcol/.gcalcol 이 통째로 무시되고 있었다(특이도 동률, 뒤가 승) → .g2col.dcol 로 승격 · \u26a0\ufe0f 줄 높이를 px 로 못박음: flex+baseline+overflow 조합이 line box 를 줄당 20px 로 부풀렸다 · \u26a0\ufe0f .gcli 에 width:100% — 부모 flex column 의 cross-stretch 가 안 먹어 줄이 content 폭 30px 로 쪼그라들어 이름이 '매…' 로만 보였다(실측) · 타임로그 칸도 52→70px 로 키워 색띠 가독성 확보"},
+  {v:'11.0',date:'2026-08-20',note:"\u23f3 타임로그 신설 (로한 설계) — '루틴 안 지키고 시간별로 무엇을 했는지, 하루를 어떻게 보냈는지 낱낱이 드러내고 싶다'. \u26a0\ufe0f 지금까지 X의 이유는 미달 사유 태그 하나뿐이었다. 그건 라벨이지 사실이 아니다 — '무기력' 대신 '21:00–23:30 유튜브'가 남아야 반성이 된다 · \u26a0\ufe0f 가계부와 구조가 다르다: 가계부=건·순서 무관·총량 무제한 / 타임로그=구간·순서가 의미·하루 24시간 고정 총량. 총량이 고정이라 '이만큼 썼다'가 아니라 '이만큼밖에 안 남았다'가 보인다 · 30분 슬롯 48칸, 시작 칸→끝 칸 두 번 탭으로 범위 지정(모바일에서 드래그보다 확실) · 12개 태그(수면·일·학습·창작·운동·식사·이동·휴식·낭비·사교·집안일·기타), 낭비가 드러내려는 대상 · 블록에 루틴 코드 연결 → '뽀모를 못 한 날 그 시간에 뭘 했나'가 붙는다 · 월 캘린더 칸마다 하루 색띠 → 한 달 생활 패턴이 그림으로 · \u26a0\ufe0f 기록 안 된 시간은 채우지 않는다. 비어 있는 것 자체가 데이터다(미기록 N시간으로 집계) · 데일리에 못 한 루틴이 있으면 타임로그로 유도하는 배너"},
+  {v:'10.0',date:'2026-08-20',note:"실행 카테고리 3분할 (로한 설계) — \ud83d\udcc5 데일리 / \ud83c\udfaf 목표·루틴 / \ud83c\udf81 보상. \u26a0\ufe0f '상단이 길다 → 과제가 캘린더 밑이라 안 보인다 → 게이지가 길 필요 있냐' 세 지적이 전부 같은 뿌리였다: 사용 빈도가 다른 것(설계=월 1~2회 / 체크=매일)을 한 페이지에 넣은 것. 레이아웃으로 풀 문제가 아니라 정보구조로 풀 문제였다 · 데일리 = 큰 월 캘린더 + 그날 체크, 첫 화면으로 승격 · 연계성이 끊기면 그냥 할 일 목록이 되므로 상단에 연간 목표 진행률 칩(누르면 그 목표로 점프) + 체크리스트는 목표별 그룹 유지 · 목표·루틴 = 설계 전용(연간 목표 · 월간 과제 · 루틴 요일 매트릭스) · \u2699 요일 매트릭스 신설: 요일별 루틴은 v5.0부터 데이터에 있었지만(freq/days) 화면에 없었다. 격자로 펼쳐 칸을 누르면 즉시 토글 — '월수금만 운동, 주말만 글쓰기'가 한눈에 잡힌다 · VIEW_RENDER 에 daily 등록(v5.0 dash 누락 회귀 재발 방지)"},
   {v:'9.0',date:'2026-08-20',note:"모바일 전면 정리 (로한: '누가 봐도 UI가 비틀려 있다') — \u26a0\ufe0f 메뉴: .side 를 flex-wrap 으로 펼쳐 14개 탭이 4줄, 화면 상단 절반을 먹었다. 한 줄 가로 스크롤 탭바로 바꾸고 sticky 고정, 탭 전환 시 활성 칩이 가운데로 자동 스크롤 · 로고: 크레스트+줄바꿈+텍스트 2줄에 큰 여백까지 쓰던 걸 한 줄로(34→22px, PC도 함께). 모바일에선 크레스트만 남긴다 · 가계부: .mhead 가 flex-wrap + statbar{flex:1;justify-content:flex-end} 라 좁은 폭에서 통계 6개가 세로로 쌓이고 월 네비가 홀로 남았다 → 헤더 세로 2단 + 통계 3열 그리드, 캘린더 칸 112→72px, 한 칸 거래 줄 10→3개 · 프레임 통일: .sec 15px / .pane 14px 제각각이던 패딩을 14px·radius 12px 로 맞추고 모바일은 12px·11px · 모바일 브레이크포인트를 640 → 900px 로 올려 태블릿 세로도 포함"},
   {v:'8.5',date:'2026-08-19',note:"[UI/UX 감사] 목표·루틴 / 보상 페이지. 로한 지적: '저 보상들이 결국 버튼인데 버튼으로 안 보인다 · 마우스 오버 반응이라도 있든가 · 버튼은 최대한 상단에, 내용과 구분될 것' — 전부 맞다. ⚠️ 근본 원인: .rwpick 의 base CSS 규칙이 통째로 없었다(.rwpick.sm / .rwpick .rwpt / .rwpick.offday 만 존재). 클릭 가능한 목록 전체가 '그냥 글줄'로 렌더됐다. v7.1 .tcard 삭제 사고와 같은 계열 — 클래스 사용 목록 vs CSS base 규칙 대조 스크립트로 잡았다 · 복원 + hover/active 반응 + 우측에 '선택' 배지(hover 시 '선택 →')로 클릭 대상임을 명시 · 모달 헤더 sticky — max-height 90vh + overflow auto 인데 헤더가 같이 밀려 긴 목록에서 제목과 ×를 잃었다 · 목록형 모달의 액션 버튼을 상단 .mact 바로 이동하고 점선으로 내용과 구분(폼 모달의 저장은 입력 흐름의 끝이므로 하단 유지) · 아이콘 액션(✔✎💬) 히트 영역 11px → 26px, 이동 버튼 22 → 28px · 전역 :focus-visible 포커스 링 신설(없었다) · 월간 과제·세부목표 행 hover 반응 · 표의 이동 열 헤더를 '이동'으로 명시 · 용어 통일 '수령' → '사용'"},
   {v:'8.4',date:'2026-08-19',note:"연간·월간 행 압축 (로한 지적: '게이지가 저렇게 길 필요 있냐 · 가운데가 비어 있다') — 전폭 게이지를 따로 한 줄 쓰면 목표 5개가 10줄이 되고 제목과 수치 사이가 텅 빈다. 게이지를 그 빈 공간으로 옮겨 flex로 늘렸다: 제목 → 게이지 → 수치/% → 기한이 한 줄. 연간 10줄→5줄, 월간 과제 3개 9줄→3줄 · 월간 과제를 캘린더 위로 (캘린더가 커지면서 아래로 밀려 시인성이 떨어졌다 — 로한 지적) · 100% 도달한 항목은 % 색을 초록으로"},
@@ -2762,7 +3121,7 @@ function saveRoutine(id){
     rec.id=uid();rec.code=issueRoutineCode(gid);rec.status='active';rec.order=DB.routines.length+1;
     DB.routines.push(rec);logAct('루틴추가 · '+rec.code+' '+title);
   }
-  save();closeModal();renderGoal();
+  save();closeModal();renderDG();
 }
 function retireRoutine(id){
   var r=routineById(id);if(!r)return;
@@ -2771,13 +3130,13 @@ function retireRoutine(id){
     if(!confirm(r.code+' 을(를) 은퇴시킬까요?\n오늘까지의 기록은 그대로 남고, 내일부터 집계에서 빠집니다.'))return;
     r.status='retired';r.end=todayStr();logAct('루틴은퇴 · '+r.code+' '+r.title);
   }
-  save();closeModal();renderGoal();
+  save();closeModal();renderDG();
 }
 function pauseRoutine(id){
   var r=routineById(id);if(!r)return;
   r.status=(r.status==='paused')?'active':'paused';
   logAct('루틴'+(r.status==='paused'?'쉼':'재개')+' · '+r.code);
-  save();closeModal();renderGoal();
+  save();closeModal();renderDG();
 }
 function delRoutine(id){
   var r=routineById(id);if(!r)return;
@@ -2785,7 +3144,7 @@ function delRoutine(id){
   if(n)return alert('체크 기록이 '+n+'일 있습니다. 삭제 대신 은퇴를 쓰세요.');
   if(!confirm('기록이 없는 루틴입니다. 완전히 삭제할까요?'))return;
   DB.routines=DB.routines.filter(function(x){return x.id!==id;});
-  logAct('루틴삭제 · '+r.code+' '+r.title);save();closeModal();renderGoal();
+  logAct('루틴삭제 · '+r.code+' '+r.title);save();closeModal();renderDG();
 }
 function routineList(){
   var rs=(DB.routines||[]).slice().sort(function(a,b){return (a.code||'')<(b.code||'')?-1:1;});
@@ -2945,14 +3304,14 @@ function saveGoal(id,kd,parentId){
     DB.goals.push(rec); logAct('목표추가 · '+rec.code+' '+title);
   }
   syncAllMilestones();
-  save();closeModal();renderGoal();
+  save();closeModal();renderDG();
 }
 function goalToggle(id){
   var g=goalById(id);if(!g)return;
   g.status=(g.status==='done')?'active':'done';
   g.doneAt=(g.status==='done')?todayStr():undefined;
   logAct('목표'+(g.status==='done'?'완료':'재개')+' · '+g.code+' '+g.title);
-  save();renderGoal();
+  save();renderDG();
 }
 function delGoal(id){
   var g=goalById(id);if(!g)return;
@@ -2965,7 +3324,7 @@ function delGoal(id){
   (DB.routines||[]).forEach(function(r){if(ids.indexOf(r.goalId)>=0){r.goalId=null;r.code=issueRoutineCode(null);}});
   DB.goals=DB.goals.filter(function(x){return ids.indexOf(x.id)<0;});
   logAct('목표삭제 · '+g.code+' '+g.title);
-  save();closeModal();renderGoal();
+  save();closeModal();renderDG();
 }
 function toggleGoalOpen(gid){DB.ui.goalOpen=(DB.ui.goalOpen===gid)?null:gid;save();renderGoal();}
 
@@ -2977,7 +3336,9 @@ function closeModal(){ov.classList.remove('on');}
 /* 보상·버킷 데이터는 목표 탭(칩)과 보상 탭(표) 양쪽에 나온다.
    한쪽만 다시 그리면 반대쪽이 새로고침 전까지 옛 화면으로 남는다.
    (v7.5에서 보상함에 추가해도 표가 그대로던 버그의 원인) */
-function renderRW(){renderGoal();renderReward();}
+/* 보상·루틴 데이터는 데일리·목표·보상 세 곳에 나온다. 한 곳만 그리면 나머지가 옛 화면으로 남는다. */
+function renderRW(){renderDaily();renderGoal();renderReward();}
+function renderDG(){renderDaily();renderGoal();}
 /* 모달은 X 버튼으로만 닫힘 (바깥 클릭 무시) */
 function assetModal(id){
   var a=DB.accounts.filter(function(x){return x.id===id})[0];if(!a)return;
@@ -3237,6 +3598,7 @@ function migrateV6(d){
   if(!d.rewards)d.rewards=[];
   /* v8.0 — rewardLog(수령 기록) → rewardCards(카드) 승계.
      v7까지는 '수령'이 곧 가계부 거래였고, v8은 배치 → 활성 → 사용 카드 모델이다. */
+  if(!d.timelog)d.timelog={};   /* v11.0 ⏳ 타임로그 */
   if(!d.rewardCards)d.rewardCards={};
   if(d.rewardLog){
     for(var _lk in d.rewardLog){
@@ -3432,7 +3794,7 @@ function delTxn(id){if(!confirm('삭제할까요?'))return;var _t=DB.transaction
 
 /* 탭 → 렌더러 매핑. 사이드바에 탭을 추가하면 여기에도 반드시 등록할 것.
    (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
-var VIEW_RENDER={goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
+var VIEW_RENDER={daily:renderDaily,goal:renderGoal,timelog:renderTimelog,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
   acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,
   saju:renderSaju,journal:renderJournal,items:renderItems,log:renderLog};
 
@@ -3483,6 +3845,15 @@ document.addEventListener('click',function(e){
   var gdn=e.target.closest('[data-gdone]');if(gdn)return goalToggle(gdn.dataset.gdone);
   var msa=e.target.closest('[data-msadd]');if(msa)return goalModal(null,'milestone',msa.dataset.msadd,curMonth());
   var gop=e.target.closest('[data-gopen]');if(gop)return toggleGoalOpen(gop.dataset.gopen);
+  var tlq=e.target.closest('[data-tlq]');if(tlq)return tlSlotClick(parseInt(tlq.dataset.tlq,10));
+  var tlc=e.target.closest('[data-tlcal]');if(tlc)return setTlDate(tlc.dataset.tlcal);
+  var tld=e.target.closest('[data-tldv]');if(tld)return moveTlDate(parseInt(tld.dataset.tldv,10));
+  var tlm=e.target.closest('[data-tlmv]');if(tlm)return moveTlMonth(parseInt(tlm.dataset.tlmv,10));
+  if(e.target.closest('[data-tltoday]'))return setTlDate(todayStr());
+  if(e.target.closest('[data-tlcancel]')){DB.ui.tlPick=null;save();return renderTimelog();}
+  var rdw=e.target.closest('[data-rtdow]');if(rdw){var pw=rdw.dataset.rtdow.split('|');return rtDayToggle(pw[0],parseInt(pw[1],10));}
+  var gjp=e.target.closest('[data-gojump]');if(gjp){var gid=gjp.dataset.gojump;
+    gotoTab('goal'); if(gid){DB.ui.goalOpen=gid;save();renderGoal();} return;}
   var el=e.target.closest('[data-acc]');
   var vd=e.target.closest('[data-vdel]');if(vd)return delVal(vd.dataset.acc,vd.dataset.vdel);
   if(el&&el.dataset.acc&&el.classList.contains('item'))return assetModal(el.dataset.acc);
@@ -3548,7 +3919,7 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);renderGoal();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);renderDaily();});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
