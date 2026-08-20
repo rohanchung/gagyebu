@@ -19,7 +19,7 @@ const INIT=({st,at,conflict})=>{
     maybeSingle(){if(store.v===null&&store.at===null)return res(null);
       const o={};o.data=store.v;o.updated_at=store.at;return res(o);},
     update(p){mode='update';payload=p;return q;},
-    upsert(r){store.v=r.data;store.at=r.updated_at;store.wrote++;store.forced++;store.conflict=false;return res(null);}};
+    upsert(r){store.v=r.data;store.at=r.updated_at;store.wrote++;store.forced++;store.conflict=false;return res(null);},order(){return q},limit(){return q},insert(){return res([])},delete(){return q},in(){return q},then(a){return res([]).then(a)}};
    return q;}
   window.supabase={createClient:()=>({from:()=>mk(),auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};
 };

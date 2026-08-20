@@ -565,6 +565,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .savebadge.ok{background:#eef8f0;border-color:#9ecfa8;color:#256b34}
 .savebadge.bad{background:#fdeeee;border-color:#e0a0a0;color:#a52a2a;pointer-events:auto}
 @media(max-width:900px){.savebadge{right:10px;bottom:10px;font-size:11px;padding:6px 10px}}
+
+/* ── 스냅샷 목록 (v1.2) ── */
+.snaprow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12px}
+.snaprow b{font-weight:700;font-variant-numeric:tabular-nums}
+.snaprow .mut{flex:1 1 auto;min-width:0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.snaprow button{flex:0 0 auto}
+.pill.snk{font-size:10px;padding:2px 7px;white-space:nowrap}
+.pill.snk.auto{background:#eef2f8;color:#41506b;border:1px solid #cfd8e6}
+.pill.snk.manual{background:#fdf6e3;color:#8a6d1f;border:1px solid #e6c86a}
+.pill.snk.pre_restore{background:#fdeeee;color:#a52a2a;border:1px solid #e0a0a0}
+@media(max-width:900px){.snaprow{font-size:11.5px;gap:7px}.snaprow .mut{flex-basis:100%;order:9}}
 </style>
 </head>
 <body>
@@ -782,6 +793,79 @@ function localBakList(){
   var o=[];try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);
     if(k&&k.indexOf('rb_bak_')===0)o.push({k:k,d:k.slice(7),n:(localStorage.getItem(k)||'').length});}}catch(e){}
   o.sort(function(a,b){return a.d<b.d?1:-1});return o;
+}
+
+
+/* ====== 📀 스냅샷 (v1.2) ======
+   로한 제안: "JSON을 내 하드에만 두지 말고 Supabase 다른 쪽에도 두는 게 낫지 않냐" — 맞다. 단 층이 다르다.
+   ・ 이 스냅샷 = **논리적 사고** 방어. 코드 버그 / 다른 기기 덮어쓰기 / 실수로 지움.
+     자동이고 매일 쌓이고 앱 안에서 바로 되돌린다. 실제로 쓰이는 건 거의 항상 이쪽이다.
+   ・ JSON 파일 / GitHub = **물리적 사고** 방어. 프로젝트 정지·삭제, 계정 소실.
+     ⚠ 같은 Supabase 프로젝트 안에 있으므로 **이 테이블은 물리적 사고를 못 막는다.** 둘 다 있어야 한다.
+   테이블: public.app_state_snap (RLS: user_id = auth.uid())
+   kind: auto(하루 1개, 부분 유니크 인덱스로 강제) / manual(사용자 지점) / pre_restore(복원 직전 자동) */
+var SNAP_DONE=false;
+var SNAP_LIMIT={auto:30,manual:15,pre_restore:10};
+function snapInsert(kind,note){
+  var s=''; try{ s=JSON.stringify(DB); }catch(e){}
+  return SB.from('app_state_snap').insert({user_id:USER.id,day:todayStr(),kind:kind,note:note||null,bytes:s.length,data:DB});
+}
+function snapAutoOnLoad(){
+  if(SNAP_DONE||!USER||!DB)return; SNAP_DONE=true;
+  SB.from('app_state_snap').select('id').eq('user_id',USER.id).eq('day',todayStr()).eq('kind','auto').maybeSingle()
+   .then(function(r){
+     if(r&&r.data)return null;            /* 오늘 것이 이미 있다 */
+     return snapInsert('auto',null);
+   },function(){ return null; })
+   .then(function(){ snapPrune(); },function(){});
+}
+function snapPrune(){
+  /* 종류별 상한을 넘는 오래된 것부터 지운다. 실패해도 무시 — 정리는 부차적이다. */
+  SB.from('app_state_snap').select('id,kind,taken_at').eq('user_id',USER.id).order('taken_at',{ascending:false})
+   .then(function(r){
+     var rows=(r&&r.data)||[],cnt={},del=[];
+     rows.forEach(function(x){ var k=x.kind||'auto'; cnt[k]=(cnt[k]||0)+1;
+       if(cnt[k]>(SNAP_LIMIT[k]||10))del.push(x.id); });
+     if(del.length)SB.from('app_state_snap')['delete']().in('id',del).then(function(){},function(){});
+   },function(){});
+}
+function snapManual(){
+  var note=prompt('이 지점에 이름을 붙여라 (선택)\n예: 9월 목표 재설계 직전');
+  if(note===null)return;
+  snapInsert('manual',(note||'').trim()||null).then(function(){
+    logAct('📀 스냅샷 저장 · '+((note||'').trim()||'이름 없음')); save();
+    alert('현재 상태를 스냅샷으로 남겼다.'); snapRender(); snapPrune();
+  },function(e){ alert('스냅샷 저장 실패: '+((e&&e.message)||'')); });
+}
+function snapKindLabel(k){ return k==='auto'?'자동':(k==='manual'?'수동':(k==='pre_restore'?'복원직전':k)); }
+function snapRender(){
+  var el=document.getElementById('snaplist'); if(!el)return;
+  el.innerHTML='<span class="mut" style="font-size:11.5px">불러오는 중…</span>';
+  SB.from('app_state_snap').select('id,taken_at,day,kind,note,bytes').eq('user_id',USER.id)
+    .order('taken_at',{ascending:false}).limit(40)
+   .then(function(r){
+     var rows=(r&&r.data)||[];
+     if(!rows.length){ el.innerHTML='<span class="mut" style="font-size:11.5px">아직 스냅샷이 없다. 접속할 때마다 하루 1개씩 자동으로 쌓인다.</span>'; return; }
+     el.innerHTML=rows.map(function(x){
+       return '<div class="snaprow"><span class="pill snk '+(x.kind||'auto')+'">'+snapKindLabel(x.kind)+'</span>'
+        +'<b>'+String(x.taken_at).replace('T',' ').slice(0,16)+'</b>'
+        +'<span class="mut">'+Math.round((x.bytes||0)/1024)+'KB'+(x.note?' · '+sajuEsc(x.note):'')+'</span>'
+        +'<button class="ghost sm" data-snap="'+x.id+'">되돌리기</button></div>';
+     }).join('');
+   },function(e){ el.innerHTML='<span class="neg" style="font-size:11.5px">목록을 못 불러왔다: '+((e&&e.message)||'')+'</span>'; });
+}
+function snapRestore(id){
+  SB.from('app_state_snap').select('data,taken_at,kind,note').eq('id',id).maybeSingle().then(function(r){
+    var row=r&&r.data; if(!row||!row.data)return alert('그 스냅샷을 찾을 수 없다.');
+    var label='스냅샷 '+String(row.taken_at).replace('T',' ').slice(0,16)+' ('+snapKindLabel(row.kind)+(row.note?' · '+row.note:'')+')';
+    /* ⚠ 복원 직전에 지금 상태를 먼저 박아둔다. 복원이 틀렸을 때 돌아올 자리가 없으면 복원 기능 자체가 흉기다. */
+    snapInsert('pre_restore','복원 직전 자동 보관').then(function(){
+      applyRestore(row.data,label);
+    },function(e){
+      if(confirm('복원 직전 상태를 보관하는 데 실패했다.\n('+((e&&e.message)||'')+')\n\n지금 복원하면 현재 데이터로 돌아올 방법이 없다. 그래도 진행할까?'))
+        applyRestore(row.data,label);
+    });
+  },function(e){ alert('스냅샷을 불러오지 못했다: '+((e&&e.message)||'')); });
 }
 
 /* ---- JSON 내보내기 / 복원 ---- */
@@ -3108,13 +3192,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.1';
+var APP_VERSION='1.2';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.2',date:'2026-08-20',note:"<b>📀 스냅샷 백업.</b> 로한 제안 — <i>“JSON을 내 하드에만 두지 말고 Supabase 다른 쪽에도 두는 게 낫지 않냐”</i>. 맞다. 단 <b>층이 다르다</b>: 스냅샷 테이블은 <b>논리적 사고</b>(코드 버그·덮어쓰기·실수 삭제)를, JSON 파일은 <b>물리적 사고</b>(프로젝트·계정 소실)를 막는다. 서로 대체 못 한다. <code>app_state_snap</code> 신설(RLS 적용) · 접속 시 <b>하루 1개 자동</b>(부분 유니크 인덱스로 강제) · <b>📍 수동 지점</b> · <b>복원 직전 자동 보관</b>(잘못 되돌려도 돌아올 자리가 있다) · 종류별 보관 상한 자동 정리(자동30/수동15/복원직전10). 🪶 로그 탭."},
   {v:'1.1',date:'2026-08-20',note:"<b>동기화·백업.</b> 저장은 조용히 성공하고 시끄럽게 실패해야 한다 — v1.0까지 저장 실패를 <code>.then(f(){},f(){})</code>로 통째로 삼켰고, 조건 없는 upsert라 <b>폰과 PC를 같이 켜두면 나중에 저장한 쪽이 앞의 것을 통째로 지웠다.</b> updated_at 낙관적 잠금 + 충돌 시 선택(덮어쓰기/새로고침) + 5회 재시도 + 우하단 저장 배지. 💾 JSON 내려받기/복원 + 접속 직후 로컬 복원지점 3일치(📍 로그 탭). 마이그레이션 함수가 둘(migrateDB → migrateV6)이라는 사실을 코드에 명시."},
   {v:'1.0',date:'2026-08-20',note:"<b>정식 버전.</b> 9일간의 개발 이터레이션을 여기서 마감한다. 재정(가계부·현금흐름·계좌·부채·세무·예산) + 건강(체성분·피검사) + 명리(자체 만세력 엔진) + 성찰(일지) + 실행(데일리·목표·루틴·보상·타임로그) 15개 탭. \u26a0\ufe0f <b>앞으로 기능 추가는 0.1, 세부 수정은 0.01 단위로 올린다</b>(v1.1 / v1.11)."},
   {v:'—',date:'',note:"<b>─── 아래는 개발 이터레이션 로그 (2026-08-11 ~ 08-20) ───</b> 당시 번호 체계이며 위 v1.0 이후의 버전과는 별개다."},
@@ -3187,12 +3272,20 @@ function renderLog(){
        +'<button class="btn" onclick="exportJSON()">⬇ JSON 내려받기</button>'
        +'<label class="ghost" style="display:inline-block">⬆ 파일에서 복원<input type="file" accept="application/json,.json" style="display:none" onchange="importJSON(this)"></label>'
      +'</div>'
+     +'<div class="mut" style="font-size:11px;margin-top:8px">⬇ 파일은 <b>물리적 사고</b>(프로젝트·계정 소실) 대비다. 월 1회면 충분하다.</div>'
      +(_bk?('<div class="mut" style="font-size:11px;margin:10px 0 5px">이 브라우저에 남은 복원지점 — 접속 직후 상태다 (최근 3일)</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+_bk+'</div>'):'')
-     +'<div class="mut" style="font-size:11px;margin-top:10px">⚠ 복원은 서버 데이터를 통째로 덮어쓴다. 되돌릴 수 없다.</div>'
+     +'<div class="mut" style="font-size:11px;margin-top:10px">⚠ 복원은 서버 데이터를 통째로 덮어쓴다.</div>'
+   +'</div>'
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">📀 스냅샷 <span class="mut">서버에 쌓이는 되돌리기 지점</span></span>'
+     +'<button class="btn sm" onclick="snapManual()">📍 지금 상태 저장</button></div>'
+     +'<div class="mut" style="font-size:11px;margin:2px 0 9px">접속할 때마다 <b>하루 1개 자동</b>으로 쌓인다. 복원을 누르면 <b>직전 상태도 자동으로 한 장 남긴다</b> — 잘못 되돌려도 돌아올 수 있다.<br>'
+       +'⚠ 원본과 같은 Supabase 프로젝트에 있다. <b>논리적 사고</b>(코드 버그·덮어쓰기·실수 삭제)는 막지만 프로젝트 자체가 날아가면 같이 죽는다. 그래서 위의 ⬇ 파일 백업이 따로 필요하다.</div>'
+     +'<div id="snaplist"></div>'
    +'</div>'
    +'<div class="sec"><h4>📦 업데이트 기록 <span class="mut">현재 v'+APP_VERSION+' · 앱 변경이력</span></h4>'+cl+'</div>'
    +'<div class="sec"><h4>🕑 내 활동 로그 <span class="mut">최근 40건 · CRUD 자동기록</span></h4>'+act+'</div>'
    +'<div class="sec"><h4>재정경제부 로그 <button class="ghost" id="addLogBtn">+ 기록</button></h4>'+(rows||'<div class="mut">기록 없음</div>')+'</div>';
+  snapRender();
 }
 function logModal(id){
   var g=id?DB.logs2.filter(function(x){return x.id===id})[0]:{date:todayStr(),title:'',body:''};
@@ -4125,6 +4218,7 @@ document.addEventListener('click',function(e){
   var ri=e.target.closest('[data-restoreitem]');if(ri)return itemRestore(ri.dataset.restoreitem);
   var di=e.target.closest('[data-delitem]');if(di)return delItem(di.dataset.delitem);
   if(e.target.id==='addLogBtn')return logModal(null);
+  var sn=e.target.closest('[data-snap]');if(sn)return snapRestore(sn.dataset.snap);
   var el2=e.target.closest('[data-editlog]');if(el2)return logModal(el2.dataset.editlog);
   var dl2=e.target.closest('[data-dellog]');if(dl2)return delLog(dl2.dataset.dellog);
   if(e.target.id==='taxCalc')return taxRecalc();
@@ -4165,7 +4259,7 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();renderDaily();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();renderDaily();snapAutoOnLoad();});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);

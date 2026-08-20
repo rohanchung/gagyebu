@@ -8,7 +8,7 @@ const INIT=({fail})=>{
         if(store.tries<=store.failN) return Promise.reject(new Error('network down'));
         store.v=p.data;store.at=p.updated_at;return res([{updated_at:store.at}]); } return q; },
     eq(){return q},maybeSingle(){return res({data:store.v,updated_at:store.at})},
-    update(x){m='update';p=x;return q},upsert(r){store.v=r.data;store.at=r.updated_at;return res(null)}};
+    update(x){m='update';p=x;return q},upsert(r){store.v=r.data;store.at=r.updated_at;return res(null)},order(){return q},limit(){return q},insert(){return res([])},delete(){return q},in(){return q},then(a){return res([]).then(a)}};
    return q;}
   window.supabase={createClient:()=>({from:()=>mk(),auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};
 };
