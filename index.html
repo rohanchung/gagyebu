@@ -162,6 +162,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .tlq.has em{font-style:normal;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   text-shadow:0 1px 1px rgba(0,0,0,.18)}
 .tlq.pick{box-shadow:inset 0 0 0 2px var(--accent);background:#e8effd}
+.tlq.hl{filter:brightness(1.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(0,0,0,.08)}
+.tlq.hl:first-of-type{}
+.tledit{position:absolute;right:3px;top:50%;transform:translateY(-50%);
+  width:22px;height:20px;display:none;align-items:center;justify-content:center;
+  border-radius:5px;background:rgba(255,255,255,.92);color:#3a3a3a;font-size:11px;
+  font-weight:700;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.15);z-index:2}
+.tledit:hover{background:#fff;color:var(--accent)}
+.tlq.hl .tledit{display:flex}
+/* 터치 기기엔 hover 가 없다 — 항상 보여준다 */
+@media(hover:none){.tledit{display:flex}}
 .tlpicks{display:flex;flex-wrap:wrap;gap:5px}
 .tlpick{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);
   background:var(--card);font-size:11.5px;cursor:pointer;font-weight:600;transition:border-color .12s,background .12s}
@@ -2603,10 +2613,12 @@ function tlGrid(ds){
       var i=h*2+q, b=tlAt(ds,i);
       var st=b?(' has'+(b.s===i?' st':'')):'';
       var sel=(pick!=null&&i===pick)?' pick':'';
-      cells+='<span class="tlq'+st+sel+'" data-tlq="'+i+'"'
+      /* data-blk = 이 칸이 속한 블록의 시작 슬롯. hover 시 같은 블록 전체를 강조하는 데 쓴다. */
+      cells+='<span class="tlq'+st+sel+'" data-tlq="'+i+'"'+(b?' data-blk="'+b.s+'"':'')
         +(b?' style="background:'+tlTag(b.tag).c+'"':'')
         +' title="'+slotLabel(i)+(b?' · '+tlTag(b.tag).label+(b.title?' '+sajuEsc(b.title):''):'')+'">'
-        +(b&&b.s===i?'<em>'+sajuEsc(b.title||tlTag(b.tag).label)+'</em>':'')+'</span>';
+        +(b&&b.s===i?'<em>'+sajuEsc(b.title||tlTag(b.tag).label)+'</em>':'')
+        +(b&&b.e===i?'<b class="tledit" data-tledit="'+b.s+'" title="이 기록 수정">✎</b>':'')+'</span>';
     }
     rows+='<div class="tlrow"><span class="tlh">'+String(h).padStart(2,'0')+'</span>'+cells+'</div>';
   }
@@ -2627,7 +2639,7 @@ function tlPanel(ds){
    +(bars?'<div class="tlsums">'+bars+'</div>':'')
    +'<div class="mut tlhint">'+(pick!=null
       ? ('<b class="acc">'+slotLabel(pick)+'</b> 부터 — <b>끝나는 칸</b>을 눌러라 (같은 칸을 다시 누르면 30분)  <span class="chip check" data-tlcancel="1">취소</span>')
-      : '시작 칸을 누르고 끝 칸을 눌러라 · <b>기록된 칸 위에도 덮어쓸 수 있다</b> (앞뒤는 남는다)')+'</div>'
+      : '시작 칸 → 끝 칸으로 <b>새 기록</b>(덮어써도 앞뒤는 남는다) · 기록 위의 <b>✎</b>로 <b>내용만 수정</b>')+'</div>'
    +'<div class="tlgrid">'+tlGrid(ds)+'</div>'
    +'<div class="tllegend">'+TL_TAGS.map(function(x){
       return '<span class="tlsum"><i style="background:'+x.c+'"></i>'+x.label+'</span>';}).join('')+'</div>';
@@ -2967,9 +2979,10 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='12.1';
+var APP_VERSION='12.2';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 var CHANGELOG=[
+  {v:'12.2',date:'2026-08-20',note:"타임로그 ✎ 빠른 수정 (로한 제안) — 단순히 태그나 텍스트만 바꾸는데도 시작·끝을 다시 눌러야 해서 UX 손실이 있었다. 마우스를 올리면 그 블록 전체가 강조되고 끝 칸에 ✎ 가 뜬다. ✎ 클릭 = 그 구간의 내용 수정(시각 select 는 그대로 있으니 필요하면 시간도 조절 가능), 두 칸 탭 = 신설·덮어쓰기 — 두 동작이 충돌 없이 공존한다 · data-blk 로 같은 블록 칸을 묶어 hover 시 전체 강조(한 칸만 밝아지면 어디부터 어디까지인지 안 보인다) · 터치 기기엔 hover 가 없으므로 @media(hover:none) 에서 ✎ 을 항상 노출 · 범위 선택 중에는 ✎ 을 무시(칸 클릭 우선)"},
   {v:'12.1',date:'2026-08-20',note:"타임로그 구간 수정 자유화 (로한: '한번 정한 구획을 삭제하고 다시 써야 한다 — 결론은 시간 조절이 안 된다는 뜻') — \u26a0\ufe0f 기록된 칸을 누르면 '블록 전체 수정'만 됐다. 08:30–11:00 림월드 중 10:00–10:30만 식사로 바꾸려면 전체를 지워야 했다. 데이터 계층(tlPut)은 처음부터 겹침 분할을 지원했는데 UI만 막고 있었다 · 규칙을 하나로 통일: 항상 두 칸을 눌러 범위를 정하고 그 범위가 곧 편집 대상. 기록된 칸 위에도 그대로 덮어쓸 수 있고 앞뒤는 남는다 · 모달에 시작·끝 시각 select 추가 — 끌어서 정한 뒤에도 30분 단위로 미세 조절 가능 · 겹치는 기존 기록을 모달에 미리 보여주고, 하나에만 걸치면 태그·내용·루틴연결을 자동으로 이어받는다 · '이 구간 비우기' 신설(tlDelRange) — 블록 한가운데를 지우면 앞뒤가 남는다"},
   {v:'12.0',date:'2026-08-20',note:"데일리 + 타임로그 통합 (로한 설계) — 캘린더 하나에 계획(루틴 ✗이름·사유)과 실제(24시간 색띠)를 겹쳐 본다. 두 페이지가 각자 캘린더를 들고 있을 이유가 없었다 · 우측은 날짜 네비를 고정하고 내용만 [✓ 루틴 | ⏳ 로그] 탭으로 교체 — 같은 날짜로 계획과 실제를 바로 대조한다 · \u26a0\ufe0f 날짜 상태를 curDate() 하나로 통일(tlDate/tlMonth 제거). 두 페이지가 각자 날짜를 들면 반드시 어긋난다 · 탭 16 → 15개 · 캘린더 칸: 루틴 줄을 3→2로 줄여 색띠 자리를 만들고 높이 112px"},
   {v:'11.1',date:'2026-08-20',note:"데일리 캘린더 확대 (로한: '눌러보지 않아도 루틴을 지키고 있는지 알게 · 기록 칸 좌우를 줄여서라도 캘린더 비율을 맞춰라') — 칸에 그날 루틴을 ✗ 이름+사유 로 최대 3개, 나머지는 ✗+N, 한 것은 '✓ N개 완료'로 접는다(다 펼치면 루틴 5개일 때 칸이 172px 이 되어 실측상 달력이 세로로 늘어졌다) · 좌우 비율 1.6:1 → 2.1:1 로 기록 칸을 줄이고 칸 높이 78→108px → 칸이 106x108, 거의 정사각 · \u26a0\ufe0f .g2col 기본 규칙이 뒤에 있어 .dcol/.tlcol/.gcalcol 이 통째로 무시되고 있었다(특이도 동률, 뒤가 승) → .g2col.dcol 로 승격 · \u26a0\ufe0f 줄 높이를 px 로 못박음: flex+baseline+overflow 조합이 line box 를 줄당 20px 로 부풀렸다 · \u26a0\ufe0f .gcli 에 width:100% — 부모 flex column 의 cross-stretch 가 안 먹어 줄이 content 폭 30px 로 쪼그라들어 이름이 '매…' 로만 보였다(실측) · 타임로그 칸도 52→70px 로 키워 색띠 가독성 확보"},
@@ -3853,6 +3866,17 @@ for(var i=0;i<navs.length;i++)(function(m){m.addEventListener('click',function()
     var _fn=VIEW_RENDER[m.dataset.v];
   if(_fn)_fn(); else console.warn('[RohanBook] 렌더러가 등록되지 않은 탭: '+m.dataset.v);
 });})(navs[i]);
+/* 블록 전체 강조 — 한 칸만 밝아지면 어디부터 어디까지인지 안 보인다 */
+document.addEventListener('mouseover',function(e){
+  var q=e.target.closest('[data-blk]'); if(!q)return;
+  var b=q.dataset.blk, ns=document.querySelectorAll('.tlq[data-blk="'+b+'"]');
+  for(var i=0;i<ns.length;i++)ns[i].classList.add('hl');
+});
+document.addEventListener('mouseout',function(e){
+  var q=e.target.closest('[data-blk]'); if(!q)return;
+  var ns=document.querySelectorAll('.tlq.hl');
+  for(var i=0;i<ns.length;i++)ns[i].classList.remove('hl');
+});
 document.addEventListener('click',function(e){
   var rwk=e.target.closest('[data-rwcard]');if(rwk){var pa=rwk.dataset.rwcard.split('|');return rwCardModal(pa[0],pa[1]);}
   var rwe=e.target.closest('[data-rwedit]');if(rwe)return rewardModal(rwe.dataset.rwedit);
@@ -3891,6 +3915,11 @@ document.addEventListener('click',function(e){
   var msa=e.target.closest('[data-msadd]');if(msa)return goalModal(null,'milestone',msa.dataset.msadd,curMonth());
   var gop=e.target.closest('[data-gopen]');if(gop)return toggleGoalOpen(gop.dataset.gopen);
   var dtb=e.target.closest('[data-dtab]');if(dtb)return setDailyTab(dtb.dataset.dtab);
+  var tle=e.target.closest('[data-tledit]');
+  if(tle){ /* 범위 선택 중이 아닐 때만 — 선택 중이면 칸 클릭이 우선이다 */
+    if((DB.ui&&DB.ui.tlPick)==null){var bs=parseInt(tle.dataset.tledit,10),bb=tlAt(tlDate(),bs);
+      if(bb)return tlRangeModal(tlDate(),bb.s,bb.e);}
+  }
   var tlq=e.target.closest('[data-tlq]');if(tlq)return tlSlotClick(parseInt(tlq.dataset.tlq,10));
   var tlc=e.target.closest('[data-tlcal]');if(tlc)return setTlDate(tlc.dataset.tlcal);
   if(e.target.closest('[data-tltoday]'))return setTlDate(todayStr());
