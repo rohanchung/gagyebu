@@ -148,6 +148,28 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .plm:hover{color:var(--accent)}
 .plm.on{background:var(--accent);color:#fff}
 .plm.on:hover{color:#fff}
+/* 거래 행 — 1행 무엇/얼마, 2행 어떻게/조작 */
+.txr{border-bottom:1px solid #f0f2f6;padding:9px 2px}
+.txr:last-child{border-bottom:0}
+.txr1{display:flex;align-items:baseline;gap:6px}
+.txr-t{flex:1;min-width:0;font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.txr-a{flex:0 0 auto;font-size:13.5px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.txr2{display:flex;align-items:center;gap:8px;margin-top:3px;min-height:20px}
+.txr-m{flex:1;min-width:0;font-size:11px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.txr-m i{font-style:normal;opacity:.45;margin:0 3px}
+.txr-x{flex:0 0 auto;display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.txr:hover .txr-x,.txr:focus-within .txr-x{opacity:1}
+.txr-x span{display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:12px;line-height:1;color:var(--muted)}
+.txr-x span:hover{background:var(--soft);color:var(--ink)}
+@media(hover:none),(max-width:900px){.txr-x{opacity:1}}
+.pill.tr{background:#efeafb;color:#6f5fc7}
+.pill.st{background:#fff2d6;color:#b26a00}
+.warnx{color:var(--warn);font-weight:700}
+.cfwarn{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:var(--warn-bg);border:1px solid #e8c98a;border-radius:9px;padding:9px 11px;margin:0 0 10px;
+  font-size:12px;color:var(--warn)}
 .plbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--soft);
   border:1px solid var(--line);border-radius:9px;padding:6px 10px;margin:0 0 10px}
 .plmsg{font-size:11px;color:var(--muted);min-width:0}
@@ -172,9 +194,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .cycrow:hover .cyc-go{color:var(--warn)}
 .insttag{display:inline-block;font-size:9.5px;font-weight:700;color:#6f5fc7;background:#efeafb;
   border:1px solid #ddd4f5;border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:middle;white-space:nowrap}
-.instline{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;
-  border-left:2px solid #ddd4f5;padding-left:6px}
+.instline{font-size:10.5px;color:var(--muted);margin-top:5px;line-height:1.6;
+  border-left:2px solid #ddd4f5;padding-left:7px}
 .instline span{white-space:nowrap}
+.instline span.done{text-decoration:line-through;opacity:.45}
+.instline i{font-style:normal;opacity:.4;margin:0 4px}
 .itlife{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .itlife input[type=number]{width:96px;flex:0 0 auto}
 .itlife input[type=date]{flex:1 1 150px;min-width:0}
@@ -1142,21 +1166,20 @@ function renderDash(){
   document.getElementById('v-dash').innerHTML=''
    +'<div class="updated">🟢 실시간 · <b>'+todayStr()+' 기준 최신</b> · 행 클릭 → 12개월 추세</div>'
    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">'
-   +'<div class="sec" style="flex:1;min-width:280px;margin-bottom:0"><h4>자산 요약 <span class="mut">클릭→추세 📈</span></h4>'
+   +'<div class="sec" style="flex:1;min-width:280px;margin-bottom:0"><h4>자산 요약</h4>'
    +'<table style="width:100%;border-collapse:collapse;font-size:14.5px">'
    +'<tr data-metric="assets" style="cursor:pointer;border-bottom:1px solid var(--line)"><td style="padding:11px 4px;color:var(--muted)">총자산</td><td style="padding:11px 4px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums">'+won(ta)+'</td></tr>'
    +'<tr data-metric="debt" style="cursor:pointer;border-bottom:1px solid var(--line)"><td style="padding:11px 4px;color:var(--muted)">총부채</td><td style="padding:11px 4px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums">'+won(td)+'</td></tr>'
    +'<tr data-metric="net" style="cursor:pointer"><td style="padding:11px 4px;color:var(--muted)">순자산</td><td style="padding:11px 4px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums" class="'+(net<0?'neg':'pos')+'">'+signWon(net)+'</td></tr>'
    +'</table></div>'
-   +'<div class="sec" style="flex:1;min-width:280px;margin-bottom:0"><h4>🪶 로버트의 정리 <span class="mut">클릭→읽기</span></h4><div style="max-height:200px;overflow:auto">'+postList+'</div></div>'
+   +'<div class="sec" style="flex:1;min-width:280px;margin-bottom:0"><h4>🪶 로버트의 정리</h4><div style="max-height:200px;overflow:auto">'+postList+'</div></div>'
    +'</div>'
-   +'<div class="sec"><h4>자산 <span class="mut">항목 클릭 → 그래프·평가 업데이트</span></h4>'+gh
-   +'<div class="hint">🟢 자동=거래 연동 · 🔵 수기=평가액 직접 기록</div></div>'
+   +'<div class="sec"><h4>자산</h4>'+gh
+   +'</div>'
    +'<div class="sec"><h4>부채</h4>'+DB.debts.map(function(d){return '<div class="row"><span>'+d.name+' <span class="mut">'+(d.rate!=null?d.rate+'%':'')+(d.schedule?' · '+d.schedule.start+'부터 상환':' · 상환일정 없음')+'</span></span><span>'+won(d.balance)+'</span></div>'}).join('')+'</div>'
-   +'<div class="sec cardbox"><h4>💳 카드 미결제 <span class="mut">결제분(청구주기)별 · 줄을 눌러 선결제</span></h4>'
+   +'<div class="sec cardbox"><h4>💳 카드 미결제</h4>'
      +(cardRows||'<div class="mut">미결제 없음</div>')
-     +'<button class="btn warn sm" id="settleBtn" style="margin-top:8px">선결제 확정 →</button>'
-     +'<div class="mut" style="font-size:10.5px;margin-top:6px">결제일은 <b>예정일</b>일 뿐 앱이 자동으로 처리하지 않는다. 네가 누를 때만 확정된다.</div></div>';
+          +'</div>';
 }
 
 /* 좁은 칸용 금액 축약 — 77,500 → 7.8만 · 3,000 → 3천 */
@@ -1240,16 +1263,43 @@ function renderDay(ds){
   var cells=document.querySelectorAll('#v-cal .cell');for(var i=0;i<cells.length;i++)cells[i].classList.toggle('sel',cells[i].dataset.date===ds);
   var tx=DB.transactions.filter(function(t){return t.date===ds}).sort(function(a,b){return b.amt-a.amt});
   var h='<div class="detail"><div class="dhd"><h4>'+parseInt(ds.slice(5,7),10)+'월 '+parseInt(ds.slice(8),10)+'일 <span class="mut">('+tx.length+'건)</span></h4><button class="btn sm" id="addTxn">+ 거래 추가</button></div>';
-  if(!tx.length)h+='<div class="mut" style="padding:8px 0">거래 없음 — <b>+ 거래 추가</b>로 기록</div>';
+  if(!tx.length)h+='<div class="mut" style="padding:10px 2px">거래 없음</div>';
+  /* ⚠️ 한 줄에 계정과목·수단·계좌·뱃지·금액·아이콘을 다 넣으면 좁은 칸에서 줄이 접혀 깨진다.
+     하루 10건 남짓이므로 세로를 아껴야 할 이유가 없다.
+       1행 = 무엇을 · 얼마    (가장 먼저 읽는 것)
+       2행 = 어떻게 · 조작    (그 다음)
+     라벨 폭을 고정하지 않고 금액만 오른쪽에 못박아 숫자 열이 세로로 정렬되게 한다. */
+  function txRow(cls,badge,title,meta,amt,color,acts,extra){
+    return '<div class="txr '+cls+'">'
+      +'<div class="txr1">'+badge+'<b class="txr-t">'+title+'</b>'
+        +'<span class="txr-a" style="color:'+color+'">'+amt+'</span></div>'
+      +'<div class="txr2"><span class="txr-m">'+meta+'</span>'
+        +'<span class="txr-x">'+acts+'</span></div>'+(extra||'')+'</div>';
+  }
+  var A=function(id,del){return (del?'':'<span data-edit="'+id+'">✎</span>')+'<span data-del="'+id+'">🗑</span>';};
   tx.forEach(function(t){
-    if(t.type==='transfer'){h+='<div class="row"><span><span class="pill" style="background:#efeafb;color:#6f5fc7">이체</span>'+acctName(t.from)+' → '+acctName(t.to)+(t.memo?' <span class="mut" title="'+t.memo+'">📝</span>':'')+'</span><span style="color:#6f5fc7">'+won(t.amt)+' <span class="acts"><span data-edit="'+t.id+'">✎</span><span data-del="'+t.id+'">🗑</span></span></span></div>';return;}
-    if(t.type==='settle'){h+='<div class="row"><span><span class="pill" style="background:#fff2d6;color:#b26a00">카드결제</span>'+(t.method||'')+'</span><span style="color:var(--neg)">-'+won(t.amt)+' <span class="acts"><span data-del="'+t.id+'">🗑</span></span></span></div>';return;}
-    var acc=t.acct?' <span class="mut" style="font-size:10px">['+acctName(t.acct)+']</span>':'';
-    /* 할부는 '언제 얼마'가 그 자리에 보여야 한다 — 로한이 원한 '오늘 1/3 기록'의 실체 */
+    if(t.type==='transfer'){
+      h+=txRow('tr','<span class="pill tr">이체</span>',acctName(t.from)+' → '+acctName(t.to),
+        (t.memo?sajuEsc(t.memo):''),won(t.amt),'#6f5fc7',A(t.id));
+      return;}
+    if(t.type==='settle'){
+      h+=txRow('st','<span class="pill st">카드결제</span>',sajuEsc(t.method||''),
+        (t.cycle?cycleLabel(t.cycle):''),'-'+won(t.amt),'var(--neg)',A(t.id,true));
+      return;}
     var _n=instN(t), _dn=instDone(t), _il='';
-    if(_n>1){var _ps=[];for(var _k=1;_k<=_n;_k++)_ps.push('<span'+(_k<=_dn?' style="text-decoration:line-through;opacity:.5"':'')+'>'+cycleLabel(instCycle(t,_k)).replace(' 결제분','월')+' '+comma(instAmt(t,_k))+'</span>');
-      _il='<div class="instline">└ '+_ps.join(' · ')+(_dn?' <b>'+_dn+'/'+_n+' 결제완료</b>':'')+'</div>';}
-    h+='<div class="row"><span><span class="pill">'+(t.scope==='business'?'사업':'개인')+'</span>'+t.cat+' <span class="mut">· '+t.method+'</span>'+acc+(_n>1?'<span class="insttag">'+_n+'개월</span>':'')+(t.card?'<span class="badge">미결제</span>':'')+(t.memo?' <span class="mut" title="'+t.memo+'">📝</span>':'')+_il+'</span><span style="color:'+(t.type==='income'?'var(--pos)':'var(--neg)')+'">'+(t.type==='income'?'+':'-')+won(t.amt)+' <span class="acts"><span data-edit="'+t.id+'">✎</span><span data-del="'+t.id+'">🗑</span></span></span></div>';});
+    if(_n>1){var _ps=[];for(var _k=1;_k<=_n;_k++)_ps.push('<span'+(_k<=_dn?' class="done"':'')+'>'+cycleLabel(instCycle(t,_k)).replace(' 결제분','월')+' '+comma(instAmt(t,_k))+'</span>');
+      _il='<div class="instline">'+_ps.join('<i>·</i>')+(_dn?' <b>'+_dn+'/'+_n+' 결제완료</b>':'')+'</div>';}
+    var meta=[sajuEsc(t.method||'')];
+    if(t.acct)meta.push(acctName(t.acct));
+    else if(t.type==='expense'&&!creditCard(t.method))meta.push('<span class="warnx">계좌 미지정</span>');
+    var tags=(_n>1?'<span class="insttag">'+_n+'개월</span>':'')
+            +(t.card?'<span class="badge">미결제</span>':'')
+            +(t.memo?'<span class="mut" title="'+sajuEsc(t.memo)+'">📝</span>':'');
+    h+=txRow(t.type,'<span class="pill">'+(t.scope==='business'?'사업':'개인')+'</span>',
+      sajuEsc(t.cat), meta.join(' <i>·</i> ')+tags,
+      (t.type==='income'?'+':'-')+won(t.amt),
+      (t.type==='income'?'var(--pos)':'var(--neg)'), A(t.id), _il);
+  });
   h+='</div>';document.getElementById('dayPanel').innerHTML=h;
 }
 var pickerYear=2026;
@@ -1283,7 +1333,7 @@ function renderAcct(){
   var catHtml=catGrp('💰 수입',incC)+catGrp('🧾 지출 · 사업경비',bizC)+catGrp('🏠 지출 · 개인',perC);
   document.getElementById('v-acct').innerHTML=''
    +'<div class="sec"><h4>계좌·자산 <button class="ghost" id="addAccBtn">+ 추가</button></h4>'+accHtml+'</div>'
-   +'<div class="sec"><h4>카드 <button class="ghost" id="addCardBtn">+ 추가</button></h4>'+cardHtml+'<div class="mut" style="margin-top:8px">신용카드 지출은 가계부에서 \'미결제\'로 쌓여 현황판 카드 미결제에 표시 → 선결제로 확정.</div></div>'
+   +'<div class="sec"><h4>카드 <button class="ghost" id="addCardBtn">+ 추가</button></h4>'+cardHtml+'</div>'
    +'<div class="sec"><h4>부채 <button class="ghost" id="addDebtBtn">+ 추가</button></h4>'+debtHtml+'<div class="mut" style="margin-top:6px">대출 0~N개 가변 · 상환 스케줄은 가계부에 예정 세출로 반영(2차).</div></div>'
    +'<div class="sec"><h4>카테고리(분류) <button class="ghost" id="addCatBtn">+ 추가</button></h4>'+catHtml+'<div class="mut" style="margin-top:6px">지출 카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 세무 탭에 자동 연결.</div></div>';
 }
@@ -1308,7 +1358,7 @@ function renderTax(){
   var guide=Object.keys(byAccount).sort(function(a,b){return byAccount[b]-byAccount[a]}).map(function(acc){return '<div class="taxrow"><span>'+acc+'</span><span>'+won(byAccount[acc])+'</span></div>'}).join('')||'<div class="mut" style="padding:6px 0">경비로 지정된 카테고리 거래 없음</div>';
   function fld(id,v){return '<input class="taxin" id="'+id+'" value="'+v+'">';}
   document.getElementById('v-tax').innerHTML=''
-   +'<div class="sec"><h4>2026 귀속 종합소득세 예상 <span class="mut">간편장부 · 파란칸 수정</span></h4>'
+   +'<div class="sec"><h4>2026 귀속 종합소득세 예상</h4>'
    +'<div class="taxrow"><span>강사 연수입(940903)</span>'+fld('t_gangsa',p.gangsaIncome)+'</div>'
    +'<div class="taxrow"><span>스토어 순소득(결손이면 −)</span>'+fld('t_store',p.storeNet)+'</div>'
    +'<div class="taxrow"><span>(−) 이월결손금(2025)</span>'+fld('t_loss',p.carryLoss)+'</div>'
@@ -1324,9 +1374,9 @@ function renderTax(){
    +'<div class="taxrow"><span>산출세액</span><span>'+won(tax)+'</span></div>'
    +'<div class="taxrow"><span>(−) 기납부(원천징수 3.3%)</span><span>'+won(wht)+'</span></div>'
    +'<div class="taxrow big"><span>예상 '+(due>=0?'추가납부':'환급')+'</span><span class="'+(due>=0?'neg':'pos')+'">'+signWon(due)+'</span></div>'
-   +'<div class="hint">채움영어 풀가동 시 추가납부 전환.</div></div>'
-   +'<div class="sec"><h4>수입 소득구분별 (가계부 연동) <span class="mut">종합소득세 소득 분류</span></h4>'+incGuide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>수입 합계(YTD)</b></span><span class="pos"><b>'+won(incTotal)+'</b></span></div><div class="hint">수입 거래의 계정과목에 지정된 소득구분으로 자동 분류. 분류·코드 수정은 계좌·부채 탭 카테고리에서.</div></div>'
-   +'<div class="sec"><h4>종소세 경비 세목별 (가계부 연동) <span class="mut">카테고리 세무매핑 기준</span></h4><div class="taxrow"><span><b>사업 수입(YTD)</b></span><span class="pos">'+won(bizInc)+'</span></div>'+guide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>경비 합계(YTD)</b></span><span><b>'+won(guideTotal)+'</b></span></div><div class="hint">카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 그 지출이 여기 자동 집계된다. (카테고리 관리는 계좌·부채 탭)</div></div>';
+   +'</div>'
+   +'<div class="sec"><h4>수입 소득구분별</h4>'+incGuide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>수입 합계(YTD)</b></span><span class="pos"><b>'+won(incTotal)+'</b></span></div></div>'
+   +'<div class="sec"><h4>종소세 경비 세목별</h4><div class="taxrow"><span><b>사업 수입(YTD)</b></span><span class="pos">'+won(bizInc)+'</span></div>'+guide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>경비 합계(YTD)</b></span><span><b>'+won(guideTotal)+'</b></span></div></div>';
 }
 function taxRecalc(){
   var p=DB.taxParams;
@@ -1375,7 +1425,7 @@ function renderItems(){
    +'<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select id="itYear" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+yOpts+'</select><select id="itMonth" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+mOpts+'</select><span class="mut" style="align-self:center">구매일 기준 · 연/월/전체</span></div>'
    +(rows||'<div class="mut">사용중 재물 없음</div>')
    +'<div class="taxrow big" style="margin-top:10px"><span>총 월 감가상각 ('+(iy==='전체'?'전체':iy+(im==='전체'?'':'-'+im))+', 사용중)</span><span>'+won(totMonthly)+'</span></div></div>'
-   +(archived.length?'<div class="sec"><h4>✅ 완료·아카이브 <span class="mut">'+archived.length+'개 · 감가집계 제외</span></h4>'+archRows+'</div>':'');
+   +(archived.length?'<div class="sec"><h4>✅ 완료·아카이브 <span class="mut">'+archived.length+'개</span></h4>'+archRows+'</div>':'');
 }
 function itemDone(id){var it=DB.items.filter(function(x){return x.id===id})[0];if(!it)return;it.status='archived';it.archivedAt=todayStr();logAct('재물완료 · '+it.name);save();renderItems();}
 function itemRestore(id){var it=DB.items.filter(function(x){return x.id===id})[0];if(!it)return;it.status='사용중';it.archivedAt=undefined;logAct('재물복원 · '+it.name);save();renderItems();}
@@ -1396,7 +1446,7 @@ function renderBudget(){
   }).join('');
   var totBud=expCats.reduce(function(s,c){return s+(DB.budgets[c.name]||0)},0);
   document.getElementById('v-budget').innerHTML=''
-   +'<div class="sec"><h4>예산 대비 실적 <span class="mut">'+m+' · 월 변경은 가계부 탭</span></h4>'
+   +'<div class="sec"><h4>예산 대비 실적 <span class="mut">'+m+'</span></h4>'
    +'<div class="taxrow"><span>월 지출 실적</span><span class="neg">'+won(pl.exp)+'</span></div>'
    +'<div class="taxrow"><span>월 예산 합계</span><span>'+won(totBud)+'</span></div>'
    +'<div class="taxrow big"><span>'+(pl.exp>totBud?'예산 초과':'예산 잔여')+'</span><span class="'+(pl.exp>totBud?'neg':'pos')+'">'+signWon(totBud-pl.exp)+'</span></div></div>'
@@ -1405,6 +1455,36 @@ function renderBudget(){
 function budgetChange(cat,val){DB.budgets[cat]=parseFloat((val+'').replace(/[^0-9.]/g,''))||0;save();renderBudget();}
 
 /* ====== 현금흐름 (P3+P5) ====== */
+/* ══════ 현금흐름 정합 (v1.41) ══════
+   ⚠️ [버그] 유출을 `모든 expense + 모든 settle` 로 셌다. 신용카드 지출은
+      expense 로 한 번(산 시점), settle 로 또 한 번(낸 시점) 잡혀 **같은 돈을 두 번 셌다.**
+      실측 2026-08: 신용카드 988,154 중 선결제된 332,154 가 이중계상 → 유출이 그만큼 부풀려져 있었다.
+   🔒 현금흐름은 '통장에서 실제로 움직인 돈'만 본다.
+      유출 = 계좌가 붙은 expense + settle.  신용카드 expense 는 settle 로만 나간다.
+   ⚠️ [공백] 계좌가 안 붙은 거래를 Sankey 는 조용히 빼고 합계는 포함했다.
+      둘이 안 맞는데 아무도 말해주지 않았다 — 이제 cfUnassigned() 로 화면에 드러낸다. */
+/* 그 거래가 '현금 유출'로 잡히는가 — 신용카드 원거래는 아니다(선결제 때 나간다) */
+function cfIsCashOut(t){
+  if(t.type==='settle')return true;
+  if(t.type!=='expense')return false;
+  return !creditCard(t.method) && !!t.acct;
+}
+function cfIsCashIn(t){return t.type==='income'&&!!t.acct;}
+/* 계좌가 비어 현금흐름에서 증발하는 거래 (신용카드는 정상이므로 제외) */
+function cfUnassigned(txns){
+  var out=[];
+  txns.forEach(function(t){
+    if(t.type==='expense'&&!t.acct&&!creditCard(t.method))out.push(t);
+    else if(t.type==='income'&&!t.acct)out.push(t);
+  });
+  return out;
+}
+/* 결제수단이 카드면 그 카드의 연결계좌를 돌려준다 — 소급 보정의 근거 */
+function cfGuessAcct(t){
+  var c=cardBy(t.method);
+  if(c&&c.type==='check'&&c.acct)return c.acct;
+  return null;
+}
 function cfTxns(per){if(per==='all')return DB.transactions.slice();if(per==='year'){var y=todayStr().slice(0,4);return DB.transactions.filter(function(t){return (t.date||'').slice(0,4)===y;});}var m=DB.ui.month;return DB.transactions.filter(function(t){return monthOf(t.date)===m;});}
 function setCfPeriod(p){DB.ui.cfPeriod=p;save();renderCashflow();}
 function setReconcile(id,v){DB.ui.reconcile=DB.ui.reconcile||{};DB.ui.reconcile[id]=v;save();renderCashflow();}
@@ -1412,14 +1492,29 @@ function reconcileApply(id){var a=DB.accounts.filter(function(x){return x.id===i
   if(diff>0){DB.transactions.push({id:uid(),type:'income',scope:'personal',cat:'이자수입',acct:id,amt:diff,date:todayStr(),method:'이체',memo:'대조 차액 반영'});}
   else{DB.transactions.push({id:uid(),type:'expense',scope:'personal',cat:'기타',acct:id,amt:-diff,date:todayStr(),method:'현금',memo:'대조 차액 반영'});}
   DB.ui.reconcile[id]='';logAct('대조 차액반영 · '+a.name+' '+signWon(diff));save();renderCashflow();renderDash();}
+/* 카드에 연결계좌를 나중에 설정해서 옛 거래가 비어 있는 경우를 메운다.
+   ⚠️ 체크카드만 — 계좌가 고정이라 추론이 안전하다. 현금·이체는 사람만 안다. 손대지 않는다. */
+function cfFixAccts(){
+  var una=cfUnassigned(cfTxns(DB.ui.cfPeriod||'month'));
+  var tg=una.filter(function(t){return !!cfGuessAcct(t);});
+  if(!tg.length)return alert('연결계좌로 채울 수 있는 거래가 없다.\n현금·이체 건은 어느 계좌인지 앱이 알 수 없으므로 직접 지정해야 한다.');
+  var by={};tg.forEach(function(t){var k=t.method+' → '+acctName(cfGuessAcct(t));by[k]=(by[k]||0)+1;});
+  var lines=Object.keys(by).map(function(k){return '  · '+k+' '+by[k]+'건';}).join('\n');
+  if(!confirm('체크카드의 연결계좌로 출금계좌를 채운다.\n\n'+lines+'\n\n총 '+tg.length+'건. 진행할까?'))return;
+  tg.forEach(function(t){t.acct=cfGuessAcct(t);});
+  logAct('현금흐름 계좌 보정 · '+tg.length+'건');
+  save();renderCashflow();renderDash();renderCal();
+  alert(tg.length+'건 채웠다.');
+}
 function cfClip(s){return s.length>8?s.slice(0,7)+'…':s;}
 function cfShort(v){return v>=10000?Math.round(v/10000)+'만':(''+Math.round(v));}
 function cfBuildSankey(txns){
   var S={},A={},K={},linksSA=[],linksAK=[];
   function acctById(id){return DB.accounts.filter(function(x){return x.id===id})[0];}
   txns.forEach(function(t){
-    if(t.type==='income'&&t.acct){S['in:'+t.cat]=(S['in:'+t.cat]||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].in+=t.amt;linksSA.push({s:'in:'+t.cat,a:t.acct,v:t.amt});}
-    else if(t.type==='expense'&&t.acct){K['ex:'+t.cat]=(K['ex:'+t.cat]||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].out+=t.amt;linksAK.push({a:t.acct,k:'ex:'+t.cat,v:t.amt});}
+    /* 🔒 합계와 같은 판정(cfIsCashIn/Out)을 쓴다. 판정이 둘이면 그림과 숫자가 또 어긋난다. */
+    if(cfIsCashIn(t)){S['in:'+t.cat]=(S['in:'+t.cat]||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].in+=t.amt;linksSA.push({s:'in:'+t.cat,a:t.acct,v:t.amt});}
+    else if(t.type==='expense'&&cfIsCashOut(t)){K['ex:'+t.cat]=(K['ex:'+t.cat]||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].out+=t.amt;linksAK.push({a:t.acct,k:'ex:'+t.cat,v:t.amt});}
     else if(t.type==='settle'&&t.acct){K['ex:카드결제']=(K['ex:카드결제']||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].out+=t.amt;linksAK.push({a:t.acct,k:'ex:카드결제',v:t.amt});}
     else if(t.type==='transfer'){var toA=acctById(t.to);if(toA&&!isCashAcct(toA)){K['sv:'+t.to]=(K['sv:'+t.to]||0)+t.amt;A[t.from]=A[t.from]||{in:0,out:0};A[t.from].out+=t.amt;linksAK.push({a:t.from,k:'sv:'+t.to,v:t.amt});}}
   });
@@ -1427,7 +1522,7 @@ function cfBuildSankey(txns){
 }
 function cfSankeySVG(g){
   var sK=Object.keys(g.S),aK=Object.keys(g.A),kK=Object.keys(g.K);
-  if(!sK.length&&!kK.length)return '<div class="mut" style="padding:24px 0;text-align:center">계좌를 붙인 수입·지출 거래가 있어야 흐름이 그려집니다.<br>9월부터 새 방식으로 입력하면 자동으로 채워집니다.</div>';
+  if(!sK.length&&!kK.length)return '<div class="mut" style="padding:24px 0;text-align:center">계좌가 붙은 거래 없음</div>';
   var colS=sK.map(function(k){return {key:k,label:k.slice(3),v:g.S[k]};});
   var colA=aK.map(function(k){return {key:k,label:acctName(k),v:Math.max(g.A[k].in,g.A[k].out)};});
   var colK=kK.map(function(k){return {key:k,label:k.slice(0,3)==='sv:'?('▶'+acctName(k.slice(3))):k.slice(3),v:g.K[k]};});
@@ -1468,18 +1563,26 @@ function renderCashflow(){
       +'<span style="min-width:96px;text-align:right;font-variant-numeric:tabular-nums" class="'+(diff==null?'mut':(Math.abs(diff)<1?'pos':'neg'))+'">'+(diff==null?'—':signWon(diff))+'</span>'
       +'<span style="min-width:74px;text-align:right">'+((diff!=null&&Math.abs(diff)>=1)?'<button class="ghost" data-reconapply="'+a.id+'">차액반영</button>':'')+'</span></div>';
   }).join('');
-  var tin=0,tout=0;txns.forEach(function(t){if(t.type==='income')tin+=t.amt;else if(t.type==='expense'||t.type==='settle')tout+=t.amt;});
+  var tin=0,tout=0;txns.forEach(function(t){
+    if(cfIsCashIn(t))tin+=t.amt; else if(cfIsCashOut(t))tout+=t.amt;});
+  var una=cfUnassigned(txns);
+  var unaSum=una.reduce(function(x,t){return x+t.amt;},0);
+  var fixable=una.filter(function(t){return !!cfGuessAcct(t);});
   var pill=function(p,l){return '<button class="'+(per===p?'btn sm':'ghost')+'" onclick="setCfPeriod(\''+p+'\')">'+l+'</button>';};
   var perLabel=per==='all'?'전체':(per==='year'?todayStr().slice(0,4)+'년':DB.ui.month);
   document.getElementById('v-cashflow').innerHTML=''
-   +'<div class="sec"><h4>🌊 현금흐름 <span class="mut">'+perLabel+' · 돈의 위치와 이동</span> <span style="float:right">'+pill('month','월')+' '+pill('year','올해')+' '+pill('all','전체')+'</span></h4>'
+   +'<div class="sec"><h4>🌊 현금흐름 <span class="mut">'+perLabel+'</span> <span style="float:right">'+pill('month','월')+' '+pill('year','올해')+' '+pill('all','전체')+'</span></h4>'
    +'<div style="display:flex;gap:8px;margin:6px 0 14px;flex-wrap:wrap"><div class="stat"><div class="sl">유입</div><div class="sv pos">'+won(tin)+'</div></div><div class="stat"><div class="sl">유출</div><div class="sv neg">'+won(tout)+'</div></div><div class="stat"><div class="sl">순증</div><div class="sv '+((tin-tout)<0?'neg':'pos')+'">'+signWon(tin-tout)+'</div></div></div>'
-   +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 6px 4px"><span>수입원천</span><span>계좌</span><span>사용처(지출·저축·투자)</span></div>'
+   +(una.length?('<div class="cfwarn"><span><b>계좌 미지정 '+una.length+'건 · '+won(unaSum)+'</b>'
+       +'<br><span class="mut">이 거래는 흐름에도 잔액에도 안 잡힌다</span></span>'
+       +(fixable.length?'<button class="btn warn sm" id="cfFixBtn">연결계좌로 '+fixable.length+'건 채우기</button>':'')
+       +'</div>'):'')
+   +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 6px 4px"><span>수입원천</span><span>계좌</span><span>사용처</span></div>'
    +cfSankeySVG(g)+'</div>'
-   +'<div class="sec"><h4>실시간 대조 <span class="mut">계산잔액 vs 실제잔액</span></h4>'
+   +'<div class="sec"><h4>실시간 대조</h4>'
    +'<div class="row" style="font-size:11px;color:var(--muted)"><span style="flex:1">계좌</span><span style="min-width:110px;text-align:right">앱 계산</span><span style="min-width:120px;text-align:right">실제잔액</span><span style="min-width:96px;text-align:right">차액</span><span style="min-width:74px"></span></div>'
    +(recRows||'<div class="mut">현금 계좌 없음</div>')
-   +'<div class="hint">실제잔액을 넣으면 차액이 뜬다. [차액반영] = 차액을 그 계좌 이자수입(+) 또는 기타지출(−)으로 계상해 오차 0으로 맞춘다. 데일리 이자는 여기서 한 번에 흡수.</div></div>'
+   +'</div>'
    +cfTransferList(txns);
 }
 
@@ -1539,8 +1642,8 @@ function renderWeight(){
   var evlist=ev.map(function(e){var st=e.status==='진행중'?'<span class="chip" style="background:#fff6e2;color:#b26a00">진행중</span>':'<span class="chip check">완치</span>';return '<div class="row"><span>'+st+' <b>'+e.name+'</b>'+(e.symptom?' <span class="mut">· '+e.symptom+'</span>':'')+(e.memo?' <span class="mut">📄</span>':'')+'</span><span>'+e.date+' <span class="acts"><span data-editevent="'+e.id+'">수정</span><span data-delevent="'+e.id+'">삭제</span></span></span></div>';}).join('');
   document.getElementById('v-weight').innerHTML=''
    +'<div class="sec"><h4>⚖️ 체성분 추세 <span class="mut">'+(latest?latest.date+' · 키 '+whHeight()+'cm':'')+'</span> <button class="ghost" id="addWeightBtn" style="float:right">+ 기록</button></h4><div class="wtabs">'+tabs+'</div>'+metricChart(mkey)+'</div>'
-   +'<div class="sec"><h4>기록 <span class="mut">'+ws.length+'건 · 클릭→수정 · <span style="opacity:.7">·계=자동계산</span></span></h4>'+(wlist||'<div class="mut">기록 없음</div>')+'</div>'
-   +'<div class="sec"><h4>🤕 사고·질병 이력 <button class="ghost" id="addEventBtn" style="float:right">+ 추가</button></h4>'+(evlist||'<div class="mut">기록 없음</div>')+'<div class="hint">감기·오십견 등을 \'사고\'로 관리. 진료내역서는 수정 → 메모칸에 텍스트로 붙여넣으면 됨.</div></div>';
+   +'<div class="sec"><h4>기록 <span class="mut">'+ws.length+'건 · <span style="opacity:.7">·계=자동계산</span></span></h4>'+(wlist||'<div class="mut">기록 없음</div>')+'</div>'
+   +'<div class="sec"><h4>🤕 사고·질병 이력 <button class="ghost" id="addEventBtn" style="float:right">+ 추가</button></h4>'+(evlist||'<div class="mut">기록 없음</div>')+'</div>';
 }
 function weightModal(date){
   var H=DB.health;H.weights=H.weights||[];
@@ -1550,7 +1653,7 @@ function weightModal(date){
    +'<div class="field"><label>날짜</label><input id="wf_date" value="'+(e.date||todayStr())+'"></div>'
    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">'+grid+'</div>'
    +'<div class="field"><label>메모</label><input id="wf_memo" value="'+((e.memo||'').replace(/"/g,'&quot;'))+'" placeholder="선택"></div>'
-   +'<div class="hint">체중계 화면 순서대로 위→아래. 비율·BMI·제지방량은 자동 계산되니 안 적어도 된다.</div>'
+   +''
    +'<button class="btn" onclick="saveWeight('+(date?"'"+date+"'":'null')+')">저장</button>'+(date?' <button class="ghost" onclick="delWeight(\''+date+'\')">삭제</button>':''));
 }
 function saveWeight(orig){
@@ -1603,7 +1706,7 @@ function renderLabs(){
     });
   });
   document.getElementById('v-labs').innerHTML=''
-   +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+N+'회 · 좌우 스크롤 옛→최근</span> <button class="ghost" id="labAddBtn" style="float:right">+ 검사일</button></h4>'
+   +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+N+'회</span> <button class="ghost" id="labAddBtn" style="float:right">+ 검사일</button></h4>'
    +'<div class="mut" style="font-size:10px;margin-bottom:8px">정상범위 벗어나면 <span class="lab-hi">↑높음</span>/<span class="lab-lo">↓낮음</span> · 셀 클릭 → 값 편집·추세 · 타입/복약/날짜 클릭 → 방문·약 수정 · 지표에 마우스 올리면 설명</div>'
    +'<div class="labwrap"><table class="labtbl"><thead><tr><th class="cM">지표</th>'+dcols+'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
   var lw=document.querySelector('#v-labs .labwrap');if(lw)lw.scrollLeft=lw.scrollWidth;
@@ -1624,7 +1727,7 @@ function labCell(name,i){var H=DB.health;var m=H.metrics.filter(function(x){retu
    +'<div class="mut">'+H.labDates[i]+' · '+(H.labTypes[i]||'')+' · 정상 '+(m.range||'-')+'</div>'
    +labSChart(name,m)
    +'<div class="updrow" style="margin-top:10px"><input id="lv" value="'+(v==null?'':v)+'" placeholder="수치"><button class="btn" onclick="saveLabCell(\''+name.replace(/'/g,"\\'")+'\','+i+')">저장</button></div>'
-   +'<div class="hint">값 비우고 저장하면 삭제. 숫자면 정상범위 대비 자동 색상.</div>');
+   +'');
 }
 function saveLabCell(name,i){var raw=(document.getElementById('lv').value||'').trim();var H=DB.health;H.labValues[name]=H.labValues[name]||[];var val;if(raw==='')val=null;else{var num=parseFloat(raw.replace(/[^0-9.\-]/g,''));val=isNaN(num)?raw:num;}H.labValues[name][i]=val;logAct('피검사 '+name+' '+H.labDates[i]+' = '+(raw||'삭제'));save();closeModal();renderLabs();}
 function parseMeds(s){return (s||'').split(/[,\n]/).map(function(x){return x.trim();}).filter(Boolean);}
@@ -1703,15 +1806,15 @@ function renderSaju(){
    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">'
    +'<div class="sec" style="flex:2;min-width:340px;margin-bottom:0"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span>'+bub('natal','총운(원국) 해석')+'</h4>'+wonguk
    +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span></div></div>'
-   +'<div class="sec" style="flex:1.5;min-width:300px;margin-bottom:0"><h4>대운 흐름 <span class="mut">💬 클릭</span></h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
+   +'<div class="sec" style="flex:1.5;min-width:300px;margin-bottom:0"><h4>대운 흐름</h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
    +'</div>'
    +'<div class="sajucols">'
-   +'<div class="sec sc"><h4>연도별 세운 <span class="mut">클릭→월별 / 💬</span></h4><div class="scbody">'+yrs+'</div></div>'
-   +'<div class="sec sc"><h4>'+selY+'년 월별 <span class="mut">클릭→특이일 / 💬</span></h4><div class="scbody">'+months+'</div></div>'
-   +'<div class="sec sc"><h4>특이일 <span class="mut">'+ym+' / 💬</span></h4><div class="scbody">'+special+'</div></div>'
+   +'<div class="sec sc"><h4>연도별 세운</h4><div class="scbody">'+yrs+'</div></div>'
+   +'<div class="sec sc"><h4>'+selY+'년 월별</h4><div class="scbody">'+months+'</div></div>'
+   +'<div class="sec sc"><h4>특이일 <span class="mut">'+ym+'</span></h4><div class="scbody">'+special+'</div></div>'
    +'</div>'
-   +'<div class="hint" style="padding:0 4px 8px">행 클릭 = 드릴다운(연도→월→일). 💬 = 저장된 해석 모달.</div>'
-   +'<div class="sec"><h4>🧭 인생 총운 <span class="mut">스토리 · 차후 업데이트됨</span></h4><div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;color:#33425e">'+(S.story?sajuEsc(S.story):'<span class="mut">아직 스토리 없음 — "인생 총운 스토리 써줘" 하면 Claude가 작성·저장.</span>')+'</div></div>';
+   +''
+   +'<div class="sec"><h4>🧭 인생 총운</h4><div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;color:#33425e">'+(S.story?sajuEsc(S.story):'<span class="mut">아직 스토리 없음 — "인생 총운 스토리 써줘" 하면 Claude가 작성·저장.</span>')+'</div></div>';
 }
 
 /* ====== 목표·루틴 엔진 (v6.0) ======
@@ -2418,7 +2521,7 @@ function rewardModal(id,preTier,preGoal,placeFor){
    +'<div class="field" id="rw_twrap"><label>권장일 <span class="mut">(행동 보상)</span></label>'
    +'<select id="rw_timing"><option value="any"'+(rw.timing==='any'||!rw.timing?' selected':'')+'>상관없음</option>'
    +'<option value="yin"'+(rw.timing==='yin'?' selected':'')+'>음기일 (陰 · 주 1~2회)</option></select>'
-   +'<div class="hint">명리상 음기가 강한 날에 표시된다. <b>과학적 근거는 없다</b> — "아무 때나"보다 규칙이 있는 편이 절제에 낫다는 실용적 장치다.</div></div>'
+   +'<div class="hint" style="display:none"><b>과학적 근거는 없다</b> — "아무 때나"보다 규칙이 있는 편이 절제에 낫다는 실용적 장치다.</div></div>'
    +'<div class="mut" style="font-size:11px;margin:10px 0 8px;padding-top:9px;border-top:1px dashed var(--line)">'
    +'문턱 — 주 완전달성 <b>'+c.weekFullDays+'일</b> · 월 주성공 <b>'+c.monthWeeks+'회</b> · 연 월성공 <b>'+c.yearMonths+'회</b>'
    +' <span id="rwCfgBtn" style="cursor:pointer;color:var(--accent)">조정</span></div>'
@@ -2553,10 +2656,7 @@ function toRewardModal(id){
     return '<button onclick="mvTier(this,\''+x.k+'\')">'+x.label+'</button>';}).join('');
   openModal('<div class="mtop"><h3>🎁 보상함으로 <span class="gcode">'+b.code+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="mut" style="font-size:12px;margin-bottom:10px">'+sajuEsc(b.title)+(b.price?' <span class="mut">· '+comma(b.price)+'원</span>':'')+'</div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
-   +'보상함에 올리면 <b>계단 달성 시 선택지</b>에 뜬다. 어느 단계에서 받을지 정해라.<br>'
-   +'언제든 <b>버킷으로 되돌릴 수 있다</b> — 가볍게 결정해도 된다.</div>'
-   +'<div class="field"><label>어느 단계</label><div class="seg" id="mv_seg">'+seg+'</div><div class="hint" id="mv_hint"></div></div>'
+      +'<div class="field"><label>어느 단계</label><div class="seg" id="mv_seg">'+seg+'</div><div class="hint" id="mv_hint"></div></div>'
    +'<div class="field" id="mv_gwrap" style="display:none"><label>연결할 연간 목표</label><select id="mv_goal">'+(gopts||'<option value="">연간 목표가 없다</option>')+'</select></div>'
    +'<div class="field" id="mv_twrap" style="display:none"><label>권장일</label>'
    +'<select id="mv_timing"><option value="any">상관없음</option><option value="yin">음기일 (陰)</option></select></div>'
@@ -2615,11 +2715,6 @@ function promoteBucketModal(id){
   }
   var mm=document.getElementById('g_memo');
   if(mm&&!mm.value)mm.value='🪣 '+b.code+' 에서 올라옴'+(b.price?' · 예상 '+comma(b.price)+'원':'')+(b.memo?'\n'+b.memo:'');
-  var top=modal.querySelector('.mtop');
-  if(top)top.insertAdjacentHTML('afterend',
-    '<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
-    +'🪣 <b>'+sajuEsc(b.code)+' '+sajuEsc(b.title)+'</b> 를 <b>연간 목표</b>로 올린다.<br>'
-    +'버킷 항목은 그대로 남고 <b>목표와 링크만 걸린다</b> — 언제든 ↩ 로 끊을 수 있다.</div>');
   modal._fromBk=id;
 }
 function unpromoteBucket(id){
@@ -2672,10 +2767,7 @@ function bucketModal(id){
   var kseg=REWARD_KINDS.map(function(x){
     return '<button class="'+((b.kind||'spend')===x.k?'on':'')+'" onclick="bkKind(this,\''+x.k+'\')">'+x.label+'</button>';}).join('');
   openModal('<div class="mtop"><h3>'+(id?('버킷 수정 <span class="gcode">'+b.code+'</span>'):'🪣 버킷에 담기')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +(id?'':'<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
-       +'지금 <b>원하는 것</b>을 적어라. 크기는 상관없다 — 국밥부터 서울에 집 사기까지.<br>'
-       +'적어두는 것만으로 충동이 한 번 걸러진다. 받을 수 있을지는 <b>고를 때</b> 정해진다.</div>')
-   +'<div class="field"><label>내용</label><input id="bk_title" value="'+sajuEsc(b.title)+'" placeholder="예: 스시 오마카세 / 무선이어폰 / 온천 1박"></div>'
+      +'<div class="field"><label>내용</label><input id="bk_title" value="'+sajuEsc(b.title)+'" placeholder="예: 스시 오마카세 / 무선이어폰 / 온천 1박"></div>'
    +'<div class="field"><label>분류</label><div class="seg">'+kseg+'</div></div>'
    +'<div class="field"><label>예상 비용 <span class="mut">— 짐작이면 된다. 0이면 돈 안 드는 것</span></label>'
    +'<input id="bk_price" value="'+(b.price||'')+'" placeholder="0"></div>'
@@ -3374,8 +3466,7 @@ function rewardTable(){
     +'보상함이 비어 있다.<br><span style="font-size:11px">왼쪽 버킷에서 <b>→</b> 를 눌러 올려라. 여기 있는 것만 계단 달성 시 받을 수 있다.</span></td></tr>';
   return '<div class="pane"><div class="bkhd"><span class="subhd2">🎁 보상함 <span class="mut">계단에서 받을 것</span></span>'
    +'<button class="btn sm" id="addFixedBtn">+ 직접 추가</button></div>'
-   +'<div class="mut" style="font-size:10.5px;margin-bottom:6px">여기 있는 것만 주간·월간·연간 달성 시 선택지에 뜬다</div>'
-   +'<div class="tblwrap"><table class="btbl"><thead><tr>'
+      +'<div class="tblwrap"><table class="btbl"><thead><tr>'
    +'<th>코드</th><th>내용</th><th>단계</th><th>분류</th><th class="r">예상비용</th><th class="r">이동</th>'
    +'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
 }
@@ -3407,7 +3498,7 @@ function renderReward(){
   var real=bucketRealistic().length;
 
   document.getElementById('v-reward').innerHTML=''
-   +'<div class="sec"><h4>🎁 보상 계단 <span class="mut">일간 완전달성 → 주간 → 월간 → 연간</span>'
+   +'<div class="sec"><h4>🎁 보상 계단'
    +'<span class="hacts"><span class="mut" id="rwHistBtn2" style="font-size:11px;cursor:pointer">📜 사용 '+logN+'건</span>'
    +'<button class="ghost sm" id="rwCfgBtn2">문턱 조정</button></span></h4>'
    +'<div class="tgrid3">'+tiers+'</div>'
@@ -3456,13 +3547,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.4';
+var APP_VERSION='1.41';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.41',date:'2026-08-21',note:"<b>정리 · 현금흐름 정합.</b> \u26a0\ufe0f <b>[버그] 현금흐름 유출을 이중계상했다.</b> <code>모든 expense + 모든 settle</code> 로 셌는데, 신용카드 지출은 <b>산 시점(expense)</b> 과 <b>낸 시점(settle)</b> 에 두 번 잡힌다. 실측 8월: 선결제된 332,154 가 두 번 세어져 유출이 그만큼 부풀려져 있었다. → 현금흐름은 <b>통장에서 실제 움직인 돈</b>만 본다(<code>cfIsCashIn/Out</code> 판정 하나로 합계·Sankey 통일 — 판정이 둘이면 그림과 숫자가 또 어긋난다). \u26a0\ufe0f <b>[공백] 계좌가 안 붙은 거래를 Sankey 는 조용히 빼고 합계는 포함했다.</b> 둘이 안 맞는데 아무도 말해주지 않았다 — 실측 8월 <b>26건 240,405원</b>(카드에 연결계좌를 나중에 설정해 옛 건이 비어 있었다). 이제 <b>계좌 미지정 N건</b> 경고로 드러내고, <b>체크카드만</b> 연결계좌로 일괄 보정한다(현금·이체는 앱이 알 수 없으므로 손대지 않는다). 🧾 <b>거래 행 2줄 재설계</b> — 1행 무엇/얼마, 2행 어떻게/조작. 한 줄에 다 넣으니 좁은 칸에서 접혀 깨졌다. 💳 <b>선결제 확정 버튼 제거</b>(결제분 줄 클릭이 이미 진입점이라 중복). 🧹 <b>전 페이지 기능 설명 문구 삭제</b> — 상태·계산결과·경고만 남긴다."},
   {v:'1.4',date:'2026-08-21',note:"<b>💳 청구주기 · 할부 · ⏳ 병원/가족 · 🧾 재물 날짜.</b> \u26a0\ufe0f <b>[결함] 재물 마감일에 <code>1800</code> 이 저장됐고 감가상각이 조용히 0원이 됐다.</b> <code>new Date('1800')</code> 은 서기 1800년으로 파싱된다 → <code>daysBetween</code> 이 -82,788 → <code>itemDaily</code> 가 0. 화면엔 '기간종료' 뱃지만 떠서 표시 문제로 보였다. 뿌리는 <b>라벨과 입력의 불일치</b> — 기준은 '일간(수명)'인데 입력은 '마감일(날짜)'을 요구했다. → <b>수명(일) ↔ 마감일 양방향 입력</b>(하나 채우면 나머지 자동) · 전부 <code>type=date</code>(모바일 피커) · 저장 시 형식·순서 검증 · 기존 불량 데이터는 <b>추측해서 고치지 않고</b> ⚠ 뱃지로 드러낸다. \u23f3 타임로그에 <b>병원·가족</b> 태그(전부 '기타'로 묶이던 두 덩어리). 💳 <b>청구주기 도입</b> — 카드마다 마감일·결제일(기본 10/25). 미결제를 <b>결제분별로 분해</b>했다(실측 490,754 는 사실 8월분+9월분 두 덩어리였다). <b>일시불/2/3개월 할부</b> + 회차 미리보기 — \u26a0\ufe0f 회차는 구매일 기념일이 아니라 <b>결제일</b>에 일시불과 합산돼 나간다. 선결제를 <b>결제분 단위</b>로 재설계(‘이 결제분 전체 선택’), <b>할부 당월 회차 포함</b>(로한 지적 — 빼면 카드사 청구서와 숫자가 안 맞는다), 회차는 순서대로만 확정. 가계부에 <b>[발생 | 카드결제]</b> 토글. 🔒 결제일은 예정일 라벨일 뿐 <b>자동 처리하지 않는다</b>."},
   {v:'1.3',date:'2026-08-20',note:"<b>루틴 이사 · 버킷 승격.</b> \u26a0\ufe0f <b>[결함] 루틴 소속을 바꾸면 과거 체크 기록이 조용히 고아가 됐다.</b> <code>checks</code> 는 <code>done[]/due[]/miss{}</code> 전부 <b>코드 문자열</b> 기반인데, 소속이 바뀌면 코드가 재발급된다(<code>E.8a</code> → <code>E1</code>). 경고도 없었다 — <b>기능은 있는데 기록이 따라오지 않는</b> 꼴 · <code>renameRoutineCode()</code> 신설로 세 곳을 한꺼번에 옮긴다. <b>분모(due) 길이는 그대로다</b> — 라벨만 갈아끼우는 것이라 v6.0 '과거 불변성'과 충돌하지 않는다 · 소속 변경 시 <b>먼저 묻는다</b>(옛→새 코드, 옮길 기록 일수). 취소하면 저장 자체를 중단 · <b>「코드 고정」 체크박스</b> — <code>lockCode</code> 필드는 v6.0부터 코드에 있었는데 <b>읽기만 하고 아무도 설정할 수 없었다</b>(입구 막힘 4회차) · 목표 삭제로 루틴이 미연결(Z)로 내려갈 때도 같은 구멍이 있었다 → 함께 막음 · 🎯 <b>버킷 → 연간 목표 승격</b>: 버킷 ⇄ 보상함은 원래 양방향이었고 빠진 조각은 이것 하나였다. 표의 이동 칸에 <b>⬆</b>, 승격된 항목은 <b>🎯 코드</b> 뱃지 + <b>↩</b> 로 연결 해제. 최소 침습 — <code>status</code>/<code>place</code> 를 건드리지 않고 링크만 양방향으로 심는다. 목표를 지우면 버킷 쪽 유령 링크도 정리한다."},
   {v:'1.2',date:'2026-08-20',note:"<b>📀 스냅샷 백업.</b> 로한 제안 — <i>“JSON을 내 하드에만 두지 말고 Supabase 다른 쪽에도 두는 게 낫지 않냐”</i>. 맞다. 단 <b>층이 다르다</b>: 스냅샷 테이블은 <b>논리적 사고</b>(코드 버그·덮어쓰기·실수 삭제)를, JSON 파일은 <b>물리적 사고</b>(프로젝트·계정 소실)를 막는다. 서로 대체 못 한다. <code>app_state_snap</code> 신설(RLS 적용) · 접속 시 <b>하루 1개 자동</b>(부분 유니크 인덱스로 강제) · <b>📍 수동 지점</b> · <b>복원 직전 자동 보관</b>(잘못 되돌려도 돌아올 자리가 있다) · 종류별 보관 상한 자동 정리(자동30/수동15/복원직전10). 🪶 로그 탭."},
@@ -3531,7 +3623,7 @@ function renderLog(){
   var _bk=localBakList().map(function(b){return '<button class="ghost sm" onclick="restoreLocal(\''+b.k+'\')">🕓 '+b.d+' 접속시점 ('+Math.round(b.n/1024)+'KB)</button>';}).join(' ');
   var _sz=0; try{_sz=JSON.stringify(DB).length;}catch(e){}
   document.getElementById('v-log').innerHTML=''
-   +'<div class="sec"><h4>💾 백업 <span class="mut">서버 사고 · 기기 분실 · 덮어쓰기 대비</span></h4>'
+   +'<div class="sec"><h4>💾 백업</h4>'
      +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">현재 데이터 <b>'+Math.round(_sz/1024)+'KB</b> · '+dbSummary(DB)
        +'<br>서버 최종저장 '+(LAST_SYNC?String(LAST_SYNC).replace('T',' ').slice(0,16):'—')+'</div>'
      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
@@ -3548,8 +3640,8 @@ function renderLog(){
        +'⚠ 원본과 같은 Supabase 프로젝트에 있다. <b>논리적 사고</b>(코드 버그·덮어쓰기·실수 삭제)는 막지만 프로젝트 자체가 날아가면 같이 죽는다. 그래서 위의 ⬇ 파일 백업이 따로 필요하다.</div>'
      +'<div id="snaplist"></div>'
    +'</div>'
-   +'<div class="sec"><h4>📦 업데이트 기록 <span class="mut">현재 v'+APP_VERSION+' · 앱 변경이력</span></h4>'+cl+'</div>'
-   +'<div class="sec"><h4>🕑 내 활동 로그 <span class="mut">최근 40건 · CRUD 자동기록</span></h4>'+act+'</div>'
+   +'<div class="sec"><h4>📦 업데이트 기록 <span class="mut">현재 v'+APP_VERSION+'</span></h4>'+cl+'</div>'
+   +'<div class="sec"><h4>🕑 내 활동 로그 <span class="mut">최근 40건</span></h4>'+act+'</div>'
    +'<div class="sec"><h4>재정경제부 로그 <button class="ghost" id="addLogBtn">+ 기록</button></h4>'+(rows||'<div class="mut">기록 없음</div>')+'</div>';
   snapRender();
 }
@@ -3578,7 +3670,7 @@ function itemModal(id,pre){
      +'<label>수명 <span class="mut">— 며칠 쓸 물건인가</span></label>'
      +'<div class="itlife"><input id="it_life" type="number" min="1" step="1" value="'+(isDateStr(it.end)&&isDateStr(it.buy)?Math.max(0,daysBetween(it.buy,it.end)):'')+'" oninput="itLifeSync()" placeholder="예: 1800"><span class="mut">일</span>'
      +'<span class="mut">→ 마감일</span><input id="it_end" type="date" value="'+(isDateStr(it.end)?it.end:'')+'" onchange="itEndSync()"></div>'
-     +'<div class="hint" id="it_lifehint">둘 중 아무거나 채우면 나머지가 자동으로 계산된다. (안경 5년 ≈ 1800일 · 노트북 5년 · 폰 3년)</div></div>'
+     +'<div class="hint" id="it_lifehint"></div></div>'
    +'<div class="field" id="it_unitwrap" style="display:'+(it.basis==='횟수'?'block':'none')+'"><label>예상 사용횟수</label><input id="it_units" value="'+(it.units||'')+'"></div>'
    +'<button class="btn" onclick="saveItem('+(id?"'"+id+"'":'null')+')">저장</button>');
   modal._ibasis=it.basis; itLifeHint();
@@ -3602,7 +3694,7 @@ function itLifeHint(){
   var n=daysBetween(b.value,e.value), price=numv('it_price');
   if(n>0&&price>0){
     h.innerHTML='<b>'+comma(n)+'일</b> ('+(Math.round(n/365*10)/10)+'년) · 일 <b>'+won(price/n)+'</b> · 월 <b>'+won(price/n*30)+'</b>';
-  }else h.textContent='둘 중 아무거나 채우면 나머지가 자동으로 계산된다. (안경 5년 ≈ 1800일 · 노트북 5년 · 폰 3년)';
+  }else h.textContent='';
 }
 function itBasis(b,v){modal._ibasis=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('it_endwrap').style.display=v==='횟수'?'none':'block';document.getElementById('it_unitwrap').style.display=v==='횟수'?'block':'none';}
 function saveItem(id){
@@ -3653,7 +3745,7 @@ function routineModal(id){
    +(id&&nChk?'<div class="mut" style="font-size:11px;margin-bottom:8px">체크 기록 '+nChk+'일 — 삭제해도 이 기록은 남는다</div>':'')
    +'<div class="field"><label>루틴 이름</label><input id="rt_title" value="'+sajuEsc(r.title)+'" placeholder="예: 아침 스트레칭 10분"></div>'
    +'<div class="field"><label>어느 목표를 위한 것인가 <span class="mut">(코드가 여기서 정해진다)</span></label>'
-   +'<div class="hint" style="margin:0 0 5px">계속할 루틴은 <b>연간 목표</b>에 직접 붙여라 — 월이 바뀌어도 안 끊긴다. 눈금(한시)은 그 달에만 하는 것에 쓴다.</div><select id="rt_goal" onchange="rtSpanHint()">'+goalOptions(r.goalId)+'</select>'
+   +'<select id="rt_goal" onchange="rtSpanHint()">'+goalOptions(r.goalId)+'</select>'
    +(id?('<label style="display:flex;align-items:center;gap:7px;font-size:11px;margin-top:7px;cursor:pointer" class="mut">'
         +'<input type="checkbox" id="rt_lock" style="width:auto"'+(r.lockCode?' checked':'')+'>'
         +'<span>코드 <b class="gcode">'+r.code+'</b> 고정 — 소속을 바꿔도 코드를 그대로 둔다</span></label>'):'')
@@ -3697,10 +3789,9 @@ function rtSpanHint(){
   if(v==='on'){
     h.innerHTML=isMs
       ? '<b style="color:var(--warn)">이 루틴은 '+(pg.code||'')+' (그 달 눈금)에 묶여 있는데 계속으로 잡혀 있다.</b> 코드가 그 달을 가리키므로, 계속할 거면 <b>연간 목표에 직접</b> 붙이는 게 맞다.'
-      : '월이 바뀌어도 안 끊긴다. 루틴의 기본값은 이쪽이다.';
+      : '';
   }
-  else if(v==='month')h.textContent='그 달 말일에 자동 종료된다. 그 달에만 하는 것에 쓴다.';
-  else h.textContent='종료일까지만 뜬다. 지난 기록은 그대로 남는다.';
+  else h.textContent='';
 }
 function rtFreq(b,v){modal._rfreq=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('rt_dayswrap').style.display=(v==='weekly'?'block':'none');}
 function saveRoutine(id){
@@ -3829,10 +3920,7 @@ function goalModal(id,kind,parentId,period){
     :(isY?'연간 목표 (대전제)':(isMs?('월간 세부목표 — '+(parent?parent.code+' '+sajuEsc(parent.title):'')):'월간 단독 과제'));
 
   openModal('<div class="mtop"><h3>'+title+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +(isMs?'<div class="mut" style="font-size:11.5px;margin-bottom:9px;background:#faf7ee;border:1px solid #ece3c9;padding:8px 10px;border-radius:7px">'
-       +'연간 목표 <b>'+((parent||{}).code||'')+'</b> 를 이 달에 얼마나 진행할지 정하는 <b>눈금</b>입니다.<br>'
-       +'수치형이면 목표값을 고치는 순간 자동 배분에서 제외됩니다(수동 고정).</div>':'')
-   +'<div class="field"><label>'+(isMs?'세부목표 제목':'제목')+'</label><input id="g_title" value="'+sajuEsc(g.title)+'" placeholder="'
+      +'<div class="field"><label>'+(isMs?'세부목표 제목':'제목')+'</label><input id="g_title" value="'+sajuEsc(g.title)+'" placeholder="'
      +(isY?'올해 어디로 갈 것인가':(isMs?'예: 히라가나·가타카나 완성 / 67.6kg 도달':'이 달 안에 끝낼 것'))+'"></div>'
    +(isY?'':'<div class="field"><label>기간 (YYYY-MM)</label><input id="g_period" value="'+g.period+'"></div>')
    +(isY?'<div class="field"><label>기간 (YYYY)</label><input id="g_period" value="'+g.period+'"></div>'
@@ -3856,7 +3944,7 @@ function gSrc(){
   var found=GOAL_SOURCES.filter(function(x){return x.k===v;})[0]||{};
   if(pw)pw.style.display=(v!=='manual'||modal._gmet==='autodays')?'none':'block';
   if(hi){
-    if(v==='manual')hi.textContent='현재값을 직접 입력합니다.';
+    if(v==='manual')hi.textContent='';
     else{
       var cur=sourceValue(v);
       hi.textContent=(cur!=null)?('지금 값 '+gnum(cur)+(found.unit||'')+' — 앱 기록이 바뀌면 진행률이 자동으로 따라갑니다.')
@@ -3881,7 +3969,7 @@ function gMet(b,v){
   var sc=document.getElementById('g_src');
   if(pw)pw.style.display=(v==='autodays'||(sc&&sc.value!=='manual'))?'none':'block';
   var hi=document.getElementById('g_methint');
-  if(hi)hi.textContent=(v==='autodays'?'루틴을 하나라도 체크한 날의 수를 자동으로 셉니다.':(v==='amount'?'체중·금액처럼 시작값에서 목표값으로 가는 수치. 월별 눈금이 선형 배분됩니다.':''));
+  if(hi)hi.textContent='';
   var u=document.getElementById('g_unit');if(v==='autodays'&&u&&!u.value)u.value='일';
 }
 function saveGoal(id,kd,parentId){
@@ -3989,7 +4077,7 @@ function assetModal(id){
       var curOpts=['USD','JPY','EUR','기타'].map(function(c){return '<option'+(c===a.currency?' selected':'')+'>'+c+'</option>'}).join('');
       b+='<div class="field" style="margin-top:10px"><label>통화</label><select id="vCur">'+curOpts+'</select></div>'
         +'<div class="updrow"><input id="vDate" value="'+todayStr()+'"><input id="vForeign" placeholder="환 금액(외화)"><input id="vAmt" placeholder="평가액(원화)"><button class="btn" onclick="addVal(\''+a.id+'\')">기록</button></div>'
-        +'<div class="hint">외화 수량과 원화 평가액을 함께 기록.</div>';
+        +'';
     } else {
       b+='<div class="updrow"><input id="vDate" value="'+todayStr()+'"><input id="vAmt" placeholder="평가액"><button class="btn" onclick="addVal(\''+a.id+'\')">기록</button></div>';
     }
@@ -4009,7 +4097,7 @@ function metricModal(kind){
   var s=DB.netSnapshots.map(function(x){return {m:x.m,assets:x.a,debt:x.l,net:x.a-x.l}});
   var map={assets:{t:'총자산',c:'#0f9d58',z:true},debt:{t:'총부채',c:'#e0483d',z:true},net:{t:'순자산',c:'#2f6df6',z:false}},cfg=map[kind];
   var series=s.map(function(x){return {date:x.m+'-01',amount:kind==='debt'?x.debt:kind==='assets'?x.assets:x.net}});
-  openModal('<div class="mtop"><h3>'+cfg.t+' 12개월 추세</h3><span class="x" onclick="closeModal()">×</span></div><div class="mcur">'+signWon(series[series.length-1].amount)+'</div>'+lineChart(series,{color:cfg.c,zeroBase:cfg.z})+'<div class="hint">월말 스냅샷 기준. 데이터 쌓이면 12개월 다 채워짐.</div>');
+  openModal('<div class="mtop"><h3>'+cfg.t+' 12개월 추세</h3><span class="x" onclick="closeModal()">×</span></div><div class="mcur">'+signWon(series[series.length-1].amount)+'</div>'+lineChart(series,{color:cfg.c,zeroBase:cfg.z})+'');
 }
 /* ══════ 선결제 — 결제분(청구주기) 단위 ══════
    ⚠️ 로한은 25일 자동출금을 기다리지 않는다. 5일·15일쯤 손으로 미리 지운다.
@@ -4074,7 +4162,7 @@ function drawSettle(){
    +'<div class="field"><label>출금계좌</label><select id="stAcct">'+acctOpts+'</select></div>'
    +'<div class="taxrow big"><span>선택 합계 <span id="stCnt" class="mut" style="font-size:12px"></span></span><span id="stSum" class="neg"></span></div>'
    +'<button class="btn" style="width:100%;margin-top:10px" onclick="doSettle()">이 결제분 확정</button>'
-   +'<div class="hint">확정하면 선택 건이 미결제에서 빠지고 합계만큼 출금계좌 현금이 차감된다. 할부는 <b>그 회차만</b> 확정된다.</div>');
+   +'');
   settleRecalc();
 }
 function settleAll(v){var bx=document.querySelectorAll('.stx');for(var i=0;i<bx.length;i++){if(!bx[i].disabled)bx[i].checked=v;}settleRecalc();}
@@ -4230,7 +4318,7 @@ function cdCycHint(){
   if(!(cl>=1&&cl<=28)||!(pd>=1&&pd<=28)){h.textContent='1~28 사이로 입력하세요.';return;}
   var r=cycleRange(DB.ui.month||todayStr().slice(0,7),cl);
   h.innerHTML='예) <b>'+cycleLabel(DB.ui.month||todayStr().slice(0,7))+'</b> = '+r.from+' ~ '+r.to+' 이용분, '+pd+'일 결제.'
-    +'<br><span class="mut">결제일은 <b>예정일 라벨</b>일 뿐 자동으로 처리하지 않는다 — 선결제는 네가 누를 때만 일어난다.</span>';
+    ;
 }
 function saveCard(id){var n=document.getElementById('cd_name').value.trim();if(!n)return alert('이름을 입력하세요');var type=document.getElementById('cd_type').value;var acct=document.getElementById('cd_acct').value||undefined;
   var cl=parseInt((document.getElementById('cd_close')||{}).value,10),pd=parseInt((document.getElementById('cd_pay')||{}).value,10);
@@ -4244,7 +4332,7 @@ function debtModal(id){
    +'<div class="field"><label>이름</label><input id="db_name" value="'+(d.name||'')+'" placeholder="예: 신용대출 / 전세자금"></div>'
    +'<div class="field"><label>잔액</label><input id="db_bal" value="'+(d.balance||'')+'" placeholder="0"></div>'
    +'<div class="field"><label>금리(연 %)</label><input id="db_rate" value="'+(d.rate!=null?d.rate:'')+'" placeholder="예: 4.5"></div>'
-   +'<button class="btn" onclick="saveDebt('+(id?"'"+id+"'":'null')+')">'+(id?'저장':'추가')+'</button><div class="hint">스케줄(거치·상환방식)은 목록의 [스케줄] 버튼에서 관리.</div>');
+   +'<button class="btn" onclick="saveDebt('+(id?"'"+id+"'":'null')+')">'+(id?'저장':'추가')+'</button>');
 }
 function saveDebt(id){var n=document.getElementById('db_name').value.trim();if(!n)return alert('이름을 입력하세요');if(id){var d=DB.debts.filter(function(x){return x.id===id})[0];d.name=n;d.balance=numv('db_bal');d.rate=numv('db_rate')||null;}else DB.debts.push({id:uid(),name:n,balance:numv('db_bal'),rate:numv('db_rate')||null,schedule:null});logAct((id?'부채수정':'부채추가')+' · '+n+' '+won(numv('db_bal')));save();closeModal();renderAcct();renderDash();}
 function delDebt(id){if(!confirm('삭제할까요?'))return;var _d=DB.debts.filter(function(d){return d.id===id})[0];logAct('부채삭제 · '+(_d?_d.name+' '+won(_d.balance):id));DB.debts=DB.debts.filter(function(d){return d.id!==id});save();renderAcct();renderDash();}
@@ -4467,7 +4555,7 @@ function rwCardField(t){
       +c.code+' · '+sajuEsc(c.title)+' ('+cardTierLabel(c)+(c.budget?' ≤'+comma(c.budget)+'원':'')+')</option>';}).join('');
   return '<div class="field rwtxn"><label>🎁 보상 사용 <span class="mut">— 이 지출이 보상이면 카드를 고른다</span></label>'
     +'<select id="fRwCard">'+opts+'</select>'
-    +'<div class="hint">고르면 그 카드가 소멸한다. 계정과목은 안 바뀐다 — 배달은 식비로 남는다.</div></div>';
+    +'</div>';
 }
 function txnModal(id){
   var _defM=(DB.cards.filter(function(c){return /K패스/i.test(c.name);})[0]||DB.cards[0]||{}).name;
@@ -4528,14 +4616,14 @@ function instPreview(){
   var amt=parseFloat((document.getElementById('fAmt').value||'').replace(/[^0-9.]/g,''))||0;
   var date=(document.getElementById('fDate')||{}).value||todayStr();
   var n=modal._inst||1;
-  if(!amt||!isDateStr(date)){h.textContent='금액과 날짜를 넣으면 언제 얼마가 빠지는지 보여준다.';return;}
+  if(!amt||!isDateStr(date)){h.textContent='';return;}
   var fake={amt:amt,date:date,method:m,inst:n};
   var parts=[];
   for(var k=1;k<=n;k++)parts.push('<b>'+cycleLabel(instCycle(fake,k))+'</b> '+comma(instAmt(fake,k))+'원');
   var r=cycleRange(instCycle(fake,1),cardClose(c));
   h.innerHTML=parts.join(' · ')
     +'<br><span class="mut">'+r.from+'~'+r.to+' 이용분 · '+cardPay(c)+'일 결제'
-    +(n>1?' · 회차는 구매일이 아니라 <b>결제일</b>에 일시불 건들과 합산돼 나간다':'')+'</span>';
+    +'</span>';
 }
 function updIncInfo(){var el=document.getElementById('fIncInfo');if(!el||modal._type!=='income')return;var name=document.getElementById('fCat').value;var c=DB.categories.filter(function(x){return x.name===name&&x.type==='income'})[0];el.innerHTML=c?('소득구분: <b>'+(c.incType||'미분류')+'</b>'+(c.taxCode?' · 코드 '+c.taxCode:'')+' → 세무 페이지 자동 집계'):'카테고리 없음 (계좌·부채 탭에서 추가)';}
 function methodChange(){var af=document.getElementById('acctField'),nt=document.getElementById('acctNote');if(!af)return;
@@ -4650,6 +4738,7 @@ document.addEventListener('click',function(e){
   var tor=e.target.closest('[data-tor]');if(tor)return toRewardModal(tor.dataset.tor);
   var tob=e.target.closest('[data-tob]');if(tob)return toBucket(tob.dataset.tob);
   var stc=e.target.closest('[data-settle]');if(stc)return settleModal(stc.dataset.settle);
+  if(e.target.id==='cfFixBtn')return cfFixAccts();
   var stk=e.target.closest('[data-stcard]');if(stk)return settleSwitch(stk.dataset.stcard,'');
   var sty=e.target.closest('[data-stym]');if(sty)return settleSwitch(modal._stCard,sty.dataset.stym);
   var tog=e.target.closest('[data-tog]');if(tog)return promoteBucketModal(tog.dataset.tog);
