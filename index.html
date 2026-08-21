@@ -62,7 +62,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .row:last-child{border-bottom:0}
 .pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10px;background:#eef2f8;color:#5a6b86;margin-right:5px}
-.badge{font-size:9px;color:#fff;background:var(--warn);padding:1px 5px;border-radius:4px;margin-left:5px}
+.badge{display:inline-block;font-size:9px;color:#fff;background:var(--warn);padding:1px 5px;border-radius:4px;margin-left:5px;white-space:nowrap;vertical-align:middle}
 /* 11px 글자를 손가락으로 누르라는 건 무리다. 히트 영역을 26px로 넓힌다. */
 .acts span{display:inline-flex;align-items:center;justify-content:center;
   min-width:26px;height:26px;border-radius:6px;color:var(--muted);cursor:pointer;font-size:12px;margin-left:4px;
@@ -142,6 +142,42 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 /* 미기록 칸은 비워두되 '비었다'가 읽혀야 한다 — 흰색이면 그냥 여백으로 보인다 */
 .tlq:not(.has){background:repeating-linear-gradient(135deg,#fafbfc 0 5px,#f2f4f7 5px 10px)}
 .gcell.tlcell.fut{min-height:40px}
+.plmode{display:inline-flex;margin-left:10px;border:1px solid var(--line);border-radius:999px;overflow:hidden;vertical-align:middle}
+.plm{padding:3px 10px;font-size:10.5px;font-weight:700;color:var(--muted);background:var(--soft);cursor:pointer;user-select:none}
+.plm+.plm{border-left:1px solid var(--line)}
+.plm:hover{color:var(--accent)}
+.plm.on{background:var(--accent);color:#fff}
+.plm.on:hover{color:#fff}
+.plbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--soft);
+  border:1px solid var(--line);border-radius:9px;padding:6px 10px;margin:0 0 10px}
+.plmsg{font-size:11px;color:var(--muted);min-width:0}
+.plmode{flex:0 0 auto}
+.sttabs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.sttabs.cyc{border-top:1px dashed var(--line);padding-top:7px}
+.sttab{display:inline-block;padding:5px 9px;border:1px solid var(--line);border-radius:999px;
+  background:var(--soft);font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none}
+.sttab:hover{border-color:var(--warn);color:var(--warn)}
+.sttab.on{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.settle-row.lock{opacity:.5;cursor:not-allowed}
+.cycbox{border-top:1px solid var(--line);padding-top:7px;margin-top:7px}
+.cycbox:first-child{border-top:0;margin-top:0}
+.cycrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 9px;margin:4px 0 0;
+  border:1px solid var(--line);border-radius:8px;background:var(--soft);cursor:pointer;font-size:12px}
+.cycrow:hover{border-color:var(--warn);background:var(--warn-bg)}
+.cycrow:active{transform:translateY(1px)}
+.cycrow.soon{border-color:#e8c98a}
+.cycrow .cyc-l{flex:1;min-width:0;line-height:1.45}
+.cycrow .cyc-a{text-align:right;white-space:nowrap;font-weight:800;color:var(--warn);font-variant-numeric:tabular-nums}
+.cycrow .cyc-go{display:block;font-size:10px;font-weight:700;color:var(--muted)}
+.cycrow:hover .cyc-go{color:var(--warn)}
+.insttag{display:inline-block;font-size:9.5px;font-weight:700;color:#6f5fc7;background:#efeafb;
+  border:1px solid #ddd4f5;border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:middle;white-space:nowrap}
+.instline{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.5;
+  border-left:2px solid #ddd4f5;padding-left:6px}
+.instline span{white-space:nowrap}
+.itlife{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.itlife input[type=number]{width:96px;flex:0 0 auto}
+.itlife input[type=date]{flex:1 1 150px;min-width:0}
 .tllegend,.tlsums{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)}
 .tlsums{margin:0 0 9px;padding:8px 0 0}
 .tlsum{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--muted)}
@@ -516,6 +552,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
      좁은 폭에서 통계 6개가 세로로 쌓이고 월 네비가 왼쪽에 홀로 남았다.
      → 헤더를 세로 2단으로 두고 통계는 3열 그리드로 눕힌다. */
   .mhead{flex-direction:column;align-items:stretch;gap:9px}
+  .plbar{padding:6px 9px}
+  .plmsg{font-size:10.5px}
   .mhead .mnav{justify-content:center}
   .statbar{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:none}
   .stat{min-width:0;padding:6px 8px}
@@ -951,6 +989,83 @@ function lineChart(series,opt){
 function accVal(a){return latest(a.hist);}
 function groupTotals(){var g={};DB.accounts.forEach(function(a){g[a.group]=(g[a.group]||0)+accVal(a)});return g;}
 function totalAssets(){return DB.accounts.reduce(function(s,a){return s+accVal(a)},0);}
+/* ══════ 💳 청구주기 · 할부 엔진 (v1.4 · card-design.md) ══════
+   ⚠️ 결제일(payDay)은 '라벨·예정일'이지 자동 처리 트리거가 아니다.
+      로한은 25일을 기다리지 않고 5일·15일에 선결제로 미리 지운다.
+      자동 처리를 넣으면 이미 손으로 지운 건을 앱이 또 지운다. */
+var CARD_CLOSE=10, CARD_PAY=25;
+function cardBy(name){return (DB.cards||[]).filter(function(c){return c.name===name;})[0];}
+function cardClose(c){return (c&&c.closeDay!=null)?c.closeDay:CARD_CLOSE;}
+function cardPay(c){return (c&&c.payDay!=null)?c.payDay:CARD_PAY;}
+/* 이용일 → 결제월. closeDay=10 이면 11일부터는 다음 달 결제분이다. */
+function cycleOf(date,closeDay){
+  if(!isDateStr(date))return '';
+  var y=parseInt(date.slice(0,4),10),m=parseInt(date.slice(5,7),10),d=parseInt(date.slice(8,10),10);
+  if(d>(closeDay==null?CARD_CLOSE:closeDay)){m++;if(m>12){m=1;y++;}}
+  return y+'-'+String(m).padStart(2,'0');
+}
+function ymAdd(ym,n){var y=parseInt(ym.slice(0,4),10),m=parseInt(ym.slice(5,7),10)+n;
+  y+=Math.floor((m-1)/12);m=((m-1)%12+12)%12+1;return y+'-'+String(m).padStart(2,'0');}
+/* 결제월 → 이용기간 (전월 closeDay+1 ~ 당월 closeDay) */
+function cycleRange(ym,closeDay){
+  var cd=(closeDay==null?CARD_CLOSE:closeDay), pm=ymAdd(ym,-1);
+  return {from:pm+'-'+String(cd+1).padStart(2,'0'), to:ym+'-'+String(cd).padStart(2,'0')};
+}
+function cycleLabel(ym){return parseInt(ym.slice(5,7),10)+'월 결제분';}
+/* 결제 예정일 — 주말이면 익영업일 (부채 상환과 같은 규칙) */
+function cyclePayDate(ym,payDay){
+  var pd=(payDay==null?CARD_PAY:payDay);
+  var y=parseInt(ym.slice(0,4),10),m=parseInt(ym.slice(5,7),10);
+  var dt=bankPayDate(y,m,pd);
+  return dt.toISOString().slice(0,10);
+}
+/* ── 할부 ──
+   회차 금액 = floor(amt/n), 나머지는 첫 회차에 (은행 관행).
+   435,100 ÷ 3 → 145,034 / 145,033 / 145,033  (합 435,100 정확) */
+function instN(t){var n=parseInt(t.inst||1,10);return (n>1)?n:1;}
+function instAmt(t,k){
+  var n=instN(t); if(n===1)return t.amt;
+  var base=Math.floor(t.amt/n);
+  return (k===1)?(t.amt-base*(n-1)):base;
+}
+function instDone(t){return Math.max(0,Math.min(instN(t),parseInt(t.instDone||0,10)));}
+/* k회차가 청구되는 결제월. 1회차 = 거래일이 속한 주기. */
+function instCycle(t,k){
+  var c=cardBy(t.method);
+  return ymAdd(cycleOf(t.date,cardClose(c)),k-1);
+}
+/* 아직 안 낸 금액 (일시불이면 전액, 할부면 잔여 회차 합) */
+function txnOwed(t){
+  if(!t.card)return 0;
+  var n=instN(t); if(n===1)return t.amt;
+  var s=0,dn=instDone(t);
+  for(var k=dn+1;k<=n;k++)s+=instAmt(t,k);
+  return s;
+}
+/* 카드 × 결제월 → 그 주기에 청구되는 미납 항목
+   ⚠️ 로한 지적(0821): 할부 '당월 회차'는 그 주기 청구액에 포함된다.
+      빼면 앱 숫자와 카드사 청구서가 안 맞고, 그러면 이 화면은 안 보게 된다. */
+function cardCycles(){
+  var out={};   /* {카드명:{결제월:{sum, rows:[{t,k,amt}]}}} */
+  (DB.transactions||[]).forEach(function(t){
+    if(!t.card||t.type!=='expense')return;
+    var c=cardBy(t.method); if(!c||c.type!=='credit')return;
+    var n=instN(t), dn=instDone(t);
+    for(var k=dn+1;k<=n;k++){
+      var ym=instCycle(t,k), a=instAmt(t,k);
+      out[t.method]=out[t.method]||{};
+      out[t.method][ym]=out[t.method][ym]||{sum:0,rows:[]};
+      out[t.method][ym].sum+=a;
+      out[t.method][ym].rows.push({t:t,k:k,n:n,amt:a});
+    }
+  });
+  return out;
+}
+/* 그 카드에서 아직 확정 안 된 결제월 목록 (오름차순) */
+function cardCycleList(name){
+  var cy=cardCycles()[name]||{};
+  return Object.keys(cy).sort();
+}
 function cardPendingByCard(){var m={};DB.transactions.forEach(function(t){if(t.card&&t.type==='expense'&&creditCard(t.method))m[t.method]=(m[t.method]||0)+t.amt;});return m;}
 function cardPending(){var m=cardPendingByCard(),s=0;for(var k in m)s+=m[k];return s;}
 function totalDebt(){return DB.debts.reduce(function(s,d){return s+d.balance},0)+cardPending();}
@@ -958,6 +1073,27 @@ function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMont
 function usageBy(field){var m={};DB.transactions.forEach(function(t){var k=t[field];if(k)m[k]=(m[k]||0)+1;});return m;}
 function monthTxns(m){return DB.transactions.filter(function(t){return monthOf(t.date)===m});}
 function monthPL(m){var i=0,e=0;monthTxns(m).forEach(function(t){if(t.type==='income')i+=t.amt;else if(t.type==='expense')e+=t.amt});return {inc:i,exp:e,net:i-e};}
+/* ══════ 발생 / 카드결제 두 층 (v1.4) ══════
+   두 질문의 답이 다르다. 하나만 보여주면 반드시 헷갈린다.
+     Q1 "8월에 뭘 얼마나 샀나"      → 발생 · 거래일 기준 · 435,100
+     Q2 "9월 25일에 얼마 나가나"     → 카드결제 · 결제월 기준 · 145,034
+   🔒 거래는 사실의 기록이고 회차는 그 사실에서 파생되는 일정이다. 파생을 원본에 섞지 않는다. */
+function plMode(){return (DB.ui&&DB.ui.plMode==='cash')?'cash':'accrual';}
+/* 그 달에 '실제로 빠져나가는' 지출 — 카드는 결제월로, 현금·체크는 거래일 그대로 */
+function monthCashPL(m){
+  var inc=0,exp=0;
+  (DB.transactions||[]).forEach(function(t){
+    if(t.type==='income'){if(monthOf(t.date)===m)inc+=t.amt;return;}
+    if(t.type!=='expense')return;
+    var c=cardBy(t.method);
+    if(c&&c.type==='credit'){
+      var n=instN(t);
+      for(var k=1;k<=n;k++)if(instCycle(t,k)===m)exp+=instAmt(t,k);
+    }else if(monthOf(t.date)===m)exp+=t.amt;
+  });
+  return {inc:inc,exp:exp,net:inc-exp};
+}
+function setPlMode(v){DB.ui.plMode=v;save();renderCal();}
 /* ==== 현금흐름 계산 (P1) ==== */
 function isCashAcct(a){return a.group!=='투자'&&a.group!=='저축';}
 function cashAccts(){return DB.accounts.filter(isCashAcct);}
@@ -980,10 +1116,26 @@ function renderDash(){
     var items=DB.accounts.filter(function(a){return a.group===gn}).map(function(a){return '<div class="item" data-acc="'+a.id+'"><span>'+a.name+'</span><span>'+won(accVal(a))+' ›</span></div>'}).join('');
     return '<div class="grp"><div class="ghd"><span>'+gn+' <span class="chip '+mode+'">'+(mode==='auto'?'자동':'수기')+'</span></span><span>'+won(g[gn])+'</span></div>'+items+'</div>';
   }).join('');
-  var cbc=cardPendingByCard();
+  /* ⚠️ 미결제를 한 줄 합계로 보여주면 서로 다른 결제분이 섞인 채로 보인다.
+     실측(8/21): 490,754 는 사실 8월 결제분 + 9월 결제분 두 덩어리였다. */
+  var _cy=cardCycles(), _today=todayStr();
   var cardRows=DB.cards.filter(function(c){return c.type==='credit'}).map(function(c){
-    var p=cbc[c.name]||0,n=DB.transactions.filter(function(t){return t.card&&t.method===c.name&&t.type==='expense'}).length;
-    return '<div class="row" style="border-bottom:0"><span>'+c.name+' · '+n+'건</span><b style="color:var(--warn)">'+won(p)+'</b></div>';
+    var cy=_cy[c.name]||{}, yms=Object.keys(cy).sort();
+    var tot=yms.reduce(function(s,y){return s+cy[y].sum;},0);
+    if(!yms.length)return '';
+    var sub=yms.map(function(ym){
+      var g=cy[ym], r=cycleRange(ym,cardClose(c)), pd=cyclePayDate(ym,cardPay(c));
+      var nI=g.rows.filter(function(x){return x.n>1;}).length, nL=g.rows.length-nI;
+      var soon=pd<=addDays(_today,7);
+      return '<div class="cycrow'+(soon?' soon':'')+'" data-settle="'+c.id+'|'+ym+'">'
+        +'<span class="cyc-l"><b>'+cycleLabel(ym)+'</b>'
+          +'<span class="mut"> '+r.from.slice(5)+'~'+r.to.slice(5)+' 이용 · '+pd.slice(5)+' 예정</span>'
+          +'<br><span class="mut" style="font-size:10px">'
+          +(nL?'일시불 '+nL+'건':'')+(nL&&nI?' · ':'')+(nI?'할부 '+nI+'건':'')+'</span></span>'
+        +'<span class="cyc-a">'+won(g.sum)+'<span class="cyc-go">선결제 →</span></span></div>';
+    }).join('');
+    return '<div class="cycbox"><div class="row" style="border-bottom:0;padding-bottom:2px"><span><b>'+c.name+'</b></span>'
+      +'<b style="color:var(--warn)">'+won(tot)+'</b></div>'+sub+'</div>';
   }).join('');
   var posts=(DB.posts||[]).slice().sort(function(a,b){return a.date<b.date?1:-1;});
   var postList=posts.length?posts.map(function(p){return '<div class="row" style="cursor:pointer" data-post="'+p.id+'"><span>📜 '+p.title+'</span><span class="mut" style="font-size:10px;white-space:nowrap">'+(p.date||'')+'</span></div>';}).join(''):'<div class="mut" style="padding:8px 0">아직 정리 글 없음 — 로버트와 나눈 결론이 여기 쌓인다.</div>';
@@ -1001,7 +1153,10 @@ function renderDash(){
    +'<div class="sec"><h4>자산 <span class="mut">항목 클릭 → 그래프·평가 업데이트</span></h4>'+gh
    +'<div class="hint">🟢 자동=거래 연동 · 🔵 수기=평가액 직접 기록</div></div>'
    +'<div class="sec"><h4>부채</h4>'+DB.debts.map(function(d){return '<div class="row"><span>'+d.name+' <span class="mut">'+(d.rate!=null?d.rate+'%':'')+(d.schedule?' · '+d.schedule.start+'부터 상환':' · 상환일정 없음')+'</span></span><span>'+won(d.balance)+'</span></div>'}).join('')+'</div>'
-   +'<div class="sec cardbox"><h4>💳 카드 미결제 (신용카드)</h4>'+(cardRows||'<div class="mut">미결제 없음</div>')+'<button class="btn warn sm" id="settleBtn" style="margin-top:8px">선결제 확정 →</button></div>';
+   +'<div class="sec cardbox"><h4>💳 카드 미결제 <span class="mut">결제분(청구주기)별 · 줄을 눌러 선결제</span></h4>'
+     +(cardRows||'<div class="mut">미결제 없음</div>')
+     +'<button class="btn warn sm" id="settleBtn" style="margin-top:8px">선결제 확정 →</button>'
+     +'<div class="mut" style="font-size:10.5px;margin-top:6px">결제일은 <b>예정일</b>일 뿐 앱이 자동으로 처리하지 않는다. 네가 누를 때만 확정된다.</div></div>';
 }
 
 /* 좁은 칸용 금액 축약 — 77,500 → 7.8만 · 3,000 → 3천 */
@@ -1056,15 +1211,25 @@ function renderCal(){
     var opts=expCatNames.map(function(n){return '<option'+(n===cat?' selected':'')+'>'+n+'</option>';}).join('');
     return '<div class="stat watch"><select data-watch="'+i+'">'+opts+'</select><div class="sv neg">'+won(catSum[cat]||0)+'</div></div>';
   }).join('');
+  var _cash=monthCashPL(m), _md=plMode(), _show=(_md==='cash')?_cash:pl;
+  var _alt=(_md==='cash')?pl.exp:_cash.exp;
+  var plToggle='<div class="plmode" title="발생=거래일 기준 · 카드결제=카드 결제월 기준">'
+   +'<span class="plm'+(_md==='accrual'?' on':'')+'" onclick="setPlMode(\'accrual\')" title="거래일 기준 — 8월에 뭘 얼마나 샀나">발생</span>'
+   +'<span class="plm'+(_md==='cash'?' on':'')+'" onclick="setPlMode(\'cash\')" title="카드 결제월 기준 — 이 달에 통장에서 얼마 나가나">카드결제</span></div>';
   var statBar='<div class="statbar">'
-   +'<div class="stat"><div class="sl">수입</div><div class="sv pos">'+signWon(pl.inc)+'</div></div>'
-   +'<div class="stat"><div class="sl">지출</div><div class="sv neg">'+signWon(-pl.exp)+'</div></div>'
-   +'<div class="stat"><div class="sl">월 손익</div><div class="sv '+(pl.net<0?'neg':'pos')+'">'+signWon(pl.net)+'</div></div>'
+   +'<div class="stat"><div class="sl">수입</div><div class="sv pos">'+signWon(_show.inc)+'</div></div>'
+   +'<div class="stat"><div class="sl">지출 '+(_md==='cash'?'<span class="mut" style="font-size:9px">결제</span>':'')+'</div><div class="sv neg">'+signWon(-_show.exp)+'</div></div>'
+   +'<div class="stat"><div class="sl">월 손익</div><div class="sv '+(_show.net<0?'neg':'pos')+'">'+signWon(_show.net)+'</div></div>'
    +watchStats+'</div>';
   document.getElementById('v-cal').innerHTML=''
    +'<div class="calwrap"><div class="calmain">'
    +'<div class="mhead"><div class="mnav"><span id="calPick" style="cursor:pointer;margin-right:6px" title="연·월 선택">📅</span><span data-mv="-1">◀</span><b id="calTitle" style="cursor:pointer">'+y+'년 '+mo+'월</b><span data-mv="1">▶</span></div>'
    +statBar+'</div>'
+   +'<div class="plbar">'+plToggle
+      +'<span class="plmsg">'+(_md==='cash'
+        ? '이 달 <b>통장에서 나가는</b> 돈'+((_show.exp!==_alt)?(' · 이 달에 <b>산</b> 것은 '+won(pl.exp)):'')
+        : '이 달에 <b>산</b> 것'+((_show.exp!==_alt)?(' · 통장에서 <b>나가는</b> 돈은 '+won(_cash.exp)):''))
+      +'</span></div>'
    +'<div class="cal">'+cells+'</div></div>'
    +'<div class="calside" id="dayPanel"></div></div>';
   var def=(selDate&&selDate.slice(0,7)===m)?selDate:(today.slice(0,7)===m?today:m+'-01');
@@ -1080,7 +1245,11 @@ function renderDay(ds){
     if(t.type==='transfer'){h+='<div class="row"><span><span class="pill" style="background:#efeafb;color:#6f5fc7">이체</span>'+acctName(t.from)+' → '+acctName(t.to)+(t.memo?' <span class="mut" title="'+t.memo+'">📝</span>':'')+'</span><span style="color:#6f5fc7">'+won(t.amt)+' <span class="acts"><span data-edit="'+t.id+'">✎</span><span data-del="'+t.id+'">🗑</span></span></span></div>';return;}
     if(t.type==='settle'){h+='<div class="row"><span><span class="pill" style="background:#fff2d6;color:#b26a00">카드결제</span>'+(t.method||'')+'</span><span style="color:var(--neg)">-'+won(t.amt)+' <span class="acts"><span data-del="'+t.id+'">🗑</span></span></span></div>';return;}
     var acc=t.acct?' <span class="mut" style="font-size:10px">['+acctName(t.acct)+']</span>':'';
-    h+='<div class="row"><span><span class="pill">'+(t.scope==='business'?'사업':'개인')+'</span>'+t.cat+' <span class="mut">· '+t.method+'</span>'+acc+(t.card?'<span class="badge">미결제</span>':'')+(t.memo?' <span class="mut" title="'+t.memo+'">📝</span>':'')+'</span><span style="color:'+(t.type==='income'?'var(--pos)':'var(--neg)')+'">'+(t.type==='income'?'+':'-')+won(t.amt)+' <span class="acts"><span data-edit="'+t.id+'">✎</span><span data-del="'+t.id+'">🗑</span></span></span></div>';});
+    /* 할부는 '언제 얼마'가 그 자리에 보여야 한다 — 로한이 원한 '오늘 1/3 기록'의 실체 */
+    var _n=instN(t), _dn=instDone(t), _il='';
+    if(_n>1){var _ps=[];for(var _k=1;_k<=_n;_k++)_ps.push('<span'+(_k<=_dn?' style="text-decoration:line-through;opacity:.5"':'')+'>'+cycleLabel(instCycle(t,_k)).replace(' 결제분','월')+' '+comma(instAmt(t,_k))+'</span>');
+      _il='<div class="instline">└ '+_ps.join(' · ')+(_dn?' <b>'+_dn+'/'+_n+' 결제완료</b>':'')+'</div>';}
+    h+='<div class="row"><span><span class="pill">'+(t.scope==='business'?'사업':'개인')+'</span>'+t.cat+' <span class="mut">· '+t.method+'</span>'+acc+(_n>1?'<span class="insttag">'+_n+'개월</span>':'')+(t.card?'<span class="badge">미결제</span>':'')+(t.memo?' <span class="mut" title="'+t.memo+'">📝</span>':'')+_il+'</span><span style="color:'+(t.type==='income'?'var(--pos)':'var(--neg)')+'">'+(t.type==='income'?'+':'-')+won(t.amt)+' <span class="acts"><span data-edit="'+t.id+'">✎</span><span data-del="'+t.id+'">🗑</span></span></span></div>';});
   h+='</div>';document.getElementById('dayPanel').innerHTML=h;
 }
 var pickerYear=2026;
@@ -1167,7 +1336,12 @@ function taxRecalc(){
 function numv(id){var el=document.getElementById(id);return el?(parseFloat((el.value+'').replace(/[^0-9.\-]/g,''))||0):0;}
 
 /* ====== 재물관리(감가상각) ====== */
-function daysBetween(a,b){if(!a||!b)return 0;return Math.round((new Date(b)-new Date(a))/86400000);}
+function isDateStr(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')&&!isNaN(new Date(s+'T00:00:00Z').getTime());}
+/* ⚠️ new Date('1800') 은 '서기 1800년'으로 파싱된다. 마감일에 1800 이 들어가자
+   daysBetween 이 -82,788 을 뱉었고, itemDaily 가 0 이 되어 감가상각 총계에서 통째로 빠졌다.
+   화면엔 '기간종료' 뱃지만 떠서 표시 문제로 보였다. 형식을 먼저 검사한다. */
+function daysBetween(a,b){if(!isDateStr(a)||!isDateStr(b))return 0;
+  return Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);}
 function itemUnits(it){return it.basis==='횟수'?(it.units||0):daysBetween(it.buy,it.end);}
 function itemDaily(it){var u=itemUnits(it);return u>0?it.price/u:0;}
 function itemMonthly(it){return itemDaily(it)*30;}
@@ -1179,8 +1353,11 @@ function renderItems(){
   var filtered=DB.items.filter(function(it){var y=(it.buy||'').slice(0,4),mn=(it.buy||'').slice(5,7);return (iy==='전체'||y===iy)&&(im==='전체'||mn===im)});
   function itemRow(it,isArch){
     var u=itemUnits(it);
-    var past=!isArch && it.end && it.end < todayStr();
-    var badge=past?' <span class="badge">기간종료</span>':'';
+    /* ⚠️ 형식 검사 없이 문자열 비교하면 "1800" < "2026-08-21" 이 true 가 된다 */
+    var bad=(it.basis!=='횟수') && it.end && !isDateStr(it.end);
+    var past=!isArch && isDateStr(it.end) && it.end < todayStr();
+    var badge=bad?' <span class="badge" style="background:var(--warn-bg);color:var(--warn)">⚠ 마감일 형식 오류</span>'
+             :(past?' <span class="badge">기간종료</span>':'');
     var actBtns=isArch
       ? '<span data-restoreitem="'+it.id+'">복원</span><span data-delitem="'+it.id+'">삭제</span>'
       : '<span data-doneitem="'+it.id+'" style="color:var(--pos);font-weight:700">완료</span><span data-edititem="'+it.id+'">수정</span><span data-delitem="'+it.id+'">삭제</span>';
@@ -2750,10 +2927,12 @@ var TL_TAGS=[
   {k:'make',  label:'창작',  c:'#a067d8'},
   {k:'move',  label:'운동',  c:'#e08a2f'},
   {k:'meal',  label:'식사',  c:'#d8a13f'},
+  {k:'hosp',  label:'병원',  c:'#2b8a9e'},
   {k:'trip',  label:'이동',  c:'#6bb3c9'},
   {k:'rest',  label:'휴식',  c:'#7fc08a'},
   {k:'waste', label:'낭비',  c:'#d64545'},
   {k:'social',label:'사교',  c:'#d87fae'},
+  {k:'family',label:'가족',  c:'#b5619b'},
   {k:'home',  label:'집안일',c:'#a89070'},
   {k:'etc',   label:'기타',  c:'#9aa6b6'}
 ];
@@ -3277,13 +3456,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.3';
+var APP_VERSION='1.4';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.4',date:'2026-08-21',note:"<b>💳 청구주기 · 할부 · ⏳ 병원/가족 · 🧾 재물 날짜.</b> \u26a0\ufe0f <b>[결함] 재물 마감일에 <code>1800</code> 이 저장됐고 감가상각이 조용히 0원이 됐다.</b> <code>new Date('1800')</code> 은 서기 1800년으로 파싱된다 → <code>daysBetween</code> 이 -82,788 → <code>itemDaily</code> 가 0. 화면엔 '기간종료' 뱃지만 떠서 표시 문제로 보였다. 뿌리는 <b>라벨과 입력의 불일치</b> — 기준은 '일간(수명)'인데 입력은 '마감일(날짜)'을 요구했다. → <b>수명(일) ↔ 마감일 양방향 입력</b>(하나 채우면 나머지 자동) · 전부 <code>type=date</code>(모바일 피커) · 저장 시 형식·순서 검증 · 기존 불량 데이터는 <b>추측해서 고치지 않고</b> ⚠ 뱃지로 드러낸다. \u23f3 타임로그에 <b>병원·가족</b> 태그(전부 '기타'로 묶이던 두 덩어리). 💳 <b>청구주기 도입</b> — 카드마다 마감일·결제일(기본 10/25). 미결제를 <b>결제분별로 분해</b>했다(실측 490,754 는 사실 8월분+9월분 두 덩어리였다). <b>일시불/2/3개월 할부</b> + 회차 미리보기 — \u26a0\ufe0f 회차는 구매일 기념일이 아니라 <b>결제일</b>에 일시불과 합산돼 나간다. 선결제를 <b>결제분 단위</b>로 재설계(‘이 결제분 전체 선택’), <b>할부 당월 회차 포함</b>(로한 지적 — 빼면 카드사 청구서와 숫자가 안 맞는다), 회차는 순서대로만 확정. 가계부에 <b>[발생 | 카드결제]</b> 토글. 🔒 결제일은 예정일 라벨일 뿐 <b>자동 처리하지 않는다</b>."},
   {v:'1.3',date:'2026-08-20',note:"<b>루틴 이사 · 버킷 승격.</b> \u26a0\ufe0f <b>[결함] 루틴 소속을 바꾸면 과거 체크 기록이 조용히 고아가 됐다.</b> <code>checks</code> 는 <code>done[]/due[]/miss{}</code> 전부 <b>코드 문자열</b> 기반인데, 소속이 바뀌면 코드가 재발급된다(<code>E.8a</code> → <code>E1</code>). 경고도 없었다 — <b>기능은 있는데 기록이 따라오지 않는</b> 꼴 · <code>renameRoutineCode()</code> 신설로 세 곳을 한꺼번에 옮긴다. <b>분모(due) 길이는 그대로다</b> — 라벨만 갈아끼우는 것이라 v6.0 '과거 불변성'과 충돌하지 않는다 · 소속 변경 시 <b>먼저 묻는다</b>(옛→새 코드, 옮길 기록 일수). 취소하면 저장 자체를 중단 · <b>「코드 고정」 체크박스</b> — <code>lockCode</code> 필드는 v6.0부터 코드에 있었는데 <b>읽기만 하고 아무도 설정할 수 없었다</b>(입구 막힘 4회차) · 목표 삭제로 루틴이 미연결(Z)로 내려갈 때도 같은 구멍이 있었다 → 함께 막음 · 🎯 <b>버킷 → 연간 목표 승격</b>: 버킷 ⇄ 보상함은 원래 양방향이었고 빠진 조각은 이것 하나였다. 표의 이동 칸에 <b>⬆</b>, 승격된 항목은 <b>🎯 코드</b> 뱃지 + <b>↩</b> 로 연결 해제. 최소 침습 — <code>status</code>/<code>place</code> 를 건드리지 않고 링크만 양방향으로 심는다. 목표를 지우면 버킷 쪽 유령 링크도 정리한다."},
   {v:'1.2',date:'2026-08-20',note:"<b>📀 스냅샷 백업.</b> 로한 제안 — <i>“JSON을 내 하드에만 두지 말고 Supabase 다른 쪽에도 두는 게 낫지 않냐”</i>. 맞다. 단 <b>층이 다르다</b>: 스냅샷 테이블은 <b>논리적 사고</b>(코드 버그·덮어쓰기·실수 삭제)를, JSON 파일은 <b>물리적 사고</b>(프로젝트·계정 소실)를 막는다. 서로 대체 못 한다. <code>app_state_snap</code> 신설(RLS 적용) · 접속 시 <b>하루 1개 자동</b>(부분 유니크 인덱스로 강제) · <b>📍 수동 지점</b> · <b>복원 직전 자동 보관</b>(잘못 되돌려도 돌아올 자리가 있다) · 종류별 보관 상한 자동 정리(자동30/수동15/복원직전10). 🪶 로그 탭."},
   {v:'1.1',date:'2026-08-20',note:"<b>동기화·백업.</b> 저장은 조용히 성공하고 시끄럽게 실패해야 한다 — v1.0까지 저장 실패를 <code>.then(f(){},f(){})</code>로 통째로 삼켰고, 조건 없는 upsert라 <b>폰과 PC를 같이 켜두면 나중에 저장한 쪽이 앞의 것을 통째로 지웠다.</b> updated_at 낙관적 잠금 + 충돌 시 선택(덮어쓰기/새로고침) + 5회 재시도 + 우하단 저장 배지. 💾 JSON 내려받기/복원 + 접속 직후 로컬 복원지점 3일치(📍 로그 탭). 마이그레이션 함수가 둘(migrateDB → migrateV6)이라는 사실을 코드에 명시."},
@@ -3392,17 +3572,52 @@ function itemModal(id,pre){
    +'<div class="field"><label>세부(모델)</label><input id="it_detail" value="'+(it.detail||'')+'"></div>'
    +'<div class="field"><label>종류</label><select id="it_cat">'+catOpts+'</select></div>'
    +'<div class="field"><label>구매금액</label><input id="it_price" value="'+(it.price||'')+'"></div>'
-   +'<div class="field"><label>구매일</label><input id="it_buy" value="'+(it.buy||'')+'"></div>'
+   +'<div class="field"><label>구매일</label><input id="it_buy" type="date" value="'+(isDateStr(it.buy)?it.buy:todayStr())+'"></div>'
    +'<div class="field"><label>기준</label><div class="seg"><button class="'+(it.basis==='일간'?'on':'')+'" onclick="itBasis(this,\'일간\')">일간(수명)</button><button class="'+(it.basis==='횟수'?'on':'')+'" onclick="itBasis(this,\'횟수\')">횟수</button></div></div>'
-   +'<div class="field" id="it_endwrap" style="display:'+(it.basis==='횟수'?'none':'block')+'"><label>마감일(수명 종료 예정)</label><input id="it_end" value="'+(it.end||'')+'"></div>'
+   +'<div class="field" id="it_endwrap" style="display:'+(it.basis==='횟수'?'none':'block')+'">'
+     +'<label>수명 <span class="mut">— 며칠 쓸 물건인가</span></label>'
+     +'<div class="itlife"><input id="it_life" type="number" min="1" step="1" value="'+(isDateStr(it.end)&&isDateStr(it.buy)?Math.max(0,daysBetween(it.buy,it.end)):'')+'" oninput="itLifeSync()" placeholder="예: 1800"><span class="mut">일</span>'
+     +'<span class="mut">→ 마감일</span><input id="it_end" type="date" value="'+(isDateStr(it.end)?it.end:'')+'" onchange="itEndSync()"></div>'
+     +'<div class="hint" id="it_lifehint">둘 중 아무거나 채우면 나머지가 자동으로 계산된다. (안경 5년 ≈ 1800일 · 노트북 5년 · 폰 3년)</div></div>'
    +'<div class="field" id="it_unitwrap" style="display:'+(it.basis==='횟수'?'block':'none')+'"><label>예상 사용횟수</label><input id="it_units" value="'+(it.units||'')+'"></div>'
    +'<button class="btn" onclick="saveItem('+(id?"'"+id+"'":'null')+')">저장</button>');
-  modal._ibasis=it.basis;
+  modal._ibasis=it.basis; itLifeHint();
+}
+/* 수명(일) → 마감일 */
+function itLifeSync(){
+  var b=document.getElementById('it_buy').value, n=parseInt(document.getElementById('it_life').value,10);
+  if(isDateStr(b)&&n>0)document.getElementById('it_end').value=addDays(b,n);
+  itLifeHint();
+}
+/* 마감일 → 수명(일) */
+function itEndSync(){
+  var b=document.getElementById('it_buy').value, e=document.getElementById('it_end').value;
+  if(isDateStr(b)&&isDateStr(e))document.getElementById('it_life').value=Math.max(0,daysBetween(b,e));
+  itLifeHint();
+}
+function itLifeHint(){
+  var h=document.getElementById('it_lifehint'); if(!h)return;
+  var b=document.getElementById('it_buy'), e=document.getElementById('it_end'), pr=document.getElementById('it_price');
+  if(!b||!e)return;
+  var n=daysBetween(b.value,e.value), price=numv('it_price');
+  if(n>0&&price>0){
+    h.innerHTML='<b>'+comma(n)+'일</b> ('+(Math.round(n/365*10)/10)+'년) · 일 <b>'+won(price/n)+'</b> · 월 <b>'+won(price/n*30)+'</b>';
+  }else h.textContent='둘 중 아무거나 채우면 나머지가 자동으로 계산된다. (안경 5년 ≈ 1800일 · 노트북 5년 · 폰 3년)';
 }
 function itBasis(b,v){modal._ibasis=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');document.getElementById('it_endwrap').style.display=v==='횟수'?'none':'block';document.getElementById('it_unitwrap').style.display=v==='횟수'?'block':'none';}
 function saveItem(id){
   var name=document.getElementById('it_name').value.trim();if(!name)return alert('이름 입력');
-  var rec={name:name,detail:document.getElementById('it_detail').value,cat:document.getElementById('it_cat').value,cond:'신품',price:numv('it_price'),buy:document.getElementById('it_buy').value,basis:modal._ibasis,end:(document.getElementById('it_end')||{}).value||'',units:numv('it_units'),status:'사용중'};
+  var buy=document.getElementById('it_buy').value;
+  var end=(document.getElementById('it_end')||{}).value||'';
+  /* ⚠️ 검증이 0이라 "1800" 같은 값이 그대로 저장됐고, 감가상각이 조용히 0원이 됐다.
+     조용히 틀린 값을 받느니 시끄럽게 막는다. */
+  if(!isDateStr(buy))return alert('구매일을 날짜로 입력하세요 (YYYY-MM-DD)');
+  if(modal._ibasis!=='횟수'){
+    if(!isDateStr(end))return alert('마감일을 날짜로 입력하세요.\n수명(일)만 넣어도 마감일이 자동으로 계산됩니다.');
+    if(end<=buy)return alert('마감일이 구매일보다 뒤여야 합니다.\n구매일 '+buy+' · 마감일 '+end);
+  }else{ if(!(numv('it_units')>0))return alert('예상 사용횟수를 1 이상으로 입력하세요'); end=''; }
+  if(buy>todayStr()&&!confirm('구매일이 미래('+buy+')입니다. 그대로 저장할까요?'))return;
+  var rec={name:name,detail:document.getElementById('it_detail').value,cat:document.getElementById('it_cat').value,cond:'신품',price:numv('it_price'),buy:buy,basis:modal._ibasis,end:end,units:numv('it_units'),status:'사용중'};
   if(id){Object.assign(DB.items.filter(function(x){return x.id===id})[0],rec);}else{rec.id=uid();DB.items.push(rec);}
   save();closeModal();renderItems();
 }
@@ -3796,27 +4011,100 @@ function metricModal(kind){
   var series=s.map(function(x){return {date:x.m+'-01',amount:kind==='debt'?x.debt:kind==='assets'?x.assets:x.net}});
   openModal('<div class="mtop"><h3>'+cfg.t+' 12개월 추세</h3><span class="x" onclick="closeModal()">×</span></div><div class="mcur">'+signWon(series[series.length-1].amount)+'</div>'+lineChart(series,{color:cfg.c,zeroBase:cfg.z})+'<div class="hint">월말 스냅샷 기준. 데이터 쌓이면 12개월 다 채워짐.</div>');
 }
-function settleModal(){
-  var pend=DB.transactions.filter(function(t){return t.card&&t.type==='expense'&&creditCard(t.method);}).sort(function(a,b){return a.date<b.date?-1:1;});
-  if(!pend.length){openModal('<div class="mtop"><h3>신용카드 선결제</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut" style="padding:12px 0">미결제 카드 거래가 없습니다.</div>');return;}
-  var rows=pend.map(function(t){return '<label class="settle-row"><input type="checkbox" class="stx" data-id="'+t.id+'" data-amt="'+t.amt+'" checked onchange="settleRecalc()"><span class="sr-d">'+t.date.slice(5)+'</span><span class="sr-c"><span class="pill">'+t.method+'</span>'+t.cat+'</span><span class="sr-a">'+won(t.amt)+'</span></label>';}).join('');
-  var acctOpts=cashAccts().map(function(a){return '<option value="'+a.id+'">'+a.name+'</option>';}).join('');
-  openModal('<div class="mtop"><h3>신용카드 선결제 <span class="mut" style="font-size:12px">체크한 건만 확정</span></h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div style="text-align:right;margin-bottom:6px"><span class="ghost" style="cursor:pointer" onclick="settleAll(true)">전체선택</span> <span class="ghost" style="cursor:pointer" onclick="settleAll(false)">전체해제</span></div>'
-   +'<div style="max-height:40vh;overflow:auto;margin-bottom:10px;border:1px solid var(--line);border-radius:8px">'+rows+'</div>'
-   +'<div class="field"><label>출금계좌 <span class="mut">(카드에 연결계좌가 있으면 그쪽 우선 · 없는 카드만 이 계좌)</span></label><select id="stAcct">'+acctOpts+'</select></div>'
+/* ══════ 선결제 — 결제분(청구주기) 단위 ══════
+   ⚠️ 로한은 25일 자동출금을 기다리지 않는다. 5일·15일쯤 손으로 미리 지운다.
+      그래서 필요한 건 자동 처리가 아니라 '지금 지울 덩어리'를 정확히 묶어주는 것이다.
+   ⚠️ 할부 '당월 회차'는 그 주기 청구액에 포함된다 (로한 지적 0821).
+      빼면 앱 숫자와 카드사 청구서가 안 맞고, 그러면 이 화면은 안 보게 된다. */
+function settleModal(pre){
+  var cy=cardCycles();
+  var cards=DB.cards.filter(function(c){return c.type==='credit'&&cy[c.name];});
+  if(!cards.length){openModal('<div class="mtop"><h3>신용카드 선결제</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut" style="padding:12px 0">미결제 카드 거래가 없습니다.</div>');return;}
+  var cid=(pre&&pre.split('|')[0])||'', ym=(pre&&pre.split('|')[1])||'';
+  var card=DB.cards.filter(function(c){return c.id===cid;})[0]||cards[0];
+  var yms=Object.keys(cy[card.name]||{}).sort();
+  if(yms.indexOf(ym)<0)ym=yms[0];
+  modal._stCard=card.id; modal._stYM=ym;
+  drawSettle();
+}
+function settleSwitch(cid,ym){modal._stCard=cid;modal._stYM=ym;drawSettle();}
+function drawSettle(){
+  var cy=cardCycles();
+  var card=DB.cards.filter(function(c){return c.id===modal._stCard;})[0];
+  if(!card)return closeModal();
+  var yms=Object.keys(cy[card.name]||{}).sort();
+  if(!yms.length){closeModal();renderDash();return;}
+  var ym=(yms.indexOf(modal._stYM)>=0)?modal._stYM:yms[0];
+  modal._stYM=ym;
+  var g=cy[card.name][ym], r=cycleRange(ym,cardClose(card)), pd=cyclePayDate(ym,cardPay(card));
+
+  /* 카드 전환 (신용카드가 2장 이상일 때만) */
+  var credit=DB.cards.filter(function(c){return c.type==='credit'&&cy[c.name];});
+  var cardTabs=credit.length>1?('<div class="sttabs">'+credit.map(function(c){
+     var tot=Object.keys(cy[c.name]).reduce(function(x,y){return x+cy[c.name][y].sum;},0);
+     return '<span class="sttab'+(c.id===card.id?' on':'')+'" data-stcard="'+c.id+'">'+c.name+' <span class="mut">'+shortWon(tot)+'</span></span>';
+   }).join('')+'</div>'):'';
+  /* 결제분 전환 */
+  var cycTabs='<div class="sttabs cyc">'+yms.map(function(y){
+     return '<span class="sttab'+(y===ym?' on':'')+'" data-stym="'+y+'">'+cycleLabel(y)+' <span class="mut">'+shortWon(cy[card.name][y].sum)+'</span></span>';
+   }).join('')+'</div>';
+
+  /* ⚠️ 회차는 순서대로만 확정한다. 2회차를 1회차보다 먼저 낼 수는 없다.
+     그 주기가 '다음 낼 회차'가 아니면 잠근다. */
+  var rows=g.rows.slice().sort(function(x,y){return x.t.date<y.t.date?-1:1;}).map(function(x){
+    var t=x.t, lock=(x.n>1&&x.k!==instDone(t)+1);
+    return '<label class="settle-row'+(lock?' lock':'')+'">'
+     +'<input type="checkbox" class="stx" data-id="'+t.id+'" data-k="'+x.k+'" data-amt="'+x.amt+'"'
+       +(lock?' disabled':' checked')+' onchange="settleRecalc()">'
+     +'<span class="sr-d">'+t.date.slice(5)+'</span>'
+     +'<span class="sr-c"><span class="pill">'+sajuEsc(t.cat)+'</span>'
+       +(x.n>1?'<span class="insttag">'+x.k+'/'+x.n+' 할부</span> ':'')
+       +(lock?'<span class="mut" style="font-size:10px">'+(instDone(t)+1)+'회차 먼저 </span>':'')
+       +sajuEsc(t.memo||t.itemCat||'')+'</span>'
+     +'<span class="sr-a">'+won(x.amt)+'</span></label>';
+  }).join('');
+
+  var acctOpts=cashAccts().map(function(a){return '<option value="'+a.id+'"'+(a.id===card.acct?' selected':'')+'>'+a.name+'</option>';}).join('');
+  openModal('<div class="mtop"><h3>💳 선결제 <span class="mut" style="font-size:12px">'+sajuEsc(card.name)+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +cardTabs+cycTabs
+   +'<div class="mut" style="font-size:11px;margin:2px 0 8px">'+r.from+' ~ '+r.to+' 이용분 · <b>'+pd+'</b> 결제 예정</div>'
+   +'<div class="mact"><button class="btn sm" onclick="settleAll(true)">이 결제분 전체 선택</button> '
+     +'<button class="ghost sm" onclick="settleAll(false)">전체 해제</button></div>'
+   +'<div style="max-height:38vh;overflow:auto;margin-bottom:10px;border:1px solid var(--line);border-radius:8px">'+rows+'</div>'
+   +'<div class="field"><label>출금계좌</label><select id="stAcct">'+acctOpts+'</select></div>'
    +'<div class="taxrow big"><span>선택 합계 <span id="stCnt" class="mut" style="font-size:12px"></span></span><span id="stSum" class="neg"></span></div>'
-   +'<button class="btn" style="width:100%;margin-top:10px" onclick="doSettle()">선택 항목 결제 확정</button>'
-   +'<div class="hint">확정 시 선택 거래가 \'미결제\'에서 해제되고, 합계만큼 출금계좌 현금이 차감됩니다. (삼성카드 10일~익월9일 주기면 그 기간 건만 체크)</div>');
+   +'<button class="btn" style="width:100%;margin-top:10px" onclick="doSettle()">이 결제분 확정</button>'
+   +'<div class="hint">확정하면 선택 건이 미결제에서 빠지고 합계만큼 출금계좌 현금이 차감된다. 할부는 <b>그 회차만</b> 확정된다.</div>');
   settleRecalc();
 }
-function settleAll(v){var bx=document.querySelectorAll('.stx');for(var i=0;i<bx.length;i++)bx[i].checked=v;settleRecalc();}
-function settleRecalc(){var bx=document.querySelectorAll('.stx'),cnt=0,sum=0;for(var i=0;i<bx.length;i++){if(bx[i].checked){cnt++;sum+=parseFloat(bx[i].dataset.amt);}}var cs=document.getElementById('stCnt'),ss=document.getElementById('stSum');if(cs)cs.textContent='('+cnt+'건)';if(ss)ss.textContent=won(sum);}
-function doSettle(){var bx=document.querySelectorAll('.stx'),ids=[],sum=0,byCard={};for(var i=0;i<bx.length;i++){if(bx[i].checked){ids.push(bx[i].dataset.id);sum+=parseFloat(bx[i].dataset.amt);}}if(!ids.length)return alert('선택된 항목이 없습니다');
-  var acctEl=document.getElementById('stAcct'),fallback=acctEl?acctEl.value:undefined;
-  DB.transactions.forEach(function(t){if(ids.indexOf(t.id)>=0){t.card=false;byCard[t.method]=(byCard[t.method]||0)+t.amt;}});
-  Object.keys(byCard).forEach(function(cardName){var cobj=DB.cards.filter(function(c){return c.name===cardName;})[0];var acct=(cobj&&cobj.acct)?cobj.acct:fallback;if(acct)DB.transactions.push({id:uid(),type:'settle',acct:acct,amt:byCard[cardName],date:todayStr(),method:cardName+' 결제',cat:'카드결제'});});
-  logAct('선결제 확정 · '+ids.length+'건 '+won(sum));save();closeModal();renderDash();renderCal();alert('선결제 확정: '+ids.length+'건 '+won(sum));}
+function settleAll(v){var bx=document.querySelectorAll('.stx');for(var i=0;i<bx.length;i++){if(!bx[i].disabled)bx[i].checked=v;}settleRecalc();}
+function settleRecalc(){var bx=document.querySelectorAll('.stx'),cnt=0,sum=0;
+  for(var i=0;i<bx.length;i++){if(bx[i].checked&&!bx[i].disabled){cnt++;sum+=parseFloat(bx[i].dataset.amt);}}
+  var cs=document.getElementById('stCnt'),ss=document.getElementById('stSum');
+  if(cs)cs.textContent='('+cnt+'건)';if(ss)ss.textContent=won(sum);}
+function doSettle(){
+  var bx=document.querySelectorAll('.stx'),picks=[],sum=0;
+  for(var i=0;i<bx.length;i++)if(bx[i].checked&&!bx[i].disabled){
+    picks.push({id:bx[i].dataset.id,k:parseInt(bx[i].dataset.k,10),amt:parseFloat(bx[i].dataset.amt)});
+    sum+=parseFloat(bx[i].dataset.amt);}
+  if(!picks.length)return alert('선택된 항목이 없습니다');
+  var card=DB.cards.filter(function(c){return c.id===modal._stCard;})[0];
+  var acctEl=document.getElementById('stAcct');
+  var acct=(acctEl&&acctEl.value)||card.acct;
+  if(!acct)return alert('출금계좌를 선택하세요');
+  var nInst=0;
+  picks.forEach(function(pk){
+    var t=DB.transactions.filter(function(x){return x.id===pk.id;})[0]; if(!t)return;
+    if(instN(t)>1){ t.instDone=instDone(t)+1; nInst++;
+      if(instDone(t)>=instN(t))t.card=false;   /* 마지막 회차까지 내면 미결제 해제 */
+    } else t.card=false;
+  });
+  DB.transactions.push({id:uid(),type:'settle',acct:acct,amt:sum,date:todayStr(),
+    method:card.name+' 결제',cat:'카드결제',cycle:modal._stYM});
+  logAct('선결제 확정 · '+card.name+' '+cycleLabel(modal._stYM)+' '+picks.length+'건 '+won(sum)+(nInst?' (할부 '+nInst+'회차)':''));
+  save();closeModal();renderDash();renderCal();
+  alert(cycleLabel(modal._stYM)+' 확정 · '+picks.length+'건 '+won(sum));
+}
 /* ==== 은행 실제 상환스케줄 (원금 고정 + 일할이자) ====
    검증: 경기신보 소상공인대환 스케줄 6회차 원 단위 일치 (2026-08-14) */
 function bankPayDate(y,m,payDay){var d=new Date(Date.UTC(y,m-1,payDay));var w=d.getUTCDay();if(w===6)d.setUTCDate(payDay+2);else if(w===0)d.setUTCDate(payDay+1);return d;}
@@ -3918,11 +4206,37 @@ function cardModal(id){
   var acctOpts='<option value="">— 미연결 —</option>'+cashAccts().map(function(a){return '<option value="'+a.id+'"'+(a.id===c.acct?' selected':'')+'>'+a.name+'</option>';}).join('');
   openModal('<div class="mtop"><h3>'+(id?'카드 수정':'카드 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>카드 이름</label><input id="cd_name" value="'+(c.name||'')+'" placeholder="예: 현대카드 / 국민 체크"></div>'
-   +'<div class="field"><label>종류</label><select id="cd_type"><option value="credit"'+(c.type==='credit'?' selected':'')+'>신용(선결제·미결제 누적)</option><option value="check"'+(c.type==='check'?' selected':'')+'>체크(즉시결제)</option></select></div>'
+   +'<div class="field"><label>종류</label><select id="cd_type" onchange="cdTypeChange()"><option value="credit"'+(c.type==='credit'?' selected':'')+'>신용(선결제·미결제 누적)</option><option value="check"'+(c.type==='check'?' selected':'')+'>체크(즉시결제)</option></select></div>'
    +'<div class="field"><label>연결계좌 <span class="mut">(체크=즉시출금 · 신용=선결제 출금계좌)</span></label><select id="cd_acct">'+acctOpts+'</select></div>'
+   +'<div id="cd_cycwrap" style="display:'+(c.type==='credit'?'block':'none')+'">'
+     +'<div class="field"><label>이용기간 마감일 <span class="mut">— 이 날 다음부터 다음 결제분</span></label>'
+       +'<div class="itlife"><input id="cd_close" type="number" min="1" max="28" value="'+cardClose(c)+'"><span class="mut">일 마감</span>'
+       +'<span class="mut">→ 결제일</span><input id="cd_pay" type="number" min="1" max="28" value="'+cardPay(c)+'"><span class="mut">일</span></div>'
+       +'<div class="hint" id="cd_cychint"></div></div></div>'
    +'<button class="btn" onclick="saveCard('+(id?"'"+id+"'":'null')+')">'+(id?'저장':'추가')+'</button>');
+  var _cc=document.getElementById('cd_close'),_cp=document.getElementById('cd_pay');
+  if(_cc)_cc.oninput=cdCycHint; if(_cp)_cp.oninput=cdCycHint;
+  cdCycHint();
 }
-function saveCard(id){var n=document.getElementById('cd_name').value.trim();if(!n)return alert('이름을 입력하세요');var type=document.getElementById('cd_type').value;var acct=document.getElementById('cd_acct').value||undefined;if(id){var c=DB.cards.filter(function(x){return x.id===id})[0];c.name=n;c.type=type;c.acct=acct;}else DB.cards.push({id:uid(),name:n,type:type,acct:acct});logAct((id?'카드수정':'카드추가')+' · '+n+(acct?' → '+acctName(acct):''));save();closeModal();renderAcct();renderDash();}
+function cdTypeChange(){
+  var t=document.getElementById('cd_type').value;
+  document.getElementById('cd_cycwrap').style.display=(t==='credit')?'block':'none';
+  cdCycHint();
+}
+function cdCycHint(){
+  var h=document.getElementById('cd_cychint'); if(!h)return;
+  var cl=parseInt((document.getElementById('cd_close')||{}).value,10);
+  var pd=parseInt((document.getElementById('cd_pay')||{}).value,10);
+  if(!(cl>=1&&cl<=28)||!(pd>=1&&pd<=28)){h.textContent='1~28 사이로 입력하세요.';return;}
+  var r=cycleRange(DB.ui.month||todayStr().slice(0,7),cl);
+  h.innerHTML='예) <b>'+cycleLabel(DB.ui.month||todayStr().slice(0,7))+'</b> = '+r.from+' ~ '+r.to+' 이용분, '+pd+'일 결제.'
+    +'<br><span class="mut">결제일은 <b>예정일 라벨</b>일 뿐 자동으로 처리하지 않는다 — 선결제는 네가 누를 때만 일어난다.</span>';
+}
+function saveCard(id){var n=document.getElementById('cd_name').value.trim();if(!n)return alert('이름을 입력하세요');var type=document.getElementById('cd_type').value;var acct=document.getElementById('cd_acct').value||undefined;
+  var cl=parseInt((document.getElementById('cd_close')||{}).value,10),pd=parseInt((document.getElementById('cd_pay')||{}).value,10);
+  if(type==='credit'&&(!(cl>=1&&cl<=28)||!(pd>=1&&pd<=28)))return alert('마감일·결제일은 1~28 사이여야 합니다.\n(29~31 은 없는 달이 있어 주기가 깨진다)');
+  var cyc=(type==='credit')?{closeDay:cl,payDay:pd}:{closeDay:undefined,payDay:undefined};
+  if(id){var c=DB.cards.filter(function(x){return x.id===id})[0];c.name=n;c.type=type;c.acct=acct;c.closeDay=cyc.closeDay;c.payDay=cyc.payDay;}else DB.cards.push({id:uid(),name:n,type:type,acct:acct,closeDay:cyc.closeDay,payDay:cyc.payDay});logAct((id?'카드수정':'카드추가')+' · '+n+(acct?' → '+acctName(acct):''));save();closeModal();renderAcct();renderDash();}
 function delCard(id){if(!confirm('삭제할까요?'))return;var _c=DB.cards.filter(function(c){return c.id===id})[0];logAct('카드삭제 · '+(_c?_c.name:id));DB.cards=DB.cards.filter(function(c){return c.id!==id});save();renderAcct();renderDash();}
 function debtModal(id){
   var d=id?DB.debts.filter(function(x){return x.id===id})[0]:{name:'',balance:'',rate:''};
@@ -4066,6 +4380,18 @@ function migrateV6(d){
     (d.rewards||[]).forEach(function(b){if(b.promotedTo&&!gid[b.promotedTo])delete b.promotedTo;});
     (d.goals||[]).forEach(function(g){if(g.fromBucket&&!bid[g.fromBucket])delete g.fromBucket;});
   })();
+  /* v1.4 — 신용카드 청구주기 기본값. 체크카드는 즉시출금이라 주기가 없다.
+     ⚠️ 기존 거래는 손대지 않는다 — inst 가 없으면 일시불이고, 거래일만 있으면 주기는 계산된다. */
+  (d.cards||[]).forEach(function(c){
+    if(c.type==='credit'){ if(c.closeDay==null)c.closeDay=10; if(c.payDay==null)c.payDay=25; }
+    else { delete c.closeDay; delete c.payDay; }
+  });
+  /* instDone 이 회차 수를 넘지 않게 (데이터 꼬임 방어) */
+  (d.transactions||[]).forEach(function(t){
+    if(!t.inst||t.inst<=1){delete t.inst;delete t.instDone;return;}
+    var n=parseInt(t.inst,10); if(t.instDone==null)t.instDone=0;
+    if(t.instDone>n)t.instDone=n; if(t.instDone<0)t.instDone=0;
+  });
   /* v1.3 — lockCode 는 false 를 저장할 이유가 없다. 켜진 것만 남긴다. */
   (d.routines||[]).forEach(function(r){if(!r.lockCode)delete r.lockCode;});
   if(d.ui&&!d.ui.bkSort){d.ui.bkSort='price';d.ui.bkDir=1;d.ui.bkFilter='want';}
@@ -4169,13 +4495,47 @@ function txnModal(id){
    +'<div class="field"><label>출발계좌</label><select id="fFrom">'+cashOpts(t.from)+'</select></div>'
    +'<div class="field"><label>도착계좌 <span class="mut">(저축·투자 포함)</span></label><select id="fTo">'+allOpts(t.to)+'</select></div>'
    +'</div>'
-   +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900"></div>'
+   +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900" oninput="instPreview()"></div>'
+   +'<div class="field" id="instField" style="display:none"><label>결제 방식</label><div class="seg" id="instSeg">'
+     +[1,2,3].map(function(n){return '<button class="'+((parseInt(t.inst||1,10)===n)?'on':'')+'" onclick="setInst(this,'+n+')">'+(n===1?'일시불':n+'개월 할부')+'</button>';}).join('')
+     +'</div><div class="hint" id="instHint"></div></div>'
    +rwCardField(t)
-   +'<div class="field"><label>날짜</label><input id="fDate" value="'+t.date+'"></div>'
+   +'<div class="field"><label>날짜</label><input id="fDate" value="'+t.date+'" onchange="instPreview()"></div>'
    +'<div class="field"><label>메모</label><textarea id="fMemo" rows="2">'+(t.memo||'')+'</textarea></div>'
    +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
    +'<button class="btn" onclick="saveTxn('+(id?"'"+id+"'":'null')+')">저장</button>');
-  modal._type=t.type;modal._scope=t.scope;updIncInfo();methodChange();
+  modal._type=t.type;modal._scope=t.scope;modal._inst=parseInt(t.inst||1,10);
+  modal._instDone=parseInt(t.instDone||0,10);
+  updIncInfo();methodChange();
+}
+function setInst(b,n){
+  if(modal._instDone>0&&n!==modal._inst)
+    return alert('이미 '+modal._instDone+'회차가 결제 확정된 건이다.\n할부 개월수를 바꾸려면 먼저 결제 확정을 되돌려라.');
+  modal._inst=n;
+  var bs=b.parentNode.querySelectorAll('button');
+  for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');
+  b.classList.add('on'); instPreview();
+}
+/* 할부 회차가 '언제 얼마' 나가는지 그 자리에서 보여준다.
+   ⚠️ 회차는 구매일 기념일이 아니라 그 카드의 결제일에 붙어 나간다. */
+function instPreview(){
+  var f=document.getElementById('instField'); if(!f)return;
+  var m=(document.getElementById('fMethod')||{}).value, c=cardBy(m);
+  var isCredit=c&&c.type==='credit'&&modal._type==='expense';
+  f.style.display=isCredit?'block':'none';
+  if(!isCredit)return;
+  var h=document.getElementById('instHint'); if(!h)return;
+  var amt=parseFloat((document.getElementById('fAmt').value||'').replace(/[^0-9.]/g,''))||0;
+  var date=(document.getElementById('fDate')||{}).value||todayStr();
+  var n=modal._inst||1;
+  if(!amt||!isDateStr(date)){h.textContent='금액과 날짜를 넣으면 언제 얼마가 빠지는지 보여준다.';return;}
+  var fake={amt:amt,date:date,method:m,inst:n};
+  var parts=[];
+  for(var k=1;k<=n;k++)parts.push('<b>'+cycleLabel(instCycle(fake,k))+'</b> '+comma(instAmt(fake,k))+'원');
+  var r=cycleRange(instCycle(fake,1),cardClose(c));
+  h.innerHTML=parts.join(' · ')
+    +'<br><span class="mut">'+r.from+'~'+r.to+' 이용분 · '+cardPay(c)+'일 결제'
+    +(n>1?' · 회차는 구매일이 아니라 <b>결제일</b>에 일시불 건들과 합산돼 나간다':'')+'</span>';
 }
 function updIncInfo(){var el=document.getElementById('fIncInfo');if(!el||modal._type!=='income')return;var name=document.getElementById('fCat').value;var c=DB.categories.filter(function(x){return x.name===name&&x.type==='income'})[0];el.innerHTML=c?('소득구분: <b>'+(c.incType||'미분류')+'</b>'+(c.taxCode?' · 코드 '+c.taxCode:'')+' → 세무 페이지 자동 집계'):'카테고리 없음 (계좌·부채 탭에서 추가)';}
 function methodChange(){var af=document.getElementById('acctField'),nt=document.getElementById('acctNote');if(!af)return;
@@ -4185,7 +4545,8 @@ function methodChange(){var af=document.getElementById('acctField'),nt=document.
   var m=(document.getElementById('fMethod')||{}).value;
   var card=DB.cards.filter(function(c){return c.name===m;})[0];
   if(card){af.style.display='none';if(nt){nt.style.display='block';nt.innerHTML=card.type==='credit'?('💳 신용 → 미결제로 쌓였다가 <b>'+(card.acct?acctName(card.acct):'선결제 계좌')+'</b>에서 선결제 시 차감'):('💳 체크 → <b>'+(card.acct?acctName(card.acct):'⚠ 연결계좌 미설정')+'</b>에서 즉시 출금');}}
-  else{af.style.display='block';hideNote();}}
+  else{af.style.display='block';hideNote();}
+  instPreview();}
 function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
   var isTr=v==='transfer',inc=v==='income';
   document.getElementById('txnBody').style.display=isTr?'none':'block';
@@ -4220,6 +4581,10 @@ function saveTxn(id){
   else if(cardObj)acct=cardObj.type==='check'?cardObj.acct:undefined; // 체크=연결계좌 즉시출금, 신용=선결제시
   else acct=acctEl?acctEl.value:undefined; // 현금·이체
   var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
+  /* 할부는 신용카드 지출에만 붙는다. 일시불이면 필드를 만들지 않는다 — 빈 서랍을 남기지 않는다. */
+  var _n=isCardPay?(modal._inst||1):1;
+  if(_n>1){rec.inst=_n;rec.instDone=Math.min(modal._instDone||0,_n);}
+  else{rec.inst=undefined;rec.instDone=undefined;}
   if(id){Object.assign(DB.transactions.filter(function(x){return x.id===id})[0],rec);}else{rec.id=uid();DB.transactions.push(rec);}
   logAct((id?'거래수정':'거래추가')+' · '+rec.date+' '+rec.cat+' '+(rec.type==='income'?'+':'-')+won(rec.amt));
   /* 🎁 보상 카드 연결 — 거래가 생긴 뒤에 붙인다 */
@@ -4284,6 +4649,9 @@ document.addEventListener('click',function(e){
   var bkf=e.target.closest('[data-bkfil]');if(bkf)return bkFilter(bkf.dataset.bkfil);
   var tor=e.target.closest('[data-tor]');if(tor)return toRewardModal(tor.dataset.tor);
   var tob=e.target.closest('[data-tob]');if(tob)return toBucket(tob.dataset.tob);
+  var stc=e.target.closest('[data-settle]');if(stc)return settleModal(stc.dataset.settle);
+  var stk=e.target.closest('[data-stcard]');if(stk)return settleSwitch(stk.dataset.stcard,'');
+  var sty=e.target.closest('[data-stym]');if(sty)return settleSwitch(modal._stCard,sty.dataset.stym);
   var tog=e.target.closest('[data-tog]');if(tog)return promoteBucketModal(tog.dataset.tog);
   var unb=e.target.closest('[data-unbk]');if(unb)return unpromoteBucket(unb.dataset.unbk);
   var bke=e.target.closest('[data-bkedit]');if(bke)return bucketModal(bke.dataset.bkedit);

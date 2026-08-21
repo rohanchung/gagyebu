@@ -1,7 +1,11 @@
 const {chromium}=require('playwright');
+/* ⚠️ 날짜를 하드코딩하면 하루만 지나도 깨진다 (2026-08-21 에 실제로 깨졌다).
+   '오늘'과 '어제'는 실행 시점에 계산한다. 경로 하드코딩과 같은 계열의 함정이다. */
+const TODAY=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
+const DAYS=n=>{const d=new Date(TODAY+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 const file=process.argv[2];
-const INIT=({st,seed})=>{
-  const state={v:st,at:'2026-08-20T00:00:00.000Z'}; const snaps=(seed||[]).slice(); let seq=1000;
+const INIT=({st,seed,today})=>{
+  const state={v:st,at:today+'T00:00:00.000Z'}; const snaps=(seed||[]).slice(); let seq=1000;
   window.__db={state,snaps};
   const res=d=>Promise.resolve({data:d,error:null});
   function appQ(){let m=null,p=null;const f={};const q={
@@ -32,7 +36,7 @@ const INIT=({st,seed})=>{
 };
 const ST={schemaVersion:7,transactions:[{id:'t1',date:'2026-08-01',amount:100,type:'expense'}],goals:[],routines:[],journal:[{id:'j1'}]};
 async function boot(b,seed,onDialog){
-  const c=await b.newContext();await c.addInitScript(INIT,{st:ST,seed:seed||[]});
+  const c=await b.newContext();await c.addInitScript(INIT,{st:ST,seed:seed||[],today:TODAY});
   const p=await c.newPage();const errs=[];
   p.on('pageerror',e=>{if(!/__stop_reload__/.test(e.message))errs.push(e.message.split('\n')[0]);});
   const dlg=[];p.on('dialog',async d=>{dlg.push(d.message().slice(0,50));await(onDialog?onDialog(d):d.accept());});
@@ -46,11 +50,11 @@ console.log('A) 접속 시 자동 스냅샷');
 {const {p,c,errs}=await boot(b);
  const s=await p.evaluate(()=>window.__db.snaps.map(x=>({k:x.kind,d:x.day,b:x.bytes,u:x.user_id})));
  ok('auto 1개 생성',s.length===1&&s[0].k==='auto',JSON.stringify(s));
- ok('user_id·day·bytes 채워짐',s[0]&&s[0].u==='u1'&&s[0].d==='2026-08-20'&&s[0].b>0);
+ ok('user_id·day·bytes 채워짐',s[0]&&s[0].u==='u1'&&s[0].d===TODAY&&s[0].b>0);
  ok('JS 에러 0',errs.length===0,errs[0]||'');await c.close();}
 
 console.log('B) 같은 날 두 번째 접속 → 중복 생성 안 함');
-{const seed=[{id:1,user_id:'u1',day:'2026-08-20',kind:'auto',bytes:100,taken_at:'2026-08-20T01:00:00.000Z',data:{}}];
+{const seed=[{id:1,user_id:'u1',day:TODAY,kind:'auto',bytes:100,taken_at:TODAY+'T01:00:00.000Z',data:{}}];
  const {p,c,errs}=await boot(b,seed);
  const n=await p.evaluate(()=>window.__db.snaps.length);
  ok('여전히 1개',n===1,'n='+n);
@@ -58,8 +62,8 @@ console.log('B) 같은 날 두 번째 접속 → 중복 생성 안 함');
 
 console.log('C) 로그 탭 목록 렌더');
 {const seed=[
-  {id:1,user_id:'u1',day:'2026-08-18',kind:'auto',bytes:250000,taken_at:'2026-08-18T09:00:00.000Z',data:{}},
-  {id:2,user_id:'u1',day:'2026-08-19',kind:'manual',note:'9월 재설계 직전',bytes:251000,taken_at:'2026-08-19T10:00:00.000Z',data:{}}];
+  {id:1,user_id:'u1',day:DAYS(-3),kind:'auto',bytes:250000,taken_at:DAYS(-3)+'T09:00:00.000Z',data:{}},
+  {id:2,user_id:'u1',day:DAYS(-2),kind:'manual',note:'9월 재설계 직전',bytes:251000,taken_at:DAYS(-2)+'T10:00:00.000Z',data:{}}];
  const {p,c,errs}=await boot(b,seed);
  await p.click('.m[data-v="log"]');await p.waitForTimeout(500);
  const r=await p.evaluate(()=>{const e=document.getElementById('snaplist');
@@ -72,7 +76,7 @@ console.log('C) 로그 탭 목록 렌더');
  ok('JS 에러 0',errs.length===0,errs[0]||'');await c.close();}
 
 console.log('D) 되돌리기 → 복원 직전 자동 보관이 먼저');
-{const seed=[{id:77,user_id:'u1',day:'2026-08-15',kind:'auto',bytes:9,taken_at:'2026-08-15T09:00:00.000Z',
+{const seed=[{id:77,user_id:'u1',day:DAYS(-6),kind:'auto',bytes:9,taken_at:DAYS(-6)+'T09:00:00.000Z',
    data:{schemaVersion:7,transactions:[{id:'old1'},{id:'old2'},{id:'old3'}],goals:[],routines:[],journal:[]}}];
  const {p,c,errs,dlg}=await boot(b,seed,d=>d.accept());
  await p.click('.m[data-v="log"]');await p.waitForTimeout(500);
