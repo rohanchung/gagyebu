@@ -167,6 +167,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .pill.tr{background:#efeafb;color:#6f5fc7}
 .pill.st{background:#fff2d6;color:#b26a00}
 .warnx{color:var(--warn);font-weight:700}
+.foodx{color:#0f9d58;font-weight:600}
 .cfwarn{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   background:var(--warn-bg);border:1px solid #e8c98a;border-radius:9px;padding:9px 11px;margin:0 0 10px;
   font-size:12px;color:var(--warn)}
@@ -1018,6 +1019,23 @@ function totalAssets(){return DB.accounts.reduce(function(s,a){return s+accVal(a
       로한은 25일을 기다리지 않고 5일·15일에 선결제로 미리 지운다.
       자동 처리를 넣으면 이미 손으로 지운 건을 앱이 또 지운다. */
 var CARD_CLOSE=10, CARD_PAY=25;
+/* ══════ 🍽 음식 기록 (v1.5) ══════
+   요청: 배달을 찍을 때 '무엇을 먹었는지'가 남아야 한다 — 건강 파트가 읽을 재료다.
+   ⚠️ 배달만 열면 곧 '식비도' 가 온다. 그렇다고 전부 열면 잡음이 된다.
+      → 카테고리에 isFood 플래그를 두고 **음식성 계정과목에만** 칸이 뜨게 한다. 로한이 언제든 바꾼다.
+   ⚠️ 자유 텍스트면 '치킨' '교촌치킨' '치킨(교촌)' 이 다 다르게 집계된다.
+      → 최근 입력을 datalist 로 제안해 **쓰다 보면 표준화되게** 한다. 강제하지 않는다. */
+var FOOD_DEFAULT=['배달','식비','카페','간식/편의점'];
+function catByName(n){return (DB.categories||[]).filter(function(c){return c.name===n;})[0];}
+function isFoodCat(n){var c=catByName(n);return !!(c&&c.isFood);}
+/* 최근에 쓴 음식명 — 최신순, 중복 제거 */
+function recentFoods(n){
+  var seen={},out=[];
+  (DB.transactions||[]).slice().sort(function(a,b){return a.date<b.date?1:-1;}).forEach(function(t){
+    var f=(t.food||'').trim(); if(!f||seen[f])return; seen[f]=1; out.push(f);
+  });
+  return out.slice(0,n||40);
+}
 function cardBy(name){return (DB.cards||[]).filter(function(c){return c.name===name;})[0];}
 function cardClose(c){return (c&&c.closeDay!=null)?c.closeDay:CARD_CLOSE;}
 function cardPay(c){return (c&&c.payDay!=null)?c.payDay:CARD_PAY;}
@@ -1124,10 +1142,10 @@ function cashAccts(){return DB.accounts.filter(isCashAcct);}
 function acctName(id){var a=DB.accounts.filter(function(x){return x.id===id})[0];return a?a.name:'?';}
 function acctBaseline(a){ if(a.opening&&a.opening.date)return {date:a.opening.date,amount:a.opening.amount||0}; var h=(a.hist&&a.hist.length)?a.hist.slice().sort(function(x,y){return x.date<y.date?-1:1}).slice(-1)[0]:null; return h?{date:h.date,amount:h.amount}:{date:'1900-01-01',amount:0}; }
 function acctFlow(a){ var base=acctBaseline(a),s=0; DB.transactions.forEach(function(t){ if(!t.date||t.date<base.date)return;
-  if(t.type==='income'&&t.acct===a.id)s+=t.amt;
-  else if(t.type==='expense'&&t.acct===a.id)s-=t.amt;
-  else if(t.type==='transfer'){ if(t.from===a.id)s-=t.amt; if(t.to===a.id)s+=t.amt; }
-  else if(t.type==='settle'&&t.acct===a.id)s-=t.amt; }); return s; }
+  /* 🔒 계좌는 txnAcct() 로 파생한다. 저장된 t.acct 를 직접 보면 카드 거래가 새어나간다. */
+  if(t.type==='transfer'){ if(t.from===a.id)s-=t.amt; if(t.to===a.id)s+=t.amt; return; }
+  if(txnAcct(t)!==a.id)return;
+  if(t.type==='income')s+=t.amt; else if(t.type==='expense'||t.type==='settle')s-=t.amt; }); return s; }
 function acctComputed(a){return acctBaseline(a).amount+acctFlow(a);}
 
 /* ====== 현황판 ====== */
@@ -1289,9 +1307,10 @@ function renderDay(ds){
     var _n=instN(t), _dn=instDone(t), _il='';
     if(_n>1){var _ps=[];for(var _k=1;_k<=_n;_k++)_ps.push('<span'+(_k<=_dn?' class="done"':'')+'>'+cycleLabel(instCycle(t,_k)).replace(' 결제분','월')+' '+comma(instAmt(t,_k))+'</span>');
       _il='<div class="instline">'+_ps.join('<i>·</i>')+(_dn?' <b>'+_dn+'/'+_n+' 결제완료</b>':'')+'</div>';}
-    var meta=[sajuEsc(t.method||'')];
-    if(t.acct)meta.push(acctName(t.acct));
-    else if(t.type==='expense'&&!creditCard(t.method))meta.push('<span class="warnx">계좌 미지정</span>');
+    var meta=[sajuEsc(t.method||'')], _ac=txnAcct(t);
+    if(_ac)meta.push(acctName(_ac));
+    else if(t.type==='expense'&&!creditCard(t.method))meta.push('<span class="warnx">출금계좌 미지정</span>');
+    if(t.food)meta.push('<span class="foodx">🍽 '+sajuEsc(t.food)+'</span>');
     var tags=(_n>1?'<span class="insttag">'+_n+'개월</span>':'')
             +(t.card?'<span class="badge">미결제</span>':'')
             +(t.memo?'<span class="mut" title="'+sajuEsc(t.memo)+'">📝</span>':'');
@@ -1463,27 +1482,54 @@ function budgetChange(cat,val){DB.budgets[cat]=parseFloat((val+'').replace(/[^0-
       유출 = 계좌가 붙은 expense + settle.  신용카드 expense 는 settle 로만 나간다.
    ⚠️ [공백] 계좌가 안 붙은 거래를 Sankey 는 조용히 빼고 합계는 포함했다.
       둘이 안 맞는데 아무도 말해주지 않았다 — 이제 cfUnassigned() 로 화면에 드러낸다. */
+/* ⚠️⚠️ v1.42 로한 지적 — 지우지 말 것.
+   *"카드 결제 시 계좌가 연결돼 있는데 '계좌 미지정'이 말이 안 되지."* **맞다.**
+   v1.41 은 거래마다 acct 를 **스냅샷으로 복사해 저장**했다. 그래서:
+     · 카드에 연결계좌를 나중에 설정하면 옛 거래는 빈 채로 남는다
+       (실측: 우리(K패스) 45건 중 23건만 acct 보유 — 같은 카드인데 절반만)
+     · 카드의 연결계좌를 바꾸면 과거 거래가 옛 계좌를 가리킨다
+     · '계좌 미지정' 이라는 **있어서는 안 될 상태**가 생기고, 나는 그걸 경고와 보정 버튼으로 정상 취급했다
+   🔒 **카드 거래의 계좌는 저장하지 않고 파생한다. 진실의 원천은 card.acct 하나다.**
+      거래의 acct 는 이제 **현금·이체 전용** — 사람만 아는 것에만 쓴다. */
+function txnAcct(t){
+  if(!t)return null;
+  if(t.type==='transfer')return null;
+  if(t.type==='settle')return t.acct||null;      /* 선결제는 확정 시점에 고른 계좌가 사실이다 */
+  var c=cardBy(t.method);
+  if(c)return (c.type==='check')?(c.acct||null):null;  /* 신용은 선결제 때 나간다 */
+  return t.acct||null;
+}
 /* 그 거래가 '현금 유출'로 잡히는가 — 신용카드 원거래는 아니다(선결제 때 나간다) */
 function cfIsCashOut(t){
-  if(t.type==='settle')return true;
+  if(t.type==='settle')return !!txnAcct(t);
   if(t.type!=='expense')return false;
-  return !creditCard(t.method) && !!t.acct;
+  return !creditCard(t.method) && !!txnAcct(t);
 }
-function cfIsCashIn(t){return t.type==='income'&&!!t.acct;}
-/* 계좌가 비어 현금흐름에서 증발하는 거래 (신용카드는 정상이므로 제외) */
-function cfUnassigned(txns){
-  var out=[];
+function cfIsCashIn(t){return t.type==='income'&&!!txnAcct(t);}
+/* 앱이 아는 결제수단 = 현금·이체 + 등록된 카드 */
+function knownMethods(){var k={'현금':1,'이체':1};(DB.cards||[]).forEach(function(c){k[c.name]=1;});return k;}
+/* 결제수단이 카드 목록에 없다 = 고아. 카드 이름을 바꾸면 옛 거래가 연결을 잃는다.
+   ⚠️ 카드를 id 가 아니라 '이름 문자열'로 묶고 있어서 생기는 구조적 취약점이다. */
+function cfOrphanMethods(txns){
+  var known=knownMethods(), m={};
   txns.forEach(function(t){
-    if(t.type==='expense'&&!t.acct&&!creditCard(t.method))out.push(t);
-    else if(t.type==='income'&&!t.acct)out.push(t);
+    if(t.type!=='expense'&&t.type!=='income')return;
+    if(!t.method||known[t.method])return;
+    if(t.acct)return;                      /* 계좌가 직접 붙어 있으면 흐름엔 문제없다 */
+    m[t.method]=(m[t.method]||0)+t.amt;
   });
-  return out;
+  return m;
 }
-/* 결제수단이 카드면 그 카드의 연결계좌를 돌려준다 — 소급 보정의 근거 */
-function cfGuessAcct(t){
-  var c=cardBy(t.method);
-  if(c&&c.type==='check'&&c.acct)return c.acct;
-  return null;
+/* 진짜 미지정 = 앱이 아는 수단인데(현금·이체) 사람이 계좌를 안 고른 것.
+   🔒 고아는 여기서 뺀다 — 한 거래를 두 경고가 동시에 지적하면 뭘 해야 하는지 흐려진다. */
+function cfUnassigned(txns){
+  var known=knownMethods();
+  return txns.filter(function(t){
+    if(t.type!=='expense'&&t.type!=='income')return false;
+    if(cardBy(t.method))return false;         /* 카드면 파생된다 */
+    if(t.method&&!known[t.method])return false; /* 고아는 고아 경고로 */
+    return !t.acct;
+  });
 }
 function cfTxns(per){if(per==='all')return DB.transactions.slice();if(per==='year'){var y=todayStr().slice(0,4);return DB.transactions.filter(function(t){return (t.date||'').slice(0,4)===y;});}var m=DB.ui.month;return DB.transactions.filter(function(t){return monthOf(t.date)===m;});}
 function setCfPeriod(p){DB.ui.cfPeriod=p;save();renderCashflow();}
@@ -1492,20 +1538,6 @@ function reconcileApply(id){var a=DB.accounts.filter(function(x){return x.id===i
   if(diff>0){DB.transactions.push({id:uid(),type:'income',scope:'personal',cat:'이자수입',acct:id,amt:diff,date:todayStr(),method:'이체',memo:'대조 차액 반영'});}
   else{DB.transactions.push({id:uid(),type:'expense',scope:'personal',cat:'기타',acct:id,amt:-diff,date:todayStr(),method:'현금',memo:'대조 차액 반영'});}
   DB.ui.reconcile[id]='';logAct('대조 차액반영 · '+a.name+' '+signWon(diff));save();renderCashflow();renderDash();}
-/* 카드에 연결계좌를 나중에 설정해서 옛 거래가 비어 있는 경우를 메운다.
-   ⚠️ 체크카드만 — 계좌가 고정이라 추론이 안전하다. 현금·이체는 사람만 안다. 손대지 않는다. */
-function cfFixAccts(){
-  var una=cfUnassigned(cfTxns(DB.ui.cfPeriod||'month'));
-  var tg=una.filter(function(t){return !!cfGuessAcct(t);});
-  if(!tg.length)return alert('연결계좌로 채울 수 있는 거래가 없다.\n현금·이체 건은 어느 계좌인지 앱이 알 수 없으므로 직접 지정해야 한다.');
-  var by={};tg.forEach(function(t){var k=t.method+' → '+acctName(cfGuessAcct(t));by[k]=(by[k]||0)+1;});
-  var lines=Object.keys(by).map(function(k){return '  · '+k+' '+by[k]+'건';}).join('\n');
-  if(!confirm('체크카드의 연결계좌로 출금계좌를 채운다.\n\n'+lines+'\n\n총 '+tg.length+'건. 진행할까?'))return;
-  tg.forEach(function(t){t.acct=cfGuessAcct(t);});
-  logAct('현금흐름 계좌 보정 · '+tg.length+'건');
-  save();renderCashflow();renderDash();renderCal();
-  alert(tg.length+'건 채웠다.');
-}
 function cfClip(s){return s.length>8?s.slice(0,7)+'…':s;}
 function cfShort(v){return v>=10000?Math.round(v/10000)+'만':(''+Math.round(v));}
 function cfBuildSankey(txns){
@@ -1513,9 +1545,10 @@ function cfBuildSankey(txns){
   function acctById(id){return DB.accounts.filter(function(x){return x.id===id})[0];}
   txns.forEach(function(t){
     /* 🔒 합계와 같은 판정(cfIsCashIn/Out)을 쓴다. 판정이 둘이면 그림과 숫자가 또 어긋난다. */
-    if(cfIsCashIn(t)){S['in:'+t.cat]=(S['in:'+t.cat]||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].in+=t.amt;linksSA.push({s:'in:'+t.cat,a:t.acct,v:t.amt});}
-    else if(t.type==='expense'&&cfIsCashOut(t)){K['ex:'+t.cat]=(K['ex:'+t.cat]||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].out+=t.amt;linksAK.push({a:t.acct,k:'ex:'+t.cat,v:t.amt});}
-    else if(t.type==='settle'&&t.acct){K['ex:카드결제']=(K['ex:카드결제']||0)+t.amt;A[t.acct]=A[t.acct]||{in:0,out:0};A[t.acct].out+=t.amt;linksAK.push({a:t.acct,k:'ex:카드결제',v:t.amt});}
+    var _ac=txnAcct(t);
+    if(cfIsCashIn(t)){S['in:'+t.cat]=(S['in:'+t.cat]||0)+t.amt;A[_ac]=A[_ac]||{in:0,out:0};A[_ac].in+=t.amt;linksSA.push({s:'in:'+t.cat,a:_ac,v:t.amt});}
+    else if(t.type==='expense'&&cfIsCashOut(t)){K['ex:'+t.cat]=(K['ex:'+t.cat]||0)+t.amt;A[_ac]=A[_ac]||{in:0,out:0};A[_ac].out+=t.amt;linksAK.push({a:_ac,k:'ex:'+t.cat,v:t.amt});}
+    else if(t.type==='settle'&&_ac){K['ex:카드결제']=(K['ex:카드결제']||0)+t.amt;A[_ac]=A[_ac]||{in:0,out:0};A[_ac].out+=t.amt;linksAK.push({a:_ac,k:'ex:카드결제',v:t.amt});}
     else if(t.type==='transfer'){var toA=acctById(t.to);if(toA&&!isCashAcct(toA)){K['sv:'+t.to]=(K['sv:'+t.to]||0)+t.amt;A[t.from]=A[t.from]||{in:0,out:0};A[t.from].out+=t.amt;linksAK.push({a:t.from,k:'sv:'+t.to,v:t.amt});}}
   });
   return {S:S,A:A,K:K,linksSA:linksSA,linksAK:linksAK};
@@ -1567,16 +1600,17 @@ function renderCashflow(){
     if(cfIsCashIn(t))tin+=t.amt; else if(cfIsCashOut(t))tout+=t.amt;});
   var una=cfUnassigned(txns);
   var unaSum=una.reduce(function(x,t){return x+t.amt;},0);
-  var fixable=una.filter(function(t){return !!cfGuessAcct(t);});
+  var orph=cfOrphanMethods(txns), orphK=Object.keys(orph);
   var pill=function(p,l){return '<button class="'+(per===p?'btn sm':'ghost')+'" onclick="setCfPeriod(\''+p+'\')">'+l+'</button>';};
   var perLabel=per==='all'?'전체':(per==='year'?todayStr().slice(0,4)+'년':DB.ui.month);
   document.getElementById('v-cashflow').innerHTML=''
    +'<div class="sec"><h4>🌊 현금흐름 <span class="mut">'+perLabel+'</span> <span style="float:right">'+pill('month','월')+' '+pill('year','올해')+' '+pill('all','전체')+'</span></h4>'
    +'<div style="display:flex;gap:8px;margin:6px 0 14px;flex-wrap:wrap"><div class="stat"><div class="sl">유입</div><div class="sv pos">'+won(tin)+'</div></div><div class="stat"><div class="sl">유출</div><div class="sv neg">'+won(tout)+'</div></div><div class="stat"><div class="sl">순증</div><div class="sv '+((tin-tout)<0?'neg':'pos')+'">'+signWon(tin-tout)+'</div></div></div>'
-   +(una.length?('<div class="cfwarn"><span><b>계좌 미지정 '+una.length+'건 · '+won(unaSum)+'</b>'
-       +'<br><span class="mut">이 거래는 흐름에도 잔액에도 안 잡힌다</span></span>'
-       +(fixable.length?'<button class="btn warn sm" id="cfFixBtn">연결계좌로 '+fixable.length+'건 채우기</button>':'')
-       +'</div>'):'')
+   +(orphK.length?('<div class="cfwarn"><span><b>결제수단 '+orphK.length+'개가 카드 목록에 없다</b>'
+       +'<br><span class="mut">'+orphK.map(function(k){return sajuEsc(k)+' '+won(orph[k]);}).join(' · ')
+       +' — 카드 이름을 바꿨다면 옛 거래가 연결을 잃는다</span></span></div>'):'')
+   +(una.length?('<div class="cfwarn"><span><b>출금계좌 미지정 '+una.length+'건 · '+won(unaSum)+'</b>'
+       +'<br><span class="mut">현금·이체는 앱이 계좌를 알 수 없다 — 거래를 열어 지정해라</span></span></div>'):'')
    +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 6px 4px"><span>수입원천</span><span>계좌</span><span>사용처</span></div>'
    +cfSankeySVG(g)+'</div>'
    +'<div class="sec"><h4>실시간 대조</h4>'
@@ -3547,13 +3581,15 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.41';
+var APP_VERSION='1.5';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.5',date:'2026-08-21',note:"<b>🍽 음식 기록.</b> 배달을 찍을 때 <b>무엇을 먹었는지</b>가 남는다 — 건강 파트가 읽을 재료다. \u26a0\ufe0f <b>배달만 열면 곧 '식비도' 가 온다. 그렇다고 전부 열면 잡음이 된다</b> → 계정과목에 <code>isFood</code> 플래그를 두고 <b>음식성 항목에만</b> 칸이 뜬다(기본 <b>배달·식비·카페·간식/편의점</b>, 카테고리 편집에서 언제든 켜고 끈다). \u26a0\ufe0f 자유 텍스트면 '치킨'·'교촌치킨'·'치킨(교촌)' 이 다 다르게 집계된다 → <b>최근 입력을 자동완성으로 제안</b>해 쓰다 보면 표준화되게 한다(강제하지 않는다). 거래 행에 <span style='color:#0f9d58'>🍽 음식명</span> 표시. 집계 화면은 <b>만들지 않았다</b> — 데이터가 쌓인 뒤에 본다."},
+  {v:'1.42',date:'2026-08-21',note:"<b>계좌는 저장하는 값이 아니라 파생하는 값이다.</b> \u26a0\ufe0f 로한 지적: <i>“카드 결제 시 계좌가 연결돼 있는데 '계좌 미지정'이 말이 안 되지.”</i> <b>맞다. v1.41 이 증상만 고치고 원인을 안 고쳤다.</b> 거래마다 <code>acct</code> 를 <b>스냅샷으로 복사해 저장</b>했더니 — 카드에 연결계좌를 나중에 설정하면 옛 거래는 빈 채로 남고(실측 <b>우리(K패스) 45건 중 23건만 보유</b> — 같은 카드인데 절반만), 연결계좌를 바꾸면 과거가 옛 계좌를 가리키고, <b>'계좌 미지정'이라는 있어서는 안 될 상태</b>가 생겼다. 나는 그걸 경고와 보정 버튼으로 <b>정상 취급</b>했다. → <code>txnAcct()</code> 신설. <b>카드 거래의 계좌는 저장하지 않고 <code>card.acct</code> 에서 파생한다.</b> 거래의 <code>acct</code> 는 <b>현금·이체 전용</b>으로 의미를 좁혔다. 잔액·Sankey·합계 전부 이 판정 하나를 쓴다. 보정 버튼은 <b>삭제</b>(채울 게 없다). 대신 <b>결제수단이 카드 목록에 없는 고아 거래</b>를 경고한다 — 카드를 <b>id 가 아니라 이름 문자열</b>로 묶는 구조적 취약점이 드러났다."},
   {v:'1.41',date:'2026-08-21',note:"<b>정리 · 현금흐름 정합.</b> \u26a0\ufe0f <b>[버그] 현금흐름 유출을 이중계상했다.</b> <code>모든 expense + 모든 settle</code> 로 셌는데, 신용카드 지출은 <b>산 시점(expense)</b> 과 <b>낸 시점(settle)</b> 에 두 번 잡힌다. 실측 8월: 선결제된 332,154 가 두 번 세어져 유출이 그만큼 부풀려져 있었다. → 현금흐름은 <b>통장에서 실제 움직인 돈</b>만 본다(<code>cfIsCashIn/Out</code> 판정 하나로 합계·Sankey 통일 — 판정이 둘이면 그림과 숫자가 또 어긋난다). \u26a0\ufe0f <b>[공백] 계좌가 안 붙은 거래를 Sankey 는 조용히 빼고 합계는 포함했다.</b> 둘이 안 맞는데 아무도 말해주지 않았다 — 실측 8월 <b>26건 240,405원</b>(카드에 연결계좌를 나중에 설정해 옛 건이 비어 있었다). 이제 <b>계좌 미지정 N건</b> 경고로 드러내고, <b>체크카드만</b> 연결계좌로 일괄 보정한다(현금·이체는 앱이 알 수 없으므로 손대지 않는다). 🧾 <b>거래 행 2줄 재설계</b> — 1행 무엇/얼마, 2행 어떻게/조작. 한 줄에 다 넣으니 좁은 칸에서 접혀 깨졌다. 💳 <b>선결제 확정 버튼 제거</b>(결제분 줄 클릭이 이미 진입점이라 중복). 🧹 <b>전 페이지 기능 설명 문구 삭제</b> — 상태·계산결과·경고만 남긴다."},
   {v:'1.4',date:'2026-08-21',note:"<b>💳 청구주기 · 할부 · ⏳ 병원/가족 · 🧾 재물 날짜.</b> \u26a0\ufe0f <b>[결함] 재물 마감일에 <code>1800</code> 이 저장됐고 감가상각이 조용히 0원이 됐다.</b> <code>new Date('1800')</code> 은 서기 1800년으로 파싱된다 → <code>daysBetween</code> 이 -82,788 → <code>itemDaily</code> 가 0. 화면엔 '기간종료' 뱃지만 떠서 표시 문제로 보였다. 뿌리는 <b>라벨과 입력의 불일치</b> — 기준은 '일간(수명)'인데 입력은 '마감일(날짜)'을 요구했다. → <b>수명(일) ↔ 마감일 양방향 입력</b>(하나 채우면 나머지 자동) · 전부 <code>type=date</code>(모바일 피커) · 저장 시 형식·순서 검증 · 기존 불량 데이터는 <b>추측해서 고치지 않고</b> ⚠ 뱃지로 드러낸다. \u23f3 타임로그에 <b>병원·가족</b> 태그(전부 '기타'로 묶이던 두 덩어리). 💳 <b>청구주기 도입</b> — 카드마다 마감일·결제일(기본 10/25). 미결제를 <b>결제분별로 분해</b>했다(실측 490,754 는 사실 8월분+9월분 두 덩어리였다). <b>일시불/2/3개월 할부</b> + 회차 미리보기 — \u26a0\ufe0f 회차는 구매일 기념일이 아니라 <b>결제일</b>에 일시불과 합산돼 나간다. 선결제를 <b>결제분 단위</b>로 재설계(‘이 결제분 전체 선택’), <b>할부 당월 회차 포함</b>(로한 지적 — 빼면 카드사 청구서와 숫자가 안 맞는다), 회차는 순서대로만 확정. 가계부에 <b>[발생 | 카드결제]</b> 토글. 🔒 결제일은 예정일 라벨일 뿐 <b>자동 처리하지 않는다</b>."},
   {v:'1.3',date:'2026-08-20',note:"<b>루틴 이사 · 버킷 승격.</b> \u26a0\ufe0f <b>[결함] 루틴 소속을 바꾸면 과거 체크 기록이 조용히 고아가 됐다.</b> <code>checks</code> 는 <code>done[]/due[]/miss{}</code> 전부 <b>코드 문자열</b> 기반인데, 소속이 바뀌면 코드가 재발급된다(<code>E.8a</code> → <code>E1</code>). 경고도 없었다 — <b>기능은 있는데 기록이 따라오지 않는</b> 꼴 · <code>renameRoutineCode()</code> 신설로 세 곳을 한꺼번에 옮긴다. <b>분모(due) 길이는 그대로다</b> — 라벨만 갈아끼우는 것이라 v6.0 '과거 불변성'과 충돌하지 않는다 · 소속 변경 시 <b>먼저 묻는다</b>(옛→새 코드, 옮길 기록 일수). 취소하면 저장 자체를 중단 · <b>「코드 고정」 체크박스</b> — <code>lockCode</code> 필드는 v6.0부터 코드에 있었는데 <b>읽기만 하고 아무도 설정할 수 없었다</b>(입구 막힘 4회차) · 목표 삭제로 루틴이 미연결(Z)로 내려갈 때도 같은 구멍이 있었다 → 함께 막음 · 🎯 <b>버킷 → 연간 목표 승격</b>: 버킷 ⇄ 보상함은 원래 양방향이었고 빠진 조각은 이것 하나였다. 표의 이동 칸에 <b>⬆</b>, 승격된 항목은 <b>🎯 코드</b> 뱃지 + <b>↩</b> 로 연결 해제. 최소 침습 — <code>status</code>/<code>place</code> 를 건드리지 않고 링크만 양방향으로 심는다. 목표를 지우면 버킷 쪽 유령 링크도 정리한다."},
@@ -4468,6 +4504,25 @@ function migrateV6(d){
     (d.rewards||[]).forEach(function(b){if(b.promotedTo&&!gid[b.promotedTo])delete b.promotedTo;});
     (d.goals||[]).forEach(function(g){if(g.fromBucket&&!bid[g.fromBucket])delete g.fromBucket;});
   })();
+  /* v1.5 — 음식성 계정과목 기본 마킹. 한 번만 찍고, 이후엔 로한이 카테고리 편집에서 바꾼다.
+     ⚠️ 이미 한 번 찍었으면 다시 안 찍는다 — 로한이 끈 것을 되살리면 안 된다. */
+  if(!d.meta)d.meta={};
+  if(!d.meta.foodSeeded){
+    (d.categories||[]).forEach(function(c){
+      if(c.type==='expense'&&FOOD_DEFAULT.indexOf(c.name)>=0)c.isFood=true;});
+    d.meta.foodSeeded=1;
+  }
+  (d.categories||[]).forEach(function(c){if(!c.isFood)delete c.isFood;});
+  (d.transactions||[]).forEach(function(t){if(!t.food)delete t.food;});
+  /* v1.42 — 카드 거래에 박혀 있던 acct 를 걷어낸다. 계좌는 card.acct 에서 파생한다.
+     ⚠️ 이걸 남겨두면 파생과 스냅샷이 공존해 같은 카드가 거래마다 다른 계좌를 갖는다. */
+  (function(){
+    var byName={}; (d.cards||[]).forEach(function(c){byName[c.name]=c;});
+    (d.transactions||[]).forEach(function(t){
+      if(t.type!=='expense'&&t.type!=='income')return;
+      if(byName[t.method]&&t.acct!==undefined)delete t.acct;
+    });
+  })();
   /* v1.4 — 신용카드 청구주기 기본값. 체크카드는 즉시출금이라 주기가 없다.
      ⚠️ 기존 거래는 손대지 않는다 — inst 가 없으면 일시불이고, 거래일만 있으면 주기는 계산된다. */
   (d.cards||[]).forEach(function(c){
@@ -4520,7 +4575,10 @@ function catModal(id){
    +'<div class="field"><label>유형</label><div class="seg"><button class="'+(c.type==='expense'?'on':'')+'" onclick="catType(this,\'expense\')">지출</button><button class="'+(c.type==='income'?'on':'')+'" onclick="catType(this,\'income\')">수입</button></div></div>'
    +'<div id="k_taxwrap" style="display:'+(c.type==='expense'?'block':'none')+'">'
    +'<div class="field"><label>세무 구분</label><div class="seg"><button class="'+(!c.deductible?'on':'')+'" onclick="catDed(this,false)">개인(경비 아님)</button><button class="'+(c.deductible?'on':'')+'" onclick="catDed(this,true)">사업경비</button></div></div>'
-   +'<div class="field"><label>계정과목(세무 매핑)</label><select id="k_acc">'+accOpts+'</select></div></div>'
+   +'<div class="field"><label>계정과목(세무 매핑)</label><select id="k_acc">'+accOpts+'</select></div>'
+   +'<label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:2px 0 10px;cursor:pointer">'
+     +'<input type="checkbox" id="k_food" style="width:auto"'+(c.isFood?' checked':'')+'>'
+     +'<span>🍽 음식 — 거래 입력 시 <b>무엇을 먹었나</b> 칸이 뜬다</span></label></div>'
    +'<div id="k_incwrap" style="display:'+(c.type==='income'?'block':'none')+'">'
    +'<div class="field"><label>소득구분 <span class="mut">(종합소득세)</span></label><select id="k_inctype">'+INC_TYPES.map(function(x){return '<option'+(x===(c.incType||'사업소득')?' selected':'')+'>'+x+'</option>'}).join('')+'</select></div>'
    +'<div class="field"><label>업종·소득 코드 <span class="mut">(선택, 예: 940903)</span></label><input id="k_taxcode" value="'+(c.taxCode||'')+'" placeholder="모르면 비워두기"></div></div>'
@@ -4534,8 +4592,10 @@ function saveCat(id){
   var type=modal._ctype,ded=type==='expense'&&modal._cded,acc=ded?document.getElementById('k_acc').value:null;
   var incType=type==='income'?document.getElementById('k_inctype').value:null;
   var taxCode=type==='income'?document.getElementById('k_taxcode').value.trim():'';
-  if(id){var c=DB.categories.filter(function(x){return x.id===id})[0];c.name=name;c.type=type;c.deductible=ded;c.taxAccount=acc;c.incType=incType;c.taxCode=taxCode;}
-  else DB.categories.push({id:uid(),name:name,type:type,deductible:ded,taxAccount:acc,incType:incType,taxCode:taxCode});
+  var isFood=(type==='expense'&&document.getElementById('k_food')&&document.getElementById('k_food').checked)||undefined;
+  if(id){var c=DB.categories.filter(function(x){return x.id===id})[0];c.name=name;c.type=type;c.deductible=ded;c.taxAccount=acc;c.incType=incType;c.taxCode=taxCode;
+    if(isFood)c.isFood=true; else delete c.isFood;}
+  else DB.categories.push({id:uid(),name:name,type:type,deductible:ded,taxAccount:acc,incType:incType,taxCode:taxCode,isFood:isFood});
   logAct((id?'카테고리수정':'카테고리추가')+' · '+name+' ('+(type==='income'?(incType||'수입'):(ded?'경비':'개인'))+')');
   save();closeModal();renderAcct();
 }
@@ -4572,9 +4632,12 @@ function txnModal(id){
    +'<div class="field"><label>유형</label><div class="seg"><button class="'+(t.type==='expense'?'on':'')+'" onclick="setType(this,\'expense\')">지출</button><button class="'+(isInc?'on':'')+'" onclick="setType(this,\'income\')">수입</button><button class="'+(isTr?'on':'')+'" onclick="setType(this,\'transfer\')">이체</button></div></div>'
    +'<div id="txnBody" style="display:'+(isTr?'none':'block')+'">'
    +'<div class="field"><label>대분류</label><div class="seg"><button class="'+(t.scope==='personal'?'on':'')+'" onclick="setScope(this,\'personal\')">개인</button><button class="'+(t.scope==='business'?'on':'')+'" onclick="setScope(this,\'business\')">사업</button></div></div>'
-   +'<div class="field"><label>계정과목</label><select id="fCat" onchange="updIncInfo()">'+catOpts+'</select></div>'
+   +'<div class="field"><label>계정과목</label><select id="fCat" onchange="updIncInfo();foodFieldSync()">'+catOpts+'</select></div>'
    +'<div class="field" id="incomeOnly" style="display:'+(isInc?'block':'none')+'"><label>소득구분 <span class="mut">(종합소득세 연동)</span></label><div id="fIncInfo" class="autoNote" style="margin-top:0"></div></div>'
    +'<div id="expenseOnly" style="display:'+(isInc?'none':'block')+'"><div class="field"><label>세부계정과목 <span class="mut">(재물관리 카테고리 연동)</span></label><select id="fItemCat">'+itemCatOpts+'</select></div></div>'
+   +'<div class="field" id="foodField" style="display:none"><label>🍽 무엇을 먹었나</label>'
+     +'<input id="fFood" list="foodList" value="'+sajuEsc(t.food||'')+'" placeholder="예: 교촌 허니콤보 / 김치찌개 / 아메리카노" autocomplete="off">'
+     +'<datalist id="foodList">'+recentFoods(40).map(function(f){return '<option value="'+sajuEsc(f)+'">';}).join('')+'</datalist></div>'
    +'<div class="field" id="methodField" style="display:'+(isInc?'none':'block')+'"><label>결제수단</label><select id="fMethod" onchange="methodChange()">'+methOpts+'</select></div>'
    +'<div class="field" id="acctField"><label id="acctLabel">'+(isInc?'입금계좌':'출금계좌')+'</label><select id="fAcct">'+cashOpts(defAcct)+'</select></div>'
    +'<div id="acctNote" class="autoNote" style="margin-top:0;display:none"></div>'
@@ -4593,6 +4656,7 @@ function txnModal(id){
    +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
    +'<button class="btn" onclick="saveTxn('+(id?"'"+id+"'":'null')+')">저장</button>');
   modal._type=t.type;modal._scope=t.scope;modal._inst=parseInt(t.inst||1,10);
+  setTimeout(foodFieldSync,0);
   modal._instDone=parseInt(t.instDone||0,10);
   updIncInfo();methodChange();
 }
@@ -4625,6 +4689,14 @@ function instPreview(){
     +'<br><span class="mut">'+r.from+'~'+r.to+' 이용분 · '+cardPay(c)+'일 결제'
     +'</span>';
 }
+/* 계정과목이 음식성이면 칸을 연다. 계정과목을 바꾸면 즉시 따라온다. */
+function foodFieldSync(){
+  var f=document.getElementById('foodField'); if(!f)return;
+  var cat=(document.getElementById('fCat')||{}).value;
+  var on=(modal._type==='expense')&&isFoodCat(cat);
+  f.style.display=on?'block':'none';
+  if(!on){var i=document.getElementById('fFood'); if(i)i.value='';}
+}
 function updIncInfo(){var el=document.getElementById('fIncInfo');if(!el||modal._type!=='income')return;var name=document.getElementById('fCat').value;var c=DB.categories.filter(function(x){return x.name===name&&x.type==='income'})[0];el.innerHTML=c?('소득구분: <b>'+(c.incType||'미분류')+'</b>'+(c.taxCode?' · 코드 '+c.taxCode:'')+' → 세무 페이지 자동 집계'):'카테고리 없음 (계좌·부채 탭에서 추가)';}
 function methodChange(){var af=document.getElementById('acctField'),nt=document.getElementById('acctNote');if(!af)return;
   function hideNote(){if(nt){nt.style.display='none';}}
@@ -4646,6 +4718,7 @@ function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button
     document.getElementById('methodField').style.display=inc?'none':'block';
     document.getElementById('acctLabel').textContent=inc?'입금계좌':'출금계좌';
     updIncInfo();}
+  foodFieldSync();
   methodChange();}
 function setScope(b,v){modal._scope=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');}
 function saveTxn(id){
@@ -4666,14 +4739,23 @@ function saveTxn(id){
   var acctEl=document.getElementById('fAcct');
   var acct;
   if(modal._type==='income')acct=acctEl?acctEl.value:undefined;
-  else if(cardObj)acct=cardObj.type==='check'?cardObj.acct:undefined; // 체크=연결계좌 즉시출금, 신용=선결제시
+  /* 🔒 카드 거래는 계좌를 저장하지 않는다 — txnAcct() 가 card.acct 에서 파생한다.
+     저장하면 카드 연결계좌를 바꿔도 과거 거래가 안 따라오고, 설정 전 거래는 빈 채로 남는다. */
+  else if(cardObj)acct=undefined;
   else acct=acctEl?acctEl.value:undefined; // 현금·이체
   var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
+  /* 🍽 음식은 음식성 계정과목일 때만 남긴다.
+     ⚠️ rec.food=undefined 로 두면 JS 는 키를 '만든다'. 빈 서랍이 남는다 → 조건부로 넣는다. */
+  var _fd=((document.getElementById('fFood')||{}).value||'').trim();
+  var _wantFood=(modal._type==='expense'&&isFoodCat(rec.cat)&&!!_fd);
+  if(_wantFood)rec.food=_fd;
   /* 할부는 신용카드 지출에만 붙는다. 일시불이면 필드를 만들지 않는다 — 빈 서랍을 남기지 않는다. */
   var _n=isCardPay?(modal._inst||1):1;
   if(_n>1){rec.inst=_n;rec.instDone=Math.min(modal._instDone||0,_n);}
   else{rec.inst=undefined;rec.instDone=undefined;}
-  if(id){Object.assign(DB.transactions.filter(function(x){return x.id===id})[0],rec);}else{rec.id=uid();DB.transactions.push(rec);}
+  if(id){var _to=DB.transactions.filter(function(x){return x.id===id})[0];
+    Object.assign(_to,rec); if(!_wantFood)delete _to.food;}
+  else{rec.id=uid();DB.transactions.push(rec);}
   logAct((id?'거래수정':'거래추가')+' · '+rec.date+' '+rec.cat+' '+(rec.type==='income'?'+':'-')+won(rec.amt));
   /* 🎁 보상 카드 연결 — 거래가 생긴 뒤에 붙인다 */
   var _rwEl=document.getElementById('fRwCard');
@@ -4738,7 +4820,6 @@ document.addEventListener('click',function(e){
   var tor=e.target.closest('[data-tor]');if(tor)return toRewardModal(tor.dataset.tor);
   var tob=e.target.closest('[data-tob]');if(tob)return toBucket(tob.dataset.tob);
   var stc=e.target.closest('[data-settle]');if(stc)return settleModal(stc.dataset.settle);
-  if(e.target.id==='cfFixBtn')return cfFixAccts();
   var stk=e.target.closest('[data-stcard]');if(stk)return settleSwitch(stk.dataset.stcard,'');
   var sty=e.target.closest('[data-stym]');if(sty)return settleSwitch(modal._stCard,sty.dataset.stym);
   var tog=e.target.closest('[data-tog]');if(tog)return promoteBucketModal(tog.dataset.tog);
