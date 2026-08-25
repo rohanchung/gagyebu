@@ -1,5 +1,7 @@
 const {chromium}=require('playwright');
-const file=process.argv[2];
+/* 🔒 경로를 박아 두지 마라 — 0820·0821에 같은 사고가 두 번 났다. */
+const path=require('path');
+const FILE=process.argv[2]||path.join(__dirname,'..','work.html');
 const goals=[{id:'gB',due:'2026-12-31',code:'B',kind:'year',title:'체중 65kg',metric:{type:'binary',unit:'',target:0},period:'2026',status:'active',startYM:'2026-08',baseline:null,parentId:null,progress:0}];
 const routines=[{id:'r1',code:'B.8a',title:'매일 유산균&비타민C 챙기기',freq:'daily',days:[],goalId:'gB',status:'active',start:'2026-08-01'}];
 // 로한 실사례: 08:30(17) ~ 11:00(21) 림월드
@@ -15,7 +17,7 @@ await c.addInitScript(({st})=>{const store={v:st};window.__store=store;
  window.supabase={createClient:()=>({from:()=>q,auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};},{st:STATE});
 const p=await c.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('dialog',d=>d.accept());
 await p.route('**/*supabase*',r=>r.abort());
-await p.goto('file://'+file);await p.waitForTimeout(1300);
+await p.goto('file://'+FILE);await p.waitForTimeout(1300);
 const TL=()=>p.evaluate(()=>JSON.stringify(window.__store.v.timelog['2026-08-20']));
 console.log('초기 (08:30–11:00 림월드):', await TL());
 

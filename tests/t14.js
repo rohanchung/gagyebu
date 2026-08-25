@@ -1,5 +1,7 @@
 const {chromium}=require('playwright');
-const file=process.argv[2];
+/* 🔒 경로를 박아 두지 마라 — 0820·0821에 같은 사고가 두 번 났다. */
+const path=require('path');
+const FILE=process.argv[2]||path.join(__dirname,'..','work.html');
 const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCards:{},rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},
  ui:{month:'2026-08'},accounts:[],transactions:[],categories:[{id:'c1',name:'식비',type:'expense'}],cards:[],debts:[],
  health:{weights:[],labs:[],labDates:[],labTypes:[],labMeds:[],labValues:{},events:[]},journal:[],items:[],logs:[]};
@@ -11,7 +13,7 @@ await c.addInitScript(({st})=>{const store={v:JSON.parse(JSON.stringify(st))};wi
  window.supabase={createClient:()=>({from:()=>q,auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};},{st:STATE});
 const p=await c.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('**/*supabase*',r=>r.abort());
-await p.goto('file://'+file);await p.waitForTimeout(1000);
+await p.goto('file://'+FILE);await p.waitForTimeout(1000);
 const r=await p.evaluate(()=>{
   const side=document.querySelector('.side'),main=document.querySelector('.main'),br=document.querySelector('.brand');
   const cs=getComputedStyle(side);

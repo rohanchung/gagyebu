@@ -330,6 +330,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .labtbl td.v:hover{background:var(--accent-bg)}
 .labtbl tr.catrow td{background:#eef2f8;font-weight:800;color:#33425e;font-size:10.5px}
 .labtbl tr.catrow .cM{background:#eef2f8;z-index:3}
+.instbl{width:100%;white-space:normal}
+.instbl .cM{min-width:132px;max-width:240px;white-space:normal;line-height:1.45}
+.instbl td.v{cursor:default;white-space:nowrap}
+.instbl td.v:hover{background:transparent}
+.instbl thead th.v{text-align:right}
 .lab-hi{color:var(--neg);font-weight:800}.lab-lo{color:var(--accent);font-weight:800}
 .sajucols{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
 .sajucols .sc{flex:1;min-width:280px;margin-bottom:0}
@@ -681,6 +686,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="sub">⚕ 건강</div>
     <div class="m" data-v="weight">🩹 체성분·사고</div>
     <div class="m" data-v="labs">🧪 피검사</div>
+    <div class="m" data-v="insu">🛡️ 보험</div>
     <div class="sub">🔮 명리</div>
     <div class="m" data-v="saju">🕯️ 사주</div>
     <div class="sub">🖋 성찰</div>
@@ -700,6 +706,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="view" id="v-tax"></div>
     <div class="view" id="v-weight"></div>
     <div class="view" id="v-labs"></div>
+    <div class="view" id="v-insu"></div>
     <div class="view" id="v-saju"></div>
     <div class="view" id="v-journal"></div>
     <div class="view" id="v-items"></div>
@@ -1844,6 +1851,245 @@ function labDate(i){var H=DB.health;var meds=H.labMeds[i]||{am:[],pm:[]};
 function saveLabDate(i){var H=DB.health;H.labDates[i]=document.getElementById('ld_date').value.trim();H.labTypes[i]=document.getElementById('ld_type').value.trim();H.labMeds[i]={am:parseMeds(document.getElementById('ld_am').value),pm:parseMeds(document.getElementById('ld_pm').value)};labResort();logAct('검사일 수정 '+H.labDates[i]);save();closeModal();renderLabs();}
 function delLabDate(i){if(!confirm('이 검사일 전체 삭제?'))return;var H=DB.health;H.labDates.splice(i,1);H.labTypes.splice(i,1);H.labMeds.splice(i,1);Object.keys(H.labValues).forEach(function(k){H.labValues[k].splice(i,1);});logAct('검사일 삭제');save();closeModal();renderLabs();}
 function labAddDate(){var H=DB.health;var d=prompt('검사 날짜 (YYYY-MM-DD)',todayStr());if(!d)return;var t=prompt('타입 (외래/입원/응급실)','외래')||'';H.labDates.push(d);H.labTypes.push(t);H.labMeds.push({am:[],pm:[]});Object.keys(H.labValues).forEach(function(k){H.labValues[k].push(null);});labResort();logAct('검사일 추가 '+d);save();renderLabs();}
+
+var INS_SEED={"policies":[{"id":"p_self_kyobo","person":"self","insurer":"교보생명","product":"무배당 교보다사랑 CI보험 (80%선지급형·표준체)","no":"20403****401","holder":"정복현","insured":"정복현","start":"","end":"종신","payTerm":20,"premium":115700,"status":"active","src":"보험 원문 검수본","memo":"원문 요약본은 [주계약 72,500 + 특약 43,200 = 115,700] 이라 적었지만, 특약 7개를 실제로 더하면 45,200 이라 2,000원이 어긋난다(재해상해특약2형 보험료와 같은 액수). 어느 쪽이 맞는지 원문 증권 확인 필요. 청약일 미확인(2010년경 추정 — 불확실).","riders":[{"name":"주계약 · 무배당교보다사랑CI보험","amt":50000000,"term":"종신 / 20년납","prem":72500,"note":"사망·1급장해 시 CI 미지급이면 5,000만원+가산금 / CI 지급 후 사망이면 1,000만원+가산금"},{"name":"CI보험금 (주계약 선지급)","amt":40000000,"term":"1보험기간 내","prem":0,"note":"최초 중대한 질병·수술·화상·부식 진단 시 4,000만원 (80% 선지급)"},{"name":"입원특약","amt":30000000,"term":"62년 / 20년납","prem":6000,"note":"질병·재해 입원 3일 초과 1일당 30,000원 (120일 한도)"},{"name":"수술특약","amt":20000000,"term":"62년 / 20년납","prem":4200,"note":"1종 40만 / 2종 100만 / 3종 200만"},{"name":"재해사망특약","amt":100000000,"term":"62년 / 20년납","prem":14000,"note":"재해로 사망 또는 제1급 장해 시 1억원"},{"name":"재해상해특약2형","amt":50000000,"term":"62년 / 20년납","prem":2000,"note":"재해장해 2~6급 차등 (2급 3,500만 ~ 6급 500만)"},{"name":"재해치료비특약","amt":10000000,"term":"62년 / 20년납","prem":5800,"note":"특정상병 통원 1회 1만 / 골절 1회 30만 / 재해수술 1회 100만"},{"name":"암종합치료특약","amt":10000000,"term":"62년 / 20년납","prem":6100,"note":"일반암 1,000만 / 기타피부암·상피내암·경계성종양 200만 / 암수술 최초 300만(2회~ 60만) / 암입원 3일초과 1일 5만"},{"name":"남성건강생활특약","amt":10000000,"term":"62년 / 20년납","prem":7100,"note":"2대질병(뇌출혈·뇌경색·급성심근경색) 1,000만 / 5대장기·조혈모세포 이식 500만 / 주요성인병 수술 300만 · 입원(3일초과) 1일 5만"}]},{"id":"p_self_heungkuk","person":"self","insurer":"흥국화재","product":"무배당 헬스케어 행복을 주는 가족사랑보험(1006)","no":"41004424900000 (764CB0035774)","holder":"정복현","insured":"정복현","start":"2010-07-30","end":"2086-07-30","payTerm":20,"premium":67143,"status":"active","src":"보험 원문 검수본","memo":"1회 보험료 69,171원 → 할인 후 67,143원. 구성: 기본 6,615 + 특약 25,384 + 적립 37,172(갱신보험료 포함). 100세만기.","riders":[{"name":"일반상해사망후유장해","amt":45000000,"term":"20년납 100세만기","note":"상해사고로 2년 이내 사망 또는 후유장해"},{"name":"일반상해입원비","amt":20000,"term":"20년납 100세만기","note":"상해 입원 1일당 2만원 (180일 한도)"},{"name":"골절진단비 / 골절수술비","amt":200000,"term":"20년납 100세만기","note":"진단 20만(치아파절 제외) / 수술 50만"},{"name":"화상진단비 / 화상수술비","amt":200000,"term":"20년납 100세만기","note":"진단 20만 / 수술 50만 (사고당 1회)"},{"name":"질병입원비","amt":30000,"term":"20년납 100세만기","note":"질병 입원 1일째부터 1일당 3만원 (180일 한도)"},{"name":"뇌손상·내장손상수술비","amt":20000000,"term":"20년납 80세만기","note":"상해로 뇌·내장손상 후 180일 이내 개두·개복·개흉 수술 최초 1회"},{"name":"폭력피해처리비용","amt":1000000,"term":"20년납 80세만기","note":"범죄에 의한 사망 또는 신체 피해"},{"name":"식중독입원비","amt":100000,"term":"20년납 80세만기","note":"식중독 직접 결과로 입원 시"},{"name":"특정전염병치료비","amt":300000,"term":"20년납 80세만기","note":"특정전염병 감염·진단 시"},{"name":"말기폐질환 / 말기간경화","amt":10000000,"term":"20년납 80세만기","note":"각 1,000만원 · 최초 1회 (1년 미만 50%)"},{"name":"질병특정고도장해재활","amt":2000000,"term":"20년납 80세만기","note":"고도장해 시 10년간 매년 200만원 (총 2,000만)"},{"name":"충수염수술비","amt":300000,"term":"20년납 80세만기","note":"맹장염 수술 최초 1회"},{"name":"중대한 화상 및 부식","amt":20000000,"term":"20년납 80세만기","note":"진단 확정 시 최초 1회"},{"name":"조혈모세포 / 5대장기이식","amt":20000000,"term":"20년납 80세만기","note":"각 2,000만원 · 이식 수술 최초 1회"},{"name":"각막이식수술비","amt":10000000,"term":"20년납 80세만기","note":"각막이식 수술 최초 1회"},{"name":"질병사망고도후유장해","amt":5000000,"term":"20년납 80세만기","note":"질병 사망 또는 80% 이상 후유장해"},{"name":"뇌졸중진단비","amt":10000000,"term":"20년납 80세만기","note":"뇌졸중 진단 확정 최초 1회"},{"name":"[갱신형] 상해입원의료비","amt":50000000,"term":"3년갱신 100세만기","note":"본인부담금+비급여 90% 보상 (연간 200만 초과분 100%)","renew":{"cycle":3,"from":"2025-07-30","to":"2028-07-30"}},{"name":"[갱신형] 질병입원의료비","amt":50000000,"term":"3년갱신 100세만기","note":"본인부담금+비급여 90% 보상 (상급병실료 차액 50%)","renew":{"cycle":3,"from":"2025-07-30","to":"2028-07-30"}},{"name":"[갱신형] 상해통원의료비","amt":300000,"term":"3년갱신 100세만기","note":"외래 25만(2만 공제) / 약제 5만(8천원 공제)","renew":{"cycle":3,"from":"2025-07-30","to":"2028-07-30"}},{"name":"[갱신형] 질병통원의료비","amt":300000,"term":"3년갱신 100세만기","note":"외래 25만(2만 공제) / 약제 5만(8천원 공제)","renew":{"cycle":3,"from":"2025-07-30","to":"2028-07-30"}},{"name":"[갱신형] 가족일상생활배상","amt":100000000,"term":"3년갱신 100세만기","note":"대인 무공제 / 대물 자기부담금 20만원","renew":{"cycle":3,"from":"2025-07-30","to":"2028-07-30"}}]},{"id":"p_self_post","person":"self","insurer":"우체국","product":"(상품명 미입력)","no":"","holder":"","insured":"정복현","start":"","end":"","payTerm":0,"premium":0,"status":"unknown","src":"xlsx 보험현황(2025)","memo":"세 번째 계약 — 로한이 아직 자료를 주지 않았다. 보장·보험료 전부 공란.","riders":[]},{"id":"p_dad_hk","person":"father","insurer":"흥국화재해상보험","product":"무배당 행복을 다주는 가족사랑보험","no":"","holder":"","insured":"","start":"","end":"","payTerm":0,"premium":0,"status":"active","src":"xlsx 보험현황(2025)","memo":"보험료·증권번호 미확인.","riders":[]},{"id":"p_dad_kyobo","person":"father","insurer":"교보생명","product":"무배당 교보다이렉트건강보험","no":"","holder":"","insured":"","start":"","end":"","payTerm":0,"premium":0,"status":"active","src":"xlsx 보험현황(2025)","memo":"보험료·증권번호 미확인.","riders":[]},{"id":"p_dad_ss","person":"father","insurer":"삼성화재","product":"무배당삼성화재 실손의료비보험","no":"","holder":"","insured":"","start":"","end":"","payTerm":0,"premium":0,"status":"active","src":"xlsx 보험현황(2025)","memo":"보험료·증권번호 미확인. 실손 단독.","riders":[]},{"id":"p_mom_ss","person":"mother","insurer":"삼성화재","product":"무배당 삼성화재 간편보험","no":"","holder":"","insured":"","start":"","end":"","payTerm":0,"premium":0,"status":"active","src":"xlsx 보험현황(2025)","memo":"보험료·증권번호 미확인.","riders":[]},{"id":"p_mom_post","person":"mother","insurer":"우체국보험","product":"무배당 우체국간편가입건강보험","no":"","holder":"","insured":"","start":"","end":"","payTerm":0,"premium":0,"status":"active","src":"xlsx 보험현황(2025)","memo":"보험료·증권번호 미확인.","riders":[]},{"id":"p_mom_hkl","person":"mother","insurer":"흥국생명","product":"암플러스건강보험II","no":"","holder":"","insured":"","start":"","end":"","payTerm":0,"premium":0,"status":"active","src":"xlsx 보험현황(2025)","memo":"보험료·증권번호 미확인.","riders":[]}],"covers":[{"id":"c000","pid":"p_self_heungkuk","cat":"실비","name":"실손질병입원의료비","amt":50000000,"term":"100세, 최대"},{"id":"c003","pid":"p_self_heungkuk","cat":"실비","name":"실손질병통원의료비","amt":250000,"term":"100세, 최대"},{"id":"c007","pid":"p_self_heungkuk","cat":"실비","name":"실손상해입원의료비","amt":50000000,"term":"100세, 최대"},{"id":"c010","pid":"p_self_heungkuk","cat":"실비","name":"실손상해통원의료비","amt":250000,"term":"100세, 최대"},{"id":"c013","pid":"p_self_kyobo","cat":"진단","name":"암 진단비","amt":10000000,"term":"종신"},{"id":"c017","pid":"p_self_kyobo","cat":"진단","name":"유방암진단비","amt":10000000,"term":"종신"},{"id":"c021","pid":"p_self_kyobo","cat":"진단","name":"전립선암진단비","amt":10000000,"term":"종신"},{"id":"c025","pid":"p_self_kyobo","cat":"진단","name":"자궁암진단비","amt":10000000,"term":"종신"},{"id":"c029","pid":"p_self_kyobo","cat":"진단","name":"방광암진단비","amt":10000000,"term":"종신"},{"id":"c033","pid":"p_self_kyobo","cat":"진단","name":"고액암진단비","amt":10000000,"term":"종신"},{"id":"c037","pid":"p_self_kyobo","cat":"진단","name":"갑상선암","amt":10000000,"term":"종신"},{"id":"c040","pid":"p_self_kyobo","cat":"진단","name":"제자리암","amt":2000000,"term":"종신"},{"id":"c043","pid":"p_self_kyobo","cat":"진단","name":"기타피부암","amt":10000000,"term":"종신"},{"id":"c048","pid":"p_self_heungkuk","cat":"진단","name":"뇌졸중진단비","amt":10000000,"term":"100세"},{"id":"c050","pid":"p_self_heungkuk","cat":"진단","name":"뇌경색증진단비","amt":10000000,"term":"100세"},{"id":"c053","pid":"p_self_heungkuk","cat":"진단","name":"뇌출혈진단비","amt":10000000,"term":"100세"},{"id":"c057","pid":"p_self_kyobo","cat":"진단","name":"허혈성 심장질환","amt":null,"note":"미보유"},{"id":"c058","pid":"p_self_kyobo","cat":"진단","name":"급성심근경색진단비","amt":null,"note":"미보유"},{"id":"c062","pid":"p_self_kyobo","cat":"진단","grp":"기타진단비","name":"골절진단비","amt":300000,"term":"종신"},{"id":"c063","pid":"p_self_heungkuk","cat":"진단","grp":"기타진단비","name":"골절진단비","amt":200000,"term":"100세"},{"id":"c066","pid":"p_self_heungkuk","cat":"진단","name":"화상진단비","amt":200000,"term":"100세"},{"id":"c068","pid":"p_self_kyobo","cat":"치료&수술","grp":"수술보장","name":"질병수술비","amt":null,"note":"미보유"},{"id":"c069","pid":"p_self_kyobo","cat":"치료&수술","name":"암수술비","amt":5000000,"term":"종신"},{"id":"c073","pid":"p_self_kyobo","cat":"치료&수술","name":"뇌혈관질환수술비","amt":5000000,"term":"종신"},{"id":"c076","pid":"p_self_kyobo","cat":"치료&수술","name":"허혈성심장질환수술비","amt":500000,"term":"종신"},{"id":"c086","pid":"p_self_heungkuk","cat":"치료&수술","name":"중대한 화상 및 부식 치료비","amt":20000000,"term":"100세"},{"id":"c089","pid":"p_self_heungkuk","cat":"치료&수술","name":"골절수술비","amt":500000,"term":"100세"},{"id":"c091","pid":"p_self_heungkuk","cat":"치료&수술","name":"화상수술비","amt":500000,"term":"100세"},{"id":"c094","pid":"p_self_heungkuk","cat":"치료&수술","name":"뇌,내장상해수술비","amt":20000000,"term":"100세"},{"id":"c095","pid":"p_self_heungkuk","cat":"치료&수술","name":"조혈모세포이식수술비","amt":50000000,"term":"100세"},{"id":"c097","pid":"p_self_heungkuk","cat":"치료&수술","name":"식중독입원비","amt":100000,"term":"100세"},{"id":"c099","pid":"p_self_kyobo","cat":"치료&수술","name":"재해치료비","amt":1000000,"term":"종신"},{"id":"c102","pid":"p_self_kyobo","cat":"장애","name":"상해후유장해3%이상","amt":35000000,"term":"종신"},{"id":"c103","pid":"p_self_heungkuk","cat":"장애","name":"상해후유장해3%이상","amt":45000000,"term":"100세"},{"id":"c107","pid":"p_self_kyobo","cat":"장애","name":"교통상해후유장해","amt":35000000,"term":"종신"},{"id":"c108","pid":"p_self_heungkuk","cat":"장애","name":"교통상해후유장해","amt":45000000,"term":"100세"},{"id":"c112","pid":"p_self_kyobo","cat":"장애","name":"대중교통상해후유장해","amt":35000000,"term":"종신"},{"id":"c113","pid":"p_self_heungkuk","cat":"장애","name":"대중교통상해후유장해","amt":45000000,"term":"100세"},{"id":"c118","pid":"p_self_heungkuk","cat":"사망","grp":"질병사망","name":"질병사망고도후유장애","amt":5000000,"term":"80세"},{"id":"c119","pid":"p_self_kyobo","cat":"사망","name":"상해사망","amt":100000000,"term":"종신"},{"id":"c120","pid":"p_self_heungkuk","cat":"사망","name":"상해사망","amt":45000000,"term":"100세"},{"id":"c123","pid":"p_self_heungkuk","cat":"사망","name":"암사망","amt":5000000,"term":"80세"},{"id":"c125","pid":"p_self_kyobo","cat":"사망","name":"교통상해사망","amt":100000000,"term":"종신"},{"id":"c126","pid":"p_self_heungkuk","cat":"사망","name":"교통상해사망","amt":45000000,"term":"100세"},{"id":"c129","pid":"p_self_kyobo","cat":"사망","name":"대중교통상해사망","amt":100000000,"term":"종신"},{"id":"c130","pid":"p_self_heungkuk","cat":"사망","name":"대중교통상해사망","amt":45000000,"term":"100세"},{"id":"c133","pid":"p_self_kyobo","cat":"입원비","grp":"입원일당","name":"질병입원","amt":30000,"term":"1일당"},{"id":"c134","pid":"p_self_heungkuk","cat":"입원비","grp":"입원일당","name":"질병입원","amt":30000,"term":"1일당"},{"id":"c138","pid":"p_self_kyobo","cat":"입원비","name":"상해입원","amt":30000,"term":"1일당"},{"id":"c139","pid":"p_self_heungkuk","cat":"입원비","name":"상해입원","amt":20000,"term":"1일당"},{"id":"c143","pid":"p_self_kyobo","cat":"입원비","name":"암입원","amt":30000,"term":"1일당"},{"id":"c144","pid":"p_self_heungkuk","cat":"입원비","name":"암입원","amt":30000,"term":"1일당"},{"id":"c149","pid":"p_self_heungkuk","cat":"입원비","name":"암요양병원일당","amt":30000,"term":"1일당, 100세"},{"id":"c165","pid":"p_self_heungkuk","cat":"기타","name":"폭력피해처리비용","amt":1000000,"term":"100세"},{"id":"c166","pid":"p_self_heungkuk","cat":"기타","name":"가족생활배상책임담보","amt":100000000,"term":"100세"},{"id":"c001","pid":"p_dad_hk","cat":"실비","name":"실손질병입원의료비","amt":50000000,"term":"100세, 최대"},{"id":"c002","pid":"p_dad_ss","cat":"실비","name":"실손질병입원의료비","amt":50000000,"term":"72세"},{"id":"c004","pid":"p_mom_hkl","cat":"실비","name":"실손질병통원의료비","amt":30000,"term":"80세"},{"id":"c005","pid":"p_dad_hk","cat":"실비","name":"실손질병통원의료비","amt":250000,"term":"100세, 최대"},{"id":"c006","pid":"p_dad_ss","cat":"실비","name":"실손질병통원의료비","amt":250000,"term":"72세"},{"id":"c008","pid":"p_dad_hk","cat":"실비","name":"실손상해입원의료비","amt":50000000,"term":"100세, 최대"},{"id":"c009","pid":"p_dad_ss","cat":"실비","name":"실손상해입원의료비","amt":50000000,"term":"72세"},{"id":"c011","pid":"p_dad_hk","cat":"실비","name":"실손상해통원의료비","amt":250000,"term":"100세, 최대"},{"id":"c012","pid":"p_dad_ss","cat":"실비","name":"실손상해통원의료비","amt":250000,"term":"72세"},{"id":"c014","pid":"p_mom_post","cat":"진단","name":"암 진단비","amt":20000000,"term":"77세"},{"id":"c015","pid":"p_mom_hkl","cat":"진단","name":"암 진단비","amt":20000000,"term":"80세"},{"id":"c016","pid":"p_dad_kyobo","cat":"진단","name":"암 진단비","amt":20000000,"term":"79세"},{"id":"c018","pid":"p_mom_post","cat":"진단","name":"유방암진단비","amt":20000000,"term":"77세"},{"id":"c019","pid":"p_mom_hkl","cat":"진단","name":"유방암진단비","amt":20000000,"term":"80세"},{"id":"c020","pid":"p_dad_kyobo","cat":"진단","name":"유방암진단비","amt":20000000,"term":"79세"},{"id":"c022","pid":"p_mom_post","cat":"진단","name":"전립선암진단비","amt":20000000,"term":"77세"},{"id":"c023","pid":"p_mom_hkl","cat":"진단","name":"전립선암진단비","amt":20000000,"term":"80세"},{"id":"c024","pid":"p_dad_kyobo","cat":"진단","name":"전립선암진단비","amt":20000000,"term":"79세"},{"id":"c026","pid":"p_mom_post","cat":"진단","name":"자궁암진단비","amt":20000000,"term":"77세"},{"id":"c027","pid":"p_mom_hkl","cat":"진단","name":"자궁암진단비","amt":20000000,"term":"80세"},{"id":"c028","pid":"p_dad_kyobo","cat":"진단","name":"자궁암진단비","amt":20000000,"term":"79세"},{"id":"c030","pid":"p_mom_post","cat":"진단","name":"방광암진단비","amt":20000000,"term":"77세"},{"id":"c031","pid":"p_mom_hkl","cat":"진단","name":"방광암진단비","amt":20000000,"term":"80세"},{"id":"c032","pid":"p_dad_kyobo","cat":"진단","name":"방광암진단비","amt":20000000,"term":"79세"},{"id":"c034","pid":"p_mom_post","cat":"진단","name":"고액암진단비","amt":20000000,"term":"77세"},{"id":"c035","pid":"p_mom_hkl","cat":"진단","name":"고액암진단비","amt":20000000,"term":"80세"},{"id":"c036","pid":"p_dad_kyobo","cat":"진단","name":"고액암진단비","amt":20000000,"term":"79세"},{"id":"c038","pid":"p_mom_post","cat":"진단","name":"갑상선암","amt":400000,"term":"77세"},{"id":"c039","pid":"p_dad_kyobo","cat":"진단","name":"갑상선암","amt":3000000,"term":"79세"},{"id":"c041","pid":"p_mom_post","cat":"진단","name":"제자리암","amt":400000,"term":"77세"},{"id":"c042","pid":"p_dad_kyobo","cat":"진단","name":"제자리암","amt":3000000,"term":"79세"},{"id":"c044","pid":"p_mom_post","cat":"진단","name":"기타피부암","amt":400000,"term":"77세"},{"id":"c045","pid":"p_dad_kyobo","cat":"진단","name":"기타피부암","amt":3000000,"term":"79세"},{"id":"c046","pid":"p_mom_post","cat":"진단","name":"경계성종양","amt":400000,"term":"77세"},{"id":"c047","pid":"p_mom_post","cat":"진단","name":"대장점막내암진단","amt":400000},{"id":"c049","pid":"p_mom_hkl","cat":"진단","name":"뇌졸중진단비","amt":20000000,"term":"80세"},{"id":"c051","pid":"p_mom_post","cat":"진단","name":"뇌경색증진단비","amt":5000000,"term":"77세"},{"id":"c052","pid":"p_mom_hkl","cat":"진단","name":"뇌경색증진단비","amt":20000000,"term":"80세"},{"id":"c054","pid":"p_mom_post","cat":"진단","name":"뇌출혈진단비","amt":20000000,"term":"77세"},{"id":"c055","pid":"p_mom_hkl","cat":"진단","name":"뇌출혈진단비","amt":40000000,"term":"80세"},{"id":"c056","pid":"p_dad_kyobo","cat":"진단","name":"뇌출혈진단비","amt":20000000,"term":"79세"},{"id":"c059","pid":"p_mom_post","cat":"진단","name":"급성심근경색진단비","amt":20000000,"term":"77세"},{"id":"c060","pid":"p_mom_hkl","cat":"진단","name":"급성심근경색진단비","amt":20000000,"term":"80세"},{"id":"c061","pid":"p_dad_kyobo","cat":"진단","name":"급성심근경색진단비","amt":20000000,"term":"79세"},{"id":"c064","pid":"p_mom_post","cat":"진단","grp":"기타진단비","name":"골절진단비","amt":200000,"term":"77세"},{"id":"c065","pid":"p_dad_hk","cat":"진단","grp":"기타진단비","name":"골절진단비","amt":200000,"term":"100세"},{"id":"c067","pid":"p_dad_hk","cat":"진단","name":"화상진단비","amt":200000,"term":"100세"},{"id":"c070","pid":"p_mom_post","cat":"치료&수술","name":"암수술비","amt":4500000,"term":"77세"},{"id":"c071","pid":"p_mom_hkl","cat":"치료&수술","name":"암수술비","amt":3000000,"term":"80세"},{"id":"c072","pid":"p_dad_kyobo","cat":"치료&수술","name":"암수술비","amt":4000000,"term":"79세"},{"id":"c074","pid":"p_mom_post","cat":"치료&수술","name":"뇌혈관질환수술비","amt":3500000,"term":"77세"},{"id":"c075","pid":"p_dad_kyobo","cat":"치료&수술","name":"뇌혈관질환수술비","amt":1000000,"term":"79세"},{"id":"c077","pid":"p_mom_post","cat":"치료&수술","name":"허혈성심장질환수술비","amt":3500000,"term":"77세"},{"id":"c078","pid":"p_dad_kyobo","cat":"치료&수술","name":"허혈성심장질환수술비","amt":1000000,"term":"79세"},{"id":"c079","pid":"p_mom_post","cat":"치료&수술","name":"뇌출혈수술급부금","amt":1000000,"term":"78세"},{"id":"c080","pid":"p_mom_post","cat":"치료&수술","name":"급성심근경색수술급부금","amt":1000000,"term":"78세"},{"id":"c081","pid":"p_mom_post","cat":"치료&수술","name":"대장점막내암수술급부금","amt":1000000,"term":"78세"},{"id":"c082","pid":"p_mom_post","cat":"치료&수술","name":"갑상생암수술","amt":1000000,"term":"78세"},{"id":"c083","pid":"p_mom_post","cat":"치료&수술","name":"기타피부암수술","amt":1000000,"term":"78세"},{"id":"c084","pid":"p_mom_post","cat":"치료&수술","name":"경계성종양수술","amt":1000000,"term":"78세"},{"id":"c085","pid":"p_mom_post","cat":"치료&수술","name":"재해수술급부금","amt":3000000,"term":"78세"},{"id":"c087","pid":"p_dad_hk","cat":"치료&수술","name":"중대한 화상 및 부식 치료비","amt":20000000,"term":"100세"},{"id":"c088","pid":"p_dad_hk","cat":"치료&수술","name":"충수염수술비","amt":300000,"term":"100세"},{"id":"c090","pid":"p_dad_hk","cat":"치료&수술","name":"골절수술비","amt":500000,"term":"100세"},{"id":"c092","pid":"p_dad_hk","cat":"치료&수술","name":"화상수술비","amt":500000,"term":"100세"},{"id":"c093","pid":"p_dad_hk","cat":"치료&수술","name":"상해흉터복원수술비","amt":20070000,"term":"100세"},{"id":"c096","pid":"p_dad_hk","cat":"치료&수술","name":"조혈모세포이식수술비","amt":50000000,"term":"100세"},{"id":"c098","pid":"p_dad_hk","cat":"치료&수술","name":"식중독입원비","amt":100000,"term":"100세"},{"id":"c100","pid":"p_dad_hk","cat":"치료&수술","name":"특정전염병치료비","amt":20300000,"term":"100세"},{"id":"c101","pid":"p_dad_hk","cat":"치료&수술","name":"질병특정고도장해재활치료비","amt":20000000,"term":"100세"},{"id":"c104","pid":"p_mom_ss","cat":"장애","name":"상해후유장해3%이상","amt":20000000,"term":"89세"},{"id":"c105","pid":"p_mom_post","cat":"장애","name":"상해후유장해3%이상","amt":10000000,"term":"77세"},{"id":"c106","pid":"p_dad_hk","cat":"장애","name":"상해후유장해3%이상","amt":80000000,"term":"100세"},{"id":"c109","pid":"p_mom_ss","cat":"장애","name":"교통상해후유장해","amt":20000000,"term":"89세"},{"id":"c110","pid":"p_mom_post","cat":"장애","name":"교통상해후유장해","amt":10000000,"term":"77세"},{"id":"c111","pid":"p_dad_hk","cat":"장애","name":"교통상해후유장해","amt":80000000,"term":"100세"},{"id":"c114","pid":"p_mom_ss","cat":"장애","name":"대중교통상해후유장해","amt":20000000,"term":"89세"},{"id":"c115","pid":"p_mom_post","cat":"장애","name":"대중교통상해후유장해","amt":10000000,"term":"77세"},{"id":"c116","pid":"p_dad_hk","cat":"장애","name":"대중교통상해후유장해","amt":80000000,"term":"100세"},{"id":"c117","pid":"p_dad_hk","cat":"장애","name":"일반상해사망후유장해","amt":80000000,"term":"100세"},{"id":"c121","pid":"p_mom_ss","cat":"사망","name":"상해사망","amt":50000000,"term":"89세"},{"id":"c122","pid":"p_dad_hk","cat":"사망","name":"상해사망","amt":80000000,"term":"100세"},{"id":"c124","pid":"p_mom_hkl","cat":"사망","name":"암사망","amt":10000000,"term":"80세"},{"id":"c127","pid":"p_mom_ss","cat":"사망","name":"교통상해사망","amt":50000000,"term":"89세"},{"id":"c128","pid":"p_dad_hk","cat":"사망","name":"교통상해사망","amt":80000000,"term":"100세"},{"id":"c131","pid":"p_mom_ss","cat":"사망","name":"대중교통상해사망","amt":50000000,"term":"89세"},{"id":"c132","pid":"p_dad_hk","cat":"사망","name":"대중교통상해사망","amt":80000000,"term":"100세"},{"id":"c135","pid":"p_mom_post","cat":"입원비","grp":"입원일당","name":"질병입원","amt":30000,"term":"77세"},{"id":"c136","pid":"p_dad_hk","cat":"입원비","grp":"입원일당","name":"질병입원","amt":20000,"term":"1일당"},{"id":"c137","pid":"p_dad_kyobo","cat":"입원비","grp":"입원일당","name":"질병입원","amt":30000,"term":"79세"},{"id":"c140","pid":"p_mom_post","cat":"입원비","name":"상해입원","amt":30000,"term":"77세"},{"id":"c141","pid":"p_dad_hk","cat":"입원비","name":"상해입원","amt":20000,"term":"1일당"},{"id":"c142","pid":"p_dad_kyobo","cat":"입원비","name":"상해입원","amt":30000,"term":"79세"},{"id":"c145","pid":"p_mom_post","cat":"입원비","name":"암입원","amt":30000,"term":"77세"},{"id":"c146","pid":"p_mom_hkl","cat":"입원비","name":"암입원","amt":50000,"term":"80세"},{"id":"c147","pid":"p_dad_hk","cat":"입원비","name":"암입원","amt":20000,"term":"1일당"},{"id":"c148","pid":"p_dad_kyobo","cat":"입원비","name":"암입원","amt":60000,"term":"79세"},{"id":"c150","pid":"p_mom_post","cat":"입원비","name":"암요양병원일당","amt":30000,"term":"77세"},{"id":"c151","pid":"p_dad_hk","cat":"입원비","name":"암요양병원일당","amt":20000,"term":"1일당"},{"id":"c152","pid":"p_dad_kyobo","cat":"입원비","name":"암요양병원일당","amt":30000,"term":"79세"},{"id":"c153","pid":"p_mom_post","cat":"입원비","name":"뇌출혈입원급부금","amt":20000,"term":"78세"},{"id":"c154","pid":"p_mom_post","cat":"입원비","name":"급성심근경색입원급부금","amt":20000,"term":"78세"},{"id":"c155","pid":"p_mom_post","cat":"입원비","name":"주요성인질환입원급부금","amt":10000,"term":"78세"},{"id":"c156","pid":"p_mom_post","cat":"입원비","name":"제자리암직접치료입원급부금","amt":20000,"term":"78세"},{"id":"c157","pid":"p_mom_post","cat":"입원비","name":"경계성종양직접치료입원급부금","amt":20000,"term":"78세"},{"id":"c158","pid":"p_mom_ss","cat":"간병","name":"질병 입원 간병인 사용","amt":200000,"term":"요양병원 제외, 50%"},{"id":"c159","pid":"p_mom_ss","cat":"간병","name":"질병 입원 간호간병통합서비스","amt":70000,"term":"1일, 50%"},{"id":"c160","pid":"p_mom_ss","cat":"간병","name":"상해 입원 간병인 사용","amt":200000,"term":"요양병원 제외, 50%"},{"id":"c161","pid":"p_mom_ss","cat":"간병","name":"상해 입원 간호간병통합서비스","amt":70000,"term":"1일이상"},{"id":"c162","pid":"p_mom_ss","cat":"간병","grp":"상해 입원 간병인 사용","name":"181일 이상","amt":150000,"term":"요양/정신/한방 제외"},{"id":"c163","pid":"p_mom_ss","cat":"간병","grp":"질병 입원 간호간병통합서비스","name":"181일 이상","amt":150000,"term":"요양/정신/한방 제외, 1년 감액"},{"id":"c164","pid":"p_mom_ss","cat":"간병","grp":"질병 입원 간호간병통합서비스","name":"181일 이상","amt":70000,"term":"요양/정신/한방 제외, 1년 감액"},{"id":"c167","pid":"p_dad_hk","cat":"기타","name":"가족생활배상책임담보","amt":100000000,"term":"100세"},{"id":"c168","pid":"p_mom_ss","cat":"기타","name":"중증질환(뇌혈관) 산정특례대상보장","amt":10000000,"term":"연 1회, 50%"},{"id":"c169","pid":"p_mom_ss","cat":"기타","name":"중증질환(심장) 산정특례대상보장","amt":10000000,"term":"연 1회, 50%"},{"id":"c170","pid":"p_mom_post","cat":"기타","name":"재해깁스치료보험금","amt":100000,"term":"78세"}]};
+/* ====== 건강: 보험 (v1.7) ======
+   설계 원칙 — 보험은 두 개의 축을 동시에 갖는다.
+   ① 비용 축(계약) : 누가 · 어디에 · 매달 얼마를 내는가   → policies[].premium / riders[].prem
+   ② 보장 축(사고) : "이런 일이 나면 얼마가 나오는가"      → covers[] (정규화된 보장명)
+   ②가 이 페이지의 존재 이유다(로한: "무슨 문제가 생겼을 때 종합적으로 사고").
+   그래서 covers 의 name 은 사람·보험사가 달라도 같은 문자열을 쓴다 — 그래야 가로로 합산된다.
+   ⚠️ 합계·공백·납입완료·갱신일은 전부 파생이다. 저장하지 않는다. */
+var INS_PEOPLE=[{k:'self',label:'로한'},{k:'father',label:'아버지'},{k:'mother',label:'어머니'}];
+var INS_CATS=['실비','진단','치료&수술','장애','사망','입원비','간병','기타'];
+/* 사고 시나리오 — 보장명 매칭 규칙. 중복지급 여부는 약관을 봐야 하므로 '합/최대'라고 못박는다. */
+var INS_RISK=[
+ {k:'실손',    test:function(n){return n.indexOf('실손')===0&&n.indexOf('입원')>=0;}, agg:'max', hint:'입원의료비 한도(최대치)'},
+ {k:'암 진단',  test:function(n){return n==='암 진단비';}, agg:'sum'},
+ {k:'뇌',      test:function(n){return n==='뇌졸중진단비'||n==='뇌경색증진단비'||n==='뇌출혈진단비';}, agg:'max', hint:'진단명별로 다르다 — 최대치'},
+ {k:'심장',    test:function(n){return n==='급성심근경색진단비';}, agg:'sum'},
+ {k:'상해사망', test:function(n){return n==='상해사망';}, agg:'sum'},
+ {k:'질병사망', test:function(n){return n.indexOf('질병사망')===0;}, agg:'sum'},
+ {k:'입원일당', test:function(n){return n==='질병입원';}, agg:'sum', hint:'질병 입원 1일당'}
+];
+function insDB(){var d=DB.insurance||(DB.insurance={policies:[],covers:[]});
+  d.policies=d.policies||[];d.covers=d.covers||[];delete d.on;return d;}
+function insPols(p){return insDB().policies.filter(function(x){return x.person===p;});}
+function insPol(id){return insDB().policies.filter(function(x){return x.id===id;})[0]||null;}
+function insCovs(pid){return insDB().covers.filter(function(c){return c.pid===pid;});}
+function insMonthly(p){var s=0;insPols(p).forEach(function(x){s+=(+x.premium||0);});return s;}
+/* 납입 완료 예정일 = start + payTerm(년). 둘 중 하나라도 없으면 null — 추측하지 않는다. */
+function insPaidUp(x){
+  if(!x.start||!isDateStr(x.start)||!(+x.payTerm))return null;
+  return (parseInt(x.start.slice(0,4),10)+(+x.payTerm))+x.start.slice(4);
+}
+/* 특약 보험료 합계 - 월 보험료. 0이 아니면 자료가 서로 안 맞는다는 뜻이다.
+   ⚠️ 맞춰서 고치지 않는다 — 어느 쪽이 틀렸는지 원문을 봐야 안다. */
+function insPremGap(x){
+  var s=0,n=0;(x.riders||[]).forEach(function(r){if(r.prem!=null){s+=r.prem;n++;}});
+  if(!n||!(+x.premium))return 0;
+  return s-(+x.premium);
+}
+function insNextRenew(x){
+  var o=null;(x.riders||[]).forEach(function(r){
+    if(r.renew&&r.renew.to&&(!o||r.renew.to<o))o=r.renew.to;});
+  return o;
+}
+/* 시나리오별 보장액 — 한 사람의 모든 계약을 가로로 훑는다. 이게 '종합 사고'다. */
+function insRisk(person,rk){
+  var pids={};insPols(person).forEach(function(x){pids[x.id]=x;});
+  var hits=[],v=0;
+  insDB().covers.forEach(function(c){
+    if(!pids[c.pid])return;
+    if(typeof c.amt!=='number'||!c.amt)return;
+    if(!rk.test(c.name))return;
+    hits.push({p:pids[c.pid],c:c});
+    v=(rk.agg==='max')?Math.max(v,c.amt):v+c.amt;
+  });
+  return {amt:v,hits:hits};
+}
+/* 실손은 여러 개 들어도 비례보상이라 겹쳐서 두 배로 안 나온다 — 더하면 거짓말이 된다. */
+function insAgg(name){return String(name||'').indexOf('실손')===0?'max':'sum';}
+function insUi(k,d){var u=DB.ui||(DB.ui={});return u[k]===undefined?d:u[k];}
+function setInsPerson(p){DB.ui=DB.ui||{};DB.ui.insPerson=p;save();renderInsu();}
+function insShort(n){
+  if(typeof n!=='number')return '·';
+  if(n>=100000000)return (Math.round(n/1000000)/100)+'억';
+  if(n>=10000)return Math.round(n/10000).toLocaleString('ko-KR')+'만';
+  return n.toLocaleString('ko-KR');
+}
+function insEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+
+function renderInsu(){
+  var me=insUi('insPerson','self'), today=todayStr();
+
+  /* ── 상단: 세 사람 동시 비교. 탭을 옮기지 않아도 가족 전체가 보여야 한다 ── */
+  var famHead=INS_RISK.map(function(rk){return '<th class="v"'+(rk.hint?' title="'+insEsc(rk.hint)+'"':'')+'>'+rk.k+'</th>';}).join('');
+  var famRows=INS_PEOPLE.map(function(P){
+    var tds=INS_RISK.map(function(rk){
+      var a=insRisk(P.k,rk).amt;
+      return '<td class="v"'+(a?'':' style="color:#c0392b;font-weight:800"')+'>'+(a?insShort(a):'없음')+'</td>';
+    }).join('');
+    var m=insMonthly(P.k), n=insPols(P.k).length;
+    return '<tr'+(P.k===me?' style="background:var(--accent-bg)"':'')+'>'
+      +'<td class="cM" style="cursor:pointer" onclick="setInsPerson(\''+P.k+'\')">'+P.label+' <span class="mut" style="font-size:9px">'+n+'건</span></td>'
+      +'<td class="v">'+(m?won(m):'<span class="mut">미상</span>')+'</td>'+tds+'</tr>';
+  }).join('');
+  var known=0,unk=0;
+  INS_PEOPLE.forEach(function(P){insPols(P.k).forEach(function(x){if(+x.premium)known+=(+x.premium);else unk++;});});
+  var top='<div class="sec"><h4>🛡️ 가족 보장 한눈에 <span class="mut">사고가 나면 얼마가 나오는가</span></h4>'
+   +'<div class="labwrap" style="max-height:none"><table class="labtbl instbl"><thead><tr><th class="cM">대상</th><th class="v">월 보험료</th>'+famHead+'</tr></thead><tbody>'+famRows+'</tbody></table></div>'
+   +'<div class="mut" style="margin-top:7px;line-height:1.6">확인된 월 보험료 <b>'+won(known)+'</b>'+(unk?' · 보험료 미확인 계약 <b>'+unk+'건</b>':'')
+   +'<br>⚠️ 한 사고에 여러 특약이 <b>동시 지급</b>되는지는 약관을 봐야 안다. 여기 숫자는 <b>가입금액의 합(또는 최대)</b>이지 실제 수령액이 아니다.</div></div>';
+
+  /* ── 사람 탭 + 계약 목록 ── */
+  var tabs=INS_PEOPLE.map(function(P){return '<span class="wtab'+(P.k===me?' on':'')+'" onclick="setInsPerson(\''+P.k+'\')">'+P.label+'</span>';}).join('');
+  var pols=insPols(me);
+  var plist=pols.map(function(x){
+    var pu=insPaidUp(x), rn=insNextRenew(x), nc=insCovs(x.id).length, warn=[];
+    if(x.status==='unknown')warn.push('<span class="chip warn2">자료 없음</span>');
+    else if(!+x.premium)warn.push('<span class="chip warn2">보험료 미확인</span>');
+    if(rn&&rn<=ymAdd(today.slice(0,7),6)+'-31')warn.push('<span class="chip warn2">갱신 임박</span>');
+    var gp=insPremGap(x);
+    if(gp)warn.push('<span class="chip warn2" title="특약 보험료를 다 더하면 월 보험료와 '+won(Math.abs(gp))+' 어긋난다. 원문 확인 필요.">보험료 불일치 '+(gp>0?'+':'-')+won(gp)+'</span>');
+    var meta=[];
+    if(x.no)meta.push('증권 '+insEsc(x.no));
+    if(x.start||x.end)meta.push((x.start||'?')+' ~ '+(x.end||'?'));
+    if(pu)meta.push('납입완료 <b>'+pu+'</b>');
+    else if(+x.payTerm)meta.push(x.payTerm+'년납 <span style="opacity:.7">(시작일 미상)</span>');
+    if(rn)meta.push('다음 갱신 <b>'+rn+'</b>');
+    meta.push('보장 '+nc+'항목'+(x.riders&&x.riders.length?' · 특약 '+x.riders.length+'개':''));
+    if(x.src)meta.push('<span style="opacity:.65">출처 '+insEsc(x.src)+'</span>');
+    return '<div class="row" style="display:block;padding:10px 2px">'
+     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+     +'<span><b>'+insEsc(x.insurer)+'</b> <span class="mut">·</span> '+insEsc(x.product)+' '+warn.join('')+'</span>'
+     +'<span style="white-space:nowrap">'+(+x.premium?'<b>'+won(x.premium)+'</b><span class="mut">/월</span>':'<span class="mut">—</span>')
+     +' <span class="acts"><span data-edinspol="'+x.id+'">수정</span><span data-delinspol="'+x.id+'">삭제</span></span></span></div>'
+     +'<div class="mut" style="margin-top:4px;line-height:1.6">'+meta.join(' · ')+'</div>'
+     +(x.memo?'<div class="mut" style="margin-top:3px;opacity:.85;line-height:1.6">'+insEsc(x.memo)+'</div>':'')
+     +'</div>';
+  }).join('');
+
+  /* ── 보장 공백 ── */
+  var gaps=INS_RISK.filter(function(rk){return !insRisk(me,rk).amt;}).map(function(rk){return rk.k;});
+  var nUnk=pols.filter(function(x){return x.status==='unknown';}).length;
+  var gapBox=gaps.length?'<div class="sec"><h4>🕳 보장 공백 <span class="mut">'+gaps.length+'개</span></h4>'
+   +'<div style="font-size:12.5px;line-height:1.75"><b style="color:#c0392b">'+gaps.join(' · ')+'</b> — 기록상 보장 <b>0원</b>이다.'
+   +'<br><span class="mut">진짜 없는 건지, 자료가 아직 안 들어온 건지 먼저 갈라야 한다. 자료 없는 계약 <b>'+nUnk+'건</b>.</span></div></div>':'';
+
+  /* ── 보장 매트릭스: 행=정규화 보장명, 열=이 사람의 계약 ── */
+  var mtx='';
+  if(pols.length){
+    var byKey={},order=[];
+    insDB().covers.forEach(function(c){
+      if(!pols.some(function(x){return x.id===c.pid;}))return;
+      var k=c.cat+''+c.name;
+      if(!byKey[k]){byKey[k]={cat:c.cat,name:c.name,cells:{}};order.push(k);}
+      byKey[k].cells[c.pid]=c;
+    });
+    order.sort(function(a,b){
+      var ia=INS_CATS.indexOf(byKey[a].cat), ib=INS_CATS.indexOf(byKey[b].cat);
+      if(ia<0)ia=99; if(ib<0)ib=99;
+      return ia!==ib?ia-ib:(a<b?-1:1);
+    });
+    var head=pols.map(function(x){return '<th class="v" title="'+insEsc(x.product)+'">'+insEsc(x.insurer)+'</th>';}).join('');
+    var lastCat='',body='';
+    order.forEach(function(k){
+      var r=byKey[k];
+      if(r.cat!==lastCat){lastCat=r.cat;body+='<tr class="catrow"><td class="cM">'+insEsc(r.cat)+'</td><td colspan="'+(pols.length+1)+'"></td></tr>';}
+      var agg=insAgg(r.name), sum=0;
+      var tds=pols.map(function(x){
+        var c=r.cells[x.id];
+        if(!c)return '<td class="v mut">·</td>';
+        if(typeof c.amt!=='number')return '<td class="v mut">'+insEsc(c.note||'·')+'</td>';
+        sum=(agg==='max')?Math.max(sum,c.amt):sum+c.amt;
+        return '<td class="v">'+insShort(c.amt)+(c.term?'<br><span class="mut" style="font-size:9px">'+insEsc(c.term)+'</span>':'')+'</td>';
+      }).join('');
+      body+='<tr><td class="cM" style="font-weight:400">'+insEsc(r.name)+(agg==='max'?' <span class="mut" style="font-size:9px">비례보상</span>':'')+'</td>'+tds
+        +'<td class="v" style="font-weight:800;color:var(--accent)">'+(sum?insShort(sum):'·')+(agg==='max'?'<br><span class="mut" style="font-size:9px">최대</span>':'')+'</td></tr>';
+    });
+    mtx='<div class="sec"><h4>📊 보장 매트릭스 <span class="mut">'+order.length+'항목 · 같은 보장을 여러 계약이 겹쳐 가지면 가로로 더해진다</span></h4>'
+     +'<div class="labwrap"><table class="labtbl instbl"><thead><tr><th class="cM">보장</th>'+head+'<th class="v">합계</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+     +'<div class="mut" style="margin-top:7px;line-height:1.6">합계는 가로 <b>단순 합</b>이다. 다만 <b>실손</b>은 여러 개 들어도 <b>비례보상</b>이라 겹쳐 받지 못하므로 <b>최대치</b>로 잡았다.'
+     +'<br>출처: 로한이 정리한 <b>보험현황(2025)</b> 시트. 원문 증권과 대조되지 않은 항목이 섞여 있다 — 청구 전에는 약관을 확인할 것.</div></div>';
+  }
+
+  /* ── 특약 구성(비용 축) ── */
+  var rid='';
+  pols.forEach(function(x){
+    if(!x.riders||!x.riders.length)return;
+    var ps=0,pk=0;
+    x.riders.forEach(function(r){if(r.prem!=null){ps+=r.prem;pk++;}});
+    var rows=x.riders.map(function(r){
+      return '<tr><td class="cM" style="font-weight:400">'+insEsc(r.name)+(r.renew?' <span class="chip warn2">'+r.renew.cycle+'년갱신</span>':'')+'</td>'
+       +'<td class="v">'+insShort(r.amt)+'</td>'
+       +'<td class="v" style="font-size:10px">'+insEsc(r.term||'')+'</td>'
+       +'<td class="v">'+(r.prem!=null?(r.prem?won(r.prem):'—'):'<span class="mut">미상</span>')+'</td>'
+       +'<td style="text-align:left;font-size:10.5px;line-height:1.55;min-width:200px;color:#41506a">'+insEsc(r.note||'')+'</td></tr>';
+    }).join('');
+    var gp2=insPremGap(x);
+    rid+='<div class="sec"><h4>🧾 '+insEsc(x.insurer)+' 특약 구성 <span class="mut">'+x.riders.length+'개'+(pk?' · 합계 '+won(ps):'')+'</span></h4>'
+     +'<div class="labwrap"><table class="labtbl instbl"><thead><tr><th class="cM">특약</th><th class="v">가입금액</th><th class="v">기간</th><th class="v">월 보험료</th><th>보장 내용</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+     +(gp2?'<div class="mut" style="margin-top:7px;color:#8a5a1f;line-height:1.6">⚠️ 특약을 다 더하면 <b>'+won(ps)+'</b> 인데 계약서상 월 보험료는 <b>'+won(x.premium)+'</b> — <b>'+won(Math.abs(gp2))+'</b> 어긋난다. 어느 쪽이 맞는지는 원문 증권을 봐야 안다. <b>맞춰서 고치지 않았다.</b></div>':'')
+     +'</div>';
+  });
+
+  document.getElementById('v-insu').innerHTML=top
+   +'<div class="sec"><h4>계약 <span class="mut">'+pols.length+'건 · 월 '+(insMonthly(me)?won(insMonthly(me)):'미상')+'</span>'
+   +'<button class="ghost" id="addInsPolBtn">+ 계약 추가</button></h4>'
+   +'<div class="wtabs">'+tabs+'</div>'
+   +(plist||'<div class="mut" style="padding:6px 0">계약 없음 — 위 <b>+ 계약 추가</b></div>')+'</div>'
+   +gapBox+mtx+rid;
+}
+
+/* ── 계약 편집 ── */
+function insPolModal(id){
+  var x=id?insPol(id):{person:insUi('insPerson','self'),insurer:'',product:'',no:'',holder:'',insured:'',start:'',end:'',payTerm:'',premium:'',status:'active',memo:''};
+  if(!x)return;
+  var q=insEsc;
+  var popt=INS_PEOPLE.map(function(P){return '<option value="'+P.k+'"'+(x.person===P.k?' selected':'')+'>'+P.label+'</option>';}).join('');
+  openModal('<div class="mtop"><h3 style="font-family:var(--serif)">'+(id?'계약 수정':'계약 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">'
+   +'<div class="field"><label>대상</label><select id="ip_person">'+popt+'</select></div>'
+   +'<div class="field"><label>상태</label><select id="ip_status"><option value="active"'+(x.status!=='unknown'?' selected':'')+'>유지중</option><option value="unknown"'+(x.status==='unknown'?' selected':'')+'>자료 없음</option></select></div>'
+   +'<div class="field"><label>보험사</label><input id="ip_insurer" value="'+q(x.insurer)+'" placeholder="교보생명"></div>'
+   +'<div class="field"><label>상품명</label><input id="ip_product" value="'+q(x.product)+'"></div>'
+   +'<div class="field"><label>증권/계약번호</label><input id="ip_no" value="'+q(x.no)+'"></div>'
+   +'<div class="field"><label>피보험자</label><input id="ip_insured" value="'+q(x.insured)+'"></div>'
+   +'<div class="field"><label>계약자</label><input id="ip_holder" value="'+q(x.holder)+'"></div>'
+   +'<div class="field"><label>월 보험료 (원)</label><input id="ip_premium" value="'+q(x.premium||'')+'" placeholder="115700"></div>'
+   +'<div class="field"><label>보험 시작일</label><input id="ip_start" type="date" value="'+q(x.start)+'"></div>'
+   +'<div class="field"><label>만기 <span class="mut">날짜 또는 종신</span></label><input id="ip_end" value="'+q(x.end)+'" placeholder="2086-07-30 / 종신"></div>'
+   +'<div class="field"><label>납입기간 (년)</label><input id="ip_payTerm" value="'+q(x.payTerm||'')+'" placeholder="20"></div>'
+   +'</div>'
+   +'<div class="field"><label>메모</label><textarea id="ip_memo" rows="3">'+q(x.memo)+'</textarea></div>'
+   +'<button class="btn" onclick="saveInsPol('+(id?"'"+id+"'":'null')+')">저장</button>');
+}
+function saveInsPol(id){
+  var D=insDB(), g=function(k){var e=document.getElementById('ip_'+k);return e?String(e.value).trim():'';};
+  var insr=g('insurer'), prd=g('product');
+  if(!insr&&!prd)return alert('보험사 또는 상품명은 있어야 한다');
+  var num=function(s){var v=parseInt(String(s).replace(/[^0-9]/g,''),10);return isNaN(v)?0:v;};
+  var st=g('start');
+  if(st&&!isDateStr(st))return alert('시작일은 YYYY-MM-DD 형식이어야 한다');
+  var rec={person:g('person'),insurer:insr,product:prd,no:g('no'),holder:g('holder'),insured:g('insured'),
+    start:st,end:g('end'),payTerm:num(g('payTerm')),premium:num(g('premium')),status:g('status'),
+    memo:document.getElementById('ip_memo').value};
+  if(id){var x=insPol(id);if(!x)return;for(var k in rec)x[k]=rec[k];}
+  else{rec.id='ip'+uid();rec.src='직접 입력';rec.riders=[];D.policies.push(rec);}
+  logAct('보험'+(id?'수정':'추가')+' · '+insr+' '+prd);
+  save();closeModal();renderInsu();
+}
+function delInsPol(id){
+  var x=insPol(id);if(!x)return;
+  var n=insCovs(id).length;
+  if(!confirm('['+x.insurer+' '+x.product+'] 계약과 보장 '+n+'항목을 함께 지운다. 진행할까?'))return;
+  var D=insDB();
+  D.policies=D.policies.filter(function(p){return p.id!==id;});
+  D.covers=D.covers.filter(function(c){return c.pid!==id;});   /* 고아 보장을 남기지 않는다 */
+  logAct('보험삭제 · '+x.insurer+' '+x.product+' (보장 '+n+'항목)');
+  save();renderInsu();
+}
 
 /* ====== 명리(사주) ====== */
 var SAJU_GAN=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
@@ -3700,13 +3946,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.61';
+var APP_VERSION='1.7';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.7',date:'2026-08-25',note:"<b>🛡️ 보험 신설 (로한 설계).</b> 건강 아래 <b>로한ㅣ아버지ㅣ어머니</b> 탭. ⚠️ 로한이 준 md 의 '피보험자 정복현'이 '내 보험'과 충돌하는 것처럼 보였으나, 프로젝트의 <code>0102_보험관리.xlsx</code> 헤더가 <b>복현ㅣ엄마ㅣ아빠</b> 로 갈라 놓아 <b>정복현=로한</b> 임이 데이터로 확정됐다 — 묻지 않고 대조해서 풀었다. · <b>축을 둘로 나눴다</b>: 비용 축(계약·특약 보험료)과 보장 축(정규화 보장명 × 계약 매트릭스). '무슨 일이 나면 얼마'는 보장 축에서만 나온다 · 상단 <b>가족 보장 한눈에</b>(실손·암·뇌·심장·사망·입원일당) — 탭을 옮기지 않아도 세 사람이 한 표에 뜬다 · <b>보장 공백</b> 자동 표시 — '없는 것'과 '자료가 안 들어온 것'을 구분한다 · <b>🔒 실손은 합산하지 않는다</b>(비례보상) — 매트릭스 합계에서 최대치로 잡는다. 아버지는 흥국·삼성 두 곳에 실손이 있어 그냥 더하면 1억으로 뜬다 · ⚠️ <b>원문 요약본이 스스로 안 맞는다</b>: 교보 특약 7개를 더하면 45,200 인데 총액은 43,200 으로 적혀 있다(2,000원 차 — 재해상해특약2형과 같은 액수). <b>맞춰서 고치지 않고</b> '보험료 불일치' 로 드러냈다 · 시드 9건(로한 3·아버지 3·어머니 3) + 보장 171항목. 로한 2건은 원문 검수본, 나머지는 xlsx 출처를 계약마다 명시 · <b>DB생명(시트2)은 넣지 않았다</b> — 로한 확인 결과 <b>제안서</b>이지 가입한 계약이 아니다 · 합계·납입완료일·다음 갱신일·보험료 불일치는 전부 파생(저장 안 함) · 🔒 계약 삭제 시 보장 동반 삭제 + 매 로드 고아 보장 정리"},
   {v:'1.61',date:'2026-08-25',note:"<b>‘카드결제(구)’ 제거.</b> \u26a0\ufe0f 로한: <i>“(구)카드결제가 뭔 뜻이야?”</i> — <b>화면에 나갈 말이 아니었다.</b> ‘구버전 데이터’라는 개발자 약어를 그대로 노출했다. 더 큰 문제는 그 라벨이 필요 없었다는 것 — <b>v1.6 에서 나는 “확정되면 <code>card=false</code> 가 되어 파생 불가”라고 단정하고 저장했는데 틀렸다.</b> card 플래그만 바뀔 뿐 <b>거래일과 카드명은 남으므로 결제분이 계산되고, 그러면 구성도 나온다.</b> 실측: 옛 settle 2건이 역산합과 <b>원 단위로 일치</b>(210,112 / 122,042). → <code>settleMix()</code> — <b>저장값 우선, 없으면 역산</b>. 🔒 v1.42 원칙 그대로 <b>파생 가능한 것을 저장으로 대신하지 않는다</b>. 같은 결제분을 나눠 부분 선결제한 경우에만 역산이 못 가르므로 그때는 <code>카드결제 내역미상</code> 으로 정직하게 표시한다."},
   {v:'1.6',date:'2026-08-25',note:"<b>⚖️ 제지방량 · ⏳ 보조 태그 · 🌊 카드결제 분해.</b> \u26a0\ufe0f <b>[죽은 탭] 체성분 '내장지방'은 실측 82건 중 0건이었다</b> — 체중계가 안 주는 값이라 입력칸조차 없었고 영원히 빈칸이었다. → <b>제지방량</b>(체중−체지방, 실측 근육 49.8+골무기질 2.7=52.5 로 검증)과 <b>제지방률</b>로 교체. ⏳ <b>보조 태그</b> — 로한: <i>“게임이나 유튜브는 낭비이긴 하지만 휴식도 된다.”</i> 두 태그를 겹치고 색을 <b>그라데이션</b>으로 섞는다. \u26a0\ufe0f 두 태그에 각각 전부 세면 <b>하루 합이 24시간을 넘는다</b> — v11.0 설계의 핵심이 '24시간 고정 총량'이라 그게 깨지면 <i>'이만큼밖에 안 남았다'</i>가 성립하지 않는다. 🔒 그래서 <b>반반(0.5/0.5) 배분</b>. 총량은 그대로, 성격만 둘로 나뉜다. 🌊 <b>카드결제는 지출 루트가 아니다</b>(로한 지적) — 온통 카드로 결제하는데 Sankey 종착이 '카드결제'면 아무것도 안 보인다. 선결제 확정 시 <b>계정과목 구성(catMix)을 박제</b>해 실제 사용처로 쪼갠다(확정되면 원거래가 <code>card=false</code>가 되어 파생이 불가능하다). 거래 행에도 세부 적요로 편다. Sankey 금액을 <b>만 단위 → 천 단위</b>로."},
   {v:'1.51',date:'2026-08-24',note:"<b>🍽 음식칸 정정.</b> \u26a0\ufe0f 로한: <i>“배달에서 뜬 뒤로 다른 지출 입력할 때도 안 사라진다.”</i> <b>버그가 아니라 내 판단 미스였다.</b> 요청은 <b>‘배달’ 하나</b>였는데 <i>“곧 식비도 온다”</i>는 논리로 <b>물어보지도 않고 4개로 넓혔다</b>. 실측: 로한이 자주 쓰는 상위 5개 중 <b>4개가 음식으로 켜져</b> 있었고(카페 205·간식 137·식비 75·배달 58), 실제 음식 기록은 <b>배달 3건뿐</b>이었다. 그래서 카페를 찍어도 칸이 떠 ‘안 사라진다’로 보였다. → 기본을 <b>배달 하나로</b> 되돌린다(<b>이미 음식을 기록한 카테고리는 건드리지 않는다</b> — 쓰던 것을 뺏지 않는다). 필요하면 카테고리 편집에서 켠다. 🔒 <b>요청하지 않은 것을 기본으로 켜지 않는다.</b> 더불어 음식칸을 <b>계정과목 바로 아래</b>로 옮기고(멀면 왜 떴는지 안 읽힌다) 라벨에 계정과목명을 박았다 — <code>🍽 배달 — 무엇을 먹었나</code>."},
@@ -4616,6 +4863,23 @@ function migrateV6(d){
   /* v8.0 — rewardLog(수령 기록) → rewardCards(카드) 승계.
      v7까지는 '수령'이 곧 가계부 거래였고, v8은 배치 → 활성 → 사용 카드 모델이다. */
   if(!d.timelog)d.timelog={};   /* v11.0 ⏳ 타임로그 */
+  /* v1.7 🛡️ 보험. 시드는 id 기준 멱등 — 로한이 지운 계약을 되살리지 않는다.
+     ⚠️ insSeeded=1 세대(로한 것만 심긴 판)가 잠깐 있었다. 2로 올리며 아버지·어머니를 채운다. */
+  if(!d.insurance)d.insurance={policies:[],covers:[]};
+  d.insurance.policies=d.insurance.policies||[];
+  d.insurance.covers=d.insurance.covers||[];
+  if(!d.meta)d.meta={};
+  if(!(d.meta.insSeeded>=2)){
+    var _is=JSON.parse(JSON.stringify(INS_SEED)), _have={};
+    d.insurance.policies.forEach(function(p){_have[p.id]=1;});
+    _is.policies.forEach(function(p){if(!_have[p.id])d.insurance.policies.push(p);});
+    var _hc={};d.insurance.covers.forEach(function(c){_hc[c.id]=1;});
+    _is.covers.forEach(function(c){if(!_hc[c.id])d.insurance.covers.push(c);});
+    d.meta.insSeeded=2;
+  }
+  /* 🔒 고아 보장 정리 — 계약이 사라졌는데 보장만 남으면 매트릭스가 유령을 그린다. */
+  (function(){var pid={};d.insurance.policies.forEach(function(p){pid[p.id]=1;});
+   d.insurance.covers=d.insurance.covers.filter(function(c){return pid[c.pid];});})();
   if(!d.rewardCards)d.rewardCards={};
   if(d.rewardLog){
     for(var _lk in d.rewardLog){
@@ -4947,7 +5211,7 @@ function delTxn(id){if(!confirm('삭제할까요?'))return;var _t=DB.transaction
 /* 탭 → 렌더러 매핑. 사이드바에 탭을 추가하면 여기에도 반드시 등록할 것.
    (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
 var VIEW_RENDER={daily:renderDaily,goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
-  acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,
+  acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,insu:renderInsu,
   saju:renderSaju,journal:renderJournal,items:renderItems,log:renderLog};
 
 /* ====== 이벤트 ====== */
@@ -5057,6 +5321,9 @@ document.addEventListener('click',function(e){
   if(e.target.id==='taxCalc')return taxRecalc();
   var rca=e.target.closest('[data-reconapply]');if(rca)return reconcileApply(rca.dataset.reconapply);
   if(e.target.id==='addWeightBtn')return weightModal();
+  if(e.target.id==='addInsPolBtn')return insPolModal(null);
+  var eip=e.target.closest('[data-edinspol]');if(eip)return insPolModal(eip.dataset.edinspol);
+  var dip=e.target.closest('[data-delinspol]');if(dip)return delInsPol(dip.dataset.delinspol);
   var dw=e.target.closest('[data-delweight]');if(dw)return delWeight(dw.dataset.delweight);
   var ew=e.target.closest('[data-editweight]');if(ew)return weightModal(ew.dataset.editweight);
   if(e.target.id==='addEventBtn')return eventModal(null);
