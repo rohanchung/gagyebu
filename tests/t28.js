@@ -118,14 +118,55 @@ console.log('\n=== ③ 카드결제는 지출 루트가 아니다 ===');
    DB.transactions.push({id:'sOld',type:'settle',acct:'a1',amt:50000,date:'2026-08-20',
      method:'삼성 결제',cat:'카드결제'});   /* catMix 없는 옛 데이터 */
    const g=cfBuildSankey(cfTxns('month'));
-   return Object.keys(g.K).indexOf('ex:카드결제(구)')>=0;});
- ok(old,'구성 정보 없는 옛 settle 은 따로 표시 (조용히 섞지 않는다)');
+   return Object.keys(g.K).indexOf('ex:카드결제 내역미상')>=0;});
+ ok(old,'역산도 catMix 도 불가한 건만 "내역미상" 으로 정직하게 표시');
  const sh=await p.evaluate(()=>[cfShort(1500),cfShort(33254),cfShort(365934),cfShort(123456789)]);
  ok(sh[1]==='33,000'&&sh[2]==='366,000','만 → 천 단위', sh.join(' / '));
  const row=await p.evaluate(()=>{renderCal();renderDay(todayStr());
    const el=[...document.querySelectorAll('#dayPanel .txr.st')][0];
    return el?el.textContent.replace(/\s+/g,' ').trim():'(없음)';});
  ok(/식비 120,000/.test(row)&&/의료 80,000/.test(row),'거래 행에 세부 적요', row.slice(0,72));
+ ok(errs.length===0,'JS 에러 0', errs[0]||'');
+ await c.close();}
+
+console.log('\n=== ④ 현금흐름 ↔ 가계부 기준 일치 (로한 지적) ===');
+{/* 실측 8월 배달 구조 재현: 체크 84,200 + 신용 선결제 52,700 + 신용 미결제 24,900 = 161,800 */
+ const st=JSON.parse(JSON.stringify(ST));
+ st.cards.push({id:'c9',name:'K패스',type:'check',acct:'a1'});
+ st.transactions=[
+  {id:'d1',type:'expense',scope:'personal',cat:'배달',method:'K패스',amt:84200,date:'2026-08-15'},
+  {id:'d2',type:'expense',scope:'personal',cat:'배달',method:'삼성',amt:52700,date:'2026-08-05',card:false},
+  {id:'d3',type:'expense',scope:'personal',cat:'배달',method:'삼성',amt:24900,date:'2026-08-18',card:true},
+  {id:'s9',type:'settle',acct:'a1',amt:52700,date:'2026-08-21',method:'삼성 결제',cat:'카드결제',cycle:'2026-08'}];
+ const {c,p,errs}=await boot(b,st);
+ const r=await p.evaluate(()=>{
+   DB.ui.month='2026-08';DB.ui.cfPeriod='month';
+   const ledger=monthPL('2026-08').exp;                    /* 가계부 발생 */
+   setCfMode('cash');
+   const gC=cfBuildSankey(cfTxns('month'));
+   let outC=0;cfTxns('month').forEach(t=>{if(cfIsOut(t))outC+=t.amt;});
+   setCfMode('accrual');
+   const gA=cfBuildSankey(cfTxns('month'));
+   let outA=0;cfTxns('month').forEach(t=>{if(cfIsOut(t))outA+=t.amt;});
+   return {ledger, outC, outA,
+     bC:Math.round(gC.K['ex:배달']||0), bA:Math.round(gA.K['ex:배달']||0),
+     mix:settleMix(DB.transactions.filter(x=>x.id==='s9')[0])};});
+ ok(r.ledger===161800,'가계부 8월 배달(발생) 161,800', r.ledger);
+ ok(r.bA===161800,'⚠️ 발생 모드 = 가계부와 정확히 같다', r.bA);
+ ok(r.outA===161800,'발생 유출 합도 일치', r.outA);
+ ok(r.bC===136900,'현금 모드 = 84,200 + 52,700', r.bC);
+ ok(r.ledger-r.bC===24900,'🔒 차이 24,900 = 아직 안 나간 카드값', r.ledger-r.bC);
+ ok(JSON.stringify(r.mix)==='{"배달":52700}','⚠️ catMix 없어도 역산된다 (v1.61)', JSON.stringify(r.mix));
+ const ui=await p.evaluate(()=>{setCfMode('cash');renderCashflow();
+   const h=document.getElementById('v-cashflow').innerHTML;
+   setCfMode('accrual');renderCashflow();
+   const h2=document.getElementById('v-cashflow').innerHTML;
+   return {bar:/plbar/.test(h), diff:/아직 안 나간 카드값/.test(h),
+     onC:/plm on[^>]*>현금/.test(h), onA:/plm on[^>]*>발생/.test(h2),
+     noOld:!/카드결제\(구\)/.test(h)&&!/카드결제\(구\)/.test(h2)};});
+ ok(ui.bar&&ui.onC&&ui.onA,'현금/발생 토글이 동작한다');
+ ok(ui.diff,'차이의 정체를 한 줄로 알려준다');
+ ok(ui.noOld,'⚠️ "카드결제(구)" 라벨이 사라졌다');
  ok(errs.length===0,'JS 에러 0', errs[0]||'');
  await c.close();}
 
