@@ -18,11 +18,11 @@ HTML="${HTML:-$(cd .. && pwd)/work.html}"
 
 # ── 영역 → 테스트 (t22·t23 은 데이터층이라 어디서든 잘 깨진다) ──
 case "${1:-all}" in
-  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t14 t18 t19 t20 t21" ;;
-  money) T="t_reg t20 t21 t25 t26 t27 t28 t22" ;;
-  goal)  T="t_reg t24 t22" ;;
+  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t14 t18 t19 t20 t21" ;;
+  money) T="t_reg t20 t21 t25 t26 t27 t28 t31 t22" ;;
+  goal)  T="t_reg t24 t30 t22" ;;
   time)  T="t_reg t18 t19 t28 t22" ;;
-  data)  T="t22 t23 t_reg t24 t25 t26 t27 t29" ;;
+  data)  T="t22 t23 t_reg t24 t25 t26 t27 t29 t31" ;;
   css)   T="t14 t26 t29 t_reg" ;;
   quick) T="t_reg t22" ;;                # 30초 컷 · 살아는 있나
   *)     T="$*" ;;
@@ -33,11 +33,16 @@ esac
 echo "▶ $(echo $T | wc -w)개 · $(basename "$HTML") · $(date +%H:%M:%S)"
 S=$(date +%s)
 mkdir -p .out
-PIDS=""
+# ⚠️ 0825: 16개를 한꺼번에 띄웠더니 크로미움이 못 떠서 page.goto 가 30초 타임아웃 났다.
+#    코드가 아니라 컨테이너 자원 문제였다(따로 돌리면 전부 통과).
+#    → 동시 실행에 상한을 둔다. 늘리기 전에 왜 늘리는지 먼저 생각해라.
+JOBS="${JOBS:-5}"
+PIDS=""; N=0
 for t in $T; do
   [ -f "$t.js" ] || { echo "  ? $t.js 없음"; continue; }
   ( timeout 280 node "$t.js" "$HTML" > ".out/$t.log" 2>&1; echo $? > ".out/$t.rc" ) &
-  PIDS="$PIDS $!"
+  PIDS="$PIDS $!"; N=$((N+1))
+  if [ $((N % JOBS)) -eq 0 ]; then for p in $PIDS; do wait "$p"; done; PIDS=""; fi
 done
 for p in $PIDS; do wait "$p"; done
 

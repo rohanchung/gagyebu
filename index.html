@@ -330,6 +330,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .labtbl td.v:hover{background:var(--accent-bg)}
 .labtbl tr.catrow td{background:#eef2f8;font-weight:800;color:#33425e;font-size:10.5px}
 .labtbl tr.catrow .cM{background:#eef2f8;z-index:3}
+/* ▲▼ 는 '누를 수 있다'가 한눈에 보여야 한다. 흐리면 있는 줄도 모른다. */
+.acts .mv{min-width:24px;font-size:12px;font-weight:700;color:var(--gold);
+  background:#faf7ee;border:1px solid #e3d8bd;margin-left:3px}
+.acts .mv:hover{background:var(--gold);border-color:var(--gold);color:#fff}
+.acts .mv.off{opacity:.3;cursor:default;pointer-events:none;background:transparent;border-color:transparent}
 .instbl{width:100%;white-space:normal}
 .instbl .cM{min-width:132px;max-width:240px;white-space:normal;line-height:1.45}
 .instbl td.v{cursor:default;white-space:nowrap}
@@ -650,6 +655,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .pill.snk.auto{background:#eef2f8;color:#41506b;border:1px solid #cfd8e6}
 .pill.snk.manual{background:#fdf6e3;color:#8a6d1f;border:1px solid #e6c86a}
 .pill.snk.pre_restore{background:#fdeeee;color:#a52a2a;border:1px solid #e0a0a0}
+.pill.snk.pre_overwrite{background:#fdf0e0;color:#8a5a1f;border:1px solid #e8c9a0}
 @media(max-width:900px){.snaprow{font-size:11.5px;gap:7px}.snaprow .mut{flex-basis:100%;order:9}}
 </style>
 </head>
@@ -834,16 +840,92 @@ function saveFail(e){
   saveBadge('✕ 저장 안 됨 — 백업하라','bad');
   alert('서버 저장에 5번 실패했다.\n\n지금 창을 닫으면 방금 입력은 사라진다.\n🪶 로그 탭 → ⬇ JSON 내려받기 를 먼저 하라.\n\n'+((e&&e.message)||''));
 }
+/* v1.8 — 무엇이 충돌했는지 말하지 않으면 판단할 수가 없다.
+   ⚠️ 로한: "도무지 무슨 데이터가 어떻게 충돌하는지 설명이 없어서 그냥 일괄 확인 누른다."
+      v1.7까지 syncConflict 는 서버의 **updated_at(시각)만** 읽었다. 비교할 재료 자체가 없었다.
+      → 서버 data 까지 받아서 컬렉션별로 무엇이 다른지 보여준다.
+   🔒 그리고 덮어쓰기 전에 **서버본을 스냅샷으로 박아둔다.** 잘못 눌러도 되돌릴 수 있어야 한다. */
+var SYNC_COLS=[
+  {k:'transactions',label:'거래',    lab:function(x){return (x.date||'')+' '+(x.cat||x.method||'')+' '+(x.amt!=null?comma(x.amt):'');}},
+  {k:'routines',    label:'루틴',    lab:function(x){return (x.code||'')+' '+(x.title||'');}},
+  {k:'goals',       label:'목표',    lab:function(x){return (x.code||'')+' '+(x.title||'');}},
+  {k:'rewards',     label:'보상·버킷',lab:function(x){return (x.code||'')+' '+(x.title||'');}},
+  {k:'accounts',    label:'계좌',    lab:function(x){return x.name||'';}},
+  {k:'cards',       label:'카드',    lab:function(x){return x.name||'';}},
+  {k:'items',       label:'재물',    lab:function(x){return x.name||'';}},
+  {k:'journal',     label:'일지',    lab:function(x){return (x.date||'')+' '+(x.title||'');}}
+];
+function syncCount(o,k){var v=o&&o[k];return (v&&v.length!==undefined)?v.length:0;}
+/* 배열 컬렉션: id 기준 추가·삭제·변경 */
+function syncDiffArr(mine,srv,lab){
+  var A={},B={},add=[],del=[],chg=0;
+  (mine||[]).forEach(function(x){if(x&&x.id)A[x.id]=x;});
+  (srv ||[]).forEach(function(x){if(x&&x.id)B[x.id]=x;});
+  for(var i in A){ if(!B[i])add.push(lab(A[i])); else if(JSON.stringify(A[i])!==JSON.stringify(B[i]))chg++; }
+  for(var j in B){ if(!A[j])del.push(lab(B[j])); }
+  return {add:add,del:del,chg:chg};
+}
+/* 날짜 키 맵(checks·timelog): 키 단위로만 본다 */
+function syncDiffMap(mine,srv){
+  var a=Object.keys(mine||{}),b=Object.keys(srv||{}),add=[],del=[],chg=0;
+  a.forEach(function(k){ if(!(srv||{})[k])add.push(k); else if(JSON.stringify(mine[k])!==JSON.stringify(srv[k]))chg++; });
+  b.forEach(function(k){ if(!(mine||{})[k])del.push(k); });
+  return {add:add,del:del,chg:chg};
+}
+function syncDiffText(mine,srv){
+  if(!srv)return '(서버 내용을 못 읽었다 — 비교 불가)';
+  var out=[], cut=function(a){return a.slice(0,3).join(' / ')+(a.length>3?' 외 '+(a.length-3)+'건':'');};
+  SYNC_COLS.forEach(function(C){
+    var d=syncDiffArr(mine[C.k],srv[C.k],C.lab);
+    if(!d.add.length&&!d.del.length&&!d.chg)return;
+    var seg=[];
+    if(d.add.length)seg.push('내 쪽에만 '+d.add.length+'건 → '+cut(d.add));
+    if(d.del.length)seg.push('저쪽에만 '+d.del.length+'건 → '+cut(d.del));
+    if(d.chg)seg.push('양쪽 내용 다름 '+d.chg+'건');
+    out.push('· '+C.label+' ('+syncCount(mine,C.k)+' vs '+syncCount(srv,C.k)+')\n    '+seg.join('\n    '));
+  });
+  [['checks','체크'],['timelog','타임로그']].forEach(function(P){
+    var d=syncDiffMap(mine[P[0]],srv[P[0]]);
+    if(!d.add.length&&!d.del.length&&!d.chg)return;
+    var seg=[];
+    if(d.add.length)seg.push('내 쪽에만 '+cut(d.add));
+    if(d.del.length)seg.push('저쪽에만 '+cut(d.del));
+    if(d.chg)seg.push('같은 날인데 내용 다름 '+d.chg+'일');
+    out.push('· '+P[1]+'\n    '+seg.join('\n    '));
+  });
+  if(!out.length)return '(내용은 같다 — 저장 시각만 어긋났다. 덮어써도 잃는 것이 없다.)';
+  return out.join('\n');
+}
 function syncConflict(stamp){
-  SB.from('app_state').select('updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
-    var srv=r&&r.data&&r.data.updated_at;
+  SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
+    var row=r&&r.data, srv=row&&row.updated_at, sdata=row&&row.data;
     if(!srv){ forceSave(stamp); return; }                 /* 행 자체가 없다 = 최초 저장 */
     if(srv===LAST_SYNC){ forceSave(stamp); return; }       /* 버전은 같은데 0행 = 다른 이유. 그대로 쓴다 */
     saveBadge('⚠ 다른 기기에서 수정됨','bad');
-    if(confirm('다른 기기(또는 다른 탭)에서 이 데이터가 수정됐다.\n서버 최종수정: '+String(srv).replace('T',' ').slice(0,16)+'\n\n[확인] 내 화면 내용으로 덮어쓴다 — 저쪽 변경은 사라진다\n[취소] 새로고침해서 저쪽 것을 불러온다 — 내 변경이 사라진다'))
-      { forceSave(new Date().toISOString()); }
+    var diff='';
+    try{ diff=syncDiffText(DB,sdata); }catch(err){ diff='(비교 중 오류: '+(err&&err.message)+')'; }
+    var msg='다른 기기(또는 다른 탭)에서 이 데이터가 수정됐다.\n'
+      +'내가 마지막으로 받아온 시각: '+String(LAST_SYNC||'?').replace('T',' ').slice(0,16)+'\n'
+      +'서버 최종수정:              '+String(srv).replace('T',' ').slice(0,16)+'\n\n'
+      +'──── 무엇이 다른가 ────\n'+diff+'\n\n'
+      +'[확인] 내 화면으로 덮어쓴다 — 위의 "저쪽에만" 항목이 사라진다\n'
+      +'        (덮어쓰기 직전 서버본을 📀 스냅샷으로 남기므로 되돌릴 수 있다)\n'
+      +'[취소] 새로고침해서 저쪽 것을 불러온다 — 내 화면의 변경이 사라진다';
+    if(confirm(msg)){
+      syncSnapBefore(sdata,srv,function(){ forceSave(new Date().toISOString()); });
+    }
     else { SAVE_DIRTY=false; location.reload(); }   /* 사용자가 명시적으로 버리기를 고른 것이다 — beforeunload 가 막지 않게 한다 */
   },function(e){ saveFail(e); });
+}
+/* 🔒 덮어쓰기 직전 서버본을 스냅샷으로. 실패해도 저장은 진행한다 — 막으면 로한이 갇힌다. */
+function syncSnapBefore(sdata,srv,done){
+  if(!sdata){ done(); return; }
+  try{
+    var _b=''; try{_b=JSON.stringify(sdata);}catch(e2){}
+    SB.from('app_state_snap').insert({user_id:USER.id,day:todayStr(),kind:'pre_overwrite',
+      note:'덮어쓰기 직전 서버본 ('+String(srv).replace('T',' ').slice(0,16)+')',
+      bytes:_b.length,data:sdata}).then(function(){ done(); },function(){ done(); });
+  }catch(e){ done(); }
 }
 function forceSave(stamp){
   SB.from('app_state').upsert({user_id:USER.id,data:DB,updated_at:stamp}).then(function(){ syncOK(stamp); },function(e){ saveFail(e); });
@@ -880,9 +962,10 @@ function localBakList(){
    ・ JSON 파일 / GitHub = **물리적 사고** 방어. 프로젝트 정지·삭제, 계정 소실.
      ⚠ 같은 Supabase 프로젝트 안에 있으므로 **이 테이블은 물리적 사고를 못 막는다.** 둘 다 있어야 한다.
    테이블: public.app_state_snap (RLS: user_id = auth.uid())
-   kind: auto(하루 1개, 부분 유니크 인덱스로 강제) / manual(사용자 지점) / pre_restore(복원 직전 자동) */
+   kind: auto(하루 1개, 부분 유니크 인덱스로 강제) / manual(사용자 지점) / pre_restore(복원 직전 자동)
+         / pre_overwrite(v1.8 — 동기화 충돌에서 '내 화면으로 덮어쓰기'를 고른 직전의 **서버본**) */
 var SNAP_DONE=false;
-var SNAP_LIMIT={auto:30,manual:15,pre_restore:10};
+var SNAP_LIMIT={auto:30,manual:15,pre_restore:10,pre_overwrite:10};
 function snapInsert(kind,note){
   var s=''; try{ s=JSON.stringify(DB); }catch(e){}
   return SB.from('app_state_snap').insert({user_id:USER.id,day:todayStr(),kind:kind,note:note||null,bytes:s.length,data:DB});
@@ -914,7 +997,7 @@ function snapManual(){
     alert('현재 상태를 스냅샷으로 남겼다.'); snapRender(); snapPrune();
   },function(e){ alert('스냅샷 저장 실패: '+((e&&e.message)||'')); });
 }
-function snapKindLabel(k){ return k==='auto'?'자동':(k==='manual'?'수동':(k==='pre_restore'?'복원직전':k)); }
+function snapKindLabel(k){ return k==='auto'?'자동':(k==='manual'?'수동':(k==='pre_restore'?'복원직전':(k==='pre_overwrite'?'덮어쓰기직전':k))); }
 function snapRender(){
   var el=document.getElementById('snaplist'); if(!el)return;
   el.innerHTML='<span class="mut" style="font-size:11.5px">불러오는 중…</span>';
@@ -1321,8 +1404,11 @@ function renderDay(ds){
         var _ks=Object.keys(_mix).sort(function(x,y){return _mix[y]-_mix[x];});
         _mx='<div class="instline">'+_ks.map(function(k){
           return '<span>'+sajuEsc(k)+' '+comma(Math.round(_mix[k]))+'</span>';}).join('<i>·</i>')+'</div>';}
-      h+=txRow('st','<span class="pill st">카드결제</span>',sajuEsc(t.method||''),
-        (t.cycle?cycleLabel(t.cycle):''),'-'+won(t.amt),'var(--neg)',A(t.id,true),_mx);
+      var _off=settleDateOff(t);
+      var _w=_off?(' <span class="chip warn2" title="이 결제분의 실제 결제 예정일은 '+settleDueDate(t)+' 다. 여기 날짜가 '+Math.abs(_off)+'일 어긋나 있다.">날짜 '+(_off>0?'+':'')+_off+'일</span>'):'';
+      h+=txRow('st','<span class="pill st">카드결제</span>',sajuEsc(t.method||'')+_w,
+        (t.cycle?cycleLabel(t.cycle):''),'-'+won(t.amt),'var(--neg)',
+        '<span data-stfix="'+t.id+'" title="결제일 수정">✎</span><span data-del="'+t.id+'">🗑</span>',_mx);
       return;}
     var _n=instN(t), _dn=instDone(t), _il='';
     if(_n>1){var _ps=[];for(var _k=1;_k<=_n;_k++)_ps.push('<span'+(_k<=_dn?' class="done"':'')+'>'+cycleLabel(instCycle(t,_k)).replace(' 결제분','월')+' '+comma(instAmt(t,_k))+'</span>');
@@ -2286,9 +2372,32 @@ function routineActiveOn(r,ds){
   if(r.freq==='weekly')return (r.days||[]).indexOf(dowOf(ds))>=0;
   return true;
 }
+/* v1.8 — 루틴 순서는 order 하나로만 정한다.
+   ⚠️ v1.7까지 세 화면이 서로 다르게 정렬했다: 데일리는 order, 루틴 설계·전체 목록은 code.
+      게다가 order 는 '추가할 때 한 번' 박히기만 하고(구 루틴은 아예 없어서 전부 0) 아무도 못 고쳤다.
+      → 로한이 순서를 바꾸면 데일리·설계·목록이 **같이** 움직여야 한다. 정렬 함수를 하나로 합친다. */
+function rtCmp(a,b){
+  var d=(a.order||0)-(b.order||0);
+  if(d)return d;
+  return (a.code||'')<(b.code||'')?-1:1;   /* order 가 같으면 코드로 — 뒤죽박죽 방지 */
+}
+function routinesSorted(){return (DB.routines||[]).slice().sort(rtCmp);}
+/* 1..N 로 촘촘히 다시 매긴다. 구멍·중복이 생기면 다음 이동이 엉킨다. */
+function rtRenumber(){var n=0;routinesSorted().forEach(function(r){r.order=++n;});return n;}
+/* 위/아래 한 칸. 은퇴한 루틴은 화면에 없으므로 **보이는 것끼리만** 자리를 바꾼다. */
+function rtMove(id,dir){
+  rtRenumber();
+  var vis=routinesSorted().filter(function(r){return r.status!=='retired';});
+  var i=-1;for(var k=0;k<vis.length;k++)if(vis[k].id===id){i=k;break;}
+  if(i<0)return;
+  var j=i+dir; if(j<0||j>=vis.length)return;
+  var a=vis[i],b=vis[j],t=a.order;a.order=b.order;b.order=t;
+  rtRenumber();
+  logAct('루틴 순서 · '+a.code+' '+a.title+(dir<0?' ▲':' ▼'));
+  save();renderGoal();renderDaily();
+}
 function routinesForDay(ds){
-  return (DB.routines||[]).filter(function(r){return routineActiveOn(r,ds);})
-    .sort(function(a,b){return (a.order||0)-(b.order||0);});
+  return routinesSorted().filter(function(r){return routineActiveOn(r,ds);});
 }
 
 /* --- 체크 원장 (불변) --- */
@@ -3776,12 +3885,12 @@ function rtDayToggle(id,dw){
   save();renderGoal();
 }
 function routineMatrix(){
-  var rs=(DB.routines||[]).filter(function(r){return r.status!=='retired';})
-    .sort(function(a,b){return (a.code||'')<(b.code||'')?-1:1;});
+  var rs=routinesSorted().filter(function(r){return r.status!=='retired';});
   var head='<tr><th>코드</th><th>루틴</th><th>목표</th>'
     +DOW_KO.map(function(d,i){return '<th class="c dw'+i+'">'+d+'</th>';}).join('')
     +'<th>기간</th><th class="r"></th></tr>';
-  var body=rs.length?rs.map(function(r){
+  var last=rs.length-1;
+  var body=rs.length?rs.map(function(r,ri){
     var g=r.goalId?goalById(r.goalId):null;
     var par=(g&&g.kind==='milestone')?goalById(g.parentId):null;
     var span=r.end?('~'+parseInt(r.end.slice(5,7),10)+'/'+parseInt(r.end.slice(8),10))
@@ -3793,7 +3902,10 @@ function routineMatrix(){
      +DOW_KO.map(function(d,i){
         return '<td class="c"><span class="dwcell'+(rtActiveDow(r,i)?' on':'')+'" data-rtdow="'+r.id+'|'+i+'" title="'+d+'요일 켜기/끄기"></span></td>';}).join('')
      +'<td class="mut nw">'+span+'</td>'
-     +'<td class="r"><span class="acts"><span data-rtedit="'+r.id+'">✎</span></span></td></tr>';
+     +'<td class="r"><span class="acts">'
+     +'<span class="mv'+(ri===0?' off':'')+'" '+(ri===0?'':'data-rtmv="'+r.id+'|-1" ')+'title="위로">▲</span>'
+     +'<span class="mv'+(ri===last?' off':'')+'" '+(ri===last?'':'data-rtmv="'+r.id+'|1" ')+'title="아래로">▼</span>'
+     +'<span data-rtedit="'+r.id+'">✎</span></span></td></tr>';
   }).join(''):'<tr><td colspan="12" class="mut" style="padding:14px 6px;text-align:center">루틴이 없다. <b>+ 루틴</b>으로 시작해라.</td></tr>';
   var paused=(DB.routines||[]).filter(function(x){return x.status==='paused';}).length;
   var retired=(DB.routines||[]).filter(function(x){return x.status==='retired';}).length;
@@ -3801,7 +3913,7 @@ function routineMatrix(){
    +'<span class="hacts"><button class="btn sm" id="addRoutineBtn">+ 루틴</button>'
    +'<span class="mut" id="routineListBtn" style="font-size:11px;cursor:pointer">📋 전체'
    +(paused||retired?' <span class="chip check">쉼 '+paused+' · 은퇴 '+retired+'</span>':'')+'</span></span></h4>'
-   +'<div class="mut" style="font-size:10.5px;margin:-2px 0 7px">요일 칸을 눌러 켜고 끈다 · 여기서 정한 것이 데일리에 뜬다</div>'
+   +'<div class="mut" style="font-size:10.5px;margin:-2px 0 7px">요일 칸을 눌러 켜고 끈다 · ▲▼ 로 순서를 바꾼다 · 여기서 정한 것이 데일리에 그대로 뜬다</div>'
    +'<div class="tblwrap"><table class="btbl rtm"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div></div>';
 }
 
@@ -3946,13 +4058,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.7';
+var APP_VERSION='1.8';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.8',date:'2026-08-25',note:"<b>↕ 루틴 순서 · 💳 카드결제일 · 🔄 충돌 설명.</b> (로한 요청 3건) · <b>루틴 ▲▼</b> — 순서를 한 곳에서 바꾸면 데일리·설계·전체목록이 같이 움직인다. ⚠️ <b>[결함] 세 화면이 서로 다르게 정렬하고 있었다</b>: 데일리는 <code>order</code>, 설계·목록은 <code>code</code>. 게다가 <code>order</code> 는 추가할 때 한 번 박히기만 하고 구 루틴엔 아예 없어서(전부 0) 데일리가 사실상 <b>입력순</b>이었다. 정렬을 <code>rtCmp</code> 하나로 합치고, 마이그레이션에서 코드순으로 기준을 잡았다(<code>rtOrdSeeded</code>) · 🔒 데일리는 <b>목표별 그룹</b>이라 한 칸 이동이 <b>그룹째</b> 움직인다 — 의도된 동작이며 t30 이 잠갔다 · ⚠️ <b>[결함·중대] 카드결제 날짜가 무조건 오늘로 박혔다.</b> <code>doSettle</code> 이 <code>date:todayStr()</code> 였다. 화면엔 <b>결제 예정일을 이미 보여주고 있었는데</b> 저장은 오늘로 했다 — 말과 기록이 달랐다. 로한이 1월 데이터를 소급 입력하자 <b>1월 카드값이 8월 유출</b>로 잡혔다(실측 113,987원 · 211일 어긋남). 7월까지 밀었으면 <b>8월에 7개월치가 몰리고 1~7월은 0으로 비었을 것</b> · 결제일 입력칸 신설 — 기본값은 <b>예정일이 지났으면 그 날</b>(소급), <b>아직이면 오늘</b>(실제 선결제) · 어긋난 기존 결제엔 <b>'날짜 ±N일'</b> 뱃지 + ✎ 로 <b>날짜만</b> 수정(금액·구성은 막았다 — 원장이 깨진다) · ⚠️ <b>[결함·중대] 카드결제를 지우면 돈이 조용히 증발했다.</b> 원 거래는 <code>card=false</code> 로 남고 결제 기록만 사라져 <b>'낸 적도 없고 낼 것도 없는' 돈</b>이 됐다. <code>unsettle()</code> 로 그 주기 회차를 미결제로 되돌린다(할부는 회차 되감기) · <b>🔄 동기화 충돌에 설명을 붙였다</b> — 로한: <i>“무슨 데이터가 어떻게 충돌하는지 설명이 없어서 그냥 일괄 확인 누른다.”</i> v1.7 까지 <code>syncConflict</code> 는 서버의 <b>updated_at(시각)만</b> 읽었다 — 비교할 재료 자체가 없었다. 이제 서버 data 를 받아 컬렉션별로 <b>내 쪽에만 / 저쪽에만 / 양쪽 다름</b>을 항목 라벨까지 보여준다 · 🔒 <b>덮어쓰기 직전 서버본을 스냅샷</b>(<code>pre_overwrite</code>)으로 남긴다 — 잘못 눌러도 되돌릴 수 있다 · t30 27건 · t31 38건 신설"},
   {v:'1.7',date:'2026-08-25',note:"<b>🛡️ 보험 신설 (로한 설계).</b> 건강 아래 <b>로한ㅣ아버지ㅣ어머니</b> 탭. ⚠️ 로한이 준 md 의 '피보험자 정복현'이 '내 보험'과 충돌하는 것처럼 보였으나, 프로젝트의 <code>0102_보험관리.xlsx</code> 헤더가 <b>복현ㅣ엄마ㅣ아빠</b> 로 갈라 놓아 <b>정복현=로한</b> 임이 데이터로 확정됐다 — 묻지 않고 대조해서 풀었다. · <b>축을 둘로 나눴다</b>: 비용 축(계약·특약 보험료)과 보장 축(정규화 보장명 × 계약 매트릭스). '무슨 일이 나면 얼마'는 보장 축에서만 나온다 · 상단 <b>가족 보장 한눈에</b>(실손·암·뇌·심장·사망·입원일당) — 탭을 옮기지 않아도 세 사람이 한 표에 뜬다 · <b>보장 공백</b> 자동 표시 — '없는 것'과 '자료가 안 들어온 것'을 구분한다 · <b>🔒 실손은 합산하지 않는다</b>(비례보상) — 매트릭스 합계에서 최대치로 잡는다. 아버지는 흥국·삼성 두 곳에 실손이 있어 그냥 더하면 1억으로 뜬다 · ⚠️ <b>원문 요약본이 스스로 안 맞는다</b>: 교보 특약 7개를 더하면 45,200 인데 총액은 43,200 으로 적혀 있다(2,000원 차 — 재해상해특약2형과 같은 액수). <b>맞춰서 고치지 않고</b> '보험료 불일치' 로 드러냈다 · 시드 9건(로한 3·아버지 3·어머니 3) + 보장 171항목. 로한 2건은 원문 검수본, 나머지는 xlsx 출처를 계약마다 명시 · <b>DB생명(시트2)은 넣지 않았다</b> — 로한 확인 결과 <b>제안서</b>이지 가입한 계약이 아니다 · 합계·납입완료일·다음 갱신일·보험료 불일치는 전부 파생(저장 안 함) · 🔒 계약 삭제 시 보장 동반 삭제 + 매 로드 고아 보장 정리"},
   {v:'1.61',date:'2026-08-25',note:"<b>‘카드결제(구)’ 제거.</b> \u26a0\ufe0f 로한: <i>“(구)카드결제가 뭔 뜻이야?”</i> — <b>화면에 나갈 말이 아니었다.</b> ‘구버전 데이터’라는 개발자 약어를 그대로 노출했다. 더 큰 문제는 그 라벨이 필요 없었다는 것 — <b>v1.6 에서 나는 “확정되면 <code>card=false</code> 가 되어 파생 불가”라고 단정하고 저장했는데 틀렸다.</b> card 플래그만 바뀔 뿐 <b>거래일과 카드명은 남으므로 결제분이 계산되고, 그러면 구성도 나온다.</b> 실측: 옛 settle 2건이 역산합과 <b>원 단위로 일치</b>(210,112 / 122,042). → <code>settleMix()</code> — <b>저장값 우선, 없으면 역산</b>. 🔒 v1.42 원칙 그대로 <b>파생 가능한 것을 저장으로 대신하지 않는다</b>. 같은 결제분을 나눠 부분 선결제한 경우에만 역산이 못 가르므로 그때는 <code>카드결제 내역미상</code> 으로 정직하게 표시한다."},
   {v:'1.6',date:'2026-08-25',note:"<b>⚖️ 제지방량 · ⏳ 보조 태그 · 🌊 카드결제 분해.</b> \u26a0\ufe0f <b>[죽은 탭] 체성분 '내장지방'은 실측 82건 중 0건이었다</b> — 체중계가 안 주는 값이라 입력칸조차 없었고 영원히 빈칸이었다. → <b>제지방량</b>(체중−체지방, 실측 근육 49.8+골무기질 2.7=52.5 로 검증)과 <b>제지방률</b>로 교체. ⏳ <b>보조 태그</b> — 로한: <i>“게임이나 유튜브는 낭비이긴 하지만 휴식도 된다.”</i> 두 태그를 겹치고 색을 <b>그라데이션</b>으로 섞는다. \u26a0\ufe0f 두 태그에 각각 전부 세면 <b>하루 합이 24시간을 넘는다</b> — v11.0 설계의 핵심이 '24시간 고정 총량'이라 그게 깨지면 <i>'이만큼밖에 안 남았다'</i>가 성립하지 않는다. 🔒 그래서 <b>반반(0.5/0.5) 배분</b>. 총량은 그대로, 성격만 둘로 나뉜다. 🌊 <b>카드결제는 지출 루트가 아니다</b>(로한 지적) — 온통 카드로 결제하는데 Sankey 종착이 '카드결제'면 아무것도 안 보인다. 선결제 확정 시 <b>계정과목 구성(catMix)을 박제</b>해 실제 사용처로 쪼갠다(확정되면 원거래가 <code>card=false</code>가 되어 파생이 불가능하다). 거래 행에도 세부 적요로 편다. Sankey 금액을 <b>만 단위 → 천 단위</b>로."},
@@ -4235,7 +4348,8 @@ function saveRoutine(id){
       logAct('루틴이동 · '+oldCode+' → '+r.code+' '+title+(moved?' · 기록 '+moved+'건 이관':''));
     }else logAct('루틴수정 · '+r.code+' '+title);
   }else{
-    rec.id=uid();rec.code=issueRoutineCode(gid);rec.status='active';rec.order=DB.routines.length+1;
+    rec.id=uid();rec.code=issueRoutineCode(gid);rec.status='active';
+    rec.order=rtRenumber()+1;   /* 새 루틴은 항상 맨 아래 */
     DB.routines.push(rec);logAct('루틴추가 · '+rec.code+' '+title);
   }
   save();closeModal();renderDG();
@@ -4264,7 +4378,7 @@ function delRoutine(id){
   logAct('루틴삭제 · '+r.code+' '+r.title);save();closeModal();renderDG();
 }
 function routineList(){
-  var rs=(DB.routines||[]).slice().sort(function(a,b){return (a.code||'')<(b.code||'')?-1:1;});
+  var rs=routinesSorted();
   openModal('<div class="mtop"><h3>전체 루틴 <span class="mut" style="font-size:12px">'+rs.length+'개</span></h3><span class="x" onclick="closeModal()">×</span></div>'
    +(rs.length?rs.map(function(r){
      var fq=r.freq==='weekly'?((r.days||[]).map(function(i){return DOW_KO[i];}).join('')):'매일';
@@ -4510,6 +4624,33 @@ function metricModal(kind){
       실측 검증: 옛 settle 2건이 역산합과 원 단위로 일치했다(210,112 / 122,042).
    🔒 v1.42 의 원칙 그대로 — **파생 가능한 것을 저장으로 대신하지 않는다.**
       단 같은 결제분을 나눠서 부분 선결제하면 역산이 못 가르므로, 그때만 저장값이 진실이다. */
+/* v1.8 — 이 결제가 덮은 (거래, 회차) 목록. 저장하지 않고 역산한다.
+   ⚠️ settleMix() 는 '확정된 것'만 보지만, 이건 그 주기에 속한 회차를 **전부** 본다.
+      결제를 지울 때 무엇을 미결제로 되돌릴지 알아야 하기 때문이다. */
+function settleTxns(t){
+  if(!t||t.type!=='settle'||!t.cycle)return [];
+  var cname=(t.method||'').replace(/\s*결제$/,'');
+  if(!cardBy(cname))return [];
+  var out=[];
+  (DB.transactions||[]).forEach(function(x){
+    if(x.type!=='expense'||x.method!==cname)return;
+    var n=instN(x);
+    for(var k=1;k<=n;k++)if(instCycle(x,k)===t.cycle)out.push({t:x,k:k});
+  });
+  return out;
+}
+/* 이 결제가 '실제로 나갔어야 할 날'. 화면엔 이미 보여주고 있었는데 저장은 오늘 날짜로 했다(v1.7 결함). */
+function settleDueDate(t){
+  if(!t||!t.cycle)return null;
+  var c=cardBy((t.method||'').replace(/\s*결제$/,''));
+  return cyclePayDate(t.cycle,cardPay(c));
+}
+/* 결제일이 예정일과 45일 넘게 어긋나면 의심한다 — 로한은 보통 예정일 20일 전쯤 선결제한다. */
+function settleDateOff(t){
+  var due=settleDueDate(t); if(!due||!t.date)return 0;
+  var d=Math.round((new Date(t.date+'T00:00:00Z')-new Date(due+'T00:00:00Z'))/86400000);
+  return (Math.abs(d)>45)?d:0;
+}
 function settleMix(t){
   if(t.catMix&&Object.keys(t.catMix).length)return t.catMix;
   if(!t.cycle)return null;
@@ -4553,6 +4694,9 @@ function drawSettle(){
   var ym=(yms.indexOf(modal._stYM)>=0)?modal._stYM:yms[0];
   modal._stYM=ym;
   var g=cy[card.name][ym], r=cycleRange(ym,cardClose(card)), pd=cyclePayDate(ym,cardPay(card));
+  /* 🔒 기본 결제일 — 예정일이 이미 지났으면 그 날(과거 소급 입력), 아직이면 오늘(실제 선결제).
+     v1.7 은 무조건 todayStr() 이라 1월 결제분이 8월 유출로 박혔다. */
+  var _defD=(pd<todayStr())?pd:todayStr();
 
   /* 카드 전환 (신용카드가 2장 이상일 때만) */
   var credit=DB.cards.filter(function(c){return c.type==='credit'&&cy[c.name];});
@@ -4587,11 +4731,36 @@ function drawSettle(){
    +'<div class="mact"><button class="btn sm" onclick="settleAll(true)">이 결제분 전체 선택</button> '
      +'<button class="ghost sm" onclick="settleAll(false)">전체 해제</button></div>'
    +'<div style="max-height:38vh;overflow:auto;margin-bottom:10px;border:1px solid var(--line);border-radius:8px">'+rows+'</div>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">'
    +'<div class="field"><label>출금계좌</label><select id="stAcct">'+acctOpts+'</select></div>'
+   +'<div class="field"><label>결제일 <span class="mut">실제로 통장에서 나간 날</span></label>'
+     +'<input id="stDate" type="date" value="'+_defD+'"></div></div>'
+   +(_defD!==todayStr()?'<div class="mut" style="margin:-4px 0 8px;color:#8a5a1f">⚠️ 지난 결제분이다. 오늘이 아니라 <b>'+_defD+'</b>(실제 결제일)로 넣는다 — 안 그러면 그 달 현금흐름이 오늘로 몰린다.</div>':'')
    +'<div class="taxrow big"><span>선택 합계 <span id="stCnt" class="mut" style="font-size:12px"></span></span><span id="stSum" class="neg"></span></div>'
    +'<button class="btn" style="width:100%;margin-top:10px" onclick="doSettle()">이 결제분 확정</button>'
    +'');
   settleRecalc();
+}
+/* v1.8 — 결제 거래는 금액·구성을 손대면 원장이 깨진다. **날짜만** 고치게 한다. */
+function settleFixDate(id){
+  var t=(DB.transactions||[]).filter(function(x){return x.id===id;})[0];
+  if(!t||t.type!=='settle')return;
+  var due=settleDueDate(t);
+  openModal('<div class="mtop"><h3>결제일 수정 <span class="mut" style="font-size:12px">'+sajuEsc(t.method||'')+' · '+(t.cycle?cycleLabel(t.cycle):'')+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="line-height:1.7;margin-bottom:10px">금액 '+won(t.amt)+' · 현재 <b>'+t.date+'</b>'
+   +(due?'<br>이 결제분의 <b>실제 결제 예정일은 '+due+'</b> 다.':'')
+   +'<br>🔒 금액·구성은 여기서 못 고친다 — 원장이 깨진다. 잘못됐으면 지우고 다시 확정해라.</div>'
+   +'<div class="field"><label>결제일</label><input id="sf_date" type="date" value="'+t.date+'"></div>'
+   +(due?'<button class="ghost sm" onclick="document.getElementById(\'sf_date\').value=\''+due+'\'">예정일 '+due+' 로</button> ':'')
+   +'<button class="btn" style="margin-top:10px" onclick="saveSettleDate(\''+id+'\')">저장</button>');
+}
+function saveSettleDate(id){
+  var t=(DB.transactions||[]).filter(function(x){return x.id===id;})[0]; if(!t)return;
+  var v=document.getElementById('sf_date').value;
+  if(!isDateStr(v))return alert('YYYY-MM-DD 형식이어야 한다');
+  var old=t.date; t.date=v;
+  logAct('카드결제일 수정 · '+(t.method||'')+' '+(t.cycle?cycleLabel(t.cycle):'')+' '+old+' → '+v);
+  save();closeModal();renderCal();renderDash();
 }
 function settleAll(v){var bx=document.querySelectorAll('.stx');for(var i=0;i<bx.length;i++){if(!bx[i].disabled)bx[i].checked=v;}settleRecalc();}
 function settleRecalc(){var bx=document.querySelectorAll('.stx'),cnt=0,sum=0;
@@ -4620,11 +4789,14 @@ function doSettle(){
   picks.forEach(function(pk){
     var _t=DB.transactions.filter(function(x){return x.id===pk.id;})[0];
     if(_t)_mix[_t.cat]=(_mix[_t.cat]||0)+pk.amt;});
-  DB.transactions.push({id:uid(),type:'settle',acct:acct,amt:sum,date:todayStr(),
+  var _dEl=document.getElementById('stDate');
+  var _date=(_dEl&&_dEl.value)||todayStr();
+  if(!isDateStr(_date))return alert('결제일이 YYYY-MM-DD 형식이 아니다');
+  DB.transactions.push({id:uid(),type:'settle',acct:acct,amt:sum,date:_date,
     method:card.name+' 결제',cat:'카드결제',cycle:modal._stYM,catMix:_mix});
-  logAct('선결제 확정 · '+card.name+' '+cycleLabel(modal._stYM)+' '+picks.length+'건 '+won(sum)+(nInst?' (할부 '+nInst+'회차)':''));
+  logAct('선결제 확정 · '+card.name+' '+cycleLabel(modal._stYM)+' '+picks.length+'건 '+won(sum)+' @'+_date+(nInst?' (할부 '+nInst+'회차)':''));
   save();closeModal();renderDash();renderCal();
-  alert(cycleLabel(modal._stYM)+' 확정 · '+picks.length+'건 '+won(sum));
+  alert(cycleLabel(modal._stYM)+' 확정 · '+picks.length+'건 '+won(sum)+'\n결제일 '+_date);
 }
 /* ==== 은행 실제 상환스케줄 (원금 고정 + 일할이자) ====
    검증: 경기신보 소상공인대환 스케줄 6회차 원 단위 일치 (2026-08-14) */
@@ -4863,6 +5035,23 @@ function migrateV6(d){
   /* v8.0 — rewardLog(수령 기록) → rewardCards(카드) 승계.
      v7까지는 '수령'이 곧 가계부 거래였고, v8은 배치 → 활성 → 사용 카드 모델이다. */
   if(!d.timelog)d.timelog={};   /* v11.0 ⏳ 타임로그 */
+  /* v1.8 — 루틴 순서(order) 정규화. 한 번만 코드순으로 기준을 잡고, 이후엔 로한이 ▲▼ 로 정한다.
+     ⚠️ 구 루틴엔 order 가 아예 없었고(=0) 새 루틴만 length+1 을 받았다 — 데일리가 사실상 입력순으로 떴다.
+     🔒 이미 기준을 잡았으면 다시 안 건드린다. 로한이 정한 순서를 되돌리면 안 된다. */
+  if(!d.meta)d.meta={};
+  if(!d.meta.rtOrdSeeded){
+    (d.routines||[]).slice()
+      .sort(function(a,b){return (a.code||'')<(b.code||'')?-1:1;})
+      .forEach(function(r,i){r.order=i+1;});
+    d.meta.rtOrdSeeded=1;
+  }else{
+    /* 멱등 보정: 구멍·중복·누락이 생기면 다음 이동이 엉킨다. 상대 순서는 그대로 두고 번호만 조인다. */
+    var _n=0;
+    (d.routines||[]).slice().sort(function(a,b){
+      var x=(a.order||0)-(b.order||0);
+      return x||((a.code||'')<(b.code||'')?-1:1);
+    }).forEach(function(r){r.order=++_n;});
+  }
   /* v1.7 🛡️ 보험. 시드는 id 기준 멱등 — 로한이 지운 계약을 되살리지 않는다.
      ⚠️ insSeeded=1 세대(로한 것만 심긴 판)가 잠깐 있었다. 2로 올리며 아버지·어머니를 채운다. */
   if(!d.insurance)d.insurance={policies:[],covers:[]};
@@ -5204,7 +5393,29 @@ function saveTxn(id){
   save();closeModal();renderCal();renderDash();
   if(reg&&rec.type==='expense')itemModal(null,{name:rec.cat,detail:rec.memo||'',cat:(itemCat&&itemCat!=='해당없음')?itemCat:'전자기기',cond:'신품',price:rec.amt,buy:rec.date,end:'',basis:'일간',units:'',status:'사용중'});
 }
-function delTxn(id){if(!confirm('삭제할까요?'))return;var _t=DB.transactions.filter(function(t){return t.id===id})[0];
+/* v1.8 — 결제 거래를 지우면 그 주기 거래들이 **미결제로 돌아와야 한다.**
+   ⚠️ v1.7까지는 안 돌아왔다: 원 거래는 card=false 인 채로 남고 결제 기록만 사라져
+      "낸 적도 없고 낼 것도 없는" 돈이 조용히 증발했다. */
+function unsettle(t){
+  var picks=settleTxns(t), n=0;
+  picks.forEach(function(x){
+    var d=instDone(x.t);
+    if(instN(x.t)>1){ if(d>=x.k){x.t.instDone=x.k-1; x.t.card=true; n++;} }
+    else if(x.t.card===false){ x.t.card=true; n++; }
+  });
+  return n;
+}
+function delTxn(id){
+  var _s=DB.transactions.filter(function(t){return t.id===id})[0];
+  if(_s&&_s.type==='settle'){
+    var _n=settleTxns(_s).length;
+    if(!confirm('['+(_s.method||'')+' '+(_s.cycle?cycleLabel(_s.cycle):'')+'] 결제를 지운다.\n\n관련 거래 '+_n+'건이 **미결제로 되돌아간다.**\n진행할까?'))return;
+    var _r=unsettle(_s);
+    DB.transactions=DB.transactions.filter(function(t){return t.id!==id;});
+    logAct('카드결제 삭제 · '+(_s.method||'')+' '+(_s.cycle?cycleLabel(_s.cycle):'')+' '+won(_s.amt)+' → 미결제 복원 '+_r+'건');
+    save();renderCal();renderDash();return;
+  }
+  if(!confirm('삭제할까요?'))return;var _t=DB.transactions.filter(function(t){return t.id===id})[0];
   /* 거래가 사라지면 붙어 있던 보상 카드는 되살아난다 */
   var _c=cardByTxn(id); if(_c){_c.usedAt=null;_c.txnId=null;_c.spent=0;_c.memo='';logAct('🎁 보상 카드 복원 · '+_c.code+' '+_c.title);}logAct('거래삭제 · '+(_t?_t.date+' '+_t.cat+' '+won(_t.amt):id));DB.transactions=DB.transactions.filter(function(t){return t.id!==id});save();renderCal();renderDash();}
 
@@ -5321,6 +5532,9 @@ document.addEventListener('click',function(e){
   if(e.target.id==='taxCalc')return taxRecalc();
   var rca=e.target.closest('[data-reconapply]');if(rca)return reconcileApply(rca.dataset.reconapply);
   if(e.target.id==='addWeightBtn')return weightModal();
+  var sfx=e.target.closest('[data-stfix]');if(sfx)return settleFixDate(sfx.dataset.stfix);
+  var rmv=e.target.closest('[data-rtmv]');
+  if(rmv){var _pa=rmv.dataset.rtmv.split('|');return rtMove(_pa[0],parseInt(_pa[1],10));}
   if(e.target.id==='addInsPolBtn')return insPolModal(null);
   var eip=e.target.closest('[data-edinspol]');if(eip)return insPolModal(eip.dataset.edinspol);
   var dip=e.target.closest('[data-delinspol]');if(dip)return delInsPol(dip.dataset.delinspol);
