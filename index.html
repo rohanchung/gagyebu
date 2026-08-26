@@ -1092,6 +1092,9 @@ function signWon(n){return (n<0?'-':'+')+won(n);}
 function man(n){var v=Math.abs(n)/10000;return (n<0?'-':'+')+(v>=1?Math.round(v)+'만':v.toFixed(1)+'만');}
 function comma(n){return Math.round(Math.abs(n)).toLocaleString('ko-KR');}
 function uid(){return 'x'+Math.random().toString(36).slice(2,9);}
+/* ⚠️ v2.0: 세무 블록 안에 있던 것을 유틸로 옮겼다 — 보상 설정 등 15곳이 쓴다.
+   세무를 들어내면서 같이 사라져 t_reg 가 잡았다. */
+function numv(id){var el=document.getElementById(id);return el?(parseFloat((el.value+'').replace(/[^0-9.\-]/g,''))||0):0;}
 function latest(h){if(!h||!h.length)return 0;var s=h.slice().sort(function(a,b){return a.date<b.date?-1:1});return s[s.length-1].amount;}
 function monthOf(d){return d.slice(0,7);}
 function mIdx(d){return parseInt(d.slice(5,7),10)-1;}
@@ -1472,52 +1475,601 @@ function renderAcct(){
    +'<div class="sec"><h4>카테고리(분류) <button class="ghost" id="addCatBtn">+ 추가</button></h4>'+catHtml+'<div class="mut" style="margin-top:6px">지출 카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 세무 탭에 자동 연결.</div></div>';
 }
 
-/* ====== 세무 ====== */
-function renderTax(){
-  var p=DB.taxParams;
-  var noorangDed=Math.min(p.noorang,5000000);
-  var sodeuk=p.basic+noorangDed+p.pension;
-  var jong=p.gangsaIncome+p.storeNet;
-  var base=Math.max(jong-p.carryLoss-sodeuk,0);
-  var tax=base<=14000000?base*0.06:base<=50000000?840000+(base-14000000)*0.15:6240000+(base-50000000)*0.24;
-  var wht=p.gangsaIncome*p.wht;
-  var due=Math.max(tax-70000,0)-wht;
-  // 올해 사업 실적(거래 기반, 참고)
-  var bizInc=0;DB.transactions.forEach(function(t){if(t.scope==='business'&&t.type==='income')bizInc+=t.amt;});
-  var byInc={};DB.transactions.forEach(function(t){if(t.type==='income'){var ic=DB.categories.filter(function(x){return x.name===t.cat&&x.type==='income'})[0];var k=(ic&&ic.incType)||'미분류';byInc[k]=byInc[k]||{sum:0,code:''};byInc[k].sum+=t.amt;if(ic&&ic.taxCode)byInc[k].code=ic.taxCode;}});
-  var incTotal=0;Object.keys(byInc).forEach(function(k){incTotal+=byInc[k].sum;});
-  var incGuide=Object.keys(byInc).sort(function(a,b){return byInc[b].sum-byInc[a].sum}).map(function(k){return '<div class="taxrow"><span>'+k+(byInc[k].code?' <span class="mut">('+byInc[k].code+')</span>':'')+'</span><span class="pos">'+won(byInc[k].sum)+'</span></div>'}).join('')||'<div class="mut" style="padding:6px 0">입력된 수입 거래 없음</div>';
-  var byAccount={},guideTotal=0;
-  DB.transactions.forEach(function(t){if(t.type==='expense'&&t.scope==='business'){var c=DB.categories.filter(function(x){return x.name===t.cat})[0];if(c&&c.deductible){var acc=c.taxAccount||c.name;byAccount[acc]=(byAccount[acc]||0)+t.amt;guideTotal+=t.amt;}}});
-  var guide=Object.keys(byAccount).sort(function(a,b){return byAccount[b]-byAccount[a]}).map(function(acc){return '<div class="taxrow"><span>'+acc+'</span><span>'+won(byAccount[acc])+'</span></div>'}).join('')||'<div class="mut" style="padding:6px 0">경비로 지정된 카테고리 거래 없음</div>';
-  function fld(id,v){return '<input class="taxin" id="'+id+'" value="'+v+'">';}
-  document.getElementById('v-tax').innerHTML=''
-   +'<div class="sec"><h4>2026 귀속 종합소득세 예상</h4>'
-   +'<div class="taxrow"><span>강사 연수입(940903)</span>'+fld('t_gangsa',p.gangsaIncome)+'</div>'
-   +'<div class="taxrow"><span>스토어 순소득(결손이면 −)</span>'+fld('t_store',p.storeNet)+'</div>'
-   +'<div class="taxrow"><span>(−) 이월결손금(2025)</span>'+fld('t_loss',p.carryLoss)+'</div>'
-   +'<div class="taxrow"><span>(−) 노랑우산 연납(한도 500만)</span>'+fld('t_noorang',p.noorang)+'</div>'
-   +'<div class="taxrow"><span>(−) 국민연금 연납</span>'+fld('t_pension',p.pension)+'</div>'
-   +'<div class="taxrow"><span>(−) 기본공제</span>'+fld('t_basic',p.basic)+'</div>'
-   +'<div style="text-align:right;margin-top:10px"><button class="btn sm" id="taxCalc">다시 계산</button></div>'
-   +'</div>'
-   +'<div class="sec"><h4>계산 결과</h4>'
-   +'<div class="taxrow"><span>종합소득금액</span><b>'+won(jong)+'</b></div>'
-   +'<div class="taxrow"><span>소득공제 합계</span><span>'+won(sodeuk)+'</span></div>'
-   +'<div class="taxrow"><span>과세표준</span><b>'+won(base)+'</b></div>'
-   +'<div class="taxrow"><span>산출세액</span><span>'+won(tax)+'</span></div>'
-   +'<div class="taxrow"><span>(−) 기납부(원천징수 3.3%)</span><span>'+won(wht)+'</span></div>'
-   +'<div class="taxrow big"><span>예상 '+(due>=0?'추가납부':'환급')+'</span><span class="'+(due>=0?'neg':'pos')+'">'+signWon(due)+'</span></div>'
-   +'</div>'
-   +'<div class="sec"><h4>수입 소득구분별</h4>'+incGuide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>수입 합계(YTD)</b></span><span class="pos"><b>'+won(incTotal)+'</b></span></div></div>'
-   +'<div class="sec"><h4>종소세 경비 세목별</h4><div class="taxrow"><span><b>사업 수입(YTD)</b></span><span class="pos">'+won(bizInc)+'</span></div>'+guide+'<div class="taxrow" style="border-top:2px solid var(--line)"><span><b>경비 합계(YTD)</b></span><span><b>'+won(guideTotal)+'</b></span></div></div>';
+var TAX_SEED={"biz":{"name":"홀리워터 데빌즈","bizNo":"273-06-02398","opened":"2023-02-22","office":"김포세무서","addr":"경기도 김포시 김포한강1로 240, 블루동 423호 (운양동, 라비드퐁네프)","sector":"정보통신업 / 응용 소프트웨어 개발 및 공급업"},"vatHistory":[{"from":"2023-02-22","type":"간이"},{"from":"2025-01-01","type":"일반"}],"units":[{"id":"u_holy","label":"홀리워터(스토어)","code":"722000","bizNo":"273-06-02398"},{"id":"u_lect","label":"강사(인적용역)","code":"940903","bizNo":""}],"catMap":{"스마트스토어":"u_holy","채움영어":"u_lect"},"rates":{"income":[[14000000,0.06,0],[50000000,0.15,1260000],[88000000,0.24,5760000],[150000000,0.35,15440000],[300000000,0.38,19940000],[500000000,0.4,25940000],[1000000000,0.42,35940000],[999999999999,0.45,65940000]],"simple":{"722000":0.749,"940903":0.617},"whtBiz":0.03,"local":0.1,"vat":0.1},"filings":[{"id":"tf2024i","kind":"종소세","year":2024,"period":"귀속","status":"경정","filedDate":"2025-05-02","bookType":"간편장부대상자 · 단순경비율(신고유형 32)","units":[{"unitId":"u_holy","label":"홀리워터(스토어)","code":"722000","method":"단순경비율","revenue":33302692,"expense":24943716,"income":8358976},{"unitId":"u_lect","label":"강사(인적용역)","code":"940903","method":"단순경비율","revenue":25197306,"expense":15546737,"income":9650569}],"f":{"totalIncome":18009545,"deduct":1900000,"base":16109545,"calc":1156431,"taxCredit":90000,"decided":1066431,"prepaid":1511770,"due":-445339},"wht":{"gross":25197306,"tax":755885,"local":75540,"payer":"주식**** (873-81-027**)"},"correction":{"date":"2026-08-23","base":19542908,"calc":1671436,"mainTax":1270890,"under":127089,"late":135603,"total":1533582,"memo":"김포세무서 과세예고통지. 단순경비율 착오신고(실제 기준경비율 대상) + 기납부세액 과다기입. 세무사 이용희 선임, 회신 대기. 지방소득세 약 13만 별도 고지 예정."},"memo":"소득공제 = 본인 1,500,000 + 노란우산 400,000(조특법86조의3 코드115). 국민연금 공제 0. 세액공제 = 표준 70,000 + 전자신고 20,000.","src":"신고서 원본"},{"id":"tf2024v","kind":"부가세","year":2024,"period":"연","status":"신고완료","vatType":"간이","vat":{"from":"2024-01-01","to":"2024-12-31","sales":32875313,"exempt":0,"due":558556},"memo":"부가가치세 과세표준증명(발급 2026-08-24) 기준.","src":"과세표준증명"},{"id":"tf2025i","kind":"종소세","year":2025,"period":"귀속","status":"신고완료","filedDate":"2026-05-07","bookType":"간편장부대상자 · 기준경비율(신고유형 20)","units":[],"f":{"totalIncome":0,"deduct":2700000,"base":0,"calc":0,"taxCredit":0,"decided":0,"prepaid":190310,"due":-190310},"wht":{"gross":6343962,"tax":190310,"local":19010,"payer":"주식**** 940903 6,318,120 + (주)메타크래프트 940909 25,842"},"memo":"⚠️ 사업소득명세서 미확보 — 총수입금액·필요경비 미입력. 종합소득금액 0 의 근거(스토어 결손 통산 여부)도 미확인. 로한: 2025년은 강의를 그만둬서 수입 급감.","src":"신고서 원본(요약 1p)"}]};
+/* ====== 세무 (v2.0) ======
+   설계 — 세 층으로 나눈다. 성격이 다른 것을 한 화면에 뭉개면 안 된다.
+     ① 아카이브(2024·2025) = 확정된 과거. 신고서를 그대로 재현한다. **저장한다**
+     ② 진행(2026)          = 가계부에서 실시간 집계. 내년 5월에 그대로 옮겨적는다
+     ③ 매핑                = ①과 ②를 잇는 규칙. 가계부 항목이 신고서 어느 칸으로 가는가
+
+   🔒 신고서는 **사업장(업종코드) 단위**로 쓰인다. 그래서 앱도 그 단위여야 한다.
+      v1.9까지는 gangsaIncome/storeNet 두 숫자였고, 그래서 신고서와 모양이 달랐다.
+
+   ⚠️ 나는 세무사가 아니다. 이건 기록·계산 도구지 세무 자문이 아니다. */
+
+var TAX_KINDS=[
+  {k:'biz',   label:'사업',      hint:'신고에 들어간다'},
+  {k:'pass',  label:'대납·정산', hint:'내 돈이 나갔다 들어온다 — 소득도 경비도 아니다'},
+  {k:'priv',  label:'개인',      hint:'실비보험·용돈·캐시백 — 신고 대상 아님'},
+  {k:'refund',label:'세금환급',  hint:'환급은 소득이 아니다'}
+];
+function taxDB(){
+  var d=DB.tax||(DB.tax={});
+  d.units=d.units||[]; d.filings=d.filings||[]; d.catMap=d.catMap||{};
+  d.vatHistory=d.vatHistory||[]; d.biz=d.biz||{}; d.rates=d.rates||{};
+  return d;
 }
-function taxRecalc(){
-  var p=DB.taxParams;
-  p.gangsaIncome=numv('t_gangsa');p.storeNet=numv('t_store');p.carryLoss=numv('t_loss');p.noorang=numv('t_noorang');p.pension=numv('t_pension');p.basic=numv('t_basic');
+function taxUnit(id){return taxDB().units.filter(function(u){return u.id===id;})[0]||null;}
+function taxUnitOfCat(cat){return taxDB().catMap[cat]||null;}
+/* 그 시점의 부가세 과세유형 — 상태가 아니라 이력이다 (2024 간이 → 2025 일반) */
+function vatTypeAt(ds){
+  var h=taxDB().vatHistory.slice().sort(function(a,b){return a.from<b.from?-1:1;}),t=null;
+  h.forEach(function(x){if(x.from<=ds)t=x.type;});
+  return t;
+}
+
+/* ── 거래 쪽 파생 ──────────────────────────────────────────
+   🔒 amt 는 통장에 찍힌 값이다. 현금흐름의 진실이므로 건드리지 않는다.
+      원천징수액(wht)만 따로 저장하고, **세전 수입금액은 파생한다.** */
+function txTaxKind(t){
+  if(t&&t.tk)return t.tk;
+  return (t&&t.scope==='business')?'biz':'priv';   /* 구 데이터 폴백 */
+}
+function txGross(t){
+  if(!t)return 0;
+  var w=t.wht;
+  return w?(t.amt+(w.t||0)+(w.l||0)):t.amt;
+}
+function txWhtTax(t){return (t&&t.wht&&t.wht.t)||0;}
+/* 실입금액에서 세전을 역산한다. ⚠️ 추정이다 — 딱 안 떨어지는 건이 실제로 있다. */
+function whtEstimate(net,rate){
+  var r=(rate==null?0.033:rate);
+  var gross=Math.round(net/(1-r));
+  var tax=Math.floor(gross*(r/1.1)/10)*10;      /* 소득세 3% · 원 단위 절사 */
+  var loc=Math.floor(tax*0.1/10)*10;            /* 지방소득세 = 소득세의 10% */
+  return {gross:net+tax+loc, t:tax, l:loc};
+}
+
+/* ── 연도 집계 ──────────────────────────────────────────── */
+function taxTxns(year){
+  var y=''+year;
+  return (DB.transactions||[]).filter(function(t){return (t.date||'').slice(0,4)===y;});
+}
+/* 사업장별 수입금액(세전) — 신고서 '총수입금액' 칸의 재료 */
+function taxIncomeByUnit(year){
+  var out={},unk={gross:0,n:0,items:[]};
+  taxTxns(year).forEach(function(t){
+    if(t.type!=='income')return;
+    if(txTaxKind(t)!=='biz')return;
+    var uid=taxUnitOfCat(t.cat);
+    var g=txGross(t), w=txWhtTax(t);
+    if(!uid){unk.gross+=g;unk.n++;unk.items.push(t);return;}
+    var o=out[uid]||(out[uid]={gross:0,net:0,wht:0,whtLocal:0,n:0,nWht:0});
+    o.gross+=g; o.net+=t.amt; o.wht+=w; o.whtLocal+=(t.wht&&t.wht.l)||0;
+    o.n++; if(t.wht)o.nWht++;
+  });
+  return {units:out,unmapped:unk};
+}
+/* 대납·정산 짝 맞춤 — 나간 것과 받은 것이 맞는가. 미회수가 보여야 한다. */
+function taxPassthru(year){
+  var out=0,inn=0,no=0,ni=0;
+  taxTxns(year).forEach(function(t){
+    if(txTaxKind(t)!=='pass')return;
+    if(t.type==='expense'){out+=t.amt;no++;}
+    else if(t.type==='income'){inn+=t.amt;ni++;}
+  });
+  return {out:out,inn:inn,nOut:no,nIn:ni,open:out-inn};
+}
+/* 사업 경비 — 세목별 */
+function taxExpenseByAccount(year){
+  var by={},tot=0;
+  taxTxns(year).forEach(function(t){
+    if(t.type!=='expense')return;
+    if(txTaxKind(t)!=='biz')return;
+    var c=(DB.categories||[]).filter(function(x){return x.name===t.cat&&x.type==='expense';})[0];
+    if(!c||!c.deductible)return;
+    var a=c.taxAccount||c.name;
+    by[a]=(by[a]||0)+t.amt; tot+=t.amt;
+  });
+  return {by:by,total:tot};
+}
+/* 소득공제 후보 — 🔒 경비가 아니다. 신고서에서 들어가는 칸이 다르다. */
+var TAX_DEDUCT_CATS={'국민연금':'연금보험료','노란우산':'소기업·소상공인 공제부금'};
+function taxDeductFromTxns(year){
+  var by={};
+  taxTxns(year).forEach(function(t){
+    if(t.type!=='expense')return;
+    var k=TAX_DEDUCT_CATS[t.cat]; if(!k)return;
+    by[k]=(by[k]||0)+t.amt;
+  });
+  return by;
+}
+/* 세율표는 DB 에 있다 — 세법은 바뀐다 */
+/* ⚠️ 산출세액은 **원 단위 미만 절사**다. 2024 실측으로 확인:
+   16,109,545 × 15% − 1,260,000 = 1,156,431.75 → 신고서는 **1,156,431**.
+   반올림하면 1원이 틀리고, 세금은 1원이 틀리면 틀린 것이다. */
+function taxCalcIncome(base){
+  var R=(taxDB().rates||{}).income||[], L=R[R.length-1], r=null;
+  for(var i=0;i<R.length;i++)if(base<=R[i][0]){r=R[i];break;}
+  if(!r)r=L; if(!r)return 0;
+  return Math.max(0,Math.floor(base*r[1]-r[2]));
+}
+
+/* ── 신고 기한 (파생. 저장하지 않는다) ──────────────────── */
+function taxDues(year){
+  var y=+year,o=[];
+  o.push({kind:'종소세',period:'귀속',due:(y+1)+'-05-31',label:y+' 귀속 종합소득세'});
+  var vt=vatTypeAt(y+'-06-30');
+  if(vt==='간이')o.push({kind:'부가세',period:'연',due:(y+1)+'-01-25',label:y+' 부가세(간이·연1회)'});
+  else{
+    o.push({kind:'부가세',period:'1기',due:y+'-07-25',label:y+' 부가세 1기 확정'});
+    o.push({kind:'부가세',period:'2기',due:(y+1)+'-01-25',label:y+' 부가세 2기 확정'});
+  }
+  return o;
+}
+function taxFiling(year,kind,period){
+  return taxDB().filings.filter(function(f){
+    return f.year===+year&&f.kind===kind&&f.period===period;})[0]||null;
+}
+function taxDaysTo(ds){
+  var t=todayStr();
+  return Math.round((new Date(ds+'T00:00:00Z')-new Date(t+'T00:00:00Z'))/86400000);
+}
+
+/* ── 화면 ─────────────────────────────────────────────── */
+function taxYears(){
+  var T=taxDB(),cur=+todayStr().slice(0,4),ys={};
+  ys[cur]=1; T.filings.forEach(function(f){ys[f.year]=1;});
+  return Object.keys(ys).map(Number).sort(function(a,b){return b-a;});
+}
+function taxView(){return (DB.ui&&DB.ui.taxView)||String(+todayStr().slice(0,4));}
+function setTaxView(v){DB.ui=DB.ui||{};DB.ui.taxView=String(v);save();renderTax();}
+function taxEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function taxRow(l,v,cls){return '<div class="taxrow"><span>'+l+'</span><span'+(cls?' class="'+cls+'"':'')+'>'+v+'</span></div>';}
+
+function renderTax(){
+  var T=taxDB(),v=taxView(),cur=String(+todayStr().slice(0,4));
+  var tabs=taxYears().map(function(y){
+    return '<span class="wtab'+(String(y)===v?' on':'')+'" onclick="setTaxView('+y+')">'+y
+      +(String(y)===cur?' <span class="mut" style="font-size:9px">진행</span>':'')+'</span>';}).join('')
+   +'<span class="wtab'+(v==='cfg'?' on':'')+'" onclick="setTaxView(\'cfg\')">⚙ 설정</span>';
+  var body=(v==='cfg')?taxCfgPane():(v===cur?taxLivePane(+v):taxArchivePane(+v));
+  document.getElementById('v-tax').innerHTML=
+    '<div class="sec"><h4>🧾 세무 <span class="mut">'+taxEsc(T.biz.name||'')+(T.biz.bizNo?' · '+T.biz.bizNo:'')+'</span></h4>'
+   +'<div class="wtabs">'+tabs+'</div></div>'+body;
+}
+
+/* ── 진행 연도 — 내년 신고서를 미리 채워 두는 화면 ──
+   🔒 ①~⑤ 번호가 실제 신고서 순서와 같다. 위에서 아래로 옮겨적으면 끝나야 한다. */
+function taxLivePane(year){
+  var T=taxDB(), inc=taxIncomeByUnit(year), exp=taxExpenseByAccount(year), ded=taxDeductFromTxns(year);
+  var pt=taxPassthru(year);
+  var gross=0,wht=0;
+  Object.keys(inc.units).forEach(function(k){gross+=inc.units[k].gross;wht+=inc.units[k].wht;});
+
+  var uRows=T.units.map(function(u){
+    var o=inc.units[u.id];
+    if(!o)return '<div class="taxrow"><span>'+taxEsc(u.label)+' <span class="mut">'+u.code+'</span></span><span class="mut">—</span></div>';
+    return '<div class="taxrow" style="align-items:flex-start;cursor:pointer" data-taxdrill="unit|'+year+'|'+u.id+'">'
+     +'<span>'+taxEsc(u.label)+' <span class="mut">'+u.code+' · '+o.n+'건 ▸</span>'
+       +'<div class="mut" style="font-size:10.5px;margin-top:2px;line-height:1.6">'
+       +'원천징수 '+o.nWht+'건 · 미징수 '+(o.n-o.nWht)+'건'
+       +(o.wht?'<br>실입금 '+won(o.net)+' + 원천징수 '+won(o.wht+o.whtLocal):'')
+       +'</div></span>'
+     +'<b class="pos">'+won(o.gross)+'</b></div>';
+  }).join('');
+  var unmapped=inc.unmapped.gross?('<div class="taxrow" style="cursor:pointer" data-taxdrill="unit|'+year+'|_none"><span><span class="chip warn2">미분류</span> '
+     +inc.unmapped.n+'건 ▸ <span class="mut">⚙ 설정에서 사업장에 연결해라</span></span>'
+     +'<b class="warn3">'+won(inc.unmapped.gross)+'</b></div>'):'';
+
+  var dedTot=1500000; Object.keys(ded).forEach(function(k){dedTot+=Math.min(ded[k],k.indexOf('소기업')>=0?5000000:1e12);});
+  var dedRows=taxRow('기본공제(본인)',won(1500000))
+    +Object.keys(ded).map(function(k){return taxRow(k,won(ded[k]));}).join('');
+
+  var due=taxDues(year).filter(function(x){return x.kind==='종소세';})[0];
+  var d=taxDaysTo(due.due);
+
+  var sodeuk='<div class="sec"><h4>① 총수입금액 <span class="mut">세전 · 사업장별</span>'
+   +'<span class="mut" style="font-size:11px">'+(wht?'원천징수 '+won(wht)+' 포함':'')+'</span></h4>'
+   +(uRows||'<div class="mut">사업장이 없다. ⚙ 설정에서 추가해라.</div>')+unmapped
+   +'<div class="taxrow big"><span><b>합계</b></span><span class="pos"><b>'+won(gross)+'</b></span></div></div>';
+
+  var expBox='<div class="sec"><h4>② 필요경비 <span class="mut">신고유형에 따라 쓰임이 달라진다</span></h4>'
+   +'<div class="mut" style="line-height:1.7;margin-bottom:6px">'
+   +'⚠️ <b>신고유형(단순경비율/기준경비율/간편장부)이 정해져야</b> 이 숫자가 신고서에 쓰이는지 결정된다.<br>'
+   +'단순경비율이면 <b>수입×경비율</b>로 계산되어 장부와 무관하다.</div>'
+   +Object.keys(exp.by).sort(function(a,b){return exp.by[b]-exp.by[a];}).map(function(a){
+       return '<div class="taxrow" style="cursor:pointer" data-taxdrill="exp|'+year+'|'+taxEsc(a)+'">'
+        +'<span>'+taxEsc(a)+' <span class="mut">▸</span></span><span>'+won(exp.by[a])+'</span></div>';}).join('')
+   +'<div class="taxrow big"><span><b>경비 합계</b></span><span><b>'+won(exp.total)+'</b></span></div></div>';
+
+  /* ③ 소득금액 — 신고유형이 정해져야 확정된다. 그래도 칸은 비워 두지 않는다:
+     번호가 끊기면 '신고서 순서 그대로'라는 약속이 깨진다. */
+  var m3=T.rates&&T.rates.simple||{};
+  var simRows=T.units.map(function(u){
+    var o=inc.units[u.id]; if(!o)return '';
+    var r=m3[u.code];
+    if(r==null)return '<div class="taxrow"><span>'+taxEsc(u.label)+'</span><span class="mut">경비율 미등록</span></div>';
+    return '<div class="taxrow"><span>'+taxEsc(u.label)+' <span class="mut">단순경비율 '+(r*100).toFixed(2)+'% 가정</span></span>'
+      +'<b>'+won(Math.floor(o.gross*(1-r)))+'</b></div>';}).join('');
+  var incBox='<div class="sec"><h4>③ 소득금액 <span class="mut">① − ②</span>'
+   +'<span class="mut" style="font-size:11px">신고유형 확정 전 — 참고치</span></h4>'
+   +'<div class="mut" style="line-height:1.7;margin-bottom:6px">'
+   +'⚠️ 아래는 <b>작년 단순경비율을 그대로 적용한 가정치</b>다. 경비율은 매년 고시되고 신고유형도 바뀐다 — '
+   +'<b>확정 숫자가 아니다.</b></div>'+simRows
+   +taxRow('실제 경비로 계산하면','<b>'+won(Math.max(0,gross-exp.total))+'</b>')+'</div>';
+
+  var dedBox='<div class="sec"><h4>④ 소득공제 <span class="mut">🔒 경비가 아니다 — 신고서 칸이 다르다</span></h4>'
+   +dedRows+'<div class="taxrow big"><span><b>합계</b></span><span><b>'+won(dedTot)+'</b></span></div></div>';
+
+  var whtBox='<div class="sec"><h4>⑤ 기납부세액 <span class="mut">원천징수된 소득세</span></h4>'
+   +taxRow('가계부 집계',won(wht))
+   +'<div class="mut" style="margin-top:7px;line-height:1.7">'
+   +'🔒 <b>연말 원천징수영수증이 정본이다.</b> 가계부는 검산용이다.<br>'
+   +'⚠️ 2024년 사고가 정확히 이 칸에서 났다 — 755,885 를 1,511,770 으로 두 번 적었다.</div></div>';
+
+  var ptBox=(pt.nOut||pt.nIn)?('<div class="sec"><h4>📎 대납·정산 <span class="mut">소득도 경비도 아니다</span></h4>'
+   +'<div class="taxrow" style="cursor:pointer" data-taxdrill="pass|'+year+'|-"><span>나간 것 '+pt.nOut+'건 <span class="mut">▸</span></span><span>'+won(pt.out)+'</span></div>'
+   +taxRow('받은 것 '+pt.nIn+'건',won(pt.inn))
+   +'<div class="taxrow big"><span><b>미회수</b></span><span class="'+(pt.open>0?'neg':'mut')+'"><b>'
+   +(pt.open>0?won(pt.open):'없음')+'</b></span></div></div>'):'';
+
+  var vatBox='<div class="sec"><h4>💠 부가가치세 <span class="mut">'+(vatTypeAt(year+'-06-30')||'유형 미설정')+'</span></h4>'
+   +taxDues(year).filter(function(x){return x.kind==='부가세';}).map(function(x){
+      var f=taxFiling(year,x.kind,x.period), dd=taxDaysTo(x.due);
+      return '<div class="taxrow"><span>'+x.period+' <span class="mut">기한 '+x.due+'</span></span>'
+       +(f?'<span class="pos">신고완료 '+won((f.vat&&f.vat.due)||0)+'</span>'
+          :'<span class="'+(dd<0?'neg':'mut')+'">'+(dd<0?'기한 '+(-dd)+'일 경과 ⚠️':'D-'+dd)+' <span class="acts"><span data-taxadd="'+year+'|부가세|'+x.period+'">+ 입력</span></span></span>')
+       +'</div>';}).join('')
+   +'<div class="mut" style="margin-top:7px;line-height:1.7">'
+   +'🔒 <b>매입세액은 세금계산서 수취분만 공제된다.</b> 앱에 그 데이터가 없으므로 '
+   +'<b>자동 계산하지 않는다.</b> 모르는 걸 계산하면 틀린 숫자를 확신하게 된다.</div></div>';
+
+  return '<div class="sec" style="border-color:#e3d8bd;background:#faf7ee"><h4>'
+   +'📌 '+year+' 진행 <span class="mut">'+due.label+' 기한 '+due.due+' · '+(d>=0?'D-'+d:'경과 '+(-d)+'일')+'</span></h4>'
+   +'<div class="mut" style="line-height:1.7">아래 ①~⑤ 는 <b>신고서 칸 순서 그대로</b>다. 내년에 위에서 아래로 옮겨적으면 된다.'
+   +'<br>🔒 이 숫자들은 <b>전부 가계부에서 파생</b>된다 — 여기서 손으로 못 고친다. '
+   +'줄을 누르면 <b>근거 거래</b>가 열리고, 고칠 것은 거기서 고친다.</div>'
+   +'<div style="margin-top:9px"><button class="ghost sm" data-taxfreeze="'+year+'">📌 신고 원장으로 박제</button>'
+   +' <span class="mut" style="font-size:10.5px">실제로 신고한 뒤에 눌러라</span></div></div>'
+   +sodeuk+expBox+incBox+dedBox+whtBox+ptBox+vatBox;
+}
+
+/* ── 아카이브 — 확정된 과거 ── */
+function taxArchivePane(year){
+  var fs=taxDB().filings.filter(function(f){return f.year===year;});
+  if(!fs.length)return '<div class="sec"><div class="mut" style="padding:10px 0">'
+    +year+'년 신고 기록이 없다. <button class="ghost sm" data-taxadd="'+year+'|종소세|귀속">+ 종소세 입력</button> '
+    +'<button class="ghost sm" data-taxadd="'+year+'|부가세|연">+ 부가세 입력</button></div></div>';
+  return fs.map(function(f){return f.kind==='종소세'?taxIncomeCard(f):taxVatCard(f);}).join('')
+   +'<div class="sec"><button class="ghost sm" data-taxadd="'+year+'|종소세|귀속">+ 종소세</button> '
+   +'<button class="ghost sm" data-taxadd="'+year+'|부가세|1기">+ 부가세</button></div>';
+}
+function taxIncomeCard(f){
+  var u=(f.units||[]).map(function(x){
+    var rate=(x.revenue&&x.expense)?(' <span class="mut">('+(x.expense/x.revenue*100).toFixed(2)+'%)</span>'):'';
+    return '<tr><td class="cM">'+taxEsc(x.label||x.code)+'<br><span class="mut" style="font-size:9.5px">'
+      +x.code+' · '+taxEsc(x.method||'')+'</span></td>'
+      +'<td class="v">'+won(x.revenue)+'</td><td class="v">'+won(x.expense)+rate+'</td>'
+      +'<td class="v"><b>'+won(x.income)+'</b></td></tr>';}).join('');
+  var F=f.f||{};
+  var w=f.wht||null;
+  var whtBox=w?('<div class="mut" style="margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);line-height:1.8">'
+    +'<b>⚠️ 원천징수 대조</b><br>영수증 지급총액 '+won(w.gross)+' · 소득세 '+won(w.tax)
+    +'<br>신고서 기입 <b>'+won(F.prepaid||0)+'</b>'
+    +((F.prepaid&&w.tax&&Math.abs(F.prepaid-w.tax)>1)
+      ?' <span class="neg">🔴 '+(F.prepaid/w.tax===2?'정확히 2배 (이중기입)':'차이 '+won(F.prepaid-w.tax))+'</span>':' <span class="pos">✓ 일치</span>')
+    +'</div>'):'';
+  var c=f.correction;
+  var corr=c?('<div class="sec" style="border-color:#edb6ab;background:#fdf6f4"><h4>🔴 경정 <span class="mut">'+(c.date||'')+'</span></h4>'
+    +taxRow('결정 과세표준',won(c.base))+taxRow('산출세액',won(c.calc))
+    +taxRow('추가 본세',won(c.mainTax))
+    +taxRow('과소신고가산세',won(c.under))+taxRow('납부지연가산세',won(c.late))
+    +'<div class="taxrow big"><span><b>예상 고지</b></span><span class="neg"><b>'+won(c.total)+'</b></span></div>'
+    +(c.memo?'<div class="mut" style="margin-top:6px;line-height:1.6">'+taxEsc(c.memo)+'</div>':'')+'</div>'):'';
+  return '<div class="sec"><h4>'+f.year+' 귀속 종합소득세 '
+   +'<span class="mut">'+(f.filedDate?'신고 '+f.filedDate:'')+(f.status==='경정'?' → 경정':'')+'</span>'
+   +'<span class="acts"><span data-taxedit="'+f.id+'">✎</span></span></h4>'
+   +(f.bookType?'<div class="mut" style="margin-bottom:7px">'+taxEsc(f.bookType)+'</div>':'')
+   +(u?'<div class="labwrap" style="max-height:none"><table class="labtbl instbl"><thead><tr><th class="cM">사업장</th>'
+     +'<th class="v">총수입금액</th><th class="v">필요경비</th><th class="v">소득금액</th></tr></thead><tbody>'+u+'</tbody></table></div>':'')
+   +'<div style="margin-top:9px">'
+   +taxRow('종합소득금액','<b>'+won(F.totalIncome||0)+'</b>')
+   +taxRow('(−) 소득공제',won(F.deduct||0))
+   +taxRow('과세표준','<b>'+won(F.base||0)+'</b>')
+   +taxRow('산출세액',won(F.calc||0))
+   +taxRow('(−) 세액공제',won(F.taxCredit||0))
+   +taxRow('결정세액','<b>'+won(F.decided||0)+'</b>')
+   +taxRow('(−) 기납부세액',won(F.prepaid||0))
+   +'<div class="taxrow big"><span><b>'+((F.due||0)>=0?'납부':'환급')+'</b></span><span class="'
+     +((F.due||0)>=0?'neg':'pos')+'"><b>'+signWon(F.due||0)+'</b></span></div></div>'
+   +whtBox+(f.memo?'<div class="mut" style="margin-top:7px;line-height:1.6">'+taxEsc(f.memo)+'</div>':'')
+   +'</div>'+corr;
+}
+function taxVatCard(f){
+  var V=f.vat||{};
+  return '<div class="sec"><h4>'+f.year+' 부가가치세 <span class="mut">'+f.period
+   +(f.vatType?' · '+f.vatType:'')+(f.filedDate?' · 신고 '+f.filedDate:'')+'</span>'
+   +'<span class="acts"><span data-taxedit="'+f.id+'">✎</span></span></h4>'
+   +(V.from?'<div class="mut" style="margin-bottom:6px">'+V.from+' ~ '+V.to+'</div>':'')
+   +taxRow('매출 과세표준','<b>'+won(V.sales||0)+'</b>')
+   +(V.exempt?taxRow('면세분',won(V.exempt)):'')
+   +(V.salesTax?taxRow('매출세액',won(V.salesTax)):'')
+   +(V.purchaseTax?taxRow('(−) 매입세액',won(V.purchaseTax)):'')
+   +'<div class="taxrow big"><span><b>납부세액</b></span><span class="neg"><b>'+won(V.due||0)+'</b></span></div>'
+   +(f.memo?'<div class="mut" style="margin-top:7px;line-height:1.6">'+taxEsc(f.memo)+'</div>':'')+'</div>';
+}
+
+/* ── 설정 ── */
+function taxCfgPane(){
+  var T=taxDB();
+  var units=T.units.map(function(u){
+    return '<div class="row"><span><b>'+taxEsc(u.label)+'</b> <span class="mut">'+u.code
+      +(u.bizNo?' · '+u.bizNo:' · 무등록')+'</span></span>'
+      +'<span class="acts"><span data-taxunit="'+u.id+'">✎</span></span></div>';}).join('');
+  var incCats=(DB.categories||[]).filter(function(c){return c.type==='income';});
+  var map=incCats.map(function(c){
+    var uid=T.catMap[c.name],u=uid?taxUnit(uid):null;
+    var opts='<option value="">— 미지정 —</option>'+T.units.map(function(x){
+      return '<option value="'+x.id+'"'+(x.id===uid?' selected':'')+'>'+taxEsc(x.label)+' ('+x.code+')</option>';}).join('');
+    return '<div class="row"><span>'+taxEsc(c.name)+'</span>'
+      +'<select style="max-width:200px" onchange="setTaxCatMap(\''+taxEsc(c.name).replace(/'/g,'')+'\',this.value)">'+opts+'</select></div>';
+  }).join('');
+  var vh=T.vatHistory.map(function(x){return '<div class="row"><span>'+x.from+' ~</span><span>'+x.type+'</span></div>';}).join('');
+  var R=T.rates||{};
+  var rateRows=(R.income||[]).map(function(x){
+    return '<div class="row"><span>'+won(x[0])+' 이하</span><span>'+(x[1]*100).toFixed(0)+'% <span class="mut">누진공제 '+won(x[2])+'</span></span></div>';}).join('');
+  return '<div class="sec"><h4>사업자</h4>'
+   +taxRow('상호',taxEsc(T.biz.name||'—'))+taxRow('사업자등록번호',taxEsc(T.biz.bizNo||'—'))
+   +taxRow('개업일',taxEsc(T.biz.opened||'—'))+taxRow('관할',taxEsc(T.biz.office||'—'))
+   +(T.biz.sector?taxRow('업태·종목','<span class="mut">'+taxEsc(T.biz.sector)+'</span>'):'')+'</div>'
+   +'<div class="sec"><h4>부가세 과세유형 <span class="mut">상태가 아니라 이력이다</span></h4>'+vh+'</div>'
+   +'<div class="sec"><h4>사업장 <span class="mut">= 신고서의 한 줄</span>'
+   +'<button class="ghost sm" data-taxunit="">+ 추가</button></h4>'+units+'</div>'
+   +'<div class="sec"><h4>계정과목 → 사업장 <span class="mut">여기가 2026→2027 연결의 핵심이다</span></h4>'+map+'</div>'
+   +'<div class="sec"><h4>종합소득세율 <span class="mut">세법은 바뀐다 — 코드가 아니라 데이터</span></h4>'+rateRows
+   +'<div class="mut" style="margin-top:7px">원천징수(사업소득) '+((R.whtBiz||0)*100).toFixed(1)+'% · 지방소득세 '+((R.local||0)*100).toFixed(0)+'%</div></div>';
+}
+function setTaxCatMap(cat,uid){
+  var T=taxDB();
+  if(uid)T.catMap[cat]=uid; else delete T.catMap[cat];
+  logAct('세무 매핑 · '+cat+' → '+(uid?(taxUnit(uid)||{}).label:'미지정'));
   save();renderTax();
 }
-function numv(id){var el=document.getElementById(id);return el?(parseFloat((el.value+'').replace(/[^0-9.\-]/g,''))||0):0;}
+
+/* ══════════════════════════════════════════════════════════
+   🔒 원칙 — 로한: "CRUD 할 수 있게 해야 하지만 기본 원칙은 가계부 기반이다."
+
+   저장하는 것 = 가계부에 없는 것뿐이다.
+     · filings  (과거 신고 원장 — 그때 가계부가 없었다)
+     · units / catMap / biz / rates  (규칙과 사실)
+   파생하는 것 = 가계부에 있는 것 전부.
+     · 진행 연도의 ①~⑤ 는 **손으로 못 고친다.** 고치려면 가계부를 고쳐야 한다.
+     · 숫자가 이상하면 눌러서 **근거 거래로 내려간다**(taxDrill).
+   그리고 실제로 신고하는 순간 파생값을 **박제**해서 원장으로 만든다(taxFreeze).
+   ══════════════════════════════════════════════════════════ */
+
+/* 그 숫자를 만든 거래를 그대로 보여준다. 못 믿겠으면 눌러서 확인한다. */
+function taxDrill(year,what,key){
+  var rows=[],title='';
+  var ts=taxTxns(year).slice().sort(function(a,b){return a.date<b.date?-1:1;});
+  if(what==='unit'){
+    var u=taxUnit(key); title=(u?u.label+' ('+u.code+')':'미분류')+' · '+year+' 수입';
+    ts.forEach(function(t){
+      if(t.type!=='income'||txTaxKind(t)!=='biz')return;
+      var uid=taxUnitOfCat(t.cat);
+      if(key==='_none'?uid:(uid!==key))return;
+      rows.push(t);
+    });
+  }else if(what==='pass'){
+    title=year+' 대납·정산';
+    ts.forEach(function(t){if(txTaxKind(t)==='pass')rows.push(t);});
+  }else if(what==='exp'){
+    title=year+' 사업경비 · '+key;
+    ts.forEach(function(t){
+      if(t.type!=='expense'||txTaxKind(t)!=='biz')return;
+      var c=(DB.categories||[]).filter(function(x){return x.name===t.cat&&x.type==='expense';})[0];
+      if(!c||!c.deductible)return;
+      if((c.taxAccount||c.name)!==key)return;
+      rows.push(t);
+    });
+  }
+  var sum=0,gsum=0;
+  var h=rows.map(function(t){
+    sum+=t.amt; gsum+=txGross(t);
+    var g=(t.wht?(' <span class="mut">→ 세전 '+won(txGross(t))+'</span>'):'');
+    return '<div class="row" style="cursor:pointer" data-taxjump="'+t.id+'">'
+     +'<span>'+t.date.slice(5)+' <b>'+taxEsc(t.cat)+'</b>'
+     +(t.memo?' <span class="mut">'+taxEsc(t.memo)+'</span>':'')+g+'</span>'
+     +'<span class="'+(t.type==='income'?'pos':'neg')+'">'+won(t.amt)+'</span></div>';}).join('');
+  openModal('<div class="mtop"><h3>'+taxEsc(title)+' <span class="mut" style="font-size:12px">'+rows.length+'건</span></h3>'
+   +'<span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="margin-bottom:8px">🔒 이 숫자는 <b>가계부에서 파생</b>된다. 고치려면 거래를 고쳐라 — 줄을 누르면 열린다.</div>'
+   +'<div style="max-height:52vh;overflow:auto">'+(h||'<div class="mut" style="padding:10px 0">해당 거래 없음</div>')+'</div>'
+   +'<div class="taxrow big"><span><b>합계</b></span><span><b>'+won(sum)
+   +(gsum!==sum?' <span class="mut" style="font-size:11px">(세전 '+won(gsum)+')</span>':'')+'</b></span></div>');
+}
+
+/* 🔒 신고를 실제로 한 순간, 그때의 파생값을 원장으로 박제한다.
+   ⚠️ 박제 후에도 가계부는 계속 움직인다 — 그래서 filing 에 snapshot 이라고 적어 둔다. */
+function taxFreeze(year){
+  var T=taxDB(), inc=taxIncomeByUnit(year), exp=taxExpenseByAccount(year), ded=taxDeductFromTxns(year);
+  if(taxFiling(year,'종소세','귀속'))return alert(year+' 종소세 원장이 이미 있다. 지우고 다시 하거나 ✎로 고쳐라.');
+  var units=T.units.map(function(u){
+    var o=inc.units[u.id]; if(!o)return null;
+    return {unitId:u.id,label:u.label,code:u.code,method:'',revenue:o.gross,expense:0,income:0};
+  }).filter(Boolean);
+  if(!units.length)return alert('집계된 사업장 수입이 없다.');
+  var wht=0;Object.keys(inc.units).forEach(function(k){wht+=inc.units[k].wht;});
+  var dedTot=1500000;Object.keys(ded).forEach(function(k){dedTot+=ded[k];});
+  if(!confirm(year+' 종소세를 원장으로 박제한다.\n\n지금 가계부에서 나온 값이 그대로 들어간다.\n필요경비·과세표준은 신고서를 보고 ✎로 채워야 한다.\n\n진행할까?'))return;
+  T.filings.push({id:'tf'+uid(),kind:'종소세',year:year,period:'귀속',status:'신고완료',
+    filedDate:todayStr(),units:units,
+    f:{totalIncome:0,deduct:dedTot,base:0,calc:0,taxCredit:0,decided:0,prepaid:wht,due:0},
+    memo:'가계부에서 박제 ('+todayStr()+'). 신고서와 대조해 채울 것.',src:'snapshot'});
+  logAct('세무 박제 · '+year+' 종소세');
+  save();renderTax();
+}
+
+/* ── 신고 원장 CRUD ── */
+var TAX_F=[['totalIncome','종합소득금액'],['deduct','소득공제'],['base','과세표준'],
+           ['calc','산출세액'],['taxCredit','세액공제'],['decided','결정세액'],
+           ['prepaid','기납부세액'],['due','납부(환급)할 세액']];
+var TAX_V=[['sales','매출 과세표준'],['exempt','면세분'],['salesTax','매출세액'],
+           ['purchaseTax','매입세액'],['due','납부세액']];
+function taxFilingModal(id,pre){
+  var T=taxDB();
+  var f=id?T.filings.filter(function(x){return x.id===id;})[0]:null;
+  var p=(pre||'').split('|');
+  if(!f)f={kind:p[1]||'종소세',year:+(p[0]||todayStr().slice(0,4)),period:p[2]||'귀속',
+           status:'신고완료',filedDate:'',f:{},vat:{},units:[],memo:''};
+  var isI=f.kind==='종소세';
+  var num=function(k,v){return '<div class="taxrow"><span>'+v+'</span><input class="taxin" id="tf_'+k+'" value="'+((isI?f.f:f.vat)[k]||0)+'"></div>';};
+  var fields=(isI?TAX_F:TAX_V).map(function(x){return num(x[0],x[1]);}).join('');
+  var uRows=isI?('<div class="mut" style="margin:8px 0 4px">사업장별 <span style="opacity:.8">(총수입·필요경비·소득금액)</span></div>'
+    +T.units.map(function(u){
+      var x=(f.units||[]).filter(function(y){return y.unitId===u.id;})[0]||{};
+      return '<div class="taxrow" style="gap:6px"><span style="min-width:92px">'+taxEsc(u.label)+'</span>'
+       +'<input class="taxin" style="max-width:92px" id="tu_r_'+u.id+'" value="'+(x.revenue||0)+'" placeholder="총수입">'
+       +'<input class="taxin" style="max-width:92px" id="tu_e_'+u.id+'" value="'+(x.expense||0)+'" placeholder="경비">'
+       +'<input class="taxin" style="max-width:92px" id="tu_i_'+u.id+'" value="'+(x.income||0)+'" placeholder="소득">'
+       +'</div>';}).join('')):'';
+  openModal('<div class="mtop"><h3>'+(id?'신고 수정':'신고 입력')+' <span class="mut" style="font-size:12px">'
+   +f.year+' '+f.kind+' '+f.period+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">'
+   +'<div class="field"><label>귀속연도</label><input id="tf_year" value="'+f.year+'"></div>'
+   +'<div class="field"><label>구분</label><input id="tf_period" value="'+taxEsc(f.period)+'"></div>'
+   +'<div class="field"><label>상태</label><select id="tf_status">'
+     +['신고완료','수정신고','경정','미신고'].map(function(s){return '<option'+(f.status===s?' selected':'')+'>'+s+'</option>';}).join('')
+     +'</select></div>'
+   +'<div class="field"><label>신고일</label><input id="tf_filed" type="date" value="'+taxEsc(f.filedDate||'')+'"></div>'
+   +'</div>'+uRows+'<div style="margin-top:8px">'+fields+'</div>'
+   +'<div class="field"><label>메모</label><textarea id="tf_memo" rows="2">'+taxEsc(f.memo||'')+'</textarea></div>'
+   +'<button class="btn" onclick="saveTaxFiling('+(id?"'"+id+"'":'null')+',\''+f.kind+'\')">저장</button>'
+   +(id?' <button class="ghost" onclick="delTaxFiling(\''+id+'\')">삭제</button>':''));
+}
+function saveTaxFiling(id,kind){
+  var T=taxDB(),g=function(k){var e=document.getElementById(k);return e?e.value:'';};
+  var n=function(k){var e=document.getElementById(k);if(!e)return 0;
+    var v=parseFloat((e.value+'').replace(/[^0-9.\-]/g,''));return isNaN(v)?0:v;};
+  var f=id?T.filings.filter(function(x){return x.id===id;})[0]:null;
+  var isNew=!f; if(isNew)f={id:'tf'+uid(),kind:kind};
+  f.year=parseInt(g('tf_year'),10)||+todayStr().slice(0,4);
+  f.period=g('tf_period')||'귀속'; f.status=g('tf_status'); f.filedDate=g('tf_filed');
+  f.memo=g('tf_memo');
+  if(kind==='종소세'){
+    f.f=f.f||{}; TAX_F.forEach(function(x){f.f[x[0]]=n('tf_'+x[0]);});
+    f.units=T.units.map(function(u){
+      var r=n('tu_r_'+u.id),e=n('tu_e_'+u.id),i=n('tu_i_'+u.id);
+      if(!r&&!e&&!i)return null;
+      return {unitId:u.id,label:u.label,code:u.code,method:'',revenue:r,expense:e,income:i};
+    }).filter(Boolean);
+  }else{ f.vat=f.vat||{}; TAX_V.forEach(function(x){f.vat[x[0]]=n('tf_'+x[0]);}); }
+  if(isNew)T.filings.push(f);
+  logAct('세무 '+(isNew?'입력':'수정')+' · '+f.year+' '+f.kind+' '+f.period);
+  save();closeModal();renderTax();
+}
+function delTaxFiling(id){
+  var T=taxDB(),f=T.filings.filter(function(x){return x.id===id;})[0];
+  if(!f)return;
+  if(!confirm(f.year+' '+f.kind+' '+f.period+' 원장을 지운다. 진행할까?'))return;
+  T.filings=T.filings.filter(function(x){return x.id!==id;});
+  logAct('세무 삭제 · '+f.year+' '+f.kind+' '+f.period);
+  save();closeModal();renderTax();
+}
+/* ── 사업장 CRUD ── */
+function taxUnitModal(id){
+  var u=id?taxUnit(id):{label:'',code:'',bizNo:''};
+  if(!u)return;
+  openModal('<div class="mtop"><h3>'+(id?'사업장 수정':'사업장 추가')+' <span class="mut" style="font-size:12px">= 신고서의 한 줄</span></h3>'
+   +'<span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>이름</label><input id="tu_label" value="'+taxEsc(u.label)+'" placeholder="강사(인적용역)"></div>'
+   +'<div class="field"><label>업종코드</label><input id="tu_code" value="'+taxEsc(u.code)+'" placeholder="940903"></div>'
+   +'<div class="field"><label>사업자등록번호 <span class="mut">없으면 비워라(무등록 인적용역)</span></label>'
+     +'<input id="tu_bizno" value="'+taxEsc(u.bizNo||'')+'"></div>'
+   +'<button class="btn" onclick="saveTaxUnit('+(id?"'"+id+"'":'null')+')">저장</button>'
+   +(id?' <button class="ghost" onclick="delTaxUnit(\''+id+'\')">삭제</button>':''));
+}
+function saveTaxUnit(id){
+  var T=taxDB(),g=function(k){var e=document.getElementById(k);return e?e.value.trim():'';};
+  var lb=g('tu_label'),cd=g('tu_code');
+  if(!lb||!cd)return alert('이름과 업종코드는 필요하다');
+  if(id){var u=taxUnit(id);if(!u)return;u.label=lb;u.code=cd;u.bizNo=g('tu_bizno');}
+  else T.units.push({id:'u'+uid(),label:lb,code:cd,bizNo:g('tu_bizno')});
+  logAct('세무 사업장 '+(id?'수정':'추가')+' · '+lb+' '+cd);
+  save();closeModal();renderTax();
+}
+function delTaxUnit(id){
+  var T=taxDB(),u=taxUnit(id);if(!u)return;
+  var linked=Object.keys(T.catMap).filter(function(k){return T.catMap[k]===id;});
+  if(!confirm('['+u.label+'] 사업장을 지운다.'+(linked.length?'\n연결된 계정과목 '+linked.length+'개의 연결도 끊긴다.':'')+'\n진행할까?'))return;
+  T.units=T.units.filter(function(x){return x.id!==id;});
+  linked.forEach(function(k){delete T.catMap[k];});   /* 🔒 유령 매핑을 남기지 않는다 */
+  logAct('세무 사업장 삭제 · '+u.label);
+  save();closeModal();renderTax();
+}
+
+
+/* ── 거래 모달의 세무 칸 ────────────────────────────────
+   🔒 여기가 '가계부 기반'의 입구다. 세무 페이지에서 숫자를 고치는 게 아니라
+      **거래를 찍을 때 성격을 정하고**, 세무 페이지는 그것을 읽기만 한다. */
+function taxTxnField(t){
+  var k=t.id?txTaxKind(t):(t.scope==='business'?'biz':'priv');
+  var w=t.wht||null;
+  var segs=TAX_KINDS.map(function(x){
+    return '<button class="'+(x.k===k?'on':'')+'" title="'+taxEsc(x.hint)+'" onclick="setTaxKind(this,\''+x.k+'\')">'+x.label+'</button>';}).join('');
+  return '<div class="field" id="taxKindField"><label>세무 구분 <span class="mut">종합소득세 연동</span></label>'
+   +'<div class="seg" id="tkSeg">'+segs+'</div>'
+   +'<div class="hint" id="tkHint"></div></div>'
+   +'<div class="field" id="whtField" style="display:none">'
+   +'<label style="display:flex;align-items:center;gap:8px">'
+     +'<input type="checkbox" id="fWht" style="width:auto" onchange="whtSync()"'+(w?' checked':'')+'>'
+     +'3.3% 원천징수됨 <span class="mut">(통장에 들어온 금액이 세후라면)</span></label>'
+   +'<div id="whtBox" style="display:'+(w?'block':'none')+';margin-top:6px">'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">'
+   +'<div class="field" style="margin-bottom:6px"><label>소득세</label><input id="fWhtT" value="'+((w&&w.t)||'')+'" oninput="whtCalc()"></div>'
+   +'<div class="field" style="margin-bottom:6px"><label>지방소득세</label><input id="fWhtL" value="'+((w&&w.l)||'')+'" oninput="whtCalc()"></div>'
+   +'</div><div class="hint" id="whtHint"></div></div></div>';
+}
+function setTaxKind(b,k){
+  modal._tk=k;
+  var bs=b.parentNode.querySelectorAll('button');
+  for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');
+  b.classList.add('on'); taxKindSync();
+}
+function taxKindSync(){
+  var h=document.getElementById('tkHint'); if(!h)return;
+  var k=modal._tk||'priv', x=TAX_KINDS.filter(function(y){return y.k===k;})[0];
+  h.textContent=x?x.hint:'';
+  var wf=document.getElementById('whtField');
+  if(wf)wf.style.display=(modal._type==='income'&&k==='biz')?'block':'none';
+  whtSync();
+}
+function whtSync(){
+  var c=document.getElementById('fWht'),b=document.getElementById('whtBox');
+  if(!c||!b)return;
+  b.style.display=c.checked?'block':'none';
+  if(c.checked){
+    var t=document.getElementById('fWhtT');
+    if(t&&!t.value){
+      var net=parseFloat(((document.getElementById('fAmt')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+      if(net>0){var e=whtEstimate(net);t.value=e.t;document.getElementById('fWhtL').value=e.l;}
+    }
+  }
+  whtCalc();
+}
+function whtCalc(){
+  var h=document.getElementById('whtHint'); if(!h)return;
+  var c=document.getElementById('fWht');
+  if(!c||!c.checked){h.textContent='';return;}
+  var net=parseFloat(((document.getElementById('fAmt')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+  var tt=parseFloat(((document.getElementById('fWhtT')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+  var ll=parseFloat(((document.getElementById('fWhtL')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+  var g=net+tt+ll;
+  h.innerHTML='세전 수입금액 <b>'+won(g)+'</b> = 실입금 '+won(net)+' + 원천징수 '+won(tt+ll)
+   +'<br>🔒 신고서에 적는 총수입금액은 <b>세전</b>이다. 소득세 '+won(tt)+' 는 기납부세액으로 빠진다.'
+   +(g&&Math.abs(g-Math.round(net/0.967))>2?'<br>⚠️ 3.3% 로 역산한 값('+won(Math.round(net/0.967))+')과 다르다 — 영수증을 확인해라.':'');
+}
 
 /* ====== 재물관리(감가상각) ====== */
 function isDateStr(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')&&!isNaN(new Date(s+'T00:00:00Z').getTime());}
@@ -4104,13 +4656,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.9';
+var APP_VERSION='2.0';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.0',date:'2026-08-26',note:"<b>\ud83e\uddfe 세무 전면 재설계 (로한 설계).</b> ⚠️ v1.9까지 세무 탭은 <b>계산기 하나</b>였다 — <code>taxParams</code> 숫자 7개가 전부. 2024년에 본세 127만+가산세 26만을 맞은 사건이 <b>앱에 흔적조차 없었다</b> · <b>세 층으로 나눴다</b>: 아카이브(2024·2025 신고서 재현) / 진행(가계부에서 파생) / 매핑(둘을 잇는 규칙) · \ud83d\udd12 <b>신고서는 사업장(업종코드) 단위로 쓰인다</b> — v1.9는 <code>gangsaIncome+storeNet</code> 두 숫자라 신고서와 모양이 달랐다. <code>units[]</code>(722000 홀리워터 / 940903 강사) + 계정과목→사업장 매핑으로 교체 · ⚠️ <b>[결함] 가계부 채움영어 금액이 세후였다.</b> 3.3% 떼고 들어온 실입금액인데 신고서 총수입금액은 세전이다. 그대로 쓰면 <b>수입 3.3% 과소신고 + 기납부세액 누락</b>으로 양쪽 손해. 거래에 <code>wht</code> 를 저장하고 <b>세전은 파생</b>한다 · <b>대납·정산(<code>tk:pass</code>) 개념 신설</b> — 광고비 대납은 소득도 경비도 아닌데 v1.9는 양쪽 다 세무에 넣고 있었다. 미회수까지 표시 · \ud83d\udd12 <b>진행 연도 숫자는 손으로 못 고친다</b>(로한: <i>“기본 원칙은 가계부 기반”</i>). 줄을 누르면 <b>근거 거래</b>가 열리고 거기서 고친다. 실제 신고 후 <b>📌 박제</b>로 원장이 된다 · ⚠️ <b>940903 은 사업소득</b>이다 — 2024 기납부세액명세서 ⑦ 칸으로 확정. v1.9는 기타소득으로 잡고 있었다 · 세율표를 코드에서 DB로(8구간 전부). 원천징수율 3.3%→<b>3%</b>(2024 실측 검증) · \ud83d\udd12 부가세는 <b>자동 계산하지 않는다</b> — 세금계산서 수취 데이터가 없다. 모르는 걸 계산하면 틀린 숫자를 확신하게 된다 · 시드: 2024 종소세(경정 포함)·2024 부가세·2025 종소세"},
   {v:'1.9',date:'2026-08-26',note:"<b>↕ 데일리 정렬 토글 · 🕯️ 일진 길흉·말풍선.</b> ⚠️ <b>[내 판단 착오] v1.8 의 루틴 순서가 데일리에 '그룹째' 반영됐다.</b> 로한: <i>“순서를 조정하면 여기에 반영이 안된다. 서로 연동되어야지.”</i> 코드는 내가 의도한 대로 돌았지만 <b>그 의도가 틀렸다</b> — 데일리가 목표별로 묶는 바람에 <code>E.8a(7시 기상)</code> 를 1번으로 올리자 <b>E 그룹 전체가 통째로</b> 올라가고 같은 그룹인 <code>E.8b(24시 취침)</code> 까지 아침 사이에 끼었다. 로한이 순서를 매기는 이유는 <b>하루의 시간 흐름</b>이지 목표 묶음이 아니다 · → 데일리 루틴에 <b>[↕ 순서대로 | 🎯 목표별]</b> 토글. <b>기본은 순서대로</b>(설계 순서를 그대로 일렬로 복사). 목표 연계는 각 줄의 코드·눈금 뱃지가 이미 하고 있어 그룹 머리글이 없어도 죽지 않는다 · 🔒 <b>일진 길/흉/평 판정을 파생 함수로 뺐다</b>(<code>dayVerdict</code>) — v1.8까지 <code>renderSaju</code> 안에 인라인으로 박혀 있어 데일리가 못 썼다. 이제 두 화면이 <b>같은 함수</b>를 쓴다 · 데일리 상단에 <b>⚔凶 / ⚜吉 / ◈平</b> + 간지 + 걸린 것(충·형·합) + 💬 말풍선. 말풍선 키는 사주 페이지와 <b>같은 <code>day:YYYY-MM-DD</code></b> 라 저장한 해석이 그대로 뜬다 · ⚠️ 명리는 유파마다 판정이 다르다. <b>'충·형이 있으면 凶'</b> 이라는 단순 규칙일 뿐이므로 근거를 툴팁에 그대로 노출한다 — 확정된 길흉이 아니다 · t30 48건으로 확장"},
   {v:'1.8',date:'2026-08-25',note:"<b>↕ 루틴 순서 · 💳 카드결제일 · 🔄 충돌 설명.</b> (로한 요청 3건) · <b>루틴 ▲▼</b> — 순서를 한 곳에서 바꾸면 데일리·설계·전체목록이 같이 움직인다. ⚠️ <b>[결함] 세 화면이 서로 다르게 정렬하고 있었다</b>: 데일리는 <code>order</code>, 설계·목록은 <code>code</code>. 게다가 <code>order</code> 는 추가할 때 한 번 박히기만 하고 구 루틴엔 아예 없어서(전부 0) 데일리가 사실상 <b>입력순</b>이었다. 정렬을 <code>rtCmp</code> 하나로 합치고, 마이그레이션에서 코드순으로 기준을 잡았다(<code>rtOrdSeeded</code>) · 🔒 데일리는 <b>목표별 그룹</b>이라 한 칸 이동이 <b>그룹째</b> 움직인다 — 의도된 동작이며 t30 이 잠갔다 · ⚠️ <b>[결함·중대] 카드결제 날짜가 무조건 오늘로 박혔다.</b> <code>doSettle</code> 이 <code>date:todayStr()</code> 였다. 화면엔 <b>결제 예정일을 이미 보여주고 있었는데</b> 저장은 오늘로 했다 — 말과 기록이 달랐다. 로한이 1월 데이터를 소급 입력하자 <b>1월 카드값이 8월 유출</b>로 잡혔다(실측 113,987원 · 211일 어긋남). 7월까지 밀었으면 <b>8월에 7개월치가 몰리고 1~7월은 0으로 비었을 것</b> · 결제일 입력칸 신설 — 기본값은 <b>예정일이 지났으면 그 날</b>(소급), <b>아직이면 오늘</b>(실제 선결제) · 어긋난 기존 결제엔 <b>'날짜 ±N일'</b> 뱃지 + ✎ 로 <b>날짜만</b> 수정(금액·구성은 막았다 — 원장이 깨진다) · ⚠️ <b>[결함·중대] 카드결제를 지우면 돈이 조용히 증발했다.</b> 원 거래는 <code>card=false</code> 로 남고 결제 기록만 사라져 <b>'낸 적도 없고 낼 것도 없는' 돈</b>이 됐다. <code>unsettle()</code> 로 그 주기 회차를 미결제로 되돌린다(할부는 회차 되감기) · <b>🔄 동기화 충돌에 설명을 붙였다</b> — 로한: <i>“무슨 데이터가 어떻게 충돌하는지 설명이 없어서 그냥 일괄 확인 누른다.”</i> v1.7 까지 <code>syncConflict</code> 는 서버의 <b>updated_at(시각)만</b> 읽었다 — 비교할 재료 자체가 없었다. 이제 서버 data 를 받아 컬렉션별로 <b>내 쪽에만 / 저쪽에만 / 양쪽 다름</b>을 항목 라벨까지 보여준다 · 🔒 <b>덮어쓰기 직전 서버본을 스냅샷</b>(<code>pre_overwrite</code>)으로 남긴다 — 잘못 눌러도 되돌릴 수 있다 · t30 27건 · t31 38건 신설"},
   {v:'1.7',date:'2026-08-25',note:"<b>🛡️ 보험 신설 (로한 설계).</b> 건강 아래 <b>로한ㅣ아버지ㅣ어머니</b> 탭. ⚠️ 로한이 준 md 의 '피보험자 정복현'이 '내 보험'과 충돌하는 것처럼 보였으나, 프로젝트의 <code>0102_보험관리.xlsx</code> 헤더가 <b>복현ㅣ엄마ㅣ아빠</b> 로 갈라 놓아 <b>정복현=로한</b> 임이 데이터로 확정됐다 — 묻지 않고 대조해서 풀었다. · <b>축을 둘로 나눴다</b>: 비용 축(계약·특약 보험료)과 보장 축(정규화 보장명 × 계약 매트릭스). '무슨 일이 나면 얼마'는 보장 축에서만 나온다 · 상단 <b>가족 보장 한눈에</b>(실손·암·뇌·심장·사망·입원일당) — 탭을 옮기지 않아도 세 사람이 한 표에 뜬다 · <b>보장 공백</b> 자동 표시 — '없는 것'과 '자료가 안 들어온 것'을 구분한다 · <b>🔒 실손은 합산하지 않는다</b>(비례보상) — 매트릭스 합계에서 최대치로 잡는다. 아버지는 흥국·삼성 두 곳에 실손이 있어 그냥 더하면 1억으로 뜬다 · ⚠️ <b>원문 요약본이 스스로 안 맞는다</b>: 교보 특약 7개를 더하면 45,200 인데 총액은 43,200 으로 적혀 있다(2,000원 차 — 재해상해특약2형과 같은 액수). <b>맞춰서 고치지 않고</b> '보험료 불일치' 로 드러냈다 · 시드 9건(로한 3·아버지 3·어머니 3) + 보장 171항목. 로한 2건은 원문 검수본, 나머지는 xlsx 출처를 계약마다 명시 · <b>DB생명(시트2)은 넣지 않았다</b> — 로한 확인 결과 <b>제안서</b>이지 가입한 계약이 아니다 · 합계·납입완료일·다음 갱신일·보험료 불일치는 전부 파생(저장 안 함) · 🔒 계약 삭제 시 보장 동반 삭제 + 매 로드 고아 보장 정리"},
@@ -5082,6 +5635,35 @@ function migrateV6(d){
   /* v8.0 — rewardLog(수령 기록) → rewardCards(카드) 승계.
      v7까지는 '수령'이 곧 가계부 거래였고, v8은 배치 → 활성 → 사용 카드 모델이다. */
   if(!d.timelog)d.timelog={};   /* v11.0 ⏳ 타임로그 */
+  /* v2.0 🧾 세무. 시드는 '한 번만' — 로한이 고친 원장을 되살리면 안 된다.
+     🔒 filings 는 저장하지만, 진행 연도 숫자는 저장하지 않는다(가계부에서 파생). */
+  if(!d.tax)d.tax={};
+  d.tax.units=d.tax.units||[]; d.tax.filings=d.tax.filings||[];
+  d.tax.catMap=d.tax.catMap||{}; d.tax.vatHistory=d.tax.vatHistory||[];
+  d.tax.biz=d.tax.biz||{}; d.tax.rates=d.tax.rates||{};
+  if(!d.meta)d.meta={};
+  if(!d.meta.taxSeeded){
+    var _ts=JSON.parse(JSON.stringify(TAX_SEED));
+    for(var _bk in _ts.biz)if(d.tax.biz[_bk]===undefined)d.tax.biz[_bk]=_ts.biz[_bk];
+    if(!d.tax.vatHistory.length)d.tax.vatHistory=_ts.vatHistory;
+    if(!Object.keys(d.tax.rates).length)d.tax.rates=_ts.rates;
+    var _hu={};d.tax.units.forEach(function(u){_hu[u.id]=1;});
+    _ts.units.forEach(function(u){if(!_hu[u.id])d.tax.units.push(u);});
+    for(var _ck in _ts.catMap)if(d.tax.catMap[_ck]===undefined)d.tax.catMap[_ck]=_ts.catMap[_ck];
+    var _hf={};d.tax.filings.forEach(function(f){_hf[f.id]=1;});
+    _ts.filings.forEach(function(f){if(!_hf[f.id])d.tax.filings.push(f);});
+    d.meta.taxSeeded=1;
+  }
+  /* 🔒 유령 매핑 정리 — 사업장이 사라졌는데 카테고리가 가리키고 있으면 집계가 조용히 샌다. */
+  (function(){var uid={};d.tax.units.forEach(function(u){uid[u.id]=1;});
+   Object.keys(d.tax.catMap).forEach(function(k){if(!uid[d.tax.catMap[k]])delete d.tax.catMap[k];});})();
+  /* ⚠️ 940903 은 사업소득이다 — 2024 기납부세액명세서 ⑦ '사업소득' 칸으로 확정됐다.
+     v1.9 까지 '기타소득' 으로 잡혀 있었다(경비율·원천징수율이 전부 달라진다). */
+  if(!d.meta.incTypeFix){
+    (d.categories||[]).forEach(function(c){
+      if(c.type==='income'&&d.tax.catMap[c.name])c.incType='사업소득';});
+    d.meta.incTypeFix=1;
+  }
   /* v1.8 — 루틴 순서(order) 정규화. 한 번만 코드순으로 기준을 잡고, 이후엔 로한이 ▲▼ 로 정한다.
      ⚠️ 구 루틴엔 order 가 아예 없었고(=0) 새 루틴만 length+1 을 받았다 — 데일리가 사실상 입력순으로 떴다.
      🔒 이미 기준을 잡았으면 다시 안 건드린다. 로한이 정한 순서를 되돌리면 안 된다. */
@@ -5296,6 +5878,7 @@ function txnModal(id){
      +'<input id="fFood" list="foodList" value="'+sajuEsc(t.food||'')+'" placeholder="예: 교촌 허니콤보" autocomplete="off">'
      +'<datalist id="foodList">'+recentFoods(40).map(function(f){return '<option value="'+sajuEsc(f)+'">';}).join('')+'</datalist></div>'
    +'<div class="field" id="incomeOnly" style="display:'+(isInc?'block':'none')+'"><label>소득구분 <span class="mut">(종합소득세 연동)</span></label><div id="fIncInfo" class="autoNote" style="margin-top:0"></div></div>'
+   +taxTxnField(t)
    +'<div id="expenseOnly" style="display:'+(isInc?'none':'block')+'"><div class="field"><label>세부계정과목 <span class="mut">(재물관리 카테고리 연동)</span></label><select id="fItemCat">'+itemCatOpts+'</select></div></div>'
 
    +'<div class="field" id="methodField" style="display:'+(isInc?'none':'block')+'"><label>결제수단</label><select id="fMethod" onchange="methodChange()">'+methOpts+'</select></div>'
@@ -5316,6 +5899,8 @@ function txnModal(id){
    +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
    +'<button class="btn" onclick="saveTxn('+(id?"'"+id+"'":'null')+')">저장</button>');
   modal._type=t.type;modal._scope=t.scope;modal._inst=parseInt(t.inst||1,10);
+  modal._tk=t.id?txTaxKind(t):(t.scope==='business'?'biz':'priv');
+  setTimeout(taxKindSync,0);
   setTimeout(foodFieldSync,0);
   modal._instDone=parseInt(t.instDone||0,10);
   updIncInfo();methodChange();
@@ -5406,6 +5991,16 @@ function saveTxn(id){
   else if(cardObj)acct=undefined;
   else acct=acctEl?acctEl.value:undefined; // 현금·이체
   var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
+  /* v2.0 🧾 세무 구분. ⚠️ 빈 서랍을 남기지 않는다 — 기본값이면 필드를 만들지 않는다. */
+  var _tk=modal._tk||(modal._scope==='business'?'biz':'priv');
+  var _def=(modal._scope==='business'?'biz':'priv');
+  if(_tk!==_def)rec.tk=_tk;
+  var _wc=document.getElementById('fWht');
+  if(modal._type==='income'&&_tk==='biz'&&_wc&&_wc.checked){
+    var _wt=parseFloat(((document.getElementById('fWhtT')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+    var _wl=parseFloat(((document.getElementById('fWhtL')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+    if(_wt||_wl)rec.wht={t:_wt,l:_wl};
+  }
   /* 🍽 음식은 음식성 계정과목일 때만 남긴다.
      ⚠️ rec.food=undefined 로 두면 JS 는 키를 '만든다'. 빈 서랍이 남는다 → 조건부로 넣는다. */
   var _fd=((document.getElementById('fFood')||{}).value||'').trim();
@@ -5576,9 +6171,15 @@ document.addEventListener('click',function(e){
   var sn=e.target.closest('[data-snap]');if(sn)return snapRestore(sn.dataset.snap);
   var el2=e.target.closest('[data-editlog]');if(el2)return logModal(el2.dataset.editlog);
   var dl2=e.target.closest('[data-dellog]');if(dl2)return delLog(dl2.dataset.dellog);
-  if(e.target.id==='taxCalc')return taxRecalc();
   var rca=e.target.closest('[data-reconapply]');if(rca)return reconcileApply(rca.dataset.reconapply);
   if(e.target.id==='addWeightBtn')return weightModal();
+  var _td=e.target.closest('[data-taxdrill]');
+  if(_td){var _p=_td.dataset.taxdrill.split('|');return taxDrill(+_p[1],_p[0],_p[2]);}
+  var _tf=e.target.closest('[data-taxfreeze]');if(_tf)return taxFreeze(+_tf.dataset.taxfreeze);
+  var _ta=e.target.closest('[data-taxadd]');if(_ta)return taxFilingModal(null,_ta.dataset.taxadd);
+  var _te=e.target.closest('[data-taxedit]');if(_te)return taxFilingModal(_te.dataset.taxedit);
+  var _tu=e.target.closest('[data-taxunit]');if(_tu)return taxUnitModal(_tu.dataset.taxunit||null);
+  var _tj=e.target.closest('[data-taxjump]');if(_tj){closeModal();return txnModal(_tj.dataset.taxjump);}
   var sfx=e.target.closest('[data-stfix]');if(sfx)return settleFixDate(sfx.dataset.stfix);
   var rmv=e.target.closest('[data-rtmv]');
   if(rmv){var _pa=rmv.dataset.rtmv.split('|');return rtMove(_pa[0],parseInt(_pa[1],10));}
