@@ -77,7 +77,8 @@ async function boot(st){
   }));
   ok('A1 사업자 시드',a.biz==='273-06-02398',a.biz);
   ok('A2 사업장 722000·940903',a.units==='722000,940903',a.units);
-  ok('A3 신고 원장 3건(2024 종소세·부가세, 2025 종소세)',a.filings===3,a.filings);
+  /* 2024 종소세·부가세(간이) / 2025 종소세·부가세 / 2026 부가세 1기 */
+  ok('A3 신고 원장 5건',a.filings===5,a.filings);
   ok('A4 과세유형은 이력 — 2024 간이 / 2025 일반',a.vat24==='간이'&&a.vat25==='일반',`${a.vat24}/${a.vat25}`);
   ok('A5 계정과목 매핑 시드',a.map.indexOf('u_lect')>0&&a.map.indexOf('u_holy')>0,a.map);
   ok('A6 JS 에러 0',errs.length===0,errs[0]);
@@ -242,7 +243,7 @@ async function boot(st){
     const f=DB.tax.filings.filter(x=>x.year===2023)[0];
     return {n:DB.tax.filings.length, tot:f.f.totalIncome, pre:f.f.prepaid, filed:f.filedDate};
   });
-  ok('J1 신고 원장 추가',add.n===4,add.n);
+  ok('J1 신고 원장 추가',add.n===6,add.n);
   ok('J2 쉼표 있는 숫자도 읽는다',add.tot===5000000,add.tot);
   ok('J3 신고일 저장',add.filed==='2024-05-20',add.filed);
   const yr=await p.evaluate(()=>taxYears().join(','));
@@ -253,7 +254,7 @@ async function boot(st){
     delTaxFiling(f.id);
     return DB.tax.filings.length;
   });
-  ok('J5 신고 원장 삭제',del===3,del);
+  ok('J5 신고 원장 삭제',del===5,del);
 
   /* 사업장 추가·삭제 + 🔒 유령 매핑 정리 */
   const u=await p.evaluate(()=>{
@@ -300,6 +301,75 @@ async function boot(st){
   ok('L2 빈 세무여도 화면은 뜬다',
      await p.evaluate(()=>document.getElementById('v-tax').innerHTML.length>300));
   ok('L3 JS 에러 0',errs.length===0,errs[0]);
+  await b.close();
+}
+
+/* ── M. 🔒 신고유형은 '직전연도 수입금액'으로 정해진다 — '올해 소득'이 아니다 ──
+   ⚠️ 로한: "올해 소득이 5,800만을 안 넘으니 단순경비율 아니냐"
+      결론은 맞을 수 있어도 **기준이 틀렸다.** 2024 사고가 정확히 이 판정 착오였다.
+      → 앱은 추측하지 않는다. 로한이 넣기 전엔 '미확정'이다. */
+{
+  const {b,p,errs}=await boot(BASE());
+  const m=await p.evaluate(y=>({
+    y2024:taxMethod(2024), y2025:taxMethod(2025), cur:taxMethod(y)
+  }),Y);
+  ok('M1 2024 = 단순경비율 (신고서)',m.y2024==='단순경비율',m.y2024);
+  ok('M2 2025 = 기준경비율 (신고서)',m.y2025==='기준경비율',m.y2025);
+  ok('M3 🔒 진행 연도는 미확정 — 추측하지 않는다',m.cur===null,m.cur);
+
+  const h0=await p.evaluate(()=>document.getElementById('v-tax').innerHTML);
+  ok('M4 미확정이라고 화면에 뜬다',h0.indexOf('신고유형 미확정')>=0);
+  ok('M5 🔒 판정 기준이 직전연도임을 밝힌다',h0.indexOf('직전연도')>=0&&h0.indexOf('올해 소득이 아니다')>=0);
+  ok('M6 2024 사고를 근거로 경고한다',h0.indexOf('2024년 사고가 정확히 이 판정 착오')>=0);
+  ok('M7 모르면 비워 두라고 말한다',h0.indexOf('추측으로 정하면 2024년이 반복된다')>=0);
+
+  /* 고르면 계산 방식이 바뀐다 */
+  const sim=await p.evaluate(y=>{setTaxMethod(y,'단순경비율');
+    return document.getElementById('v-tax').innerHTML;},Y);
+  ok('M8 단순경비율 → 경비율로 계산',sim.indexOf('61.70%')>=0||sim.indexOf('74.90%')>=0);
+  ok('M9 경비율이 매년 고시된다고 경고',sim.indexOf('매년 고시된다')>=0);
+
+  const std=await p.evaluate(y=>{setTaxMethod(y,'기준경비율');
+    return document.getElementById('v-tax').innerHTML;},Y);
+  ok('M10 기준경비율 → 주요경비+기준경비율 설명',std.indexOf('주요경비')>=0);
+  ok('M11 🔒 기준경비율 값이 없다고 밝힌다 (추측 금지)',std.indexOf('기준경비율 값이 없다')>=0);
+  ok('M12 증빙이 세금을 줄인다고 알린다',std.indexOf('증빙이 실제로 세금을 줄인다')>=0);
+
+  const bk=await p.evaluate(y=>{setTaxMethod(y,'간편장부');
+    return document.getElementById('v-tax').innerHTML;},Y);
+  ok('M13 장부 → 실제 경비로 소득금액 계산',bk.indexOf('실제 경비 전부')>=0);
+
+  /* 판정 근거(직전연도 수입금액)를 보여준다 */
+  const pr=await p.evaluate(()=>({
+    y2025:taxPrevRevenue(2025),      /* 2024 신고서: 33,302,692 + 25,197,306 */
+    y2026:taxPrevRevenue(2026)       /* 2025 신고서엔 units 가 없다 → 가계부 폴백 */
+  }));
+  /* ⚠️ 33,302,692 + 25,197,306 = 58,499,998. 핸드오프의 "58.5M" 은 반올림이었다.
+     🔒 대략치를 정확한 값으로 착각하지 마라 — 세금은 2원도 틀린 것이다. */
+  ok('M14 직전연도 수입금액을 신고서에서 읽는다',
+     pr.y2025&&pr.y2025.amt===58499998&&pr.y2025.src==='신고서',JSON.stringify(pr.y2025));
+  ok('M15 신고서에 없으면 가계부로 폴백',!pr.y2026||pr.y2026.src==='가계부',JSON.stringify(pr.y2026));
+
+  await p.evaluate(y=>setTaxMethod(y,''),Y);
+  ok('M16 다시 비울 수 있다',await p.evaluate(y=>taxMethod(y)===null,Y));
+  ok('M17 JS 에러 0',errs.length===0,errs[0]);
+  await b.close();
+}
+
+/* ── N. 부가세 원장 — 증명 원본 3건 ── */
+{
+  const {b,p,errs}=await boot(BASE());
+  const v=await p.evaluate(()=>DB.tax.filings.filter(f=>f.kind==='부가세')
+    .map(f=>f.year+'|'+f.period+'|'+f.vat.sales+'|'+f.vat.due).sort().join(' ; '));
+  ok('N1 부가세 3건 (2024 간이 · 2025 · 2026 1기)',
+     v==='2024|연|32875313|558556 ; 2025|2기(9~12월)|11756000|533895 ; 2026|1기|1621727|1912',v);
+
+  await p.evaluate(()=>setTaxView(2025));await p.waitForTimeout(350);
+  const h=await p.evaluate(()=>document.getElementById('v-tax').innerHTML);
+  ok('N2 2025 부가세 카드',h.indexOf('11,756,000')>=0&&h.indexOf('533,895')>=0);
+  ok('N3 ⚠️ 2025-01~08 공백을 숨기지 않는다',h.indexOf('비어 있다')>=0);
+  ok('N4 추측하지 않는다고 명시',h.indexOf('추측하지 않는다')>=0);
+  ok('N5 JS 에러 0',errs.length===0,errs[0]);
   await b.close();
 }
 

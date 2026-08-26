@@ -1475,7 +1475,7 @@ function renderAcct(){
    +'<div class="sec"><h4>카테고리(분류) <button class="ghost" id="addCatBtn">+ 추가</button></h4>'+catHtml+'<div class="mut" style="margin-top:6px">지출 카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 세무 탭에 자동 연결.</div></div>';
 }
 
-var TAX_SEED={"biz":{"name":"홀리워터 데빌즈","bizNo":"273-06-02398","opened":"2023-02-22","office":"김포세무서","addr":"경기도 김포시 김포한강1로 240, 블루동 423호 (운양동, 라비드퐁네프)","sector":"정보통신업 / 응용 소프트웨어 개발 및 공급업"},"vatHistory":[{"from":"2023-02-22","type":"간이"},{"from":"2025-01-01","type":"일반"}],"units":[{"id":"u_holy","label":"홀리워터(스토어)","code":"722000","bizNo":"273-06-02398"},{"id":"u_lect","label":"강사(인적용역)","code":"940903","bizNo":""}],"catMap":{"스마트스토어":"u_holy","채움영어":"u_lect"},"rates":{"income":[[14000000,0.06,0],[50000000,0.15,1260000],[88000000,0.24,5760000],[150000000,0.35,15440000],[300000000,0.38,19940000],[500000000,0.4,25940000],[1000000000,0.42,35940000],[999999999999,0.45,65940000]],"simple":{"722000":0.749,"940903":0.617},"whtBiz":0.03,"local":0.1,"vat":0.1},"filings":[{"id":"tf2024i","kind":"종소세","year":2024,"period":"귀속","status":"경정","filedDate":"2025-05-02","bookType":"간편장부대상자 · 단순경비율(신고유형 32)","units":[{"unitId":"u_holy","label":"홀리워터(스토어)","code":"722000","method":"단순경비율","revenue":33302692,"expense":24943716,"income":8358976},{"unitId":"u_lect","label":"강사(인적용역)","code":"940903","method":"단순경비율","revenue":25197306,"expense":15546737,"income":9650569}],"f":{"totalIncome":18009545,"deduct":1900000,"base":16109545,"calc":1156431,"taxCredit":90000,"decided":1066431,"prepaid":1511770,"due":-445339},"wht":{"gross":25197306,"tax":755885,"local":75540,"payer":"주식**** (873-81-027**)"},"correction":{"date":"2026-08-23","base":19542908,"calc":1671436,"mainTax":1270890,"under":127089,"late":135603,"total":1533582,"memo":"김포세무서 과세예고통지. 단순경비율 착오신고(실제 기준경비율 대상) + 기납부세액 과다기입. 세무사 이용희 선임, 회신 대기. 지방소득세 약 13만 별도 고지 예정."},"memo":"소득공제 = 본인 1,500,000 + 노란우산 400,000(조특법86조의3 코드115). 국민연금 공제 0. 세액공제 = 표준 70,000 + 전자신고 20,000.","src":"신고서 원본"},{"id":"tf2024v","kind":"부가세","year":2024,"period":"연","status":"신고완료","vatType":"간이","vat":{"from":"2024-01-01","to":"2024-12-31","sales":32875313,"exempt":0,"due":558556},"memo":"부가가치세 과세표준증명(발급 2026-08-24) 기준.","src":"과세표준증명"},{"id":"tf2025i","kind":"종소세","year":2025,"period":"귀속","status":"신고완료","filedDate":"2026-05-07","bookType":"간편장부대상자 · 기준경비율(신고유형 20)","units":[],"f":{"totalIncome":0,"deduct":2700000,"base":0,"calc":0,"taxCredit":0,"decided":0,"prepaid":190310,"due":-190310},"wht":{"gross":6343962,"tax":190310,"local":19010,"payer":"주식**** 940903 6,318,120 + (주)메타크래프트 940909 25,842"},"memo":"⚠️ 사업소득명세서 미확보 — 총수입금액·필요경비 미입력. 종합소득금액 0 의 근거(스토어 결손 통산 여부)도 미확인. 로한: 2025년은 강의를 그만둬서 수입 급감.","src":"신고서 원본(요약 1p)"}]};
+var TAX_SEED={"biz":{"name":"홀리워터 데빌즈","bizNo":"273-06-02398","opened":"2023-02-22","office":"김포세무서","addr":"경기도 김포시 김포한강1로 240, 블루동 423호 (운양동, 라비드퐁네프)","sector":"정보통신업 / 응용 소프트웨어 개발 및 공급업"},"vatHistory":[{"from":"2023-02-22","type":"간이"},{"from":"2025-01-01","type":"일반"}],"units":[{"id":"u_holy","label":"홀리워터(스토어)","code":"722000","bizNo":"273-06-02398"},{"id":"u_lect","label":"강사(인적용역)","code":"940903","bizNo":""}],"catMap":{"스마트스토어":"u_holy","채움영어":"u_lect"},"rates":{"income":[[14000000,0.06,0],[50000000,0.15,1260000],[88000000,0.24,5760000],[150000000,0.35,15440000],[300000000,0.38,19940000],[500000000,0.4,25940000],[1000000000,0.42,35940000],[999999999999,0.45,65940000]],"simple":{"722000":0.749,"940903":0.617},"whtBiz":0.03,"local":0.1,"vat":0.1,"method":{"2024":"단순경비율","2025":"기준경비율"},"standard":{}},"filings":[{"id":"tf2024i","kind":"종소세","year":2024,"period":"귀속","status":"경정","filedDate":"2025-05-02","bookType":"간편장부대상자 · 단순경비율(신고유형 32)","units":[{"unitId":"u_holy","label":"홀리워터(스토어)","code":"722000","method":"단순경비율","revenue":33302692,"expense":24943716,"income":8358976},{"unitId":"u_lect","label":"강사(인적용역)","code":"940903","method":"단순경비율","revenue":25197306,"expense":15546737,"income":9650569}],"f":{"totalIncome":18009545,"deduct":1900000,"base":16109545,"calc":1156431,"taxCredit":90000,"decided":1066431,"prepaid":1511770,"due":-445339},"wht":{"gross":25197306,"tax":755885,"local":75540,"payer":"주식**** (873-81-027**)"},"correction":{"date":"2026-08-23","base":19542908,"calc":1671436,"mainTax":1270890,"under":127089,"late":135603,"total":1533582,"memo":"김포세무서 과세예고통지. 단순경비율 착오신고(실제 기준경비율 대상) + 기납부세액 과다기입. 세무사 이용희 선임, 회신 대기. 지방소득세 약 13만 별도 고지 예정."},"memo":"소득공제 = 본인 1,500,000 + 노란우산 400,000(조특법86조의3 코드115). 국민연금 공제 0. 세액공제 = 표준 70,000 + 전자신고 20,000.","src":"신고서 원본"},{"id":"tf2024v","kind":"부가세","year":2024,"period":"연","status":"신고완료","vatType":"간이","vat":{"from":"2024-01-01","to":"2024-12-31","sales":32875313,"exempt":0,"due":558556},"memo":"부가가치세 과세표준증명(발급 2026-08-24) 기준.","src":"과세표준증명"},{"id":"tf2025i","kind":"종소세","year":2025,"period":"귀속","status":"신고완료","filedDate":"2026-05-07","bookType":"간편장부대상자 · 기준경비율(신고유형 20)","units":[],"f":{"totalIncome":0,"deduct":2700000,"base":0,"calc":0,"taxCredit":0,"decided":0,"prepaid":190310,"due":-190310},"wht":{"gross":6343962,"tax":190310,"local":19010,"payer":"주식**** 940903 6,318,120 + (주)메타크래프트 940909 25,842"},"memo":"⚠️ 사업소득명세서 미확보 — 총수입금액·필요경비 미입력. 종합소득금액 0 의 근거(스토어 결손 통산 여부)도 미확인. 로한: 2025년은 강의를 그만둬서 수입 급감.","src":"신고서 원본(요약 1p)"},{"id":"tf2025v","kind":"부가세","year":2025,"period":"2기(9~12월)","status":"신고완료","vatType":"일반","vat":{"from":"2025-09-01","to":"2025-12-31","sales":11756000,"exempt":0,"due":533895},"memo":"⚠️ 과세표준증명에 2025-09-01 부터만 잡힌다. 2025-01-01~08-31 구간이 비어 있다 — 매출이 없었던 것인지, 간이 기간이라 따로 잡히는 것인지, 일반과세 전환일이 09-01 인지 미확인. 추측하지 않는다.","src":"과세표준증명(발급 2026-08-26)"},{"id":"tf2026v1","kind":"부가세","year":2026,"period":"1기","status":"신고완료","vatType":"일반","vat":{"from":"2026-01-01","to":"2026-06-30","sales":1621727,"exempt":0,"due":1912},"memo":"과세표준증명(발급 2026-08-26) 기준. 스토어 매출 급감으로 납부세액 1,912원.","src":"과세표준증명"}]};
 /* ====== 세무 (v2.0) ======
    설계 — 세 층으로 나눈다. 성격이 다른 것을 한 화면에 뭉개면 안 된다.
      ① 아카이브(2024·2025) = 확정된 과거. 신고서를 그대로 재현한다. **저장한다**
@@ -1584,6 +1584,29 @@ function taxDeductFromTxns(year){
   });
   return by;
 }
+/* 🔒 신고유형은 **직전연도 수입금액**으로 정해진다. '올해 소득'이 아니다.
+   ⚠️ 2024 사고가 정확히 이 판정 착오였다 — 단순경비율로 냈는데 실제는 기준경비율 대상이었다.
+      그래서 앱은 **추측하지 않는다.** 로한이 확인해서 넣기 전엔 '미확정'이다. */
+function taxMethod(year){return ((taxDB().rates||{}).method||{})[String(year)]||null;}
+function setTaxMethod(year,m){
+  var T=taxDB(); T.rates=T.rates||{}; T.rates.method=T.rates.method||{};
+  if(m)T.rates.method[String(year)]=m; else delete T.rates.method[String(year)];
+  logAct('세무 신고유형 · '+year+' → '+(m||'미확정'));
+  save();renderTax();
+}
+var TAX_METHODS=['단순경비율','기준경비율','간편장부','복식부기'];
+/* 판정 근거 = 직전연도 수입금액. 신고 원장이 있으면 그걸, 없으면 가계부에서 파생. */
+function taxPrevRevenue(year){
+  var f=taxFiling(year-1,'종소세','귀속');
+  if(f&&(f.units||[]).length){
+    var s=0,ok=false;(f.units||[]).forEach(function(u){if(u.revenue){s+=u.revenue;ok=true;}});
+    if(ok)return {amt:s,src:'신고서'};
+  }
+  var r=taxIncomeByUnit(year-1),t=0,n=0;
+  Object.keys(r.units).forEach(function(k){t+=r.units[k].gross;n++;});
+  t+=r.unmapped.gross;
+  return n||r.unmapped.n?{amt:t,src:'가계부'}:null;
+}
 /* 세율표는 DB 에 있다 — 세법은 바뀐다 */
 /* ⚠️ 산출세액은 **원 단위 미만 절사**다. 2024 실측으로 확인:
    16,109,545 × 15% − 1,260,000 = 1,156,431.75 → 신고서는 **1,156,431**.
@@ -1683,21 +1706,43 @@ function taxLivePane(year){
         +'<span>'+taxEsc(a)+' <span class="mut">▸</span></span><span>'+won(exp.by[a])+'</span></div>';}).join('')
    +'<div class="taxrow big"><span><b>경비 합계</b></span><span><b>'+won(exp.total)+'</b></span></div></div>';
 
-  /* ③ 소득금액 — 신고유형이 정해져야 확정된다. 그래도 칸은 비워 두지 않는다:
-     번호가 끊기면 '신고서 순서 그대로'라는 약속이 깨진다. */
-  var m3=T.rates&&T.rates.simple||{};
-  var simRows=T.units.map(function(u){
-    var o=inc.units[u.id]; if(!o)return '';
-    var r=m3[u.code];
-    if(r==null)return '<div class="taxrow"><span>'+taxEsc(u.label)+'</span><span class="mut">경비율 미등록</span></div>';
-    return '<div class="taxrow"><span>'+taxEsc(u.label)+' <span class="mut">단순경비율 '+(r*100).toFixed(2)+'% 가정</span></span>'
-      +'<b>'+won(Math.floor(o.gross*(1-r)))+'</b></div>';}).join('');
+  /* ③ 소득금액 — 신고유형이 정해져야 확정된다. 번호를 건너뛰지 않는다:
+     끊기면 '신고서 순서 그대로'라는 약속이 깨진다. */
+  var meth=taxMethod(year), m3=(T.rates&&T.rates.simple)||{}, prev=taxPrevRevenue(year);
+  var mSel='<div class="seg" style="margin-bottom:8px">'
+   +TAX_METHODS.map(function(m){return '<button class="'+(meth===m?'on':'')+'" onclick="setTaxMethod('+year+',\''+m+'\')">'+m+'</button>';}).join('')
+   +'</div>';
+  var basis='<div class="mut" style="line-height:1.75;margin-bottom:7px">'
+   +'🔒 신고유형은 <b>직전연도(' +(year-1)+ ') 수입금액</b>으로 정해진다 — <b>올해 소득이 아니다.</b><br>'
+   +(prev?(year-1)+' 수입금액 <b>'+won(prev.amt)+'</b> <span style="opacity:.75">('+prev.src+' 기준)</span>'
+        :(year-1)+' 수입금액을 모른다 — 신고서를 넣거나 가계부를 채워라')
+   +'<br>⚠️ 업종별 기준금액은 세법 수치다. <b>세무사에게 확인해라</b> — '
+   +'2024년 사고가 정확히 이 판정 착오였다(단순경비율로 냈는데 기준경비율 대상).</div>';
+  var body3;
+  if(meth==='단순경비율'){
+    body3=T.units.map(function(u){
+      var o=inc.units[u.id]; if(!o)return '';
+      var r=m3[u.code];
+      if(r==null)return '<div class="taxrow"><span>'+taxEsc(u.label)+'</span><span class="warn3">경비율 미등록</span></div>';
+      return '<div class="taxrow"><span>'+taxEsc(u.label)+' <span class="mut">'+(r*100).toFixed(2)+'% <span style="opacity:.7">(작년 값)</span></span></span>'
+        +'<b>'+won(Math.floor(o.gross*(1-r)))+'</b></div>';}).join('')
+      +'<div class="mut" style="margin-top:6px">⚠️ 경비율은 <b>매년 고시된다.</b> 위는 작년 값이라 올해와 다를 수 있다.</div>';
+  }else if(meth==='기준경비율'){
+    body3='<div class="mut" style="line-height:1.75">필요경비 = <b>주요경비(매입·임차·인건비 증빙분)</b> + 수입금액 × 기준경비율<br>'
+      +'🔒 <b>기준경비율 값이 없다.</b> 국세청 고시라 추측하지 않는다 — 확인해서 ⚙ 설정에 넣어라.<br>'
+      +'📌 이 경우 <b>증빙이 실제로 세금을 줄인다.</b> 지금부터 영수증을 모아라.</div>'
+      +taxRow('가계부 사업경비(참고)','<b>'+won(exp.total)+'</b>');
+  }else if(meth){
+    body3='<div class="mut" style="line-height:1.75">장부 기준이다 — <b>실제 경비 전부</b>가 필요경비가 된다.</div>'
+      +taxRow('수입금액',won(gross))+taxRow('(−) 가계부 사업경비',won(exp.total))
+      +'<div class="taxrow big"><span><b>소득금액</b></span><span><b>'+won(Math.max(0,gross-exp.total))+'</b></span></div>';
+  }else{
+    body3='<div class="mut" style="padding:6px 0">위에서 신고유형을 고르면 계산 방식이 정해진다. '
+      +'<b>모르면 비워 둬라</b> — 추측으로 정하면 2024년이 반복된다.</div>';
+  }
   var incBox='<div class="sec"><h4>③ 소득금액 <span class="mut">① − ②</span>'
-   +'<span class="mut" style="font-size:11px">신고유형 확정 전 — 참고치</span></h4>'
-   +'<div class="mut" style="line-height:1.7;margin-bottom:6px">'
-   +'⚠️ 아래는 <b>작년 단순경비율을 그대로 적용한 가정치</b>다. 경비율은 매년 고시되고 신고유형도 바뀐다 — '
-   +'<b>확정 숫자가 아니다.</b></div>'+simRows
-   +taxRow('실제 경비로 계산하면','<b>'+won(Math.max(0,gross-exp.total))+'</b>')+'</div>';
+   +'<span class="mut" style="font-size:11px">'+(meth||'⚠️ 신고유형 미확정')+'</span></h4>'
+   +mSel+basis+body3+'</div>';
 
   var dedBox='<div class="sec"><h4>④ 소득공제 <span class="mut">🔒 경비가 아니다 — 신고서 칸이 다르다</span></h4>'
    +dedRows+'<div class="taxrow big"><span><b>합계</b></span><span><b>'+won(dedTot)+'</b></span></div></div>';
@@ -1827,6 +1872,11 @@ function taxCfgPane(){
    +'<div class="sec"><h4>사업장 <span class="mut">= 신고서의 한 줄</span>'
    +'<button class="ghost sm" data-taxunit="">+ 추가</button></h4>'+units+'</div>'
    +'<div class="sec"><h4>계정과목 → 사업장 <span class="mut">여기가 2026→2027 연결의 핵심이다</span></h4>'+map+'</div>'
+   +'<div class="sec"><h4>연도별 신고유형 <span class="mut">직전연도 수입금액으로 정해진다</span></h4>'
+   +taxYears().map(function(y){
+      var m=taxMethod(y);
+      return '<div class="row"><span>'+y+'</span><span'+(m?'':' class="warn3"')+'>'+(m||'⚠️ 미확정')+'</span></div>';}).join('')
+   +'<div class="mut" style="margin-top:7px">진행 연도는 ③ 소득금액 블록에서 고른다.</div></div>'
    +'<div class="sec"><h4>종합소득세율 <span class="mut">세법은 바뀐다 — 코드가 아니라 데이터</span></h4>'+rateRows
    +'<div class="mut" style="margin-top:7px">원천징수(사업소득) '+((R.whtBiz||0)*100).toFixed(1)+'% · 지방소득세 '+((R.local||0)*100).toFixed(0)+'%</div></div>';
 }
@@ -4656,13 +4706,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.0';
+var APP_VERSION='2.01';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.01',date:'2026-08-26',note:"<b>\ud83e\uddfe 부가세 원장 · 신고유형 판정.</b> 부가세 과세표준증명 2건 추가(2025 9~12월 매출 11,756,000·납부 533,895 / 2026 1기 1,621,727·납부 1,912) · ⚠️ <b>내 경보가 또 틀렸다</b> — 2026 1기는 <b>신고 완료</b>였다. 실물 확인 전 경보 금지를 두 번째로 어겼다 · ⚠️ <b>2025-01-01~08-31 이 증명에 비어 있다.</b> 매출이 없었는지·간이 기간이라 따로 잡히는지·전환일이 09-01 인지 <b>모른다. 추측하지 않고 그대로 드러낸다</b> · \ud83d\udd12 <b>신고유형 판정 기준을 화면에 박았다</b> — 로한: <i>“올해 소득이 5,800만을 안 넘으니 단순경비율 아니냐”</i>. 결론은 맞을 수 있어도 <b>기준이 틀렸다</b>: 판정은 <b>직전연도 수입금액</b>으로 한다. 그가 기억한 5,800만은 2024년 총수입(정확히는 58,499,998)이지 판정 기준선이 아니다. <b>2024 사고가 정확히 이 판정 착오였다</b>(단순경비율로 냈는데 기준경비율 대상) · ③ 소득금액에 <b>[단순|기준|간편장부|복식]</b> 선택 + 직전연도 수입금액(판정 근거)을 같이 띄운다. 고르는 유형에 따라 계산 방식이 바뀐다 · <b>2026 은 '미확정'으로 둔다</b> — 추측으로 못 박으면 2024년이 반복된다 · 기준경비율 값은 국세청 고시라 <b>비워 뒀다</b> · t32 92건"},
   {v:'2.0',date:'2026-08-26',note:"<b>\ud83e\uddfe 세무 전면 재설계 (로한 설계).</b> ⚠️ v1.9까지 세무 탭은 <b>계산기 하나</b>였다 — <code>taxParams</code> 숫자 7개가 전부. 2024년에 본세 127만+가산세 26만을 맞은 사건이 <b>앱에 흔적조차 없었다</b> · <b>세 층으로 나눴다</b>: 아카이브(2024·2025 신고서 재현) / 진행(가계부에서 파생) / 매핑(둘을 잇는 규칙) · \ud83d\udd12 <b>신고서는 사업장(업종코드) 단위로 쓰인다</b> — v1.9는 <code>gangsaIncome+storeNet</code> 두 숫자라 신고서와 모양이 달랐다. <code>units[]</code>(722000 홀리워터 / 940903 강사) + 계정과목→사업장 매핑으로 교체 · ⚠️ <b>[결함] 가계부 채움영어 금액이 세후였다.</b> 3.3% 떼고 들어온 실입금액인데 신고서 총수입금액은 세전이다. 그대로 쓰면 <b>수입 3.3% 과소신고 + 기납부세액 누락</b>으로 양쪽 손해. 거래에 <code>wht</code> 를 저장하고 <b>세전은 파생</b>한다 · <b>대납·정산(<code>tk:pass</code>) 개념 신설</b> — 광고비 대납은 소득도 경비도 아닌데 v1.9는 양쪽 다 세무에 넣고 있었다. 미회수까지 표시 · \ud83d\udd12 <b>진행 연도 숫자는 손으로 못 고친다</b>(로한: <i>“기본 원칙은 가계부 기반”</i>). 줄을 누르면 <b>근거 거래</b>가 열리고 거기서 고친다. 실제 신고 후 <b>📌 박제</b>로 원장이 된다 · ⚠️ <b>940903 은 사업소득</b>이다 — 2024 기납부세액명세서 ⑦ 칸으로 확정. v1.9는 기타소득으로 잡고 있었다 · 세율표를 코드에서 DB로(8구간 전부). 원천징수율 3.3%→<b>3%</b>(2024 실측 검증) · \ud83d\udd12 부가세는 <b>자동 계산하지 않는다</b> — 세금계산서 수취 데이터가 없다. 모르는 걸 계산하면 틀린 숫자를 확신하게 된다 · 시드: 2024 종소세(경정 포함)·2024 부가세·2025 종소세"},
   {v:'1.9',date:'2026-08-26',note:"<b>↕ 데일리 정렬 토글 · 🕯️ 일진 길흉·말풍선.</b> ⚠️ <b>[내 판단 착오] v1.8 의 루틴 순서가 데일리에 '그룹째' 반영됐다.</b> 로한: <i>“순서를 조정하면 여기에 반영이 안된다. 서로 연동되어야지.”</i> 코드는 내가 의도한 대로 돌았지만 <b>그 의도가 틀렸다</b> — 데일리가 목표별로 묶는 바람에 <code>E.8a(7시 기상)</code> 를 1번으로 올리자 <b>E 그룹 전체가 통째로</b> 올라가고 같은 그룹인 <code>E.8b(24시 취침)</code> 까지 아침 사이에 끼었다. 로한이 순서를 매기는 이유는 <b>하루의 시간 흐름</b>이지 목표 묶음이 아니다 · → 데일리 루틴에 <b>[↕ 순서대로 | 🎯 목표별]</b> 토글. <b>기본은 순서대로</b>(설계 순서를 그대로 일렬로 복사). 목표 연계는 각 줄의 코드·눈금 뱃지가 이미 하고 있어 그룹 머리글이 없어도 죽지 않는다 · 🔒 <b>일진 길/흉/평 판정을 파생 함수로 뺐다</b>(<code>dayVerdict</code>) — v1.8까지 <code>renderSaju</code> 안에 인라인으로 박혀 있어 데일리가 못 썼다. 이제 두 화면이 <b>같은 함수</b>를 쓴다 · 데일리 상단에 <b>⚔凶 / ⚜吉 / ◈平</b> + 간지 + 걸린 것(충·형·합) + 💬 말풍선. 말풍선 키는 사주 페이지와 <b>같은 <code>day:YYYY-MM-DD</code></b> 라 저장한 해석이 그대로 뜬다 · ⚠️ 명리는 유파마다 판정이 다르다. <b>'충·형이 있으면 凶'</b> 이라는 단순 규칙일 뿐이므로 근거를 툴팁에 그대로 노출한다 — 확정된 길흉이 아니다 · t30 48건으로 확장"},
   {v:'1.8',date:'2026-08-25',note:"<b>↕ 루틴 순서 · 💳 카드결제일 · 🔄 충돌 설명.</b> (로한 요청 3건) · <b>루틴 ▲▼</b> — 순서를 한 곳에서 바꾸면 데일리·설계·전체목록이 같이 움직인다. ⚠️ <b>[결함] 세 화면이 서로 다르게 정렬하고 있었다</b>: 데일리는 <code>order</code>, 설계·목록은 <code>code</code>. 게다가 <code>order</code> 는 추가할 때 한 번 박히기만 하고 구 루틴엔 아예 없어서(전부 0) 데일리가 사실상 <b>입력순</b>이었다. 정렬을 <code>rtCmp</code> 하나로 합치고, 마이그레이션에서 코드순으로 기준을 잡았다(<code>rtOrdSeeded</code>) · 🔒 데일리는 <b>목표별 그룹</b>이라 한 칸 이동이 <b>그룹째</b> 움직인다 — 의도된 동작이며 t30 이 잠갔다 · ⚠️ <b>[결함·중대] 카드결제 날짜가 무조건 오늘로 박혔다.</b> <code>doSettle</code> 이 <code>date:todayStr()</code> 였다. 화면엔 <b>결제 예정일을 이미 보여주고 있었는데</b> 저장은 오늘로 했다 — 말과 기록이 달랐다. 로한이 1월 데이터를 소급 입력하자 <b>1월 카드값이 8월 유출</b>로 잡혔다(실측 113,987원 · 211일 어긋남). 7월까지 밀었으면 <b>8월에 7개월치가 몰리고 1~7월은 0으로 비었을 것</b> · 결제일 입력칸 신설 — 기본값은 <b>예정일이 지났으면 그 날</b>(소급), <b>아직이면 오늘</b>(실제 선결제) · 어긋난 기존 결제엔 <b>'날짜 ±N일'</b> 뱃지 + ✎ 로 <b>날짜만</b> 수정(금액·구성은 막았다 — 원장이 깨진다) · ⚠️ <b>[결함·중대] 카드결제를 지우면 돈이 조용히 증발했다.</b> 원 거래는 <code>card=false</code> 로 남고 결제 기록만 사라져 <b>'낸 적도 없고 낼 것도 없는' 돈</b>이 됐다. <code>unsettle()</code> 로 그 주기 회차를 미결제로 되돌린다(할부는 회차 되감기) · <b>🔄 동기화 충돌에 설명을 붙였다</b> — 로한: <i>“무슨 데이터가 어떻게 충돌하는지 설명이 없어서 그냥 일괄 확인 누른다.”</i> v1.7 까지 <code>syncConflict</code> 는 서버의 <b>updated_at(시각)만</b> 읽었다 — 비교할 재료 자체가 없었다. 이제 서버 data 를 받아 컬렉션별로 <b>내 쪽에만 / 저쪽에만 / 양쪽 다름</b>을 항목 라벨까지 보여준다 · 🔒 <b>덮어쓰기 직전 서버본을 스냅샷</b>(<code>pre_overwrite</code>)으로 남긴다 — 잘못 눌러도 되돌릴 수 있다 · t30 27건 · t31 38건 신설"},
