@@ -86,11 +86,11 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
      D3 는 주말 전용이라 오늘이 무슨 요일이냐에 따라 뜨고 안 뜬다.
      🔒 날짜에 기대는 단정은 쓰지 않는다 (t23 이 08-20 을 박아 뒀다가 날짜가 넘어가며 터졌다).
 
-     ⚠️ 그리고 데일리는 **목표별로 묶어서** 보여준다(v10.0 todayGroups). 그래서 설계 순서를
-        그대로 일렬로 복사하지 않는다. 실제 불변식은 두 개다:
-          ① 같은 목표 그룹 안에서는 설계 순서를 지킨다
-          ② 그룹이 나오는 순서는 그 그룹 '첫 루틴'의 설계 순서를 따른다
-        = 순서를 바꾸면 데일리도 바뀌되, **목표 단위로 함께 움직인다.** 그걸 검증한다. */
+     ⚠️ v1.8 은 목표별 그룹만 있어서 '그룹째' 움직였다 — 로한: "반영이 안된다. 서로 연동되어야지."
+        v1.9 부터 정렬 토글이 있다.
+          · 기본 '순서대로' = 설계 순서를 **그대로 일렬로** 복사한다
+          · '목표별'       = 그룹 안 순서 유지 + 그룹 순서는 첫 루틴 기준
+        둘 다 검증한다. */
   const gkeyMap = p => p.evaluate(()=>{
     const m={};
     (DB.routines||[]).forEach(r=>{
@@ -118,8 +118,15 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
   await p.click('.m[data-v="daily"]');await p.waitForTimeout(400);
   const d1=await dailyCodes(p);
   const gk=await gkeyMap(p);
+  const mode=await p.evaluate(()=>rtGroupMode());
+  ok('D0 기본은 순서대로',mode==='order',mode);
   ok('D1 데일리에 루틴이 뜬다',d1.length>=5,d1.join(','));
-  ok('D2 데일리가 설계 순서를 (목표 단위로) 따른다',follows(d1,m1,gk)==='',follows(d1,m1,gk));
+  /* 🔒 순서대로 모드 = 설계 순서를 그대로 복사한다. 그룹이 끼어들면 안 된다. */
+  const dueOrder=await p.evaluate(()=>routinesForDay(curDate()).map(r=>r.code));
+  ok('D2 데일리가 설계 순서 그대로다',d1.join(',')===dueOrder.join(','),d1.join(',')+' vs '+dueOrder.join(','));
+  const noHd=await p.evaluate(()=>document.querySelectorAll('#v-daily .rghd').length);
+  ok('D2b 순서대로일 땐 그룹 머리글이 없다',noHd===0,noHd);
+  ok('D2c 정렬 토글이 보인다',await p.evaluate(()=>document.querySelectorAll('#v-daily .rsort').length===2));
 
   /* 맨 아래를 맨 위로 5번 올린다 → 데일리 그룹 순서까지 뒤집히는가 */
   await p.click('.m[data-v="goal"]');await p.waitForTimeout(300);
@@ -131,13 +138,19 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
   await p.click('.m[data-v="daily"]');await p.waitForTimeout(400);
   const d2=await dailyCodes(p);
   ok('D4 데일리도 E.8B 가 맨 위',d2[0]==='E.8B',d2.join(','));
-  ok('D5 바뀐 설계 순서를 계속 따른다',follows(d2,m2,gk)==='',follows(d2,m2,gk));
-  /* 🔒 로한이 알아야 할 한계를 잠근다 — 목표가 다르면 한 칸 이동이 '그룹째' 움직인다. */
-  const grpMove=await p.evaluate(()=>{
-    const before=routinesForDay(curDate()).map(r=>r.code);
-    return before.length>0;
-  });
-  ok('D6 데일리가 비지 않는다',grpMove===true);
+  const dueOrder2=await p.evaluate(()=>routinesForDay(curDate()).map(r=>r.code));
+  ok('D5 바뀐 설계 순서를 그대로 따른다',d2.join(',')===dueOrder2.join(','),d2.join(',')+' vs '+dueOrder2.join(','));
+
+  /* 🔒 '목표별' 모드로 바꾸면 그룹이 살아나고, 그 안에서 순서를 지킨다 */
+  await p.evaluate(()=>setRtGroupMode('goal'));await p.waitForTimeout(350);
+  const d3=await dailyCodes(p);
+  const hd=await p.evaluate(()=>document.querySelectorAll('#v-daily .rghd').length);
+  ok('D6 목표별로 바꾸면 그룹 머리글이 생긴다',hd>=2,hd);
+  ok('D7 그룹 안에서는 설계 순서를 지킨다',follows(d3,m2,gk)==='',follows(d3,m2,gk));
+  ok('D8 모드가 저장된다',await p.evaluate(()=>DB.ui.dailyGroup==='goal'));
+  await p.evaluate(()=>setRtGroupMode('order'));await p.waitForTimeout(350);
+  const d4=await dailyCodes(p);
+  ok('D9 되돌리면 다시 일렬',d4.join(',')===dueOrder2.join(','),d4.join(','));
 
   /* ── E. 전체 루틴 목록도 같은 순서 ── */
   await p.click('.m[data-v="goal"]');await p.waitForTimeout(300);
@@ -207,7 +220,77 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
   await b.close();
 }
 
-console.log('t30 루틴 순서 |',pass,'통과 /',fail,'실패');
+/* ── J. 데일리 상단 일진 — 길/흉/평 + 말풍선 (사주 페이지와 같은 판정·같은 키) ── */
+{
+  const st=BASE();
+  st.saju={birth:{solar:'1986-05-10',lunar:'1986-04-02',gender:'M'},
+    natal:{year:'丙寅',month:'癸巳',day:'甲寅',hour:'乙亥'},ilgan:'甲',gongmang:['子','丑'],gyeok:'식신격',
+    daeun:{startAge:9,dir:'순행',list:[[9,'甲午'],[19,'乙未'],[29,'丙申'],[39,'丁酉']]},
+    readings:{}};
+  const {b,p,errs}=await boot(st);
+
+  /* 판정 규칙 — 충·형이 있으면 凶, 합 계열만 있으면 吉, 아무것도 없으면 平 */
+  const v=await p.evaluate(()=>{
+    const mk=fl=>dayVerdict({flags:fl});
+    return {
+      chung:mk([{t:'충'}]).k, hyeong:mk([{t:'형'}]).k, ganchung:mk([{t:'천간충'}]).k,
+      hap:mk([{t:'합'}]).k, samhap:mk([{t:'삼합'}]).k, banhap:mk([{t:'반합'}]).k,
+      none:mk([]).k, gongmang:mk([{t:'공망'}]).k,
+      mixed:mk([{t:'충'},{t:'합'}]).k,          /* 충이 있으면 합이 있어도 凶 */
+      marks:[mk([{t:'충'}]).mark,mk([{t:'합'}]).mark,mk([]).mark]
+    };
+  });
+  ok('J1 충·형·천간충 → 凶',v.chung==='bad'&&v.hyeong==='bad'&&v.ganchung==='bad',
+     `${v.chung}/${v.hyeong}/${v.ganchung}`);
+  ok('J2 합·삼합·반합 → 吉',v.hap==='good'&&v.samhap==='good'&&v.banhap==='good',
+     `${v.hap}/${v.samhap}/${v.banhap}`);
+  ok('J3 아무것도 없으면 平',v.none==='neu',v.none);
+  ok('J4 공망만 있으면 平',v.gongmang==='neu',v.gongmang);
+  ok('J5 충이 섞이면 합이 있어도 凶',v.mixed==='bad',v.mixed);
+  /* ⚠️ ⚔/⚜ 는 폰트에 따라 두부(□)로 뜬다 — 한자만 쓴다. */
+  ok('J6 표기가 凶/吉/平',v.marks.join(',')==='凶,吉,平',v.marks.join(','));
+
+  /* 화면 */
+  await p.click('.m[data-v="daily"]');await p.waitForTimeout(400);
+  const ui=await p.evaluate(()=>{
+    const e=document.querySelector('#v-daily .dsaju');
+    return e?{html:e.innerHTML,badge:!!e.querySelector('.fbadge'),bub:!!e.querySelector('.bub'),
+              tip:e.getAttribute('title')}:null;
+  });
+  ok('J7 데일리 상단에 일진 블록이 있다',ui!==null);
+  ok('J8 길흉 뱃지가 붙는다',ui&&ui.badge===true);
+  ok('J9 말풍선이 붙는다',ui&&ui.bub===true);
+  ok('J10 근거가 툴팁에 들어간다',ui&&typeof ui.tip==='string'&&ui.tip.length>0,ui&&ui.tip);
+
+  /* 🔒 사주 페이지와 같은 키를 쓴다 — 저장된 해석이 데일리에서 켜져야 한다 */
+  const off=await p.evaluate(()=>document.querySelector('#v-daily .bub').classList.contains('on'));
+  ok('J11 해석이 없으면 말풍선 꺼짐',off===false);
+  const on=await p.evaluate(()=>{
+    const d=curDate();
+    DB.saju.readings['day:'+d]={text:'테스트 해석',savedAt:d};
+    renderDaily();
+    return document.querySelector('#v-daily .bub').classList.contains('on');
+  });
+  ok('J12 사주 페이지에 저장된 day: 해석이 데일리에서 켜진다',on===true);
+  const opened=await p.evaluate(()=>{
+    document.querySelector('#v-daily .bub').click();
+    const h=document.getElementById('modal').innerHTML;
+    closeModal(); return h.indexOf('테스트 해석')>=0;
+  });
+  ok('J13 눌러서 해석을 읽을 수 있다',opened===true);
+
+  /* 🔒 사주 페이지가 같은 함수를 쓰는가 — 두 벌로 갈라지면 반드시 어긋난다 */
+  const dup=await p.evaluate(()=>{
+    const src=renderSaju.toString();
+    return src.indexOf('dayVerdictBadge')>=0 && src.indexOf("f.t==='충'")<0;
+  });
+  ok('J14 사주 페이지도 dayVerdictBadge 를 쓴다 (판정 중복 없음)',dup===true);
+
+  ok('J15 JS 에러 0',errs.length===0,errs[0]);
+  await b.close();
+}
+
+console.log('t30 루틴 순서·일진 |',pass,'통과 /',fail,'실패');
 if(bad.length)console.log('  ✗ '+bad.join('\n  ✗ '));
 process.exit(fail?1:0);
 })();

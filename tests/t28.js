@@ -122,7 +122,11 @@ console.log('\n=== ③ 카드결제는 지출 루트가 아니다 ===');
  ok(old,'역산도 catMix 도 불가한 건만 "내역미상" 으로 정직하게 표시');
  const sh=await p.evaluate(()=>[cfShort(1500),cfShort(33254),cfShort(365934),cfShort(123456789)]);
  ok(sh[1]==='33,000'&&sh[2]==='366,000','만 → 천 단위', sh.join(' / '));
- const row=await p.evaluate(()=>{renderCal();renderDay(todayStr());
+ /* ⚠️ v1.9: 카드결제는 더 이상 '오늘'이 아니라 **실제 결제일**에 들어간다(v1.8 결함 수정).
+    🔒 그러니 todayStr() 로 찾으면 안 된다 — 거래가 실제로 박힌 날짜를 읽어서 연다. */
+ const row=await p.evaluate(()=>{
+   const st=DB.transactions.filter(x=>x.type==='settle'&&x.catMix)[0];
+   renderCal();renderDay(st.date);
    const el=[...document.querySelectorAll('#dayPanel .txr.st')][0];
    return el?el.textContent.replace(/\s+/g,' ').trim():'(없음)';});
  ok(/식비 120,000/.test(row)&&/의료 80,000/.test(row),'거래 행에 세부 적요', row.slice(0,72));

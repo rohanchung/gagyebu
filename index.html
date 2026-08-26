@@ -346,7 +346,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .sajucols .scbody{max-height:460px;overflow:auto}
 .bub{cursor:pointer;font-size:13px;margin-left:6px;opacity:.28;user-select:none}
 .bub.on{opacity:1}.bub:hover{opacity:.8}
-.fbadge{font-family:var(--serif);font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;letter-spacing:.5px;white-space:nowrap}
+.fbadge{font-family:var(--serif);font-size:11px;font-weight:800;padding:1px 7px;border-radius:4px;white-space:nowrap}
+/* 데일리 상단 일진 — 뱃지·간지·근거·말풍선을 한 덩어리로 */
+.dsaju{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.dsaju b{font-family:var(--serif);font-size:12.5px}
+.dsaju .mut{font-size:10.5px}
+/* 데일리 루틴 정렬 토글 */
+.rsortbar{display:flex;gap:5px;margin:0 0 8px}
+.rsort{font-size:10.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);
+  background:var(--soft);color:var(--muted);cursor:pointer;user-select:none}
+.rsort.on{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:700}
 .fbadge.good{background:#f3ead2;color:#8a6d12;border:1px solid #e3d3a0}
 .fbadge.bad{background:#fadfd9;color:#a3301f;border:1px solid #edb6ab}
 .fbadge.neu{background:#eceae3;color:#6b6552;border:1px solid #ddd8c8}
@@ -2207,6 +2216,19 @@ function dayFlags(y,m,d){var p=sjPillars(y,m,d),T=p.dayBranch,TG=p.dayStem,N=nat
   if(DB.saju.gongmang.indexOf(T)>=0)fl.push({t:'공망',w:'특이',d:T+'공망일'});
   // 중복 제거
   var seen={},out=[];fl.forEach(function(f){if(!seen[f.d]){seen[f.d]=1;out.push(f);}});return {gz:p.day,flags:out};}
+/* v1.9 — 길/흉/평 판정. v1.8까지 renderSaju 안에 인라인으로 박혀 있어 데일리가 못 썼다.
+   ⚠️ 명리는 유파마다 판정이 다르다. 이건 **충·형 계열이 있으면 凶 / 합 계열만 있으면 吉**
+      이라는 단순 규칙일 뿐, 확정된 길흉이 아니다. 근거(무엇이 걸렸는지)를 항상 같이 보여준다. */
+function dayVerdict(ft){
+  var fl=(ft&&ft.flags)||[];
+  var bad=fl.some(function(f){return f.t==='충'||f.t==='형'||f.t==='천간충';});
+  var good=fl.some(function(f){return f.t==='합'||f.t==='삼합'||f.t==='반합';});
+  /* ⚠️ ⚔/⚜ 이모지는 폰트에 따라 두부(□)로 뜬다. 한자만 남기고 색으로 구분한다. */
+  if(bad)return {k:'bad',mark:'凶',label:'주의'};
+  if(good)return {k:'good',mark:'吉',label:'순조'};
+  return {k:'neu',mark:'平',label:'평'};
+}
+function dayVerdictBadge(ft){var v=dayVerdict(ft);return '<span class="fbadge '+v.k+'">'+v.mark+'</span>';}
 function sajuEsc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function rmk(key){return (DB.saju.readings&&DB.saju.readings[key])?' 💬':'';}
 function sajuRead(key,title){var r=(DB.saju.readings||{})[key];
@@ -2230,9 +2252,7 @@ function renderSaju(){
     months+='<div class="row" style="cursor:pointer'+(msel?';background:var(--accent-bg)':'')+'" onclick="sajuPickMonth(\''+selY+'-'+mm+'\')"><span><b>'+M+'월</b> <span style="font-size:15px;font-weight:800">'+mp+'</span> <span class="mut">'+sipsin(ig,mp[0])+'·'+jiSipsin(ig,mp[1])+'</span></span>'+bub(mkey,selY+'년 '+M+'월 '+mp)+'</div>';}
   var mA=+selMM,dim=new Date(selY,mA,0).getDate();
   var special='';for(var dd=1;dd<=dim;dd++){var df=dayFlags(selY,mA,dd);if(df.flags.length){
-    var bad=df.flags.some(function(f){return f.t==='충'||f.t==='형'||f.t==='천간충';});
-    var good=df.flags.some(function(f){return f.t==='합'||f.t==='삼합'||f.t==='반합';});
-    var vb=bad?'<span class="fbadge bad">⚔ 凶</span>':(good?'<span class="fbadge good">⚜ 吉</span>':'<span class="fbadge neu">◈ 平</span>');
+    var vb=dayVerdictBadge(df);   /* v1.9 — 데일리와 같은 함수를 쓴다 */
     var ds=selY+'-'+selMM+'-'+String(dd).padStart(2,'0'),dkey='day:'+ds;
     special+='<div class="row"><span>'+vb+' <b>'+mA+'/'+dd+'</b> <span style="font-weight:800">'+df.gz+'</span> <span class="mut" style="font-size:10px">'+df.flags.map(function(f){return f.d;}).join('·')+'</span></span>'+bub(dkey,ds+' '+df.gz)+'</div>';}}
   if(!special)special='<div class="mut" style="padding:8px 0">이 달 특이일 없음</div>';
@@ -3415,8 +3435,21 @@ function goalRow(g,compact){
 }
 
 /* --- 그날의 루틴 (목표별 그룹) --- */
+/* v1.9 — 로한: "루틴에서 순서를 조정하면 여기에 반영이 안된다. 서로 연동되어야지."
+   ⚠️ v1.8 은 '그룹 안에서만' 순서를 지켰다. 그래서 E.8a 를 1번으로 올리면
+      **E 그룹 전체가 통째로** 맨 위로 올라가고, 같은 그룹인 E.8b(24시 취침)까지 아침 사이에 끼었다.
+      로한이 순서를 매기는 이유는 **하루의 시간 흐름**이지 목표 묶음이 아니다.
+   → 정렬 방식을 로한이 고른다. 기본은 '순서대로'(그가 방금 순서를 정했으므로).
+      목표 연계는 각 줄의 코드·눈금 뱃지가 이미 하고 있으므로 그룹 머리글이 없어도 죽지 않는다. */
+function rtGroupMode(){return (DB.ui&&DB.ui.dailyGroup==='goal')?'goal':'order';}
+function setRtGroupMode(m){DB.ui=DB.ui||{};DB.ui.dailyGroup=m;save();renderDaily();}
 function todayGroups(t){
   var rs=routinesForDay(t),groups=[],idx={};
+  if(rtGroupMode()==='order'){
+    /* 설계에서 정한 순서 그대로 일렬. 머리글 없음. */
+    return [{key:'_all',label:'',cls:'',rows:rs.map(function(r){
+      return {r:r,g:r.goalId?goalById(r.goalId):null};})}];
+  }
   function bucket(key,label,cls){
     if(!idx[key]){idx[key]={key:key,label:label,cls:cls,rows:[]};groups.push(idx[key]);}
     return idx[key];
@@ -3571,9 +3604,16 @@ function renderDaily(){
     var pct=goalPct(g);
     return '<span class="dgchip'+(pct>=100?' full':'')+'" data-gojump="'+g.id+'" title="'+sajuEsc(g.title)+' · 누르면 목표·루틴 탭">'
       +'<b class="gcode">'+g.code+'</b>'+sajuEsc(cut(g.title,10))+' <i>'+pct+'%</i></span>';}).join('');
+  /* v1.9 — 로한: "길, 흉, 평 이걸 표시 + 여기서도 말풍선이 보였으면 · 사주페이지랑 연동".
+     🔒 판정도 말풍선 키(day:YYYY-MM-DD)도 사주 페이지와 **같은 것**을 쓴다. 두 벌로 갈라지면 반드시 어긋난다. */
   var sajuD='';
   try{var ft=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
-    sajuD='<span class="mut">'+ft.gz+(ft.flags.length?' '+ft.flags.map(function(f){return f.t;}).join('·'):'')+'</span>';
+    var _fd=ft.flags.map(function(f){return f.d;}).join(' · ');
+    sajuD='<span class="dsaju" title="'+sajuEsc(_fd||'걸린 것 없음')+'">'
+      +dayVerdictBadge(ft)
+      +'<b>'+ft.gz+'</b>'
+      +(ft.flags.length?'<span class="mut">'+ft.flags.map(function(f){return f.t;}).join('·')+'</span>':'<span class="mut">무난</span>')
+      +bub('day:'+d,d+' '+ft.gz)+'</span>';
   }catch(e){}
   var used=tlUsed(d);
   var topbar='<div class="dtop">'
@@ -3599,12 +3639,18 @@ function renderDaily(){
 
   /* ── 우: 날짜는 고정, 내용만 탭으로 바뀐다 ── */
   var groups=todayGroups(d);
-  var tasks=groups.length?groups.map(function(gr){
-    return '<div class="rgroup"><div class="rghd '+gr.cls+'">'+sajuEsc(gr.label)+'</div>'
+  var _nrt=groups.reduce(function(a,g){return a+g.rows.length;},0);
+  var tasks=_nrt?groups.map(function(gr){
+    return '<div class="rgroup">'+(gr.label?'<div class="rghd '+gr.cls+'">'+sajuEsc(gr.label)+'</div>':'')
      +gr.rows.map(function(x){return routineRow(d,x.r,x.g);}).join('')+'</div>';
   }).join(''):'<div class="mut" style="padding:10px 0;font-size:11.5px">이 날 해당하는 루틴이 없다. <b>목표·루틴</b> 탭에서 설계해라.</div>';
+  var _gm=rtGroupMode();
+  var sortBar=_nrt?('<div class="rsortbar">'
+    +'<span class="rsort'+(_gm==='order'?' on':'')+'" onclick="setRtGroupMode(\'order\')" title="루틴 설계의 ▲▼ 순서 그대로">↕ 순서대로</span>'
+    +'<span class="rsort'+(_gm==='goal'?' on':'')+'" onclick="setRtGroupMode(\'goal\')" title="목표별로 묶어서 — 순서는 그룹째 움직인다">🎯 목표별</span>'
+    +'</div>'):'';
   var nMiss=missRows(d).length;
-  var routinePane=tasks
+  var routinePane=sortBar+tasks
    +(nMiss?('<div class="tlnudge" data-dtab="log">⏳ 못 한 게 '+nMiss+'개다 — <b>그 시간에 뭘 했는지</b> 적어라</div>'):'')
    +'<div style="margin-top:10px"><button class="ghost sm" onclick="gotoTab(\'goal\')">⚙ 루틴 설계</button>'
    +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 사용 '+usedCards().length+'건</span></div>';
@@ -4058,13 +4104,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='1.8';
+var APP_VERSION='1.9';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'1.9',date:'2026-08-26',note:"<b>↕ 데일리 정렬 토글 · 🕯️ 일진 길흉·말풍선.</b> ⚠️ <b>[내 판단 착오] v1.8 의 루틴 순서가 데일리에 '그룹째' 반영됐다.</b> 로한: <i>“순서를 조정하면 여기에 반영이 안된다. 서로 연동되어야지.”</i> 코드는 내가 의도한 대로 돌았지만 <b>그 의도가 틀렸다</b> — 데일리가 목표별로 묶는 바람에 <code>E.8a(7시 기상)</code> 를 1번으로 올리자 <b>E 그룹 전체가 통째로</b> 올라가고 같은 그룹인 <code>E.8b(24시 취침)</code> 까지 아침 사이에 끼었다. 로한이 순서를 매기는 이유는 <b>하루의 시간 흐름</b>이지 목표 묶음이 아니다 · → 데일리 루틴에 <b>[↕ 순서대로 | 🎯 목표별]</b> 토글. <b>기본은 순서대로</b>(설계 순서를 그대로 일렬로 복사). 목표 연계는 각 줄의 코드·눈금 뱃지가 이미 하고 있어 그룹 머리글이 없어도 죽지 않는다 · 🔒 <b>일진 길/흉/평 판정을 파생 함수로 뺐다</b>(<code>dayVerdict</code>) — v1.8까지 <code>renderSaju</code> 안에 인라인으로 박혀 있어 데일리가 못 썼다. 이제 두 화면이 <b>같은 함수</b>를 쓴다 · 데일리 상단에 <b>⚔凶 / ⚜吉 / ◈平</b> + 간지 + 걸린 것(충·형·합) + 💬 말풍선. 말풍선 키는 사주 페이지와 <b>같은 <code>day:YYYY-MM-DD</code></b> 라 저장한 해석이 그대로 뜬다 · ⚠️ 명리는 유파마다 판정이 다르다. <b>'충·형이 있으면 凶'</b> 이라는 단순 규칙일 뿐이므로 근거를 툴팁에 그대로 노출한다 — 확정된 길흉이 아니다 · t30 48건으로 확장"},
   {v:'1.8',date:'2026-08-25',note:"<b>↕ 루틴 순서 · 💳 카드결제일 · 🔄 충돌 설명.</b> (로한 요청 3건) · <b>루틴 ▲▼</b> — 순서를 한 곳에서 바꾸면 데일리·설계·전체목록이 같이 움직인다. ⚠️ <b>[결함] 세 화면이 서로 다르게 정렬하고 있었다</b>: 데일리는 <code>order</code>, 설계·목록은 <code>code</code>. 게다가 <code>order</code> 는 추가할 때 한 번 박히기만 하고 구 루틴엔 아예 없어서(전부 0) 데일리가 사실상 <b>입력순</b>이었다. 정렬을 <code>rtCmp</code> 하나로 합치고, 마이그레이션에서 코드순으로 기준을 잡았다(<code>rtOrdSeeded</code>) · 🔒 데일리는 <b>목표별 그룹</b>이라 한 칸 이동이 <b>그룹째</b> 움직인다 — 의도된 동작이며 t30 이 잠갔다 · ⚠️ <b>[결함·중대] 카드결제 날짜가 무조건 오늘로 박혔다.</b> <code>doSettle</code> 이 <code>date:todayStr()</code> 였다. 화면엔 <b>결제 예정일을 이미 보여주고 있었는데</b> 저장은 오늘로 했다 — 말과 기록이 달랐다. 로한이 1월 데이터를 소급 입력하자 <b>1월 카드값이 8월 유출</b>로 잡혔다(실측 113,987원 · 211일 어긋남). 7월까지 밀었으면 <b>8월에 7개월치가 몰리고 1~7월은 0으로 비었을 것</b> · 결제일 입력칸 신설 — 기본값은 <b>예정일이 지났으면 그 날</b>(소급), <b>아직이면 오늘</b>(실제 선결제) · 어긋난 기존 결제엔 <b>'날짜 ±N일'</b> 뱃지 + ✎ 로 <b>날짜만</b> 수정(금액·구성은 막았다 — 원장이 깨진다) · ⚠️ <b>[결함·중대] 카드결제를 지우면 돈이 조용히 증발했다.</b> 원 거래는 <code>card=false</code> 로 남고 결제 기록만 사라져 <b>'낸 적도 없고 낼 것도 없는' 돈</b>이 됐다. <code>unsettle()</code> 로 그 주기 회차를 미결제로 되돌린다(할부는 회차 되감기) · <b>🔄 동기화 충돌에 설명을 붙였다</b> — 로한: <i>“무슨 데이터가 어떻게 충돌하는지 설명이 없어서 그냥 일괄 확인 누른다.”</i> v1.7 까지 <code>syncConflict</code> 는 서버의 <b>updated_at(시각)만</b> 읽었다 — 비교할 재료 자체가 없었다. 이제 서버 data 를 받아 컬렉션별로 <b>내 쪽에만 / 저쪽에만 / 양쪽 다름</b>을 항목 라벨까지 보여준다 · 🔒 <b>덮어쓰기 직전 서버본을 스냅샷</b>(<code>pre_overwrite</code>)으로 남긴다 — 잘못 눌러도 되돌릴 수 있다 · t30 27건 · t31 38건 신설"},
   {v:'1.7',date:'2026-08-25',note:"<b>🛡️ 보험 신설 (로한 설계).</b> 건강 아래 <b>로한ㅣ아버지ㅣ어머니</b> 탭. ⚠️ 로한이 준 md 의 '피보험자 정복현'이 '내 보험'과 충돌하는 것처럼 보였으나, 프로젝트의 <code>0102_보험관리.xlsx</code> 헤더가 <b>복현ㅣ엄마ㅣ아빠</b> 로 갈라 놓아 <b>정복현=로한</b> 임이 데이터로 확정됐다 — 묻지 않고 대조해서 풀었다. · <b>축을 둘로 나눴다</b>: 비용 축(계약·특약 보험료)과 보장 축(정규화 보장명 × 계약 매트릭스). '무슨 일이 나면 얼마'는 보장 축에서만 나온다 · 상단 <b>가족 보장 한눈에</b>(실손·암·뇌·심장·사망·입원일당) — 탭을 옮기지 않아도 세 사람이 한 표에 뜬다 · <b>보장 공백</b> 자동 표시 — '없는 것'과 '자료가 안 들어온 것'을 구분한다 · <b>🔒 실손은 합산하지 않는다</b>(비례보상) — 매트릭스 합계에서 최대치로 잡는다. 아버지는 흥국·삼성 두 곳에 실손이 있어 그냥 더하면 1억으로 뜬다 · ⚠️ <b>원문 요약본이 스스로 안 맞는다</b>: 교보 특약 7개를 더하면 45,200 인데 총액은 43,200 으로 적혀 있다(2,000원 차 — 재해상해특약2형과 같은 액수). <b>맞춰서 고치지 않고</b> '보험료 불일치' 로 드러냈다 · 시드 9건(로한 3·아버지 3·어머니 3) + 보장 171항목. 로한 2건은 원문 검수본, 나머지는 xlsx 출처를 계약마다 명시 · <b>DB생명(시트2)은 넣지 않았다</b> — 로한 확인 결과 <b>제안서</b>이지 가입한 계약이 아니다 · 합계·납입완료일·다음 갱신일·보험료 불일치는 전부 파생(저장 안 함) · 🔒 계약 삭제 시 보장 동반 삭제 + 매 로드 고아 보장 정리"},
   {v:'1.61',date:'2026-08-25',note:"<b>‘카드결제(구)’ 제거.</b> \u26a0\ufe0f 로한: <i>“(구)카드결제가 뭔 뜻이야?”</i> — <b>화면에 나갈 말이 아니었다.</b> ‘구버전 데이터’라는 개발자 약어를 그대로 노출했다. 더 큰 문제는 그 라벨이 필요 없었다는 것 — <b>v1.6 에서 나는 “확정되면 <code>card=false</code> 가 되어 파생 불가”라고 단정하고 저장했는데 틀렸다.</b> card 플래그만 바뀔 뿐 <b>거래일과 카드명은 남으므로 결제분이 계산되고, 그러면 구성도 나온다.</b> 실측: 옛 settle 2건이 역산합과 <b>원 단위로 일치</b>(210,112 / 122,042). → <code>settleMix()</code> — <b>저장값 우선, 없으면 역산</b>. 🔒 v1.42 원칙 그대로 <b>파생 가능한 것을 저장으로 대신하지 않는다</b>. 같은 결제분을 나눠 부분 선결제한 경우에만 역산이 못 가르므로 그때는 <code>카드결제 내역미상</code> 으로 정직하게 표시한다."},
