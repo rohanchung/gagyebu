@@ -20,6 +20,9 @@ const BASE=()=>({schemaVersion:7,ui:{month:'2026-08'},
      {name:'HbA1c',func:'당화혈색소',low:4,high:6,range:'4.0-6.0',cat:'대사·당'}],
    labValues:{'AST(SGOT)':[21,21],'HbA1c':[6.0,6.2]},
    catOrder:['대사·당','간'],
+   /* 🔒 wImport2026 = 2026 체중 일회성 임포트 플래그. 없으면 62건이 딸려 들어와
+      체중 건수를 세는 단정이 전부 틀어진다. 실제 DB 에는 이미 찍혀 있다. */
+   wImport2026:1,
    weights:[],events:[]}});
 
 async function boot(st){
@@ -240,6 +243,113 @@ const lenOK = p => p.evaluate(()=>{
   ok('G3 빈 칸 2개(검사일 수)',first.len===2,first.len);
   ok('G3b 시드는 그래도 들어온다',await p.evaluate(()=>!!labMetric('NT Pro BNP')));
   ok('G4 JS 에러 0',errs.length===0,errs[0]);
+  await b.close();
+}
+
+/* ── J. 체중 셀 — 로한: "몸무게는 클릭시 반응이 없는데" ──
+   ⚠️ v2.1까지 체중 행만 onclick 이 없었고, **날짜가 원 단위로 같아야만** 값이 떴다.
+      실측 21열 중 6열이 어긋나 있었다(마지막 열 7일 차). */
+{
+  const st=BASE();
+  st.health.labDates=['2026-03-12','2026-09-03'];
+  st.health.labTypes=['외래','외래'];
+  st.health.labMeds=[{am:[],pm:[]},{am:[],pm:[]}];
+  st.health.labValues={'AST(SGOT)':[21,21],'HbA1c':[6.0,6.2]};
+  st.health.weights=[{date:'2026-03-12',kg:68.2},{date:'2026-08-27',kg:67.5}];
+  const {b,p,errs}=await boot(st);
+
+  const w=await p.evaluate(()=>({
+    exact:labWeightAt('2026-03-12'),
+    near:labWeightAt('2026-09-03'),          /* 08-27 과 7일 차 → 붙는다 */
+    far:labWeightAt('2026-12-01')            /* 창 밖 → null */
+  }));
+  ok('J1 정확 일치는 off 0',w.exact&&w.exact.kg===68.2&&w.exact.off===0,JSON.stringify(w.exact));
+  ok('J2 🔒 7일 차는 근사로 붙는다',w.near&&w.near.kg===67.5&&w.near.off===7,JSON.stringify(w.near));
+  ok('J3 🔒 창(7일) 밖은 안 붙인다 — 몇 달 전 체중을 그날 값처럼 보이면 안 된다',w.far===null,JSON.stringify(w.far));
+
+  const ui=await p.evaluate(()=>{
+    const tds=[].slice.call(document.querySelectorAll('#v-labs tbody tr')).find(
+      tr=>tr.querySelector('.cM')&&tr.querySelector('.cM').textContent.indexOf('체중')===0);
+    return {has:!!tr0(tds), html:tds?tds.innerHTML:''};
+    function tr0(x){return x;}
+  });
+  ok('J4 체중 행이 있다',ui.has===true);
+  ok('J5 🔒 체중 셀에 클릭이 붙는다',ui.html.indexOf('labWeightCell')>=0);
+  ok('J6 근사면 며칠 차인지 보인다',ui.html.indexOf('7일 차')>=0,ui.html.slice(0,200));
+
+  /* 입력 */
+  const put=await p.evaluate(()=>{
+    labWeightCell('2026-09-03');
+    document.getElementById('lw_kg').value='66.8';
+    saveLabWeight('2026-09-03');
+    return {n:DB.health.weights.length, m:labWeightAt('2026-09-03')};
+  });
+  ok('J7 그 날짜로 체중이 새로 들어간다',put.n===3,put.n);
+  ok('J8 정확 일치가 근사를 이긴다',put.m.kg===66.8&&put.m.off===0,JSON.stringify(put.m));
+
+  /* 비우면 그 날짜만 지운다 */
+  const del=await p.evaluate(()=>{
+    labWeightCell('2026-09-03');
+    document.getElementById('lw_kg').value='';
+    saveLabWeight('2026-09-03');
+    return {n:DB.health.weights.length,
+            keep:DB.health.weights.some(x=>x.date==='2026-03-12'),
+            back:labWeightAt('2026-09-03')};
+  });
+  ok('J9 비우면 그 날짜만 지운다',del.n===2&&del.keep===true,`${del.n}/${del.keep}`);
+  ok('J10 지우면 다시 근사로 떨어진다',del.back&&del.back.off===7,JSON.stringify(del.back));
+  ok('J11 JS 에러 0',errs.length===0,errs[0]);
+  await b.close();
+}
+
+/* ── K. 검사일 ≠ 진료일 ──
+   로한: "맨위 탭 날짜는 진료 날짜라 완전히 매칭되지 않는다" */
+{
+  const {b,p,errs}=await boot(BASE());
+  const v=await p.evaluate(()=>{
+    labDate(1);
+    document.getElementById('ld_date').value='2026-08-27';   /* 채혈일 */
+    document.getElementById('ld_visit').value='2026-09-03';  /* 진료일 */
+    saveLabDate(1);
+    const i=DB.health.labDates.indexOf('2026-08-27');
+    return {dates:DB.health.labDates.slice(), visits:DB.health.labVisits.slice(), i,
+            h:document.getElementById('v-labs').innerHTML};
+  });
+  ok('K1 검사일이 바뀐다',v.dates.indexOf('2026-08-27')>=0,v.dates.join(','));
+  ok('K2 진료일이 따로 저장된다',v.visits[v.i]==='2026-09-03',JSON.stringify(v.visits));
+  ok('K3 헤더에 진료일이 같이 뜬다',v.h.indexOf('진료 09.03')>=0);
+
+  /* 같으면 저장하지 않는다 — 빈 서랍 금지 */
+  const same=await p.evaluate(()=>{
+    const i=DB.health.labDates.indexOf('2026-08-27');
+    labDate(i);
+    document.getElementById('ld_visit').value='2026-08-27';
+    saveLabDate(i);
+    return DB.health.labVisits[DB.health.labDates.indexOf('2026-08-27')];
+  });
+  ok('K4 🔒 진료일이 검사일과 같으면 저장하지 않는다',same==='',JSON.stringify(same));
+
+  /* 🔒 정렬해도 진료일이 따라간다 — 안 따라가면 남의 진료일이 붙는다 */
+  const sorted=await p.evaluate(()=>{
+    const H=DB.health;
+    const i=H.labDates.indexOf('2026-08-27');
+    H.labVisits[i]='2026-09-03';
+    H.labDates.push('2020-01-01');H.labTypes.push('외래');H.labMeds.push({am:[],pm:[]});
+    H.labVisits.push('');
+    Object.keys(H.labValues).forEach(k=>H.labValues[k].push(null));
+    labResort();
+    const j=H.labDates.indexOf('2026-08-27');
+    return {pair:H.labVisits[j], first:H.labDates[0], n:H.labVisits.length};
+  });
+  ok('K5 정렬 후에도 진료일이 짝을 지킨다',sorted.pair==='2026-09-03',sorted.pair);
+  ok('K6 정렬이 실제로 일어났다',sorted.first==='2020-01-01',sorted.first);
+  ok('K7 길이 정합',await lenOK(p));
+  ok('K8 형식 틀린 검사일 거부',await p.evaluate(()=>{
+    const n=DB.health.labDates.length;
+    labDate(0);document.getElementById('ld_date').value='2026';saveLabDate(0);
+    closeModal();
+    return DB.health.labDates.length===n&&DB.health.labDates.indexOf('2026')<0;}));
+  ok('K9 JS 에러 0',errs.length===0,errs[0]);
   await b.close();
 }
 
