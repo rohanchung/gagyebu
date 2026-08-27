@@ -340,6 +340,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .instbl td.v{cursor:default;white-space:nowrap}
 .instbl td.v:hover{background:transparent}
 .instbl thead th.v{text-align:right}
+.labtbl .lmed{float:right;font-size:9px;color:#b9a06a;cursor:pointer;padding:0 2px;opacity:.45}
+.labtbl .lmed:hover{opacity:1;color:var(--gold)}
 .lab-hi{color:var(--neg);font-weight:800}.lab-lo{color:var(--accent);font-weight:800}
 .sajucols{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
 .sajucols .sc{flex:1;min-width:280px;margin-bottom:0}
@@ -2506,16 +2508,85 @@ function renderLabs(){
     arr.forEach(function(m){
       var vals=H.labValues[m.name]||[];
       var tip=((m.func?m.func:'설명 없음')+(m.range?' · 정상 '+m.range:'')).replace(/"/g,'&quot;');
-      body+='<tr><td class="cM" data-tip="'+tip+'">'+m.name+(m.range?' <span class="mut" style="font-size:9px">'+m.range+'</span>':'')+'</td>';
+      body+='<tr><td class="cM" data-tip="'+tip+'">'+m.name+(m.range?' <span class="mut" style="font-size:9px">'+m.range+'</span>':'')
+        +'<span class="lmed" data-labmet="'+m.name.replace(/"/g,'&quot;')+'" title="지표 수정">✎</span></td>';
       for(var i=0;i<N;i++){var v=vals[i];var f=labFlag(m,v);body+='<td class="v'+(f?' lab-'+f:'')+'" onclick="labCell(\''+m.name.replace(/'/g,"\\'")+'\','+i+')">'+(v==null||v===''?'·':v+(f==='hi'?'↑':f==='lo'?'↓':''))+'</td>';}
       body+='</tr>';
     });
   });
   document.getElementById('v-labs').innerHTML=''
-   +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+N+'회</span> <button class="ghost" id="labAddBtn" style="float:right">+ 검사일</button></h4>'
-   +'<div class="mut" style="font-size:10px;margin-bottom:8px">정상범위 벗어나면 <span class="lab-hi">↑높음</span>/<span class="lab-lo">↓낮음</span> · 셀 클릭 → 값 편집·추세 · 타입/복약/날짜 클릭 → 방문·약 수정 · 지표에 마우스 올리면 설명</div>'
+   +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+N+'회 · 지표 '+(H.metrics||[]).length+'개</span>'
+   +'<span class="hacts"><button class="ghost sm" id="labAddBtn">+ 검사일</button> '
+   +'<button class="ghost sm" id="labAddMetric">+ 지표</button></span></h4>'
+   +'<div class="mut" style="font-size:10px;margin-bottom:8px">정상범위 벗어나면 <span class="lab-hi">↑높음</span>/<span class="lab-lo">↓낮음</span> · 셀 클릭 → 값 편집·추세 · 지표명 ✎ → 이름·정상범위 수정 · 타입/복약/날짜 클릭 → 방문·약 수정</div>'
    +'<div class="labwrap"><table class="labtbl"><thead><tr><th class="cM">지표</th>'+dcols+'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
   var lw=document.querySelector('#v-labs .labwrap');if(lw)lw.scrollLeft=lw.scrollWidth;
+}
+/* v2.1 — 지표 추가·수정. ⚠️ v2.01까지 **검사일은 추가할 수 있는데 지표는 못 만들었다.**
+   새 항목(ALP·폐기능)이 나올 때마다 손댈 수 없어서 막혔다. 로한이 직접 넣을 수 있어야 한다. */
+function labMetric(name){return (DB.health.metrics||[]).filter(function(m){return m.name===name;})[0]||null;}
+function labCats(){
+  var o=(DB.health.catOrder||[]).slice();
+  (DB.health.metrics||[]).forEach(function(m){if(m.cat&&o.indexOf(m.cat)<0)o.push(m.cat);});
+  return o;
+}
+function labMetricModal(name){
+  var m=name?labMetric(name):{name:'',func:'',low:null,high:null,range:'',cat:''};
+  if(!m)return;
+  var q=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
+  var cats=labCats();
+  var opts=cats.map(function(c){return '<option'+(c===m.cat?' selected':'')+'>'+sajuEsc(c)+'</option>';}).join('');
+  var n=name?((DB.health.labValues[name]||[]).filter(function(v){return v!=null&&v!=='';}).length):0;
+  openModal('<div class="mtop"><h3>'+(name?'지표 수정':'지표 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +(name&&n?'<div class="mut" style="margin-bottom:8px">기록 '+n+'회 — 이름을 바꾸면 기록도 같이 옮긴다</div>':'')
+   +'<div class="field"><label>지표명</label><input id="lm_name" value="'+q(m.name)+'" placeholder="ALP"></div>'
+   +'<div class="field"><label>설명 <span class="mut">마우스 올리면 뜬다</span></label>'
+     +'<input id="lm_func" value="'+q(m.func)+'" placeholder="알칼리성 인산분해효소(간·담도·뼈)"></div>'
+   +'<div class="field"><label>분류</label><input id="lm_cat" list="lmCats" value="'+q(m.cat)+'" placeholder="간">'
+     +'<datalist id="lmCats">'+cats.map(function(c){return '<option value="'+sajuEsc(c)+'">';}).join('')+'</datalist></div>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 10px">'
+   +'<div class="field"><label>정상 하한</label><input id="lm_low" value="'+q(m.low)+'" placeholder="30"></div>'
+   +'<div class="field"><label>정상 상한</label><input id="lm_high" value="'+q(m.high)+'" placeholder="120"></div></div>'
+   +'<div class="mut" style="margin:-4px 0 10px;line-height:1.6">🔒 <b>모르면 비워 둬라.</b> '
+   +'폐기능처럼 <b>예측치 대비 %</b> 로 판정하는 지표는 절대값 정상범위가 없다 — 억지로 넣으면 거짓 ↑↓ 가 뜬다.</div>'
+   +'<div class="field"><label>범위 표기 <span class="mut">화면에 그대로 보인다</span></label>'
+     +'<input id="lm_range" value="'+q(m.range)+'" placeholder="30-120"></div>'
+   +'<button class="btn" onclick="saveLabMetric('+(name?"'"+name.replace(/'/g,"\\'")+"'":'null')+')">저장</button>'
+   +(name?' <button class="ghost" onclick="delLabMetric(\''+name.replace(/'/g,"\\'")+'\')">삭제</button>':''));
+}
+function saveLabMetric(orig){
+  var H=DB.health;H.metrics=H.metrics||[];H.labValues=H.labValues||{};
+  var g=function(k){var e=document.getElementById('lm_'+k);return e?e.value.trim():'';};
+  var nm=g('name'); if(!nm)return alert('지표명은 필요하다');
+  if(nm!==orig&&labMetric(nm))return alert('같은 이름의 지표가 이미 있다');
+  var num=function(v){if(v==='')return null;var x=parseFloat(v.replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x;};
+  var cat=g('cat')||'기타';
+  var rec={name:nm,func:g('func'),low:num(g('low')),high:num(g('high')),range:g('range'),cat:cat};
+  if(orig){
+    var m=labMetric(orig); if(!m)return;
+    /* 🔒 이름이 바뀌면 기록도 같이 옮긴다. 안 옮기면 값이 통째로 고아가 된다. */
+    if(nm!==orig){
+      H.labValues[nm]=H.labValues[orig]||[];
+      delete H.labValues[orig];
+    }
+    for(var k in rec)m[k]=rec[k];
+  }else{
+    H.metrics.push(rec);
+    /* 새 지표는 기존 검사일 수만큼 빈 칸을 만든다 — 길이가 어긋나면 열이 밀린다 */
+    H.labValues[nm]=H.labDates.map(function(){return null;});
+  }
+  if((H.catOrder||[]).indexOf(cat)<0){H.catOrder=H.catOrder||[];H.catOrder.push(cat);}
+  logAct('피검사 지표 '+(orig?'수정':'추가')+' · '+nm);
+  save();closeModal();renderLabs();
+}
+function delLabMetric(name){
+  var H=DB.health,m=labMetric(name);if(!m)return;
+  var n=(H.labValues[name]||[]).filter(function(v){return v!=null&&v!=='';}).length;
+  if(!confirm('['+name+'] 지표를 지운다.'+(n?'\n기록 '+n+'회도 함께 사라진다.':'')+'\n진행할까?'))return;
+  H.metrics=H.metrics.filter(function(x){return x.name!==name;});
+  delete H.labValues[name];
+  logAct('피검사 지표 삭제 · '+name+(n?' (기록 '+n+'회)':''));
+  save();closeModal();renderLabs();
 }
 function labSChart(name,m){var H=DB.health;var vals=H.labValues[name]||[];var n=H.labDates.length;
   var pts=[];for(var i=0;i<n;i++){if(typeof vals[i]==='number')pts.push({i:i,v:vals[i]});}
@@ -4706,13 +4777,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.01';
+var APP_VERSION='2.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.1',date:'2026-08-27',note:"<b>\ud83e\ude78 피검사 지표 CRUD.</b> ⚠️ <b>[결함·중대] 코드가 매 로드마다 로한의 지표를 덮어쓰고 있었다.</b> <code>migrateDB</code> 에 <code>d.health.metrics=JSON.parse(JSON.stringify(HEALTH_SEED.metrics))</code> 가 있어 <b>새로고침 한 번이면 로한이 추가·수정한 지표가 통째로 사라졌다.</b> 지표 추가 UI 가 없던 것도 문제였지만, <b>있었어도 살아남지 못했을 구조</b>다 · \ud83d\udd12 <code>healthMergeSeed()</code> 로 교체 — 시드는 <b>없는 것만 채운다.</b> 로한이 고친 정상범위도 덮지 않는다. <b>코드가 사용자 데이터를 덮어쓰지 않는다</b> · <b>+ 지표</b> 버튼 · 지표명 ✎ 로 이름·설명·분류·정상범위 수정 · 삭제 · \ud83d\udd12 이름을 바꾸면 <b>기록도 같이 옮긴다</b>(안 옮기면 값이 고아가 된다). 삭제하면 기록도 함께 지운다 · \ud83d\udd12 <b>정상범위를 비울 수 있다</b> — 폐기능처럼 <b>예측치 대비 %</b> 로 판정하는 지표는 절대값 범위가 없다. 억지로 넣으면 거짓 ↑↓ 가 뜬다 · \ud83d\udd12 <b>길이 정합 자동 보정</b> — 값 배열이 검사일 수와 어긋나면 <b>다른 날짜의 값으로 읽힌다.</b> 조용히 틀리는 종류의 사고다 · 오늘 결과 반영: <b>ALP 58</b>(정상 30-120) + <b>호흡기(PFT)</b> 분류 신설 — FVC 2.99 / FEV1 1.91 / FEV1·FVC 64 / FEF25-75% 0.96 / PEF 5.67 · ⚠️ <b>FEV1/FVC 64% 는 기준선(70%) 아래다</b> · t33 46건"},
   {v:'2.01',date:'2026-08-26',note:"<b>\ud83e\uddfe 부가세 원장 · 신고유형 판정.</b> 부가세 과세표준증명 2건 추가(2025 9~12월 매출 11,756,000·납부 533,895 / 2026 1기 1,621,727·납부 1,912) · ⚠️ <b>내 경보가 또 틀렸다</b> — 2026 1기는 <b>신고 완료</b>였다. 실물 확인 전 경보 금지를 두 번째로 어겼다 · ⚠️ <b>2025-01-01~08-31 이 증명에 비어 있다.</b> 매출이 없었는지·간이 기간이라 따로 잡히는지·전환일이 09-01 인지 <b>모른다. 추측하지 않고 그대로 드러낸다</b> · \ud83d\udd12 <b>신고유형 판정 기준을 화면에 박았다</b> — 로한: <i>“올해 소득이 5,800만을 안 넘으니 단순경비율 아니냐”</i>. 결론은 맞을 수 있어도 <b>기준이 틀렸다</b>: 판정은 <b>직전연도 수입금액</b>으로 한다. 그가 기억한 5,800만은 2024년 총수입(정확히는 58,499,998)이지 판정 기준선이 아니다. <b>2024 사고가 정확히 이 판정 착오였다</b>(단순경비율로 냈는데 기준경비율 대상) · ③ 소득금액에 <b>[단순|기준|간편장부|복식]</b> 선택 + 직전연도 수입금액(판정 근거)을 같이 띄운다. 고르는 유형에 따라 계산 방식이 바뀐다 · <b>2026 은 '미확정'으로 둔다</b> — 추측으로 못 박으면 2024년이 반복된다 · 기준경비율 값은 국세청 고시라 <b>비워 뒀다</b> · t32 92건"},
   {v:'2.0',date:'2026-08-26',note:"<b>\ud83e\uddfe 세무 전면 재설계 (로한 설계).</b> ⚠️ v1.9까지 세무 탭은 <b>계산기 하나</b>였다 — <code>taxParams</code> 숫자 7개가 전부. 2024년에 본세 127만+가산세 26만을 맞은 사건이 <b>앱에 흔적조차 없었다</b> · <b>세 층으로 나눴다</b>: 아카이브(2024·2025 신고서 재현) / 진행(가계부에서 파생) / 매핑(둘을 잇는 규칙) · \ud83d\udd12 <b>신고서는 사업장(업종코드) 단위로 쓰인다</b> — v1.9는 <code>gangsaIncome+storeNet</code> 두 숫자라 신고서와 모양이 달랐다. <code>units[]</code>(722000 홀리워터 / 940903 강사) + 계정과목→사업장 매핑으로 교체 · ⚠️ <b>[결함] 가계부 채움영어 금액이 세후였다.</b> 3.3% 떼고 들어온 실입금액인데 신고서 총수입금액은 세전이다. 그대로 쓰면 <b>수입 3.3% 과소신고 + 기납부세액 누락</b>으로 양쪽 손해. 거래에 <code>wht</code> 를 저장하고 <b>세전은 파생</b>한다 · <b>대납·정산(<code>tk:pass</code>) 개념 신설</b> — 광고비 대납은 소득도 경비도 아닌데 v1.9는 양쪽 다 세무에 넣고 있었다. 미회수까지 표시 · \ud83d\udd12 <b>진행 연도 숫자는 손으로 못 고친다</b>(로한: <i>“기본 원칙은 가계부 기반”</i>). 줄을 누르면 <b>근거 거래</b>가 열리고 거기서 고친다. 실제 신고 후 <b>📌 박제</b>로 원장이 된다 · ⚠️ <b>940903 은 사업소득</b>이다 — 2024 기납부세액명세서 ⑦ 칸으로 확정. v1.9는 기타소득으로 잡고 있었다 · 세율표를 코드에서 DB로(8구간 전부). 원천징수율 3.3%→<b>3%</b>(2024 실측 검증) · \ud83d\udd12 부가세는 <b>자동 계산하지 않는다</b> — 세금계산서 수취 데이터가 없다. 모르는 걸 계산하면 틀린 숫자를 확신하게 된다 · 시드: 2024 종소세(경정 포함)·2024 부가세·2025 종소세"},
   {v:'1.9',date:'2026-08-26',note:"<b>↕ 데일리 정렬 토글 · 🕯️ 일진 길흉·말풍선.</b> ⚠️ <b>[내 판단 착오] v1.8 의 루틴 순서가 데일리에 '그룹째' 반영됐다.</b> 로한: <i>“순서를 조정하면 여기에 반영이 안된다. 서로 연동되어야지.”</i> 코드는 내가 의도한 대로 돌았지만 <b>그 의도가 틀렸다</b> — 데일리가 목표별로 묶는 바람에 <code>E.8a(7시 기상)</code> 를 1번으로 올리자 <b>E 그룹 전체가 통째로</b> 올라가고 같은 그룹인 <code>E.8b(24시 취침)</code> 까지 아침 사이에 끼었다. 로한이 순서를 매기는 이유는 <b>하루의 시간 흐름</b>이지 목표 묶음이 아니다 · → 데일리 루틴에 <b>[↕ 순서대로 | 🎯 목표별]</b> 토글. <b>기본은 순서대로</b>(설계 순서를 그대로 일렬로 복사). 목표 연계는 각 줄의 코드·눈금 뱃지가 이미 하고 있어 그룹 머리글이 없어도 죽지 않는다 · 🔒 <b>일진 길/흉/평 판정을 파생 함수로 뺐다</b>(<code>dayVerdict</code>) — v1.8까지 <code>renderSaju</code> 안에 인라인으로 박혀 있어 데일리가 못 썼다. 이제 두 화면이 <b>같은 함수</b>를 쓴다 · 데일리 상단에 <b>⚔凶 / ⚜吉 / ◈平</b> + 간지 + 걸린 것(충·형·합) + 💬 말풍선. 말풍선 키는 사주 페이지와 <b>같은 <code>day:YYYY-MM-DD</code></b> 라 저장한 해석이 그대로 뜬다 · ⚠️ 명리는 유파마다 판정이 다르다. <b>'충·형이 있으면 凶'</b> 이라는 단순 규칙일 뿐이므로 근거를 툴팁에 그대로 노출한다 — 확정된 길흉이 아니다 · t30 48건으로 확장"},
@@ -5600,7 +5672,30 @@ var SAJU_SEED={birth:{solar:'1986-05-10',lunar:'1986-04-02',gender:'M'},natal:{y
    ・ migrateDB  = 독립 시드가 있는 큰 구조 (health / saju / journal / posts / activity)
    ・ migrateV6  = 나머지 전부. (A)1회성 게이트 + (B)매 로드 멱등 정규화
    새 필드를 넣을 때 어디에 넣을지 헷갈리면 **migrateV6의 (B)층**이 정답이다. */
-function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health){d.health.metrics=JSON.parse(JSON.stringify(HEALTH_SEED.metrics));d.health.catOrder=HEALTH_SEED.catOrder.slice();}
+/* v2.1 — ⚠️ [결함·중대] v2.01까지 이 자리에서 **매 로드마다 metrics·catOrder 를 시드로 통째로 덮어썼다.**
+     d.health.metrics = JSON.parse(JSON.stringify(HEALTH_SEED.metrics))
+   그래서 로한이 지표를 추가·수정해도 **새로고침 한 번에 사라졌다.**
+   지표 추가 UI 가 없던 것도 문제였지만, 있었어도 살아남지 못했을 구조다.
+   🔒 코드가 사용자 데이터를 덮어쓰지 않는다. 시드는 **없는 것만 채운다.** */
+function healthMergeSeed(H){
+  H.metrics=H.metrics||[]; H.catOrder=H.catOrder||[]; H.labValues=H.labValues||{};
+  var have={}; H.metrics.forEach(function(m){have[m.name]=1;});
+  HEALTH_SEED.metrics.forEach(function(m){
+    if(!have[m.name])H.metrics.push(JSON.parse(JSON.stringify(m)));
+  });
+  HEALTH_SEED.catOrder.forEach(function(c){if(H.catOrder.indexOf(c)<0)H.catOrder.push(c);});
+  /* 분류가 catOrder 에 없으면 그 그룹이 화면 맨 뒤로 밀린다 — 순서를 만들어 준다 */
+  H.metrics.forEach(function(m){if(m.cat&&H.catOrder.indexOf(m.cat)<0)H.catOrder.push(m.cat);});
+  /* 🔒 길이 정합 — 값 배열이 검사일 수와 어긋나면 **다른 날짜의 값으로 읽힌다.** */
+  var n=(H.labDates||[]).length;
+  H.metrics.forEach(function(m){
+    var a=H.labValues[m.name];
+    if(!a){H.labValues[m.name]=new Array(n);for(var i=0;i<n;i++)H.labValues[m.name][i]=null;return;}
+    while(a.length<n)a.push(null);
+    if(a.length>n)a.length=n;
+  });
+}
+function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health)healthMergeSeed(d.health);
  if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=[]; if(d&&!d.routines)d.routines=[]; if(d&&!d.checks)d.checks={}; if(d)d=migrateV6(d); return d; }
 
 /* ====== 마이그레이션 ======
@@ -6243,6 +6338,8 @@ document.addEventListener('click',function(e){
   var ee=e.target.closest('[data-editevent]');if(ee)return eventModal(ee.dataset.editevent);
   var de=e.target.closest('[data-delevent]');if(de)return delEvent(de.dataset.delevent);
   if(e.target.id==='labAddBtn')return labAddDate();
+  if(e.target.id==='labAddMetric')return labMetricModal(null);
+  var _lm=e.target.closest('[data-labmet]');if(_lm)return labMetricModal(_lm.dataset.labmet);
   if(e.target.id==='addJournalBtn')return journalModal(null);
   var ej=e.target.closest('[data-editjournal]');if(ej)return journalModal(ej.dataset.editjournal);
   var cell=e.target.closest('.cell[data-date]');if(cell)return renderDay(cell.dataset.date);
