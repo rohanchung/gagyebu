@@ -668,6 +668,26 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .pill.snk.pre_restore{background:#fdeeee;color:#a52a2a;border:1px solid #e0a0a0}
 .pill.snk.pre_overwrite{background:#fdf0e0;color:#8a5a1f;border:1px solid #e8c9a0}
 @media(max-width:900px){.snaprow{font-size:11.5px;gap:7px}.snaprow .mut{flex-basis:100%;order:9}}
+.logtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.logtabs button{flex:1;min-width:76px;padding:9px 6px;border-radius:8px;border:1px solid var(--line);background:var(--soft);color:var(--muted);font-size:12px;cursor:pointer;font-weight:600}
+.logtabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.horoom{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.horoom span{padding:5px 10px;border-radius:999px;border:1px solid var(--line);font-size:11.5px;cursor:pointer;color:var(--muted);background:var(--soft)}
+.horoom span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hocard{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--card)}
+.hocard:hover{border-color:var(--accent)}
+.horow{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px}
+.hotit{font-weight:700;font-size:13.5px;margin:5px 0 2px;line-height:1.35}
+.hosta{font-size:11.5px;color:var(--muted);line-height:1.5}
+.mdbody{max-height:60vh;overflow:auto;font-size:12.5px;line-height:1.65}
+.mdh{font-weight:700;margin:14px 0 6px}
+.mdh1{font-size:15px}.mdh2{font-size:13.5px;border-bottom:1px solid var(--line);padding-bottom:4px}
+.mdh3{font-size:12.5px}.mdh4{font-size:12px;color:var(--muted)}
+.mdp{margin:5px 0}
+.mdul{margin:5px 0 5px 18px;padding:0}
+.mdul li{margin:3px 0}
+.mdbody code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:11.5px}
+.mdhr{border:0;border-top:1px solid var(--line);margin:12px 0}
 </style>
 </head>
 <body>
@@ -4847,13 +4867,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.2';
+var APP_VERSION='2.3';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.3',date:'2026-08-28',note:"<b>\ud83d\udccb 로그 페이지 재편 + 핸드오프 게시판.</b> ⚠️ v2.2까지 이 페이지는 성격이 다른 다섯(백업·스냅샷·체인지로그·활동·기록)을 <b>세로로 쌓아둔 곳</b>이었다. 분량의 대부분을 체인지로그가 먹어서 아래쪽은 스크롤에 묻혔다 · <b>4탭으로 나눔</b>: 핸드오프 / 활동 / 백업·복원 / 버전. 버전은 <b>최근 3건만 펼침</b> · <b>\ud83d\udccb 핸드오프 신설</b> — 각 방의 로버트가 서버에 남긴 인수인계를 앱에서 읽는다. 방 필터 + 카드 클릭 → 본문 · ⚠️ <b>[결함] handoffs 테이블은 RLS 가 켜져 있는데 정책이 0개</b>였다 — 앱 키로는 한 줄도 못 읽었다. SELECT 정책 추가 · \ud83d\udd12 <b>핸드오프는 app_state 에 복사하지 않는다</b> — 원본은 handoffs 테이블이다. 복사하면 방에서 갱신해도 앱이 옛 판을 들고 있게 된다. <b>읽기 전용</b>(R 만) · 마크다운은 <b>자체 렌더 40줄</b> — CDN 의존을 만들지 않는다. innerHTML 전 <b>이스케이프 먼저</b> · 활동 로그는 40건 → <b>200건 전체 · 날짜 그룹</b> · ‘재정경제부 로그’(logs2)는 핸드오프로 대체되어 <b>UI 에서 내린다</b>. ⚠️ 데이터는 그대로 남아 있다(2건) — 지우지 않았다"},
   {v:'2.2',date:'2026-08-27',note:"<b>⚖ 체중 셀 · 검사일↔진료일 분리.</b> 로한: <i>“몸무게는 클릭시 반응이 없는데 · 검사 날짜 기준으로 데이터는 기록하고 맨위 탭 날짜는 진료 날짜라 완전히 매칭되지 않는다.”</i> · ⚠️ <b>[결함] 체중 행만 클릭이 없었다.</b> 다른 셀은 다 눌리는데 체중만 안 눌렸다 — 이제 눌러서 그 날 체중을 기록한다 · ⚠️ <b>[결함] 체중이 날짜 원 단위로 같아야만 떴다.</b> 실측 21열 중 <b>6열이 어긋나</b> 있었고, 마지막 열은 <b>7일 차</b>(체중 08-27 / 열 09-03)라 통째로 비어 보였다 · \ud83d\udd12 ±7일 <b>근사 매칭</b>으로 붙이되 <b>근사라는 사실을 숨기지 않는다</b> — 며칠 차인지 같이 띄우고 색을 달리한다. 창을 넓히면 <b>몇 달 전 체중이 그날 값처럼 보인다</b> — 7일로 좁게 잡았다 · <b>검사일 / 진료일을 분리</b>(<code>labVisits</code>) — 채혈한 날과 결과를 들은 날이 다르다. 다를 때만 헤더에 작게 붙고, 같으면 저장하지 않는다(빈 서랍 금지) · \ud83d\udd12 정렬·추가·삭제에서 진료일이 <b>짝을 지켜 따라간다</b> — 안 따라가면 남의 진료일이 붙는다 · 검사일 형식 검증 추가 · t33 66건"},
   {v:'2.1',date:'2026-08-27',note:"<b>\ud83e\ude78 피검사 지표 CRUD.</b> ⚠️ <b>[결함·중대] 코드가 매 로드마다 로한의 지표를 덮어쓰고 있었다.</b> <code>migrateDB</code> 에 <code>d.health.metrics=JSON.parse(JSON.stringify(HEALTH_SEED.metrics))</code> 가 있어 <b>새로고침 한 번이면 로한이 추가·수정한 지표가 통째로 사라졌다.</b> 지표 추가 UI 가 없던 것도 문제였지만, <b>있었어도 살아남지 못했을 구조</b>다 · \ud83d\udd12 <code>healthMergeSeed()</code> 로 교체 — 시드는 <b>없는 것만 채운다.</b> 로한이 고친 정상범위도 덮지 않는다. <b>코드가 사용자 데이터를 덮어쓰지 않는다</b> · <b>+ 지표</b> 버튼 · 지표명 ✎ 로 이름·설명·분류·정상범위 수정 · 삭제 · \ud83d\udd12 이름을 바꾸면 <b>기록도 같이 옮긴다</b>(안 옮기면 값이 고아가 된다). 삭제하면 기록도 함께 지운다 · \ud83d\udd12 <b>정상범위를 비울 수 있다</b> — 폐기능처럼 <b>예측치 대비 %</b> 로 판정하는 지표는 절대값 범위가 없다. 억지로 넣으면 거짓 ↑↓ 가 뜬다 · \ud83d\udd12 <b>길이 정합 자동 보정</b> — 값 배열이 검사일 수와 어긋나면 <b>다른 날짜의 값으로 읽힌다.</b> 조용히 틀리는 종류의 사고다 · 오늘 결과 반영: <b>ALP 58</b>(정상 30-120) + <b>호흡기(PFT)</b> 분류 신설 — FVC 2.99 / FEV1 1.91 / FEV1·FVC 64 / FEF25-75% 0.96 / PEF 5.67 · ⚠️ <b>FEV1/FVC 64% 는 기준선(70%) 아래다</b> · t33 46건"},
   {v:'2.01',date:'2026-08-26',note:"<b>\ud83e\uddfe 부가세 원장 · 신고유형 판정.</b> 부가세 과세표준증명 2건 추가(2025 9~12월 매출 11,756,000·납부 533,895 / 2026 1기 1,621,727·납부 1,912) · ⚠️ <b>내 경보가 또 틀렸다</b> — 2026 1기는 <b>신고 완료</b>였다. 실물 확인 전 경보 금지를 두 번째로 어겼다 · ⚠️ <b>2025-01-01~08-31 이 증명에 비어 있다.</b> 매출이 없었는지·간이 기간이라 따로 잡히는지·전환일이 09-01 인지 <b>모른다. 추측하지 않고 그대로 드러낸다</b> · \ud83d\udd12 <b>신고유형 판정 기준을 화면에 박았다</b> — 로한: <i>“올해 소득이 5,800만을 안 넘으니 단순경비율 아니냐”</i>. 결론은 맞을 수 있어도 <b>기준이 틀렸다</b>: 판정은 <b>직전연도 수입금액</b>으로 한다. 그가 기억한 5,800만은 2024년 총수입(정확히는 58,499,998)이지 판정 기준선이 아니다. <b>2024 사고가 정확히 이 판정 착오였다</b>(단순경비율로 냈는데 기준경비율 대상) · ③ 소득금액에 <b>[단순|기준|간편장부|복식]</b> 선택 + 직전연도 수입금액(판정 근거)을 같이 띄운다. 고르는 유형에 따라 계산 방식이 바뀐다 · <b>2026 은 '미확정'으로 둔다</b> — 추측으로 못 박으면 2024년이 반복된다 · 기준경비율 값은 국세청 고시라 <b>비워 뒀다</b> · t32 92건"},
@@ -4926,15 +4947,128 @@ var CHANGELOG=[
   {v:'1.0',date:'2026-08-10',note:'가계부 최초 구축 — 현황판·달력·계좌/부채·세무·재물관리·예산·로그'}
 ];
 function logAct(m){ if(!DB)return; if(!DB.activity)DB.activity=[]; DB.activity.unshift({t:new Date().toISOString().slice(0,16).replace('T',' '),m:m}); if(DB.activity.length>200)DB.activity.length=200; }
-function renderLog(){
-  var cl=CHANGELOG.map(function(c){return '<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px"><span class="pill" style="white-space:nowrap">'+(c.v==='—'?'':'v')+c.v+'</span><span><span class="mut">'+c.date+'</span> · '+c.note+'</span></div>';}).join('');
-  var act=(DB.activity||[]).slice(0,40).map(function(a){return '<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:12px"><span class="mut" style="white-space:nowrap">'+a.t+'</span><span>'+a.m+'</span></div>';}).join('')||'<div class="mut" style="padding:6px 0">활동 없음 — 거래·계좌·카테고리 CRUD 시 자동 기록됨</div>';
-  var rows=DB.logs2.slice().sort(function(a,b){return a.date<b.date?1:-1}).map(function(g){
-    return '<div style="border-left:2px solid var(--accent);padding:2px 0 2px 12px;margin-bottom:14px"><div class="mut">'+g.date+' <span class="acts"><span data-editlog="'+g.id+'">수정</span><span data-dellog="'+g.id+'">삭제</span></span></div><div style="font-weight:600;font-size:13px;margin:2px 0">'+g.title+'</div><div style="color:#41506a;font-size:12px;line-height:1.55">'+(g.body||'')+'</div></div>';
+/* ====== 로그 페이지 (v2.3 · 탭 재편 + 핸드오프 게시판) ======
+   ⚠️ v2.2까지 이 페이지는 성격이 다른 5개(백업·스냅샷·체인지로그·활동·logs2)를
+      세로로 쌓아둔 곳이었다. 분량의 대부분을 체인지로그가 먹어서
+      아래쪽 활동/기록은 스크롤에 묻혀 사실상 안 보였다.
+   🔒 핸드오프는 DB(app_state)에 복사하지 않는다 — 원본은 handoffs 테이블이다.
+      복사하면 방에서 갱신해도 앱이 옛 판을 들고 있게 된다. 파생은 저장하지 않는다. */
+var LOG_TABS=[{k:'ho',label:'📋 핸드오프'},{k:'act',label:'🕑 활동'},{k:'bak',label:'🛟 백업·복원'},{k:'ver',label:'📦 버전'}];
+function logTab(){var t=(DB&&DB.ui&&DB.ui.logTab)||'ho',ok=0;LOG_TABS.forEach(function(x){if(x.k===t)ok=1;});return ok?t:'ho';}
+function setLogTab(k){DB.ui=DB.ui||{};DB.ui.logTab=k;save();renderLog();}
+
+/* --- 핸드오프: 세션 메모리에만 둔다 --- */
+function logVisible(){var e=document.getElementById('v-log');return !!(e&&e.classList.contains('on'));}
+var HANDOFFS=null, HO_STATE='idle', HO_ERR='', HO_ROOM='', HO_VERALL=0;
+function hoLoad(force){
+  if(HO_STATE==='loading')return;
+  if(HANDOFFS&&!force)return;
+  /* ⚠️ [결함·중대] 실패 후 자동 재시도를 막는다.
+     실패하면 HANDOFFS 가 null 로 남고 화면을 다시 그리는데,
+     그 렌더가 다시 hoLoad 를 불러 **무한루프**가 된다.
+     RLS 정책이 없을 때 실제로 페이지가 멈췄다(t34-I 가 잡았다).
+     다시 시도는 로한이 버튼을 누를 때만(force). */
+  if(HO_STATE==='err'&&!force)return;
+  HO_STATE='loading'; HO_ERR='';
+  SB.from('handoffs').select('id,slug,version,room,title,status,doc_date,body,updated_at')
+    .order('doc_date',{ascending:false}).order('version',{ascending:false})
+    .then(function(r){
+      if(r.error){HO_STATE='err';HO_ERR=r.error.message||'읽기 실패';}
+      else{HANDOFFS=r.data||[];HO_STATE='ok';}
+      if(logVisible()&&logTab()==='ho')renderLog();
+    },function(e){HO_STATE='err';HO_ERR=(e&&e.message)||'읽기 실패';if(logVisible())renderLog();});
+}
+function hoRooms(){var s={},o=[];(HANDOFFS||[]).forEach(function(h){var r=h.room||'미분류';if(!s[r]){s[r]=1;o.push(r);}});return o;}
+function hoList(){
+  var a=(HANDOFFS||[]).slice();
+  if(HO_ROOM)a=a.filter(function(h){return (h.room||'미분류')===HO_ROOM;});
+  return a;
+}
+function setHoRoom(r){HO_ROOM=(HO_ROOM===r?'':r);renderLog();}
+
+/* --- 최소 마크다운 ---
+   외부 라이브러리를 쓰지 않는다(단일 파일 원칙 + CDN 의존 회피).
+   ⚠️ 반드시 이스케이프가 먼저다. 본문은 서버에서 온 텍스트고 innerHTML 로 들어간다. */
+function mdEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function mdInline(s){
+  /* ⚠️ 기울임(*단일*)은 넣지 않는다 — 본문에 곱하기·각주로 쓰인 * 를 잡아먹는다. */
+  return s.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+}
+function mdRender(src){
+  var L=mdEsc(src).split(/\r?\n/),out=[],list=null;
+  function cl(){if(list){out.push('</'+list+'>');list=null;}}
+  for(var i=0;i<L.length;i++){
+    var s=L[i],h=/^(#{1,4})\s+(.*)$/.exec(s);
+    if(h){cl();out.push('<div class="mdh mdh'+h[1].length+'">'+mdInline(h[2])+'</div>');continue;}
+    if(/^\s*(---+|===+)\s*$/.test(s)){cl();out.push('<hr class="mdhr">');continue;}
+    if(/^\s*[-*]\s+/.test(s)){if(list!=='ul'){cl();out.push('<ul class="mdul">');list='ul';}
+      out.push('<li>'+mdInline(s.replace(/^\s*[-*]\s+/,''))+'</li>');continue;}
+    var ol=/^\s*\d+\.\s+(.*)$/.exec(s);
+    if(ol){if(list!=='ol'){cl();out.push('<ol class="mdul">');list='ol';}
+      out.push('<li>'+mdInline(ol[1])+'</li>');continue;}
+    if(!s.trim()){cl();continue;}
+    cl();out.push('<p class="mdp">'+mdInline(s)+'</p>');
+  }
+  cl();return out.join('');
+}
+function hoModal(id){
+  var h=null;(HANDOFFS||[]).forEach(function(x){if(String(x.id)===String(id))h=x;});
+  if(!h)return;
+  openModal('<div class="mtop"><h3 style="font-size:15px;line-height:1.4">'+mdEsc(h.title)+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin:-2px 0 10px;line-height:1.55">'
+     +'<span class="pill">'+mdEsc(h.room||'미분류')+'</span> '+(h.doc_date||'')+' · v'+h.version
+     +(h.status?('<br>'+mdEsc(h.status)):'')+'</div>'
+   +'<div class="mdbody">'+mdRender(h.body||'')+'</div>');
+}
+
+/* --- 탭별 본문 --- */
+function logPaneHo(){
+  if(HO_STATE==='loading'||HO_STATE==='idle')return '<div class="mut" style="padding:14px 0">핸드오프 불러오는 중…</div>';
+  if(HO_STATE==='err')return '<div class="sec"><b style="color:var(--neg)">핸드오프를 읽지 못했다</b><div class="mut" style="font-size:11.5px;margin-top:6px">'+mdEsc(HO_ERR)+'</div>'
+    +'<div style="margin-top:9px"><button class="ghost sm" onclick="hoLoad(1)">다시 시도</button></div></div>';
+  var rooms=hoRooms();
+  var chips='<div class="horoom"><span'+(HO_ROOM?'':' class="on"')+' onclick="HO_ROOM=\'\';renderLog()">전체 '+(HANDOFFS||[]).length+'</span>'
+    +rooms.map(function(r){var n=(HANDOFFS||[]).filter(function(h){return (h.room||'미분류')===r;}).length;
+      return '<span'+(HO_ROOM===r?' class="on"':'')+' onclick="setHoRoom(\''+r.replace(/'/g,"\\'")+'\')">'+mdEsc(r)+' '+n+'</span>';}).join('')+'</div>';
+  var L=hoList();
+  var cards=L.map(function(h){
+    return '<div class="hocard" data-ho="'+h.id+'">'
+     +'<div class="horow"><span class="pill">'+mdEsc(h.room||'미분류')+'</span>'
+       +'<span class="mut">'+(h.doc_date||'')+(h.version>1?(' · v'+h.version):'')+'</span></div>'
+     +'<div class="hotit">'+mdEsc(h.title)+'</div>'
+     +(h.status?'<div class="hosta">'+mdEsc(h.status)+'</div>':'')+'</div>';
+  }).join('')||'<div class="mut" style="padding:12px 0">해당하는 핸드오프가 없다</div>';
+  return '<div class="sec">'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:10px">각 방의 로버트가 서버에 남긴 인수인계 문서다. <b>읽기 전용</b> — 여기서 고치면 방과 어긋난다.'
+     +' <span style="cursor:pointer;text-decoration:underline" onclick="hoLoad(1)">새로고침</span></div>'
+   +chips+cards+'</div>';
+}
+function logPaneAct(){
+  var A=(DB.activity||[]);
+  if(!A.length)return '<div class="sec"><div class="mut" style="padding:6px 0">활동 없음 — 거래·계좌·카테고리 CRUD 시 자동 기록된다</div></div>';
+  var by={},ord=[];
+  A.forEach(function(a){var d=String(a.t||'').slice(0,10)||'—';if(!by[d]){by[d]=[];ord.push(d);}by[d].push(a);});
+  var html=ord.map(function(d){
+    var rows=by[d].map(function(a){
+      return '<div style="display:flex;gap:10px;padding:4px 0;font-size:12px"><span class="mut" style="white-space:nowrap;min-width:38px">'+String(a.t||'').slice(11)+'</span><span>'+mdEsc(a.m)+'</span></div>';
+    }).join('');
+    return '<div style="margin-bottom:12px"><div class="mut" style="font-size:11px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:3px;margin-bottom:4px">'+d+' <span style="font-weight:400">· '+by[d].length+'건</span></div>'+rows+'</div>';
   }).join('');
+  return '<div class="sec"><h4>🕑 내 활동 로그 <span class="mut">'+A.length+'건 (최대 200건 보관)</span></h4>'+html+'</div>';
+}
+function logPaneVer(){
+  var head=CHANGELOG.slice(0,3),rest=CHANGELOG.slice(3);
+  function row(c){return '<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12px"><span class="pill" style="white-space:nowrap;align-self:flex-start">'+(c.v==='—'?'':'v')+c.v+'</span><span><span class="mut">'+c.date+'</span> · '+c.note+'</span></div>';}
+  return '<div class="sec"><h4>📦 업데이트 기록 <span class="mut">현재 v'+APP_VERSION+'</span></h4>'
+   +head.map(row).join('')
+   +(rest.length?('<div id="verRest" style="display:'+(HO_VERALL?'block':'none')+'">'+rest.map(row).join('')+'</div>'
+     +'<div style="margin-top:9px"><button class="ghost sm" id="verMore" onclick="HO_VERALL=!HO_VERALL;renderLog()">'+(HO_VERALL?'▲ 접기':('▼ 이전 '+rest.length+'건 더 보기'))+'</button></div>'):'')
+   +'</div>';
+}
+function logPaneBak(){
   var _bk=localBakList().map(function(b){return '<button class="ghost sm" onclick="restoreLocal(\''+b.k+'\')">🕓 '+b.d+' 접속시점 ('+Math.round(b.n/1024)+'KB)</button>';}).join(' ');
   var _sz=0; try{_sz=JSON.stringify(DB).length;}catch(e){}
-  document.getElementById('v-log').innerHTML=''
+  return ''
    +'<div class="sec"><h4>💾 백업</h4>'
      +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">현재 데이터 <b>'+Math.round(_sz/1024)+'KB</b> · '+dbSummary(DB)
        +'<br>서버 최종저장 '+(LAST_SYNC?String(LAST_SYNC).replace('T',' ').slice(0,16):'—')+'</div>'
@@ -4951,12 +5085,18 @@ function renderLog(){
      +'<div class="mut" style="font-size:11px;margin:2px 0 9px">접속할 때마다 <b>하루 1개 자동</b>으로 쌓인다. 복원을 누르면 <b>직전 상태도 자동으로 한 장 남긴다</b> — 잘못 되돌려도 돌아올 수 있다.<br>'
        +'⚠ 원본과 같은 Supabase 프로젝트에 있다. <b>논리적 사고</b>(코드 버그·덮어쓰기·실수 삭제)는 막지만 프로젝트 자체가 날아가면 같이 죽는다. 그래서 위의 ⬇ 파일 백업이 따로 필요하다.</div>'
      +'<div id="snaplist"></div>'
-   +'</div>'
-   +'<div class="sec"><h4>📦 업데이트 기록 <span class="mut">현재 v'+APP_VERSION+'</span></h4>'+cl+'</div>'
-   +'<div class="sec"><h4>🕑 내 활동 로그 <span class="mut">최근 40건</span></h4>'+act+'</div>'
-   +'<div class="sec"><h4>재정경제부 로그 <button class="ghost" id="addLogBtn">+ 기록</button></h4>'+(rows||'<div class="mut">기록 없음</div>')+'</div>';
-  snapRender();
+   +'</div>';
 }
+function renderLog(){
+  var t=logTab();
+  if(t==='ho')hoLoad();
+  var tabs='<div class="logtabs">'+LOG_TABS.map(function(x){
+    return '<button class="'+(x.k===t?'on':'')+'" onclick="setLogTab(\''+x.k+'\')">'+x.label+'</button>';}).join('')+'</div>';
+  var body = t==='ho'?logPaneHo() : t==='act'?logPaneAct() : t==='ver'?logPaneVer() : logPaneBak();
+  document.getElementById('v-log').innerHTML=tabs+body;
+  if(t==='bak')snapRender();
+}
+
 function logModal(id){
   var g=id?DB.logs2.filter(function(x){return x.id===id})[0]:{date:todayStr(),title:'',body:''};
   openModal('<div class="mtop"><h3>'+(id?'로그 수정':'로그 기록')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
@@ -5855,6 +5995,9 @@ function migrateV6(d){
   /* v8.0 — rewardLog(수령 기록) → rewardCards(카드) 승계.
      v7까지는 '수령'이 곧 가계부 거래였고, v8은 배치 → 활성 → 사용 카드 모델이다. */
   if(!d.timelog)d.timelog={};   /* v11.0 ⏳ 타임로그 */
+  /* v2.3 📋 로그 탭. 핸드오프 본문은 여기 저장하지 않는다 — handoffs 테이블이 원본이다. */
+  if(!d.ui)d.ui={};
+  if(!d.ui.logTab)d.ui.logTab='ho';
   /* v2.0 🧾 세무. 시드는 '한 번만' — 로한이 고친 원장을 되살리면 안 된다.
      🔒 filings 는 저장하지만, 진행 연도 숫자는 저장하지 않는다(가계부에서 파생). */
   if(!d.tax)d.tax={};
@@ -6387,6 +6530,7 @@ document.addEventListener('click',function(e){
   var dni=e.target.closest('[data-doneitem]');if(dni)return itemDone(dni.dataset.doneitem);
   var ri=e.target.closest('[data-restoreitem]');if(ri)return itemRestore(ri.dataset.restoreitem);
   var di=e.target.closest('[data-delitem]');if(di)return delItem(di.dataset.delitem);
+  var _ho=e.target.closest('[data-ho]');if(_ho)return hoModal(_ho.dataset.ho);
   if(e.target.id==='addLogBtn')return logModal(null);
   var sn=e.target.closest('[data-snap]');if(sn)return snapRestore(sn.dataset.snap);
   var el2=e.target.closest('[data-editlog]');if(el2)return logModal(el2.dataset.editlog);
