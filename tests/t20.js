@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');const fs=require('fs');
 const file=process.argv[2];
-const D=JSON.parse(fs.readFileSync(require('path').join(__dirname,'state_rw.json'),'utf8'));
+const D=JSON.parse(fs.readFileSync('/home/claude/state_rw.json','utf8'));
 const FULL={schemaVersion:7,goals:D.goals,routines:[],checks:{},rewards:D.rewards,rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},ui:{month:'2026-08'},
  accounts:[],transactions:[],categories:[{id:'c1',name:'식비',type:'expense'}],cards:[{id:'cd1',name:'현금',type:'check'}],debts:[],fixed:[],events:[],posts:[],
  health:{weights:[],labs:[],labDates:[],labTypes:[],labMeds:[],labValues:{},events:[]},journal:[],items:[],logs:[],budgets:{}};
@@ -85,6 +85,8 @@ let fail=0;const ok=(n,c,x)=>{console.log((c?'  ✓':'  ✗')+' '+n+(x?'  → '+
 // E) 백업 UI + 로컬 복원지점
 {const {p,errs}=await boot(b,FULL,'2026-08-20T00:00:00.000Z',false);
  await p.click('.m[data-v="log"]');await p.waitForTimeout(300);
+  /* v2.3 — 백업·스냅샷은 🛠 탭 안으로 들어갔다. 로그 페이지를 열었다고 바로 보이지 않는다. */
+  await p.evaluate(()=>setLogTab('bak'));await p.waitForTimeout(400);
  const r=await p.evaluate(()=>{
    const h=document.getElementById('v-log').innerHTML;
    const bak=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('rb_bak_')===0)bak.push(k);}

@@ -31,7 +31,11 @@ const INIT=({st,seed,today})=>{
       insert(x){mode='insert';ins=x;return q},delete(){mode='delete';return q},in(k,v){inIds=v;return q},
       then(a,b){return run().then(a,b)}};
     return q;}
-  window.supabase={createClient:()=>({from:t=>(t==='app_state_snap'?snapQ():appQ()),
+  /* v2.3 — handoffs 는 로그 페이지가 읽는 별도 테이블이다.
+     ⚠️ 없으면 `.order is not a function` 으로 페이지 전체가 죽는다. */
+  function hoQ(){const q={select(){return q},eq(){return q},order(){return q},limit(){return q},
+    then(a){return Promise.resolve({data:[],error:null}).then(a)}};return q;}
+  window.supabase={createClient:()=>({from:t=>(t==='handoffs'?hoQ():t==='app_state_snap'?snapQ():appQ()),
     auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};
 };
 const ST={schemaVersion:7,transactions:[{id:'t1',date:'2026-08-01',amount:100,type:'expense'}],goals:[],routines:[],journal:[{id:'j1'}]};
@@ -66,6 +70,8 @@ console.log('C) 로그 탭 목록 렌더');
   {id:2,user_id:'u1',day:DAYS(-2),kind:'manual',note:'9월 재설계 직전',bytes:251000,taken_at:DAYS(-2)+'T10:00:00.000Z',data:{}}];
  const {p,c,errs}=await boot(b,seed);
  await p.click('.m[data-v="log"]');await p.waitForTimeout(500);
+  /* v2.3 — 백업·스냅샷은 🛠 탭 안으로 들어갔다. 로그 페이지를 열었다고 바로 보이지 않는다. */
+  await p.evaluate(()=>setLogTab('bak'));await p.waitForTimeout(400);
  const r=await p.evaluate(()=>{const e=document.getElementById('snaplist');
    return {n:e?e.querySelectorAll('.snaprow').length:-1,h:e?e.innerHTML:'',btn:!!document.querySelector('button[onclick*="snapManual"]')};});
  ok('행 3개(시드2+오늘자동1)',r.n===3,'n='+r.n);
@@ -80,6 +86,8 @@ console.log('D) 되돌리기 → 복원 직전 자동 보관이 먼저');
    data:{schemaVersion:7,transactions:[{id:'old1'},{id:'old2'},{id:'old3'}],goals:[],routines:[],journal:[]}}];
  const {p,c,errs,dlg}=await boot(b,seed,d=>d.accept());
  await p.click('.m[data-v="log"]');await p.waitForTimeout(500);
+  /* v2.3 — 백업·스냅샷은 🛠 탭 안으로 들어갔다. 로그 페이지를 열었다고 바로 보이지 않는다. */
+  await p.evaluate(()=>setLogTab('bak'));await p.waitForTimeout(400);
  await p.evaluate(()=>{window.alert=function(){window.__cap=JSON.stringify(window.__db);throw new Error('__stop_reload__');};});
  await p.click('[data-snap="77"]');await p.waitForTimeout(1200);
  const r=await p.evaluate(()=>{const c=window.__cap?JSON.parse(window.__cap):null;
