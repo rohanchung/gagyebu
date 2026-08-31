@@ -848,7 +848,11 @@ var USER=null, DB=null, saveTimer=null;
 var saveTimer=null, LAST_SYNC=null, SAVE_TRIES=0, SAVE_DIRTY=false, LOCAL_BAK_DONE=false;
 function saveBadge(t,c){var el=document.getElementById('savebadge');if(!el)return;
   el.textContent=t||''; el.className='savebadge '+(c||''); el.style.display=t?'block':'none';}
-function save(){ if(!USER||!DB)return; SAVE_DIRTY=true; saveBadge('● 저장 중…','wait');
+/* v2.4 📊 저장할 때마다 이번 달 자산 한 줄을 같이 갱신한다.
+   ⚠️ 접속 직후에 따로 저장하지 않는다 — 처음엔 그렇게 만들었다가 t20·t21 이 잡았다.
+     사용자가 아무것도 안 했는데 쓰면 updated_at 이 밀려 <b>다른 탭과 헛된 충돌</b>이 난다.
+   거래 하나만 써도 같이 올라가므로 실질적으로 매일 갱신된다. */
+function save(){ if(!USER||!DB)return; netSnapTouch(); SAVE_DIRTY=true; saveBadge('● 저장 중…','wait');
   clearTimeout(saveTimer); saveTimer=setTimeout(doSave,400); }
 function doSave(){
   if(!USER||!DB)return;
@@ -4867,13 +4871,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.3';
+var APP_VERSION='2.4';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.4',date:'2026-08-31',note:"<b>\ud83d\udcca 월별 자산 스냅샷.</b> ⚠️ <b>[결함] <code>netSnapshots</code> 는 시드 6건(2026-02~07)이 전부였고 쓰는 코드가 하나도 없었다.</b> 읽는 곳은 <code>metricModal</code> 한 군데뿐 — 현황판 ‘12개월 추세’가 <b>2026-07 에 멈춰 있었다</b>. 8월부터는 영원히 안 쌀이는 구조였다 · 접속할 때마다 <b>이번 달 행을 갱신</b>한다. 달이 바뀌면 새 행이 생기고 지난 달은 그대로 굳는다 · \ud83d\udd12 <b>지난 달 행은 절대 덮지 않는다</b> — 덮으면 그 달 말 상태가 사라진다 · \ud83d\udd12 이건 <b>파생이 아니라 관측 기록이다</b>. 총부채는 <code>debts[].balance</code> 현재값 하나뿐이라 <b>과거 시점을 계산할 방법이 없다</b> — 그때 적어두지 않으면 영영 모른다 · 그룹별(현금성·투자·저축·외환)과 카드미결제까지 함께 남긴다 — 다음 단계의 기초·기말 표가 이걸 쓴다 · ⚠️ <b>[결함] 추세 모달이 빈 배열에서 죽었다</b>(<code>series[length-1]</code> 가 undefined) · 마이그레이션 보장도 없었다 · t35 26건 신설"},
   {v:'2.3',date:'2026-08-28',note:"<b>\ud83d\udccb 로그 페이지 재편 + 핸드오프 게시판.</b> ⚠️ v2.2까지 이 페이지는 성격이 다른 다섯(백업·스냅샷·체인지로그·활동·기록)을 <b>세로로 쌓아둔 곳</b>이었다. 분량의 대부분을 체인지로그가 먹어서 아래쪽은 스크롤에 묻혔다 · <b>4탭으로 나눔</b>: 핸드오프 / 활동 / 백업·복원 / 버전. 버전은 <b>최근 3건만 펼침</b> · <b>\ud83d\udccb 핸드오프 신설</b> — 각 방의 로버트가 서버에 남긴 인수인계를 앱에서 읽는다. 방 필터 + 카드 클릭 → 본문 · ⚠️ <b>[결함] handoffs 테이블은 RLS 가 켜져 있는데 정책이 0개</b>였다 — 앱 키로는 한 줄도 못 읽었다. SELECT 정책 추가 · \ud83d\udd12 <b>핸드오프는 app_state 에 복사하지 않는다</b> — 원본은 handoffs 테이블이다. 복사하면 방에서 갱신해도 앱이 옛 판을 들고 있게 된다. <b>읽기 전용</b>(R 만) · 마크다운은 <b>자체 렌더 40줄</b> — CDN 의존을 만들지 않는다. innerHTML 전 <b>이스케이프 먼저</b> · 활동 로그는 40건 → <b>200건 전체 · 날짜 그룹</b> · ‘재정경제부 로그’(logs2)는 핸드오프로 대체되어 <b>UI 에서 내린다</b>. ⚠️ 데이터는 그대로 남아 있다(2건) — 지우지 않았다"},
   {v:'2.2',date:'2026-08-27',note:"<b>⚖ 체중 셀 · 검사일↔진료일 분리.</b> 로한: <i>“몸무게는 클릭시 반응이 없는데 · 검사 날짜 기준으로 데이터는 기록하고 맨위 탭 날짜는 진료 날짜라 완전히 매칭되지 않는다.”</i> · ⚠️ <b>[결함] 체중 행만 클릭이 없었다.</b> 다른 셀은 다 눌리는데 체중만 안 눌렸다 — 이제 눌러서 그 날 체중을 기록한다 · ⚠️ <b>[결함] 체중이 날짜 원 단위로 같아야만 떴다.</b> 실측 21열 중 <b>6열이 어긋나</b> 있었고, 마지막 열은 <b>7일 차</b>(체중 08-27 / 열 09-03)라 통째로 비어 보였다 · \ud83d\udd12 ±7일 <b>근사 매칭</b>으로 붙이되 <b>근사라는 사실을 숨기지 않는다</b> — 며칠 차인지 같이 띄우고 색을 달리한다. 창을 넓히면 <b>몇 달 전 체중이 그날 값처럼 보인다</b> — 7일로 좁게 잡았다 · <b>검사일 / 진료일을 분리</b>(<code>labVisits</code>) — 채혈한 날과 결과를 들은 날이 다르다. 다를 때만 헤더에 작게 붙고, 같으면 저장하지 않는다(빈 서랍 금지) · \ud83d\udd12 정렬·추가·삭제에서 진료일이 <b>짝을 지켜 따라간다</b> — 안 따라가면 남의 진료일이 붙는다 · 검사일 형식 검증 추가 · t33 66건"},
   {v:'2.1',date:'2026-08-27',note:"<b>\ud83e\ude78 피검사 지표 CRUD.</b> ⚠️ <b>[결함·중대] 코드가 매 로드마다 로한의 지표를 덮어쓰고 있었다.</b> <code>migrateDB</code> 에 <code>d.health.metrics=JSON.parse(JSON.stringify(HEALTH_SEED.metrics))</code> 가 있어 <b>새로고침 한 번이면 로한이 추가·수정한 지표가 통째로 사라졌다.</b> 지표 추가 UI 가 없던 것도 문제였지만, <b>있었어도 살아남지 못했을 구조</b>다 · \ud83d\udd12 <code>healthMergeSeed()</code> 로 교체 — 시드는 <b>없는 것만 채운다.</b> 로한이 고친 정상범위도 덮지 않는다. <b>코드가 사용자 데이터를 덮어쓰지 않는다</b> · <b>+ 지표</b> 버튼 · 지표명 ✎ 로 이름·설명·분류·정상범위 수정 · 삭제 · \ud83d\udd12 이름을 바꾸면 <b>기록도 같이 옮긴다</b>(안 옮기면 값이 고아가 된다). 삭제하면 기록도 함께 지운다 · \ud83d\udd12 <b>정상범위를 비울 수 있다</b> — 폐기능처럼 <b>예측치 대비 %</b> 로 판정하는 지표는 절대값 범위가 없다. 억지로 넣으면 거짓 ↑↓ 가 뜬다 · \ud83d\udd12 <b>길이 정합 자동 보정</b> — 값 배열이 검사일 수와 어긋나면 <b>다른 날짜의 값으로 읽힌다.</b> 조용히 틀리는 종류의 사고다 · 오늘 결과 반영: <b>ALP 58</b>(정상 30-120) + <b>호흡기(PFT)</b> 분류 신설 — FVC 2.99 / FEV1 1.91 / FEV1·FVC 64 / FEF25-75% 0.96 / PEF 5.67 · ⚠️ <b>FEV1/FVC 64% 는 기준선(70%) 아래다</b> · t33 46건"},
@@ -5546,11 +5551,57 @@ function addVal(id){
   a.hist=a.hist.filter(function(h){return h.date!==d});a.hist.push(entry);save();assetModal(id);renderDash();
 }
 function delVal(id,date){var a=DB.accounts.filter(function(x){return x.id===id})[0];a.hist=a.hist.filter(function(h){return h.date!==date});save();assetModal(id);renderDash();}
+/* ====== 📊 월별 자산 스냅샷 (v2.4) ======
+   ⚠️ v2.3까지 netSnapshots 는 **시드 6건(2026-02~07)이 전부였고 쓰는 코드가 하나도 없었다.**
+      읽는 곳은 metricModal 한 군데뿐 — 그래서 현황판 '12개월 추세'가 2026-07 에 멈춰 있었다.
+      게다가 마이그레이션 보장도 없어서 필드가 없으면 추세 모달이 통째로 죽는다.
+
+   🔒 이건 '파생을 저장'하는 게 아니다 — **관측 기록**이다.
+      총부채는 debts[].balance 현재값 하나뿐이고 시계열이 없다.
+      과거 어느 달의 부채가 얼마였는지는 **그때 적어두지 않으면 영영 계산할 수 없다.**
+      은행 잔액과 같다. 파생 가능한 것을 저장하지 말라는 원칙과 충돌하지 않는다.
+
+   동작: 접속할 때마다 '이번 달' 행을 갱신한다.
+      9월 내내 2026-09 행이 최신값으로 덮이고,
+      10월에 처음 접속하는 순간 2026-10 이 새로 생기며 2026-09 는 마지막 갱신값으로 굳는다.
+      ⚠️ 지난 달 행은 절대 건드리지 않는다 — 덮으면 그 달 말 상태가 사라진다. */
+var NETSNAP_KEEP=420;   /* 35년치. 30년 쓸 물건이라 넉넉히 */
+function netSnapRow(){
+  var g=groupTotals();
+  return {m:todayStr().slice(0,7), at:todayStr(),
+    a:totalAssets(), l:totalDebt(),
+    cash:g['현금성']||0, inv:g['투자']||0, sav:g['저축']||0, fx:g['외환']||0,
+    card:cardPending()};
+}
+/* 값이 실제로 달라졌을 때만 true — 접속만 하고 나가는 날에 쓸데없이 서버를 때리지 않는다 */
+function netSnapTouch(){
+  if(!DB)return false;
+  DB.netSnapshots=DB.netSnapshots||[];
+  var row=netSnapRow(), i=-1;
+  for(var k=0;k<DB.netSnapshots.length;k++)if(DB.netSnapshots[k].m===row.m)i=k;
+  if(i>=0){
+    var o=DB.netSnapshots[i];
+    if(o.a===row.a&&o.l===row.l&&o.cash===row.cash&&o.inv===row.inv
+       &&o.sav===row.sav&&o.fx===row.fx&&o.card===row.card)return false;
+    DB.netSnapshots[i]=row;
+  } else DB.netSnapshots.push(row);
+  DB.netSnapshots.sort(function(x,y){return x.m<y.m?-1:1;});
+  if(DB.netSnapshots.length>NETSNAP_KEEP)
+    DB.netSnapshots.splice(0,DB.netSnapshots.length-NETSNAP_KEEP);
+  return true;
+}
+
 function metricModal(kind){
-  var s=DB.netSnapshots.map(function(x){return {m:x.m,assets:x.a,debt:x.l,net:x.a-x.l}});
+  var all=(DB.netSnapshots||[]).slice().sort(function(x,y){return x.m<y.m?-1:1;});
   var map={assets:{t:'총자산',c:'#0f9d58',z:true},debt:{t:'총부채',c:'#e0483d',z:true},net:{t:'순자산',c:'#2f6df6',z:false}},cfg=map[kind];
-  var series=s.map(function(x){return {date:x.m+'-01',amount:kind==='debt'?x.debt:kind==='assets'?x.assets:x.net}});
-  openModal('<div class="mtop"><h3>'+cfg.t+' 12개월 추세</h3><span class="x" onclick="closeModal()">×</span></div><div class="mcur">'+signWon(series[series.length-1].amount)+'</div>'+lineChart(series,{color:cfg.c,zeroBase:cfg.z})+'');
+  /* ⚠️ v2.3 은 빈 배열이면 series[length-1] 이 undefined 라 여기서 죽었다 */
+  if(!all.length){openModal('<div class="mtop"><h3>'+cfg.t+' 추세</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut" style="padding:14px 0">아직 기록이 없다 — 접속할 때마다 이번 달 자산이 한 줄씩 쌓인다.</div>');return;}
+  var s=all.slice(-12).map(function(x){return {m:x.m,assets:x.a,debt:x.l,net:x.a-x.l};});
+  var series=s.map(function(x){return {date:x.m+'-01',amount:kind==='debt'?x.debt:kind==='assets'?x.assets:x.net};});
+  var lastAt=all[all.length-1].at;
+  openModal('<div class="mtop"><h3>'+cfg.t+' 추세 <span class="mut" style="font-size:11px">'+s[0].m+' ~ '+s[s.length-1].m+' · '+s.length+'개월</span></h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mcur">'+signWon(series[series.length-1].amount)+'</div>'+lineChart(series,{color:cfg.c,zeroBase:cfg.z})
+   +'<div class="mut" style="font-size:11px;margin-top:8px">접속할 때마다 이번 달 값이 갱신된다'+(lastAt?(' · 최종 '+lastAt):'')+'<br>⚠️ 지난 달 행은 덮지 않는다 — 그 달 말 상태가 사라지기 때문이다.</div>');
 }
 /* 이 선결제가 '무엇을 산 것'인지 — 저장값 우선, 없으면 역산.
    ⚠️ v1.6 에서 나는 "확정되면 card=false 가 되어 파생 불가"라고 단정하고 저장했다. **틀렸다.**
@@ -5988,6 +6039,8 @@ function migrateV6(d){
      (renderLog 의 DB.logs2.slice(), renderTax 의 DB.taxParams.noorang) */
   if(!d.logs2)d.logs2=[];
   if(!d.activity)d.activity=[];
+  /* v2.4 📊 월별 자산 스냅샷. 없으면 metricModal 이 죽는다. */
+  if(!d.netSnapshots)d.netSnapshots=[];
   if(!d.taxParams)d.taxParams=JSON.parse(JSON.stringify(SEED.taxParams));
   else{var _tp=SEED.taxParams;for(var _k in _tp)if(d.taxParams[_k]===undefined)d.taxParams[_k]=_tp[_k];}
   if(!d.missTags)d.missTags=MISS_TAGS.slice();
@@ -6587,7 +6640,7 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();renderDaily();snapAutoOnLoad();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();netSnapTouch();renderDaily();snapAutoOnLoad();});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
