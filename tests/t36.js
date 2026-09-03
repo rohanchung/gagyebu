@@ -20,7 +20,12 @@ const BASE=()=>({schemaVersion:7,ui:{month:'2026-09',date:D},
     처음에 id 로 픽스처를 짰다가 E4 가 잡았다(코드도 같이 틀려 있었다). */
  checks:{'2026-09-02':{due:['E1','E2','B1'],done:['E1','E2'],miss:{}},
          '2026-09-03':{due:['E1','E2','B1'],done:['E1'],miss:{}}},
- meals:{'2026-09-02':{b:'현미밥 김치찌개',l:'라면'}},
+ /* v2.51 — 한 끼가 {p:제안, a:실제} 두 축이다. 옛 문자열도 섞어 둔다(마이그레이션 검증). */
+ meals:{'2026-09-02':{b:{p:'오트밀',a:'현미밥 김치찌개'},l:{p:'',a:'라면'}},
+        /* 제안만 있고 실제가 빈 날. ⚠️ curDate() 는 goalDate 를 쓰고 **미래는 오늘로 자른다** —
+           데일리에서 열어볼 날은 과거여야 한다(09-04 는 캘린더 렌더 검증용으로만 쓴다). */
+        '2026-09-01':{b:{p:'삶은계란 토스트',a:''},l:{p:'닭가슴살 샐러드',a:''}},
+        '2026-09-04':{b:{p:'제안만',a:''}}},
  rewards:[],rewardCards:{},journal:[],items:[],logs2:[],activity:[],netSnapshots:[],
  fixed:[],events:[],posts:[],budgets:{},debts:[],accounts:[],cards:[],categories:[],transactions:[],timelog:{},
  health:{
@@ -109,20 +114,39 @@ async function boot(st){
   const {b,p,errs}=await boot(BASE());
   await p.evaluate(()=>setDailyTab('meal'));await p.waitForTimeout(400);
   ok('D1 식사 탭 존재',(await p.$eval('#v-daily',e=>e.textContent)).indexOf('🍚 식사')>=0);
-  ok('D2 4칸',(await p.$$('#v-daily textarea[id^=ml_]')).length===4);
+  ok('D2 제안 4칸',(await p.$$('#v-daily textarea[id^=mp_]')).length===4);
+  ok('D2b 실제 4칸',(await p.$$('#v-daily textarea[id^=ml_]')).length===4);
   ok('D3 칼로리 칸 없음',(await p.$eval('#v-daily',e=>e.textContent)).indexOf('칼로리')>=0
      &&(await p.$$('#v-daily input[id*=kcal]')).length===0);
-  await p.fill('#ml_b','오트밀');await p.fill('#ml_l','');
+  await p.fill('#mp_b','삶은계란');await p.fill('#ml_b','오트밀');await p.fill('#ml_l','');
   await p.evaluate(d=>mealSaveAll(d),D);await p.waitForTimeout(500);
   const m=await p.evaluate(d=>DB.meals[d],D);
-  ok('D4 입력값 저장',m&&m.b==='오트밀',JSON.stringify(m));
+  ok('D4 제안·실제가 따로 저장',m&&m.b.p==='삶은계란'&&m.b.a==='오트밀',JSON.stringify(m));
   /* 🔒 빈 값은 서랍을 만들지 않는다 */
   ok('D5 빈 칸은 키 자체가 없다',m&&m.l===undefined&&m.d===undefined,JSON.stringify(m));
-  await p.evaluate(()=>{mealSet('2026-09-05','b','');});
+  await p.evaluate(()=>{mealSet('2026-09-05','b','a','');});
   ok('D6 전부 비면 날짜 서랍째 삭제',(await p.evaluate(()=>DB.meals['2026-09-05']))===undefined);
-  await p.evaluate(()=>{mealSet('2026-09-02','b','');mealSet('2026-09-02','l','');});
+  await p.evaluate(()=>{mealSet('2026-09-02','b','p','');mealSet('2026-09-02','b','a','');
+                        mealSet('2026-09-02','l','p','');mealSet('2026-09-02','l','a','');});
   ok('D7 기존 날짜도 비면 삭제',(await p.evaluate(()=>DB.meals['2026-09-02']))===undefined);
   ok('D8 콘솔 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+ /* ── D2. 🍽 제안 → 실제 복사 ── */
+ {
+  const {b,p,errs}=await boot(BASE());
+  await p.evaluate(()=>{DB.ui.goalDate='2026-09-01';setDailyTab('meal');});await p.waitForTimeout(400);
+  ok('J1 제안만 있으면 복사 버튼',(await p.$eval('#v-daily',e=>e.textContent)).indexOf('제안대로 먹었다')>=0);
+  ok('J2 제안이 왼쪽에 들어있다',(await p.$eval('#mp_b',e=>e.value))==='삶은계란 토스트');
+  ok('J3 실제는 비어 있다',(await p.$eval('#ml_b',e=>e.value))==='');
+  await p.evaluate(()=>mealCopyPlan('2026-09-01'));await p.waitForTimeout(200);
+  ok('J4 복사됨',(await p.$eval('#ml_b',e=>e.value))==='삶은계란 토스트');
+  ok('J5 두 칸 다 복사',(await p.$eval('#ml_l',e=>e.value))==='닭가슴살 샐러드');
+  /* 🔒 이미 다르게 적은 칸은 덮지 않는다 */
+  await p.fill('#ml_b','라면');await p.evaluate(()=>mealCopyPlan('2026-09-01'));await p.waitForTimeout(200);
+  ok('J6 이미 쓴 칸은 안 덮는다',(await p.$eval('#ml_b',e=>e.value))==='라면');
+  ok('J7 콘솔 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
 
@@ -139,6 +163,10 @@ async function boot(st){
   ok('E5 둘 다 체크 → on',(await p.$$('.cell[data-date="2026-09-02"] .cpill.on')).length===2);
   ok('E6 체중 표시',cell2.indexOf('68.2kg')>=0);
   ok('E7 식사 표시',cell2.indexOf('김치찌개')>=0&&cell2.indexOf('라면')>=0);
+  /* 🔒 실제를 먼저 — 제안만 있는 날은 흐리게 */
+  ok('E7b 실제가 있으면 제안을 안 보여준다',cell2.indexOf('오트밀')<0,cell2.slice(0,240));
+  const cell4=await p.$eval('.cell[data-date="2026-09-04"]',e=>e.innerHTML);
+  ok('E7c 제안만 있는 날은 plan 표시',cell4.indexOf('cmeal plan')>=0&&cell4.indexOf('제안만')>=0,cell4.slice(0,200));
   const cell3=await p.$eval('.cell[data-date="2026-09-03"]',e=>e.innerHTML);
   ok('E8 하나만 체크된 날',(await p.$$('.cell[data-date="2026-09-03"] .cpill.on')).length===1,cell3.slice(0,160));
   /* 🔒 복약용 새 저장소 없음 */
@@ -195,6 +223,27 @@ async function boot(st){
   await b.close();
  }
 
+ /* ── K. 💊 약 셀 폭 · 용량 토글 ── */
+ {
+  const {b,p,errs}=await boot(BASE());
+  await p.click('.m[data-v="labs"]');await p.waitForTimeout(600);
+  /* ⚠️ v2.5 결함: 줄바꿈이 나서 셀이 세로로 터졌다 */
+  const ws=await p.$eval('.medcell',e=>getComputedStyle(e).whiteSpace);
+  ok('K1 줄바꿈 금지',ws==='nowrap',ws);
+  ok('K2 max-width 제거',(await p.$eval('.medcell',e=>e.style.maxWidth))==='');
+  ok('K3 기본은 용량 켬',(await p.evaluate(()=>medDoseOn()))===true);
+  ok('K4 용량이 보인다',(await p.$eval('.medcell',e=>e.textContent)).indexOf('mg')>=0);
+  ok('K5 툴팁에 이름+용량',(await p.$eval('.medw',e=>e.getAttribute('title'))).indexOf('mg')>=0);
+  await p.evaluate(()=>setMedDose(false));await p.waitForTimeout(500);
+  ok('K6 끄면 용량 숨김',(await p.$eval('.medcell',e=>e.textContent)).indexOf('mg')<0);
+  ok('K7 꺼도 툴팁엔 남는다',(await p.$eval('.medw',e=>e.getAttribute('title'))).indexOf('mg')>=0);
+  /* 🔒 ▲▼ 는 끄지 않는다 */
+  ok('K8 꺼도 증감 표시는 유지',(await p.$$('.medup,.meddn,.mednew')).length>0);
+  ok('K9 상태 저장',(await p.evaluate(()=>DB.ui.medDose))===false);
+  ok('K10 콘솔 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
  /* ── I. 마이그레이션 ── */
  {
   const {b,p}=await boot(BASE());
@@ -202,6 +251,15 @@ async function boot(st){
     return {meals:typeof d.meals, side:d.ui.sideMini};});
   ok('I1 meals 보장',r.meals==='object');
   ok('I2 sideMini 보장',r.side===false);
+  /* 🔒 옛 문자열 → {p,a} 감싸기 · 두 번 돌려도 안전해야 한다 */
+  const mg=await p.evaluate(()=>{
+    const d={schemaVersion:7,meals:{'2026-01-01':{b:'토스트',l:{p:'국',a:'밥'}}}};
+    const a=migrateDB(d), one=JSON.parse(JSON.stringify(a.meals));
+    const b2=migrateDB(a);
+    return {one, two:b2.meals};});
+  ok('I4 문자열이 {p,a} 로 감싸짐',mg.one['2026-01-01'].b.a==='토스트'&&mg.one['2026-01-01'].b.p==='',JSON.stringify(mg.one));
+  ok('I5 이미 객체인 건 그대로',mg.one['2026-01-01'].l.p==='국'&&mg.one['2026-01-01'].l.a==='밥');
+  ok('I6 두 번 돌려도 같다(멱등)',JSON.stringify(mg.one)===JSON.stringify(mg.two),JSON.stringify(mg.two));
   /* 동기화 diff 에 식사가 들어갔나 — 빠지면 충돌 설명에서 조용히 사라진다 */
   const dif=await p.evaluate(()=>{
     const a=JSON.parse(JSON.stringify(DB)); a.meals={'2026-09-09':{b:'토스트'}};

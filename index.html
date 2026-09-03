@@ -53,7 +53,26 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .side.mini .mi{font-size:15px}
 .sec h4{font-family:var(--serif);letter-spacing:.3px}
 /* v2.5 💊 복약 — 이름은 읽고 용량은 훑는다. 색은 이름 쪽에 준다. */
+.medw{display:inline-block}
 .medn{font-weight:600}
+/* v2.51 🍽 식사 — 제안 | 실제 두 축 */
+.mlhd{display:grid;grid-template-columns:54px 1fr 1fr;gap:7px;font-size:10.5px;font-weight:700;
+  color:var(--muted);padding:0 2px 5px;border-bottom:1px solid var(--line);margin-bottom:7px}
+.mlhd span:first-child{grid-column:2}
+.mlrow{display:grid;grid-template-columns:54px 1fr;gap:7px;align-items:start;margin-bottom:7px}
+.mlslot{font-size:11.5px;font-weight:600;color:#5a6b86;padding-top:7px;white-space:nowrap}
+.mlpair{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:0}
+.mlpair textarea{width:100%;font-size:12px;resize:vertical}
+textarea.mlp{background:#faf7ee;border-color:#e8e2cf}
+textarea.mla.same{background:#f2f9f4}
+.cmeal.plan{opacity:.55;font-style:italic}
+@media(max-width:900px){
+  .mlhd{display:none}
+  .mlrow{grid-template-columns:1fr;gap:3px}
+  .mlslot{padding-top:0}
+  .mlpair{grid-template-columns:1fr;gap:4px}
+  textarea.mlp::placeholder{color:#b9a06a}
+}
 /* v2.5 🩺 캘린더 생활 모드 */
 .cell.life{min-height:118px}
 .cpills{display:flex;gap:3px;margin:1px 0 2px}
@@ -1425,10 +1444,11 @@ function calLifeBody(ds){
   var w=(DB.health.weights||[]).filter(function(x){return x.date===ds&&x.kg!=null&&x.kg!=='';})[0];
   if(w)out+='<div class="cwt">'+w.kg+'kg</div>';
   /* 식사 */
-  var m=mealOf(ds), any=false;
   MEAL_SLOTS.forEach(function(sl){
-    var v=(m[sl.k]||'').trim(); if(!v)return; any=true;
-    out+='<div class="cmeal" data-tip="'+sajuEsc(sl.label+' · '+v)+'"><span class="ci">'+sl.ico+'</span>'+mdEsc(v)+'</div>';
+    var c=mealCell(ds,sl.k), v=c.a||c.p; if(!v)return;
+    var plan=!c.a;   /* 아직 안 먹었다 = 제안만 있는 상태 */
+    out+='<div class="cmeal'+(plan?' plan':'')+'" data-tip="'+sajuEsc(sl.label+(plan?' · 제안 ':' · ')+v)+'">'
+      +'<span class="ci">'+(plan?'🍽':sl.ico)+'</span>'+mdEsc(v)+'</div>';
   });
   if(!out)out='<div class="mut" style="font-size:9px;opacity:.5">—</div>';
   return out;
@@ -2630,6 +2650,10 @@ function medPrev(slot,i,name){
   }
   return null;
 }
+/* 용량을 늘 보고 싶진 않다 — 이름만 훑을 때가 있다. 끄면 툴팁으로 내려간다.
+   🔒 ▲▼ 는 끄지 않는다. 용량 변화를 보는 게 이 표의 목적이다. */
+function medDoseOn(){return !(DB.ui&&DB.ui.medDose===false);}
+function setMedDose(v){DB.ui=DB.ui||{};DB.ui.medDose=v;save();renderLabs();}
 function medCellHtml(slot,i){
   var arr=((DB.health.labMeds||[])[i]||{})[slot]||[];
   if(!arr.length)return '·';
@@ -2643,7 +2667,9 @@ function medCellHtml(slot,i){
         else if(p.v<q.v)mark=' <span class="meddn" title="이전 '+q.d+' → 감량">▼</span>';
       } else if(!q)mark=' <span class="mednew" title="이 검사일에 새로 추가">＋</span>';
     }
-    return '<span class="medn">'+mdEsc(p.n)+'</span>'+(p.d?'<span class="medd">'+mdEsc(p.d)+'</span>':'')+mark;
+    var full=p.n+(p.d?' '+p.d:'');
+    return '<span class="medw" title="'+sajuEsc(full)+'"><span class="medn">'+mdEsc(p.n)+'</span>'
+      +((p.d&&medDoseOn())?'<span class="medd">'+mdEsc(p.d)+'</span>':'')+mark+'</span>';
   }).join('<br>');
 }
 /* ====== 건강: 피검사 ====== */
@@ -2661,7 +2687,10 @@ function renderLabs(){
       +((v&&v!==d)?'<br><span class="mut" style="font-size:8px;font-weight:400">진료 '+v.slice(5).replace(/-/g,'.')+'</span>':'')
       +'</th>';}).join('');
   var typerow='<tr><td class="cM" style="font-weight:400;color:var(--muted);font-size:10px">타입</td>'+H.labTypes.map(function(t,i){return '<td class="v" onclick="labDate('+i+')" style="color:var(--muted);font-size:9.5px">'+(t||'')+'</td>';}).join('')+'</tr>';
-  var medcellStyle='white-space:normal;vertical-align:top;text-align:left;font-size:9px;color:#5a6b86;line-height:1.45;min-width:78px;max-width:120px';
+  /* ⚠️ v2.5 결함: white-space:normal + max-width:120px 이라 용량이 붙자마자 줄바꿈이 났다.
+       '자디앙듀오 12.5/850mg' 한 줄이 두 줄이 되고, 약 7개면 셀이 14줄로 세로 폭발한다.
+     🔒 한 줄로 못 박는다. 표는 이미 가로 스크롤이라 **세로로 터지는 것보다 가로로 긴 게 낫다.** */
+  var medcellStyle='white-space:nowrap;vertical-align:top;text-align:left;font-size:9px;color:#5a6b86;line-height:1.5;min-width:78px';
   var amrow='<tr><td class="cM" style="font-weight:400;color:#b26a00;font-size:10px">☀ 아침약</td>'+(H.labMeds||[]).map(function(md,i){return '<td class="v medcell" onclick="labDate('+i+')" style="'+medcellStyle+'">'+medCellHtml('am',i)+'</td>';}).join('')+'</tr>';
   var pmrow='<tr><td class="cM" style="font-weight:400;color:#6f5fc7;font-size:10px">🌙 저녁약</td>'+(H.labMeds||[]).map(function(md,i){return '<td class="v medcell" onclick="labDate('+i+')" style="'+medcellStyle+'">'+medCellHtml('pm',i)+'</td>';}).join('')+'</tr>';
   /* v2.2 — ⚠️ v2.1까지 체중은 **날짜가 원 단위로 똑같아야만** 떴다.
@@ -2690,7 +2719,8 @@ function renderLabs(){
   });
   document.getElementById('v-labs').innerHTML=''
    +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+N+'회 · 지표 '+(H.metrics||[]).length+'개</span>'
-   +'<span class="hacts"><button class="ghost sm" id="labAddBtn">+ 검사일</button> '
+   +'<span class="hacts"><button class="ghost sm" onclick="setMedDose('+(medDoseOn()?'false':'true')+')" title="약 용량을 표에 표시할지 — 끄면 마우스를 올렸을 때만 보인다">💊 용량 '+(medDoseOn()?'켬':'끔')+'</button> '
+   +'<button class="ghost sm" id="labAddBtn">+ 검사일</button> '
    +'<button class="ghost sm" id="labAddMetric">+ 지표</button></span></h4>'
    +'<div class="mut" style="font-size:10px;margin-bottom:8px">정상범위 벗어나면 <span class="lab-hi">↑높음</span>/<span class="lab-lo">↓낮음</span> · 셀 클릭 → 값 편집·추세 · 지표명 ✎ → 이름·정상범위 수정 · 날짜 클릭 → 검사일·진료일·약 수정 · 체중 셀도 눌러서 기록한다</div>'
    +'<div class="labwrap"><table class="labtbl"><thead><tr><th class="cM">지표</th>'+dcols+'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
@@ -4516,30 +4546,68 @@ function setDailyTab(v){DB.ui.dailyTab=v;DB.ui.tlPick=null;save();renderDaily();
       30년이면 1만 일이라 '빈 서랍'이 그대로 용량이 된다. */
 var MEAL_SLOTS=[{k:'b',label:'아침',ico:'🍚'},{k:'l',label:'점심',ico:'🍜'},
                 {k:'d',label:'저녁',ico:'🍲'},{k:'s',label:'간식',ico:'🍪'}];
+/* v2.51 — 한 끼가 두 축이 됐다: p = 로버트(생활방) 제안 · a = 로한이 실제로 먹은 것.
+   🔒 저장 모양: meals[ds][slot] = {p:'…', a:'…'}
+      ⚠️ v2.5 는 문자열이었다. 마이그레이션이 {a:문자열} 로 감싼다(멱등).
+   🔒 둘을 한 칸에 합치지 않는다 — 합치면 '먹기로 한 것'과 '먹은 것'을 영영 못 가른다.
+      그 둘의 차이가 이 화면의 존재 이유다. */
 function mealsAll(){DB.meals=DB.meals||{};return DB.meals;}
 function mealOf(ds){return mealsAll()[ds]||{};}
-function mealHas(ds){var m=mealOf(ds);for(var k in m)if((m[k]||'').trim())return true;return false;}
-function mealSet(ds,k,txt){
-  var all=mealsAll(), m=all[ds]||{}, v=(txt||'').trim();
-  if(v)m[k]=v; else delete m[k];
-  var any=false;for(var x in m)if(m[x])any=true;
+/* 옛 문자열도 그대로 읽는다 — 마이그레이션 전에 렌더가 먼저 돌 수 있다 */
+function mealCell(ds,k){var v=mealOf(ds)[k];
+  if(v==null)return {p:'',a:''};
+  if(typeof v==='string')return {p:'',a:v};
+  return {p:v.p||'',a:v.a||''};}
+function mealHas(ds,side){
+  var m=mealOf(ds);
+  for(var i=0;i<MEAL_SLOTS.length;i++){var c=mealCell(ds,MEAL_SLOTS[i].k);
+    if(side==='p'?c.p:side==='a'?c.a:(c.p||c.a))return true;}
+  return false;
+}
+function mealSet(ds,k,side,txt){
+  var all=mealsAll(), m=all[ds]||{}, c=mealCell(ds,k), v=(txt||'').trim();
+  c[side]=v;
+  if(c.p||c.a)m[k]={p:c.p,a:c.a}; else delete m[k];
+  var any=false;for(var x in m)any=true;
   if(any)all[ds]=m; else delete all[ds];   /* 빈 날은 서랍째 지운다 */
 }
 function mealSaveAll(ds){
   MEAL_SLOTS.forEach(function(s){
-    var el=document.getElementById('ml_'+s.k); if(el)mealSet(ds,s.k,el.value);
+    var pe=document.getElementById('mp_'+s.k), ae=document.getElementById('ml_'+s.k);
+    if(pe)mealSet(ds,s.k,'p',pe.value);
+    if(ae)mealSet(ds,s.k,'a',ae.value);
   });
   logAct('식사 기록 · '+ds); save(); renderDaily();
 }
+/* 제안대로 먹은 날이 대부분이다 — 매일 네 칸을 다시 타이핑하지 않는다. */
+function mealCopyPlan(ds){
+  var n=0;
+  MEAL_SLOTS.forEach(function(s){
+    var pe=document.getElementById('mp_'+s.k), ae=document.getElementById('ml_'+s.k);
+    if(!pe||!ae)return; var p=(pe.value||'').trim(); if(!p)return;
+    if((ae.value||'').trim()&&ae.value!==p)return;   /* 이미 쓴 건 덮지 않는다 */
+    ae.value=p; n++;
+  });
+  if(!n)alert('가져올 제안이 없거나, 이미 다르게 적어뒀다.');
+}
 function mealPanel(ds){
-  var m=mealOf(ds);
-  return '<div class="mut" style="font-size:11px;margin:2px 0 9px">뭘 먹었는지만 적어라. 양·칼로리는 안 받는다 — 채우지 못할 칸은 만들지 않는다.</div>'
+  return '<div class="mut" style="font-size:11px;margin:2px 0 9px">'
+     +'왼쪽은 <b>로버트가 짠 제안</b>, 오른쪽은 <b>실제로 먹은 것</b>. 양·칼로리는 안 받는다 — 채우지 못할 칸은 만들지 않는다.</div>'
+   +'<div class="mlhd"><span>🍽 제안 <span class="mut">로버트(생활)</span></span><span>✍ 실제</span></div>'
    +MEAL_SLOTS.map(function(s){
-      return '<div class="field" style="margin-bottom:8px"><label>'+s.ico+' '+s.label+'</label>'
-       +'<textarea id="ml_'+s.k+'" rows="2" placeholder="예: 현미밥, 김치찌개">'+mdEsc(m[s.k]||'')+'</textarea></div>';
+      var c=mealCell(ds,s.k), same=!!c.a&&c.a===c.p;
+      return '<div class="mlrow"><div class="mlslot">'+s.ico+' '+s.label+'</div>'
+       +'<div class="mlpair">'
+         +'<textarea id="mp_'+s.k+'" class="mlp" rows="2" placeholder="제안 없음">'+mdEsc(c.p)+'</textarea>'
+         +'<textarea id="ml_'+s.k+'" class="mla'+(same?' same':'')+'" rows="2" placeholder="뭘 먹었나">'+mdEsc(c.a)+'</textarea>'
+       +'</div></div>';
      }).join('')
-   +'<button class="btn" onclick="mealSaveAll(\''+ds+'\')">저장</button>'
-   +'<div class="mut" style="font-size:11px;margin-top:9px">🩺 캘린더 <b>생활</b> 모드에서 한 달치를 한눈에 본다 — 검사일 앞뒤로 뭘 먹었는지 대조하려고 만든 것이다.</div>';
+   +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+     +'<button class="btn" onclick="mealSaveAll(\''+ds+'\')">저장</button>'
+     +(mealHas(ds,'p')?'<button class="ghost sm" onclick="mealCopyPlan(\''+ds+'\')">⤵ 제안대로 먹었다</button>':'')
+   +'</div>'
+   +'<div class="mut" style="font-size:11px;margin-top:9px">🩺 캘린더 <b>생활</b> 모드에서 한 달치를 한눈에 본다 — 검사일 앞뒤로 뭘 먹었는지 대조하려고 만든 것이다.<br>'
+     +'제안은 순환기 핸드오프와 예산을 보고 생활방에서 일주일치를 한 번에 넣는다.</div>';
 }
 function renderDaily(){
   syncAllMilestones();
@@ -4614,7 +4682,7 @@ function renderDaily(){
    +'<span class="dtab'+(tab==='log'?' on':'')+'" data-dtab="log">⏳ 로그'
    +(used?' <em>'+hrs(used)+'</em>':'')+'</span>'
    +'<span class="dtab'+(tab==='meal'?' on':'')+'" data-dtab="meal">🍚 식사'
-   +(mealHas(d)?' <em>●</em>':'')+'</span></div>'
+   +(mealHas(d,'a')?' <em>●</em>':(mealHas(d,'p')?' <em>🍽</em>':''))+'</span></div>'
    +(tab==='routine'?routinePane:tab==='meal'?mealPanel(d):tlPanel(d))
    +'</div>';
 
@@ -5054,13 +5122,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.5';
+var APP_VERSION='2.51';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.51',date:'2026-09-03',note:"<b>\ud83c\udf7d 식단 제안 × 실제 · \ud83d\udc8a 약 셀 줄바꿈 수정.</b> · <b>한 끼가 두 축이 됐다</b>: <code>p</code> 제안(생활방 로버트) × <code>a</code> 실제(로한). 제안은 순환기 핸드오프와 예산을 보고 <b>일주일치를 한 번에</b> 넣는다 · \ud83d\udd12 <b>둘을 한 칸에 합치지 않는다</b> — 합치면 ‘먹기로 한 것’과 ‘먹은 것’을 영영 못 가른다. 그 차이가 이 화면의 존재 이유다 · <b>⤵ 제안대로 먹었다</b> 버튼 — 매일 네 칸을 다시 타이핑하지 않는다. ⚠️ 이미 다르게 적은 칸은 덮지 않는다 · 캘린더 생활 모드는 <b>실제를 먼저</b>, 없으면 제안을 \ud83c\udf7d 흐리게 — ‘오늘 뭐 먹기로 했나’가 보인다 · ⚠️ <b>[결함] v2.5 약 셀이 세로로 터졌다.</b> <code>white-space:normal</code> + <code>max-width:120px</code> 라 용량이 붙자마자 ‘자디앙듀오 12.5/850mg’ 가 두 줄이 되고, 약 7개면 셀이 14줄이 됐다 → <b>한 줄로 못 박는다</b>(nowrap). 표는 이미 가로 스크롤이라 <b>세로로 터지는 것보다 가로로 긴 게 낫다</b> · \ud83d\udc8a <b>용량 켜고\/끄기</b> 토글 — 끄면 이름만 보이고 용량은 마우스를 올렸을 때 나온다. \ud83d\udd12 ▲▼ 는 끄지 않는다 — 용량 변화를 보는 게 이 표의 목적이다 · 마이그레이션: 식사 문자열 → <code>{p,a}</code> 감싸기(다시 돌아도 두 번 안 감싸다)"},
   {v:'2.5',date:'2026-09-03',note:"<b>\ud83c\udf5a 식사 기록 · \ud83d\udc8a 복약 용량 · ⇔ 메뉴 접기 · 준비 태그.</b> (로한 요청 4건) · \ud83c\udf5a <b>식사 기록 신설</b> — 데일리에 아침·점심·저녁·간식 4칸. 로한: <i>“그래야 피검사 수치와 연계성이 생긴다”</i> · \ud83d\udd12 checks·timelog 와 같은 <b>날짜키 맵</b>이라 동기화 diff 가 이미 이 모양을 안다 · ⚠️ 칼로리 칸은 넣지 않았다(못 채우면 빈 칸만 남는다) · ⚠️ 빈 값은 저장하지 않는다 — 30년이면 1만 일이라 ‘빈 서랍’이 그대로 용량이 된다 · \ud83e\ude7a <b>캘린더를 두 모드로</b> 갈랐다: \ud83d\udcb0 가계부(기존) / \ud83e\ude7a 생활(루틴·복약·체중·식사). 한 셀에 둘 다 넣으면 둘 다 못 읽는다 · \ud83d\udd12 <b>복약 기록을 새로 만들지 않았다</b> — 루틴·체크가 이미 날짜별로 쌓고 있다. ‘☀ 아침약’ ‘\ud83c\udf19 저녁약’ 루틴 2개로 끝난다 · \ud83d\udc8a <b>복약 용량</b> — “엔트레스토 100mg” 처럼 적으면 이름·용량을 <b>읽을 때 파생</b>한다. \ud83d\udd12 <b>저장 구조를 안 바꿨다</b> — 21개 검사일 × 6~7개 약을 마이그레이션할 이유가 없다 · 검사일 사이 <b>증량 ▲ · 감량 ▼ · 신규 ＋</b> 표시 — 심부전은 용량 변화 자체가 치료 경과다. ⚠️ <b>단위가 같을 때만 비교한다</b> — 12.5mg 과 1정을 비교하면 거짓말이 된다 · 직전 검사일 처방 <b>⤵ 불러오기</b> — 매번 6개를 다시 타이핑하지 않는다 · ⇔ <b>사이드바 접기</b>(176→54px) — 캘린더를 넓게 보려고. 메뉴가 ‘\ud83d\udcc5 데일리’ 형태라 <b>이모지가 그대로 아이콘</b>이 된다. ⚠️ 이모지는 서로게이트 쌍이라 ::first-letter 로 못 자른다 — JS 로 한 번 감싼다 · ⏳ 타임로그에 <b>‘준비’ 태그</b> 추가(로한: <i>“준비를 기타로 넣기엔 기타가 너무 많아진다”</i>) · t36 신설"},
   {v:'2.4',date:'2026-08-31',note:"<b>\ud83d\udcca 월별 자산 스냅샷.</b> ⚠️ <b>[결함] <code>netSnapshots</code> 는 시드 6건(2026-02~07)이 전부였고 쓰는 코드가 하나도 없었다.</b> 읽는 곳은 <code>metricModal</code> 한 군데뿐 — 현황판 ‘12개월 추세’가 <b>2026-07 에 멈춰 있었다</b>. 8월부터는 영원히 안 쌀이는 구조였다 · 접속할 때마다 <b>이번 달 행을 갱신</b>한다. 달이 바뀌면 새 행이 생기고 지난 달은 그대로 굳는다 · \ud83d\udd12 <b>지난 달 행은 절대 덮지 않는다</b> — 덮으면 그 달 말 상태가 사라진다 · \ud83d\udd12 이건 <b>파생이 아니라 관측 기록이다</b>. 총부채는 <code>debts[].balance</code> 현재값 하나뿐이라 <b>과거 시점을 계산할 방법이 없다</b> — 그때 적어두지 않으면 영영 모른다 · 그룹별(현금성·투자·저축·외환)과 카드미결제까지 함께 남긴다 — 다음 단계의 기초·기말 표가 이걸 쓴다 · ⚠️ <b>[결함] 추세 모달이 빈 배열에서 죽었다</b>(<code>series[length-1]</code> 가 undefined) · 마이그레이션 보장도 없었다 · t35 26건 신설"},
   {v:'2.3',date:'2026-08-28',note:"<b>\ud83d\udccb 로그 페이지 재편 + 핸드오프 게시판.</b> ⚠️ v2.2까지 이 페이지는 성격이 다른 다섯(백업·스냅샷·체인지로그·활동·기록)을 <b>세로로 쌓아둔 곳</b>이었다. 분량의 대부분을 체인지로그가 먹어서 아래쪽은 스크롤에 묻혔다 · <b>4탭으로 나눔</b>: 핸드오프 / 활동 / 백업·복원 / 버전. 버전은 <b>최근 3건만 펼침</b> · <b>\ud83d\udccb 핸드오프 신설</b> — 각 방의 로버트가 서버에 남긴 인수인계를 앱에서 읽는다. 방 필터 + 카드 클릭 → 본문 · ⚠️ <b>[결함] handoffs 테이블은 RLS 가 켜져 있는데 정책이 0개</b>였다 — 앱 키로는 한 줄도 못 읽었다. SELECT 정책 추가 · \ud83d\udd12 <b>핸드오프는 app_state 에 복사하지 않는다</b> — 원본은 handoffs 테이블이다. 복사하면 방에서 갱신해도 앱이 옛 판을 들고 있게 된다. <b>읽기 전용</b>(R 만) · 마크다운은 <b>자체 렌더 40줄</b> — CDN 의존을 만들지 않는다. innerHTML 전 <b>이스케이프 먼저</b> · 활동 로그는 40건 → <b>200건 전체 · 날짜 그룹</b> · ‘재정경제부 로그’(logs2)는 핸드오프로 대체되어 <b>UI 에서 내린다</b>. ⚠️ 데이터는 그대로 남아 있다(2건) — 지우지 않았다"},
@@ -6227,6 +6296,14 @@ function migrateV6(d){
   if(!d.netSnapshots)d.netSnapshots=[];
   /* v2.5 🍚 식사 기록. 날짜키 맵 — checks·timelog 와 같은 모양이다. */
   if(!d.meals)d.meals={};
+  /* v2.51 — 한 끼를 {p:제안, a:실제} 로 넓혔다.
+     ⚠️ 멱등이어야 한다 — 이미 객체면 손대지 않는다. 두 번 감싸면 {a:{a:'…'}} 가 된다. */
+  Object.keys(d.meals).forEach(function(_dk){
+    var _m=d.meals[_dk]; if(!_m||typeof _m!=='object')return;
+    Object.keys(_m).forEach(function(_sk){
+      if(typeof _m[_sk]==='string')_m[_sk]={p:'',a:_m[_sk]};
+    });
+  });
   if(!d.taxParams)d.taxParams=JSON.parse(JSON.stringify(SEED.taxParams));
   else{var _tp=SEED.taxParams;for(var _k in _tp)if(d.taxParams[_k]===undefined)d.taxParams[_k]=_tp[_k];}
   if(!d.missTags)d.missTags=MISS_TAGS.slice();
