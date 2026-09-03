@@ -53,6 +53,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .side.mini .mi{font-size:15px}
 .sec h4{font-family:var(--serif);letter-spacing:.3px}
 /* v2.5 💊 복약 — 이름은 읽고 용량은 훑는다. 색은 이름 쪽에 준다. */
+.mlchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.mlchips .dchip{margin:0;font-size:10.5px;padding:3px 9px}
 .medw{display:inline-block}
 .medn{font-weight:600}
 /* v2.51 🍽 식사 — 제안 | 실제 두 축 */
@@ -1208,7 +1210,21 @@ function lineChart(series,opt){
 }
 
 /* ====== 계산 ====== */
-function accVal(a){return latest(a.hist);}
+/* ⚠️ [결함·중대] v2.51까지 현황판 총자산·순자산은 **hist(수기 스냅샷)만** 봤다.
+     거래를 아무리 넣어도 숫자가 안 움직였다 — 로한: "실시간으로 변경되지 않는다."
+     버그가 아니라 **기초잔액이 없던 시절의 잔재**다. 그때는 hist 가 유일한 진실이었다.
+   🔒 9/1 기초잔액을 박은 지금, 현금성 계좌는 `opening + 거래` 로 파생할 수 있다.
+     파생 가능한 것을 수기 스냅샷으로 대신하지 않는다.
+   ⚠️ 투자·저축·외환은 그대로 hist 다 — 이건 거래가 아니라 **평가액**이라 파생이 불가능하다. */
+/* 수입 기본 입금계좌 — 이름으로 찾고, 없으면 현금성 첫 번째로 물러선다.
+   ⚠️ 계좌 id 를 코드에 박지 않는다. 계좌를 지웠다 다시 만들면 id 가 바뀐다. */
+function mainInAcct(){
+  var cs=cashAccts();
+  for(var i=0;i<cs.length;i++)if(/SUPER/i.test(cs[i].name))return cs[i];
+  return cs[0]||null;
+}
+function accIsDerived(a){return !!(isCashAcct(a)&&a.opening&&a.opening.date);}
+function accVal(a){return accIsDerived(a)?acctComputed(a):latest(a.hist);}
 function groupTotals(){var g={};DB.accounts.forEach(function(a){g[a.group]=(g[a.group]||0)+accVal(a)});return g;}
 function totalAssets(){return DB.accounts.reduce(function(s,a){return s+accVal(a)},0);}
 /* ══════ 💳 청구주기 · 할부 엔진 (v1.4 · card-design.md) ══════
@@ -1229,6 +1245,19 @@ var CARD_CLOSE=10, CARD_PAY=25;
 var FOOD_DEFAULT=['배달'];
 function catByName(n){return (DB.categories||[]).filter(function(c){return c.name===n;})[0];}
 function isFoodCat(n){var c=catByName(n);return !!(c&&c.isFood);}
+/* v2.6 — 캘린더 칸 툴팁. 적요가 없으면 있는 것만으로 한 줄을 만든다(빈 툴팁은 안 띄운다). */
+function txnTip(t){
+  var p=[];
+  if(t.type==='transfer')p.push(acctName(t.from)+' → '+acctName(t.to));
+  else p.push((t.scope==='business'?'[사업] ':'')+(t.cat||''));
+  p.push((t.type==='income'?'+':'-')+comma(t.amt));
+  if(t.method)p.push(t.method);
+  if(t.food)p.push('🍽 '+t.food);
+  var m=(t.memo||'').trim().replace(/\s+/g,' ');
+  if(m)p.push('“'+m+'”');
+  if(t.card)p.push('미결제');
+  return sajuEsc(p.join(' · '));
+}
 /* 최근에 쓴 음식명 — 최신순, 중복 제거 */
 function recentFoods(n){
   var seen={},out=[];
@@ -1467,11 +1496,14 @@ function renderCal(){
     var ds=m+'-'+String(d).padStart(2,'0'),tx=DB.transactions.filter(function(t){return t.date===ds}),card=false,lines='',daysum=0;
     tx.forEach(function(t){if(t.type==='expense')daysum+=t.amt;if(t.card)card=true;});
     var inc=tx.filter(function(t){return t.type==='income';}),exp=tx.filter(function(t){return t.type==='expense';}),trs=tx.filter(function(t){return t.type==='transfer';});
-    var ordered=inc.concat(trs).concat(exp);
+    /* v2.6 — 캘린더 칸도 입력순. 타입별로 묶으면 통장 내역과 순서가 어긋난다. */
+    var ordered=tx.slice();
     ordered.slice(0,_lim).forEach(function(t){
-      if(t.type==='income'){lines+='<div class="cl in"><span class="c">'+t.cat+'</span><span class="a">+'+comma(t.amt)+'</span></div>';}
-      else if(t.type==='transfer'){lines+='<div class="cl tr"><span class="c">'+acctName(t.from).slice(0,3)+'→'+acctName(t.to).slice(0,3)+'</span><span class="a">'+comma(t.amt)+'</span></div>';}
-      else{var b=t.scope==='business';lines+='<div class="cl ex"><span class="c"><span class="sc '+(b?'b':'p')+'">'+(b?'사':'개')+'</span>'+t.cat+'</span><span class="a">-'+comma(t.amt)+'</span></div>';}
+      /* v2.6 — 마우스를 올리면 적요를 보여준다. 칸이 좁아 메모를 늘 띄울 수는 없다. */
+      var _tip=txnTip(t);
+      if(t.type==='income'){lines+='<div class="cl in" data-tip="'+_tip+'"><span class="c">'+t.cat+'</span><span class="a">+'+comma(t.amt)+'</span></div>';}
+      else if(t.type==='transfer'){lines+='<div class="cl tr" data-tip="'+_tip+'"><span class="c">'+acctName(t.from).slice(0,3)+'→'+acctName(t.to).slice(0,3)+'</span><span class="a">'+comma(t.amt)+'</span></div>';}
+      else{var b=t.scope==='business';lines+='<div class="cl ex" data-tip="'+_tip+'"><span class="c"><span class="sc '+(b?'b':'p')+'">'+(b?'사':'개')+'</span>'+t.cat+'</span><span class="a">-'+comma(t.amt)+'</span></div>';}
     });
     if(!_narrow&&tx.length>_lim)lines+='<div class="mut" style="font-size:9px">+'+(tx.length-_lim)+'건 더</div>';
     if(_narrow&&tx.length)lines='<div class="ccnt">'+tx.length+'건</div>';
@@ -1530,7 +1562,10 @@ function renderCal(){
 function renderDay(ds){
   selDate=ds;
   var cells=document.querySelectorAll('#v-cal .cell');for(var i=0;i<cells.length;i++)cells[i].classList.toggle('sel',cells[i].dataset.date===ds);
-  var tx=DB.transactions.filter(function(t){return t.date===ds}).sort(function(a,b){return b.amt-a.amt});
+  /* v2.6 — 로한: "토스 내역 보고 맞춰보기 쉽게 입력순으로."
+     ⚠️ v2.51까지 금액 내림차순이었다. 통장 내역은 시간순이라 대조할 때마다 눈이 튀었다.
+     🔒 배열 순서 = 입력순이다. 정렬하지 않는 것이 곧 입력순이다. */
+  var tx=DB.transactions.filter(function(t){return t.date===ds});
   var h='<div class="detail"><div class="dhd"><h4>'+parseInt(ds.slice(5,7),10)+'월 '+parseInt(ds.slice(8),10)+'일 <span class="mut">('+tx.length+'건)</span></h4><button class="btn sm" id="addTxn">+ 거래 추가</button></div>';
   if(!tx.length)h+='<div class="mut" style="padding:10px 2px">거래 없음</div>';
   /* ⚠️ 한 줄에 계정과목·수단·계좌·뱃지·금액·아이콘을 다 넣으면 좁은 칸에서 줄이 접혀 깨진다.
@@ -5122,13 +5157,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.51';
+var APP_VERSION='2.6';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.6',date:'2026-09-03',note:"<b>\ud83d\udd17 가계부↔데일리 연동 · 입력순 정렬 · 기본값 자동화.</b> (로한 요청 6건) · ⚠️ <b>[결함·중대] 현황판이 거래를 안 따라왔다.</b> 로한: <i>“가계부 입력시 잔액이 실시간으로 변경되지 않는다”</i> — <code>accVal</code> 이 <b>hist(수기 스냅샷)만</b> 봤다. 버그가 아니라 <b>기초잔액이 없던 시절의 잔재</b>다 · \ud83d\udd12 기초잔액이 박힌 <b>현금성 계좌는 이제 거래에서 파생</b>한다(<code>opening + 거래</code>). ⚠️ 투자·저축·외환은 그대로 hist — 거래가 아니라 <b>평가액</b>이라 파생이 불가능하다 · 파생 계좌는 ‘현재 평가액’ 칸을 <b>읽기전용</b>으로 막았다 — 읽히지도 않는 hist 가 쌓이면 나중에 ‘왜 다르지’가 된다 · <b>입력순 정렬</b> — 로한: <i>“토스 내역 보고 맞춰보기 쉽게.”</i> 거래 목록이 <b>금액 내림차순</b>이었고 캘린더 칸은 <b>수입→이체→지출</b> 묶음이라 통장 내역과 순서가 어긋났다. 둘 다 입력순으로 · <b>\ud83c\udf7d 끼니 연동</b> — 식비·배달·카페 거래에 아침·점심·저녁·간식 칩. 고르면 <b>데일리 식사 기록에 같이 들어간다</b> ⚠️ 기본은 ‘해당없음’ — 식재료·장보기는 끼니가 아니다. \ud83d\udd12 덮어쓰지 않고 <b>이어붙인다</b>(밥 + 음료) · <b>사업 클릭 → 카페 + 카카오 개인사업자 체크카드</b> 자동, <b>수입 → 우리 SUPER</b> 자동 ⚠️ 둘 다 <b>수정 중에는 끼어들지 않는다</b> — 이미 고른 값을 조용히 바꾸는 게 가장 나쁜 버그다. 계좌는 이름으로 찾는다(id 박지 않음) · <b>캘린더 칸에 마우스를 올리면 적요</b>(계정과목·금액·수단·음식·메모·미결제) · t37 신설"},
   {v:'2.51',date:'2026-09-03',note:"<b>\ud83c\udf7d 식단 제안 × 실제 · \ud83d\udc8a 약 셀 줄바꿈 수정.</b> · <b>한 끼가 두 축이 됐다</b>: <code>p</code> 제안(생활방 로버트) × <code>a</code> 실제(로한). 제안은 순환기 핸드오프와 예산을 보고 <b>일주일치를 한 번에</b> 넣는다 · \ud83d\udd12 <b>둘을 한 칸에 합치지 않는다</b> — 합치면 ‘먹기로 한 것’과 ‘먹은 것’을 영영 못 가른다. 그 차이가 이 화면의 존재 이유다 · <b>⤵ 제안대로 먹었다</b> 버튼 — 매일 네 칸을 다시 타이핑하지 않는다. ⚠️ 이미 다르게 적은 칸은 덮지 않는다 · 캘린더 생활 모드는 <b>실제를 먼저</b>, 없으면 제안을 \ud83c\udf7d 흐리게 — ‘오늘 뭐 먹기로 했나’가 보인다 · ⚠️ <b>[결함] v2.5 약 셀이 세로로 터졌다.</b> <code>white-space:normal</code> + <code>max-width:120px</code> 라 용량이 붙자마자 ‘자디앙듀오 12.5/850mg’ 가 두 줄이 되고, 약 7개면 셀이 14줄이 됐다 → <b>한 줄로 못 박는다</b>(nowrap). 표는 이미 가로 스크롤이라 <b>세로로 터지는 것보다 가로로 긴 게 낫다</b> · \ud83d\udc8a <b>용량 켜고\/끄기</b> 토글 — 끄면 이름만 보이고 용량은 마우스를 올렸을 때 나온다. \ud83d\udd12 ▲▼ 는 끄지 않는다 — 용량 변화를 보는 게 이 표의 목적이다 · 마이그레이션: 식사 문자열 → <code>{p,a}</code> 감싸기(다시 돌아도 두 번 안 감싸다)"},
   {v:'2.5',date:'2026-09-03',note:"<b>\ud83c\udf5a 식사 기록 · \ud83d\udc8a 복약 용량 · ⇔ 메뉴 접기 · 준비 태그.</b> (로한 요청 4건) · \ud83c\udf5a <b>식사 기록 신설</b> — 데일리에 아침·점심·저녁·간식 4칸. 로한: <i>“그래야 피검사 수치와 연계성이 생긴다”</i> · \ud83d\udd12 checks·timelog 와 같은 <b>날짜키 맵</b>이라 동기화 diff 가 이미 이 모양을 안다 · ⚠️ 칼로리 칸은 넣지 않았다(못 채우면 빈 칸만 남는다) · ⚠️ 빈 값은 저장하지 않는다 — 30년이면 1만 일이라 ‘빈 서랍’이 그대로 용량이 된다 · \ud83e\ude7a <b>캘린더를 두 모드로</b> 갈랐다: \ud83d\udcb0 가계부(기존) / \ud83e\ude7a 생활(루틴·복약·체중·식사). 한 셀에 둘 다 넣으면 둘 다 못 읽는다 · \ud83d\udd12 <b>복약 기록을 새로 만들지 않았다</b> — 루틴·체크가 이미 날짜별로 쌓고 있다. ‘☀ 아침약’ ‘\ud83c\udf19 저녁약’ 루틴 2개로 끝난다 · \ud83d\udc8a <b>복약 용량</b> — “엔트레스토 100mg” 처럼 적으면 이름·용량을 <b>읽을 때 파생</b>한다. \ud83d\udd12 <b>저장 구조를 안 바꿨다</b> — 21개 검사일 × 6~7개 약을 마이그레이션할 이유가 없다 · 검사일 사이 <b>증량 ▲ · 감량 ▼ · 신규 ＋</b> 표시 — 심부전은 용량 변화 자체가 치료 경과다. ⚠️ <b>단위가 같을 때만 비교한다</b> — 12.5mg 과 1정을 비교하면 거짓말이 된다 · 직전 검사일 처방 <b>⤵ 불러오기</b> — 매번 6개를 다시 타이핑하지 않는다 · ⇔ <b>사이드바 접기</b>(176→54px) — 캘린더를 넓게 보려고. 메뉴가 ‘\ud83d\udcc5 데일리’ 형태라 <b>이모지가 그대로 아이콘</b>이 된다. ⚠️ 이모지는 서로게이트 쌍이라 ::first-letter 로 못 자른다 — JS 로 한 번 감싼다 · ⏳ 타임로그에 <b>‘준비’ 태그</b> 추가(로한: <i>“준비를 기타로 넣기엔 기타가 너무 많아진다”</i>) · t36 신설"},
   {v:'2.4',date:'2026-08-31',note:"<b>\ud83d\udcca 월별 자산 스냅샷.</b> ⚠️ <b>[결함] <code>netSnapshots</code> 는 시드 6건(2026-02~07)이 전부였고 쓰는 코드가 하나도 없었다.</b> 읽는 곳은 <code>metricModal</code> 한 군데뿐 — 현황판 ‘12개월 추세’가 <b>2026-07 에 멈춰 있었다</b>. 8월부터는 영원히 안 쌀이는 구조였다 · 접속할 때마다 <b>이번 달 행을 갱신</b>한다. 달이 바뀌면 새 행이 생기고 지난 달은 그대로 굳는다 · \ud83d\udd12 <b>지난 달 행은 절대 덮지 않는다</b> — 덮으면 그 달 말 상태가 사라진다 · \ud83d\udd12 이건 <b>파생이 아니라 관측 기록이다</b>. 총부채는 <code>debts[].balance</code> 현재값 하나뿐이라 <b>과거 시점을 계산할 방법이 없다</b> — 그때 적어두지 않으면 영영 모른다 · 그룹별(현금성·투자·저축·외환)과 카드미결제까지 함께 남긴다 — 다음 단계의 기초·기말 표가 이걸 쓴다 · ⚠️ <b>[결함] 추세 모달이 빈 배열에서 죽었다</b>(<code>series[length-1]</code> 가 undefined) · 마이그레이션 보장도 없었다 · t35 26건 신설"},
@@ -6107,6 +6143,7 @@ function saveSched(id){
 function clearSched(id){var d=DB.debts.filter(function(x){return x.id===id})[0];d.schedule=null;save();closeModal();renderAcct();renderDash();}
 function accModal(id){
   var a=id?DB.accounts.filter(function(x){return x.id===id})[0]:{name:'',group:'현금성',subtype:'',currency:'',hist:[]};
+  var _drv=!!(id&&accIsDerived(a));
   var gsel=['현금성','투자','외환','저축'].map(function(g){return '<option'+(g===a.group?' selected':'')+'>'+g+'</option>'}).join('');
   var ss=['주식','코인','ETF','펀드','기타'].map(function(s){return '<option'+(s===a.subtype?' selected':'')+'>'+s+'</option>'}).join('');
   var cs=['USD','JPY','EUR','기타'].map(function(c){return '<option'+(c===a.currency?' selected':'')+'>'+c+'</option>'}).join('');
@@ -6115,7 +6152,9 @@ function accModal(id){
    +'<div class="field"><label>그룹</label><select id="ac_group" onchange="accGroupChange()">'+gsel+'</select></div>'
    +'<div class="field" id="ac_subwrap" style="display:'+(a.group==='투자'?'block':'none')+'"><label>투자 종류</label><select id="ac_sub">'+ss+'</select></div>'
    +'<div class="field" id="ac_curwrap" style="display:'+(a.group==='외환'?'block':'none')+'"><label>통화</label><select id="ac_cur">'+cs+'</select></div>'
-   +'<div class="field"><label>현재 평가액(원화)</label><input id="ac_amt" value="'+(id?accVal(a):'')+'" placeholder="0"></div>'
+   +'<div class="field"><label>현재 평가액(원화)'+(_drv?' <span class="mut">— 기초잔액+거래로 자동 계산된다</span>':'')+'</label>'
+     +'<input id="ac_amt" value="'+(id?accVal(a):'')+'" placeholder="0"'+(_drv?' readonly style="background:var(--soft);color:var(--muted)"':'')+'></div>'
+   +(_drv?'<div class="mut" style="font-size:11px;margin:-6px 0 10px">🔒 기초잔액이 박힌 현금성 계좌다. 이 값은 <b>거래에서 파생</b>되므로 손으로 고치지 않는다 — 고치려면 기초잔액이나 거래를 고쳐라.</div>':'')
    +'<div class="field"><label>기초잔액 <span class="mut">(현금흐름 시작점 · 현금성/외환만)</span></label><div style="display:flex;gap:6px"><input id="ac_opendate" value="'+((a.opening&&a.opening.date)||'2026-09-01')+'" style="flex:1" placeholder="2026-09-01"><input id="ac_openamt" value="'+((a.opening&&a.opening.amount!=null)?a.opening.amount:'')+'" style="flex:1" placeholder="기초 금액(비우면 미사용)"></div></div>'
    +'<button class="btn" onclick="saveAcc('+(id?"'"+id+"'":'null')+')">'+(id?'저장':'추가')+'</button>');
 }
@@ -6126,7 +6165,8 @@ function saveAcc(id){
   var TODAY=todayStr();
   var od=(document.getElementById('ac_opendate')||{}).value,oa=(document.getElementById('ac_openamt')||{}).value;
   var opening=(oa!=null&&(''+oa).trim()!=='')?{date:((''+od).trim()||'2026-09-01'),amount:parseFloat((''+oa).replace(/[^0-9.\-]/g,''))||0}:undefined;
-  if(id){var a=DB.accounts.filter(function(x){return x.id===id})[0];a.name=name;a.group=g;a.mode=g==='현금성'?'auto':'manual';a.subtype=g==='투자'?document.getElementById('ac_sub').value:undefined;a.currency=g==='외환'?document.getElementById('ac_cur').value:undefined;a.opening=opening;if(amt!==accVal(a)){a.hist=(a.hist||[]).filter(function(h){return h.date!==TODAY});a.hist.push({date:TODAY,amount:amt});}}
+  if(id){var a=DB.accounts.filter(function(x){return x.id===id})[0];a.name=name;a.group=g;a.mode=g==='현금성'?'auto':'manual';a.subtype=g==='투자'?document.getElementById('ac_sub').value:undefined;a.currency=g==='외환'?document.getElementById('ac_cur').value:undefined;a.opening=opening;/* 🔒 파생 계좌에 hist 를 찍으면 읽히지도 않는 값이 쌓여 나중에 '왜 다르지'가 된다 */
+    if(!accIsDerived(a)&&amt!==accVal(a)){a.hist=(a.hist||[]).filter(function(h){return h.date!==TODAY});a.hist.push({date:TODAY,amount:amt});}}
   else{var na={id:uid(),name:name,group:g,mode:g==='현금성'?'auto':'manual',hist:[{date:TODAY,amount:amt}],opening:opening};if(g==='투자')na.subtype=document.getElementById('ac_sub').value;if(g==='외환')na.currency=document.getElementById('ac_cur').value;DB.accounts.push(na);}
   logAct((id?'계좌수정':'계좌추가')+' · '+name+' '+won(amt));
   save();closeModal();renderAcct();renderDash();
@@ -6557,7 +6597,14 @@ function txnModal(id){
    /* ⚠️ 계정과목에서 멀리 떨어뜨리면 '왜 떴는지'가 안 읽힌다 — 바로 아래에 붙인다 */
    +'<div class="field" id="foodField" style="display:none"><label id="foodLabel">🍽 무엇을 먹었나</label>'
      +'<input id="fFood" list="foodList" value="'+sajuEsc(t.food||'')+'" placeholder="예: 교촌 허니콤보" autocomplete="off">'
-     +'<datalist id="foodList">'+recentFoods(40).map(function(f){return '<option value="'+sajuEsc(f)+'">';}).join('')+'</datalist></div>'
+     +'<datalist id="foodList">'+recentFoods(40).map(function(f){return '<option value="'+sajuEsc(f)+'">';}).join('')+'</datalist>'
+     /* v2.6 — 어느 끼니인지 고르면 데일리 식사 기록으로 넘어간다.
+        ⚠️ 식재료를 산 경우는 끼니가 아니다 — 기본은 '해당없음' 이고 안 골라도 저장된다. */
+     +'<div class="mlchips" id="fSlotWrap">'
+       +'<span class="dchip'+(!t.slot?' on':'')+'" data-slot="">해당없음</span>'
+       +MEAL_SLOTS.map(function(sl){return '<span class="dchip'+(t.slot===sl.k?' on':'')+'" data-slot="'+sl.k+'">'+sl.ico+' '+sl.label+'</span>';}).join('')
+     +'</div>'
+     +'<div class="mut" style="font-size:10.5px;margin-top:4px">끼니를 고르면 <b>데일리 식사 기록</b>에 같이 들어간다. 식재료·장보기면 해당없음.</div></div>'
    +'<div class="field" id="incomeOnly" style="display:'+(isInc?'block':'none')+'"><label>소득구분 <span class="mut">(종합소득세 연동)</span></label><div id="fIncInfo" class="autoNote" style="margin-top:0"></div></div>'
    +taxTxnField(t)
    +'<div id="expenseOnly" style="display:'+(isInc?'none':'block')+'"><div class="field"><label>세부계정과목 <span class="mut">(재물관리 카테고리 연동)</span></label><select id="fItemCat">'+itemCatOpts+'</select></div></div>'
@@ -6580,7 +6627,10 @@ function txnModal(id){
    +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
    +'<button class="btn" onclick="saveTxn('+(id?"'"+id+"'":'null')+')">저장</button>');
   modal._type=t.type;modal._scope=t.scope;modal._inst=parseInt(t.inst||1,10);
+  /* v2.6 🔒 수정 중에는 자동 기본값이 끼어들지 않는다 — 이미 고른 값을 조용히 바꾸면 안 된다 */
+  modal._editing=!!id;
   modal._tk=t.id?txTaxKind(t):(t.scope==='business'?'biz':'priv');
+  modal._slot=t.slot||'';
   setTimeout(taxKindSync,0);
   setTimeout(foodFieldSync,0);
   modal._instDone=parseInt(t.instDone||0,10);
@@ -6616,6 +6666,13 @@ function instPreview(){
     +'</span>';
 }
 /* 계정과목이 음식성이면 칸을 연다. 계정과목을 바꾸면 즉시 따라온다. */
+/* v2.6 — 끼니 칩. modal._slot 하나만 들고 있는다(선택 상태를 DOM 에서 되읽지 않는다). */
+function setMealSlot(el,k){
+  modal._slot=k||'';
+  var w=document.getElementById('fSlotWrap'); if(!w)return;
+  var cs=w.querySelectorAll('.dchip'); for(var i=0;i<cs.length;i++)cs[i].classList.remove('on');
+  el.classList.add('on');
+}
 function foodFieldSync(){
   var f=document.getElementById('foodField'); if(!f)return;
   var cat=(document.getElementById('fCat')||{}).value;
@@ -6623,7 +6680,9 @@ function foodFieldSync(){
   f.style.display=on?'block':'none';
   var lb=document.getElementById('foodLabel');
   if(lb&&on)lb.innerHTML='🍽 <b>'+sajuEsc(cat)+'</b> — 무엇을 먹었나';
-  if(!on){var i=document.getElementById('fFood'); if(i)i.value='';}
+  if(!on){var i=document.getElementById('fFood'); if(i)i.value=''; modal._slot='';
+    var w=document.getElementById('fSlotWrap');
+    if(w){var cs=w.querySelectorAll('.dchip');for(var k=0;k<cs.length;k++)cs[k].classList.toggle('on',k===0);}}
 }
 function updIncInfo(){var el=document.getElementById('fIncInfo');if(!el||modal._type!=='income')return;var name=document.getElementById('fCat').value;var c=DB.categories.filter(function(x){return x.name===name&&x.type==='income'})[0];el.innerHTML=c?('소득구분: <b>'+(c.incType||'미분류')+'</b>'+(c.taxCode?' · 코드 '+c.taxCode:'')+' → 세무 페이지 자동 집계'):'카테고리 없음 (계좌·부채 탭에서 추가)';}
 function methodChange(){var af=document.getElementById('acctField'),nt=document.getElementById('acctNote');if(!af)return;
@@ -6645,10 +6704,30 @@ function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button
     document.getElementById('expenseOnly').style.display=inc?'none':'block';
     document.getElementById('methodField').style.display=inc?'none':'block';
     document.getElementById('acctLabel').textContent=inc?'입금계좌':'출금계좌';
+    /* v2.6 — 수입은 거의 전부 우리 SUPER 로 들어온다. 기본값만 바꾼다(수정 중이면 손대지 않는다). */
+    if(inc&&!modal._editing){var _a=document.getElementById('fAcct'), _m=mainInAcct();
+      if(_a&&_m)selOpt(_a,_m.id);}
     updIncInfo();}
   foodFieldSync();
   methodChange();}
-function setScope(b,v){modal._scope=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');}
+/* v2.6 — 로한의 사업 지출은 사실상 하나의 모양이다: 카페 + 카카오 개인사업자 체크카드.
+   ⚠️ 기본값일 뿐 잠그지 않는다. 그리고 **이미 값을 골라둔 경우엔 덮지 않는다** —
+      수정하러 들어온 거래를 조용히 바꿔버리면 그게 가장 나쁜 종류의 버그다. */
+var BIZ_DEF={cat:'카페', method:'카카오-사업자체크카드'};
+function setScope(b,v){
+  modal._scope=v;
+  var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
+  if(v!=='business'||modal._type!=='expense'||modal._editing)return;
+  var c=document.getElementById('fCat'), m=document.getElementById('fMethod');
+  if(c&&catByName(BIZ_DEF.cat))selOpt(c,BIZ_DEF.cat);
+  if(m&&cardBy(BIZ_DEF.method))selOpt(m,BIZ_DEF.method);
+  foodFieldSync(); methodChange();
+}
+/* select 에 값이 있으면 고른다. 없으면 아무 일도 하지 않는다(엉뚱한 값이 박히는 것보다 낫다). */
+function selOpt(sel,val){
+  for(var i=0;i<sel.options.length;i++)if(sel.options[i].value===val||sel.options[i].text===val){sel.selectedIndex=i;return true;}
+  return false;
+}
 function saveTxn(id){
   var amt=parseFloat((document.getElementById('fAmt').value||'').replace(/[^0-9.]/g,'')),date=document.getElementById('fDate').value.trim();
   if(isNaN(amt)||!date)return alert('금액과 날짜 입력');
@@ -6687,13 +6766,27 @@ function saveTxn(id){
   var _fd=((document.getElementById('fFood')||{}).value||'').trim();
   var _wantFood=(modal._type==='expense'&&isFoodCat(rec.cat)&&!!_fd);
   if(_wantFood)rec.food=_fd;
+  /* v2.6 🍽 끼니 슬롯 — 고른 경우만 남긴다(식재료·장보기는 끼니가 아니다) */
+  var _slot=(modal._type==='expense'&&isFoodCat(rec.cat))?(modal._slot||''):'';
+  if(_slot)rec.slot=_slot;
   /* 할부는 신용카드 지출에만 붙는다. 일시불이면 필드를 만들지 않는다 — 빈 서랍을 남기지 않는다. */
   var _n=isCardPay?(modal._inst||1):1;
   if(_n>1){rec.inst=_n;rec.instDone=Math.min(modal._instDone||0,_n);}
   else{rec.inst=undefined;rec.instDone=undefined;}
   if(id){var _to=DB.transactions.filter(function(x){return x.id===id})[0];
-    Object.assign(_to,rec); if(!_wantFood)delete _to.food;}
+    Object.assign(_to,rec); if(!_wantFood)delete _to.food; if(!_slot)delete _to.slot;}
   else{rec.id=uid();DB.transactions.push(rec);}
+  /* v2.6 — 끼니를 골랐으면 데일리 식사(실제)에 같이 적는다.
+     🔒 덮어쓰지 않고 **이어붙인다** — 한 끼에 두 건을 쓸 수 있다(밥 + 음료).
+     ⚠️ 이미 같은 말이 적혀 있으면 두 번 넣지 않는다. */
+  if(_slot){
+    var _txt=(_fd||rec.cat||'').trim();
+    if(_txt){
+      var _cur=(mealCell(rec.date,_slot).a||'').trim();
+      if(!_cur)mealSet(rec.date,_slot,'a',_txt);
+      else if(_cur.indexOf(_txt)<0)mealSet(rec.date,_slot,'a',_cur+', '+_txt);
+    }
+  }
   logAct((id?'거래수정':'거래추가')+' · '+rec.date+' '+rec.cat+' '+(rec.type==='income'?'+':'-')+won(rec.amt));
   /* 🎁 보상 카드 연결 — 거래가 생긴 뒤에 붙인다 */
   var _rwEl=document.getElementById('fRwCard');
@@ -6882,6 +6975,7 @@ document.addEventListener('click',function(e){
   var dl2=e.target.closest('[data-dellog]');if(dl2)return delLog(dl2.dataset.dellog);
   var rca=e.target.closest('[data-reconapply]');if(rca)return reconcileApply(rca.dataset.reconapply);
   if(e.target.id==='addWeightBtn')return weightModal();
+  var _sl=e.target.closest('[data-slot]');if(_sl)return setMealSlot(_sl,_sl.dataset.slot);
   var _td=e.target.closest('[data-taxdrill]');
   if(_td){var _p=_td.dataset.taxdrill.split('|');return taxDrill(+_p[1],_p[0],_p[2]);}
   var _tf=e.target.closest('[data-taxfreeze]');if(_tf)return taxFreeze(+_tf.dataset.taxfreeze);
