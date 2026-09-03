@@ -204,7 +204,8 @@ console.log('\n=== ⏳ 병원 · 가족 태그 ===');
    last:TL_TAGS[TL_TAGS.length-1].k,
    dup:new Set(TL_TAGS.map(x=>x.c)).size===TL_TAGS.length,
    keys:new Set(TL_TAGS.map(x=>x.k)).size===TL_TAGS.length}));
- ok(r.n===14,'태그 14개', r.n);
+ /* v2.5 — '준비' 태그 추가로 15개가 됐다 */
+ ok(r.n===15,'태그 15개', r.n);
  ok(r.hosp==='병원'&&r.fam==='가족','병원·가족 조회됨', r.hosp+'/'+r.fam);
  ok(r.last==='etc','⚠️ 기타가 마지막 (tlTag 폴백이 여기에 의존)', r.last);
  ok(r.dup,'색 중복 없음');

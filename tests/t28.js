@@ -85,7 +85,8 @@ console.log('\n=== ② 보조 태그 — 24시간 총량이 안 깨진다 ===');
    return {has:!!seg2, n:seg2?seg2.querySelectorAll('button').length:0,
      on:seg2?seg2.querySelector('button.on').textContent.trim():'', pre};});
  ok(m.has,'모달에 보조 태그 줄');
- ok(m.n===15,'없음 + 14개 태그', m.n);
+ /* v2.5 — '준비' 태그 추가 → 없음 + 15개 = 16 */
+ ok(m.n===16,'없음 + 15개 태그', m.n);
  ok(m.on==='휴식','기존 값 선택 상태', m.on);
  ok(/낭비\+휴식/.test(m.pre)&&/1h/.test(m.pre),'섞인 결과 미리보기', m.pre.trim());
  const dup=await p.evaluate(()=>{window.__dlg=[];tlSetTag2(null,modal._tltag);

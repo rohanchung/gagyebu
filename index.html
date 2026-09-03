@@ -34,7 +34,41 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .side .m.on{background:#f3ead2;color:var(--gold);box-shadow:inset 3px 0 0 var(--gold)}
 .side .m.dim{opacity:.45;cursor:default}
 .side .sub{font-family:var(--serif);color:var(--gold);font-size:10.5px;padding:10px 11px 3px;font-weight:700;letter-spacing:1px;text-transform:uppercase;opacity:.8}
+/* v2.5 ⇔ 사이드바 접기 — 캘린더를 널게 보려고 만들었다(124px 확보).
+   메뉴가 ‘📅 데일리’ 형태라 이모지가 그대로 아이콘이 된다.
+   ⚠️ 이모지는 서로게이트 쌍이라 ::first-letter 로 못 자른다 — JS 로 한 번 감싼다. */
+.sidewrap{position:relative;flex-shrink:0}
+.side{transition:width .16s ease}
+.sidetog{position:absolute;top:8px;right:-11px;z-index:5;width:22px;height:22px;border-radius:50%;
+  border:1px solid #e3d9bd;background:#fff;color:var(--gold);font-size:11px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.sidetog:hover{background:#f6f1e3}
+.side.mini{width:54px;padding-left:6px;padding-right:6px}
+.side.mini .mt{display:none}
+.side.mini .m{justify-content:center;padding:10px 4px;gap:0}
+.side.mini .m.on{box-shadow:inset 2px 0 0 var(--gold)}
+.side.mini .sub{font-size:0;padding:9px 0 3px;text-align:center;opacity:.5}
+.side.mini .sub::after{content:'\2500\2500';font-size:10px}
+.side.mini .brand{font-size:0;padding:2px 0 9px;gap:0}
+.side.mini .mi{font-size:15px}
 .sec h4{font-family:var(--serif);letter-spacing:.3px}
+/* v2.5 💊 복약 — 이름은 읽고 용량은 훑는다. 색은 이름 쪽에 준다. */
+.medn{font-weight:600}
+/* v2.5 🩺 캘린더 생활 모드 */
+.cell.life{min-height:118px}
+.cpills{display:flex;gap:3px;margin:1px 0 2px}
+.cpill{width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:8.5px;border:1px solid var(--line);background:var(--soft);opacity:.4;font-style:normal}
+.cpill.on{opacity:1;background:#eaf1ff;border-color:var(--accent)}
+.cwt{display:inline-block;font-size:9.5px;font-weight:700;color:var(--accent);
+  background:#eaf1ff;border-radius:999px;padding:1px 6px;margin-bottom:2px;font-variant-numeric:tabular-nums}
+.cmeal{font-size:9.5px;line-height:1.35;color:#41506a;display:flex;gap:3px;margin-bottom:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmeal .ci{flex-shrink:0}
+.medd{margin-left:4px;color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.medup{color:var(--neg);font-weight:700}
+.meddn{color:var(--accent);font-weight:700}
+.mednew{color:var(--pos);font-weight:700}
 .brand-crest{width:22px;height:22px;flex-shrink:0;margin:0}
 .main{flex:1;padding:18px;min-width:0}
 .view{display:none}.view.on{display:block}
@@ -625,6 +659,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
    PC(≥901px)는 사이드바 그대로 — 이 블록은 미디어쿼리 안에만 있다. */
 @media(max-width:900px){
   .app.on{flex-direction:column}
+  /* ⚠️ v2.5 — .side 를 .sidewrap 으로 감싸면서 모바일이 깨졌다.
+       모바일 규칙은 .side 가 .app 의 직계 자식이라고 가정하고 width:100% 를 준다.
+       래퍼가 폭을 안 받으면 탭바가 쪼그라들고, right:-11px 인 토글이 11px 넘쳐
+       페이지에 가로 스크롤이 생겼다(t25·t26 이 잡았다).
+     🔒 모바일에선 접기 자체가 의미 없다 — 이미 가로 스크롤 탭바다. 버튼을 숨긴다. */
+  .sidewrap{width:100%}
+  .sidetog{display:none}
+  .side.mini{width:100%;padding-left:10px;padding-right:10px}
+  .side.mini .mt{display:inline}
+  .side.mini .m{justify-content:center;padding:7px 11px;gap:6px}
   .side{width:100%;display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
     align-items:center;gap:4px;padding:6px 8px;border-right:0;border-bottom:1px solid var(--line);
     position:sticky;top:0;z-index:60;background:rgba(255,255,255,.97);backdrop-filter:blur(6px);
@@ -707,7 +751,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 
 <div id="savebadge" class="savebadge"></div>
 <div class="app" id="app">
-  <div class="side">
+  <div class="sidewrap">
+  <button class="sidetog" id="sideTog" title="메뉴 접기/펴기">◀</button>
+  <div class="side" id="sideBar">
     <div class="brand"><img src="favicon.png" class="brand-crest" alt=""><br>Rohan Book</div>
     <div class="sub">🎯 실행</div>
     <div class="m on" data-v="daily">📅 데일리</div>
@@ -731,6 +777,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
     <div class="sub">🛡 기타</div>
     <div class="m" data-v="items">🗡️ 재물관리</div>
     <div class="m" data-v="log">🪶 로그</div>
+  </div>
   </div>
   <div class="main">
     <div class="view on" id="v-daily"></div>
@@ -919,7 +966,7 @@ function syncDiffText(mine,srv){
     if(d.chg)seg.push('양쪽 내용 다름 '+d.chg+'건');
     out.push('· '+C.label+' ('+syncCount(mine,C.k)+' vs '+syncCount(srv,C.k)+')\n    '+seg.join('\n    '));
   });
-  [['checks','체크'],['timelog','타임로그']].forEach(function(P){
+  [['checks','체크'],['timelog','타임로그'],['meals','식사']].forEach(function(P){
     var d=syncDiffMap(mine[P[0]],srv[P[0]]);
     if(!d.add.length&&!d.del.length&&!d.chg)return;
     var seg=[];
@@ -1344,6 +1391,48 @@ function shortWon(v){
 }
 /* ====== 가계부 캘린더 ====== */
 var selDate=null;
+/* v2.5 🩺 캘린더 두 모드 — 로한: "지금 캘린더는 너무 축약적이다."
+   💰 가계부 = 거래 목록(기존) / 🩺 생활 = 루틴·복약·체중·식사
+   🔒 한 셀에 둘 다 넣지 않는다. 넣으면 셀이 터지고 둘 다 못 읽는다. */
+function calView(){return (DB.ui&&DB.ui.calView==='life')?'life':'money';}
+function setCalView(v){DB.ui=DB.ui||{};DB.ui.calView=v;save();renderCal();}
+/* 복약 루틴(제목에 '약'이 들어간 것)을 그날 체크에서 뽑는다.
+   ⚠️ 새 저장소를 만들지 않는다 — 루틴·체크가 이미 날짜별로 쌓고 있다. */
+function medRoutines(){
+  return routinesSorted().filter(function(r){
+    return r.status!=='retired' && /약/.test(r.title||'');
+  });
+}
+function calLifeBody(ds){
+  var out='';
+  /* 복약 */
+  /* ⚠️ 아직 오지 않은 날에 '미체크' 알약을 깔면 한 달 내내 회색 점이 뒤덮는다.
+     안 한 게 아니라 아직 안 온 날이다 — 오늘까지만 보여준다. */
+  var mr=(ds<=todayStr())?medRoutines():[];
+  if(mr.length){
+    var pills=mr.map(function(r){
+      /* ⚠️ [결함] 처음엔 checks[ds][r.id] 로 읽었다. **틀렸다.**
+           실제 구조는 {due:[코드], done:[코드], miss:{}} 로 **루틴 코드 배열**이다.
+           id 로 읽으면 알약이 영영 안 켜진다 — t36-E4 가 잡았다.
+         🔒 앱이 이미 쓰는 checkGet() 을 그대로 쓴다. 판정이 둘이면 반드시 어긋난다. */
+      var done=checkGet(ds,r.code);
+      return '<i class="cpill'+(done?' on':'')+'" data-tip="'+sajuEsc(r.title+(done?' · 복용':' · 미체크'))+'">'
+        +(/저녁|밤|🌙/.test(r.title)?'🌙':'☀')+'</i>';
+    }).join('');
+    out+='<div class="cpills">'+pills+'</div>';
+  }
+  /* 체중 — 그날 잰 것만. 근사매칭은 여기서 하지 않는다(다른 날 값이 그날처럼 보인다). */
+  var w=(DB.health.weights||[]).filter(function(x){return x.date===ds&&x.kg!=null&&x.kg!=='';})[0];
+  if(w)out+='<div class="cwt">'+w.kg+'kg</div>';
+  /* 식사 */
+  var m=mealOf(ds), any=false;
+  MEAL_SLOTS.forEach(function(sl){
+    var v=(m[sl.k]||'').trim(); if(!v)return; any=true;
+    out+='<div class="cmeal" data-tip="'+sajuEsc(sl.label+' · '+v)+'"><span class="ci">'+sl.ico+'</span>'+mdEsc(v)+'</div>';
+  });
+  if(!out)out='<div class="mut" style="font-size:9px;opacity:.5">—</div>';
+  return out;
+}
 function renderCal(){
   var m=DB.ui.month,y=parseInt(m.slice(0,4)),mo=parseInt(m.slice(5,7)),pl=monthPL(m);
   /* 좁은 화면에서 한 칸에 10줄을 넣으면 캘린더가 세로로 터진다 */
@@ -1377,8 +1466,9 @@ function renderCal(){
     var hdr='<div class="dhdr"><span class="dn'+(_full?' full':(_part?' part':''))+'"'
       +(_gr&&_gr.total>0?' data-tip="루틴 '+_gr.done+'/'+_gr.total+'"':'')+'>'+d+'</span>'
       +'<span class="mkw">'+mk+'</span>'
-      +(daysum?'<span class="dsum">-'+(_narrow?shortWon(daysum):comma(daysum))+'</span>':'')+'</div>';
-    cells+='<div class="cell'+(ds===today?' today':'')+(ds===selDate?' sel':'')+'" data-date="'+ds+'">'+hdr+lines+'</div>';
+      +((daysum&&calView()==='money')?'<span class="dsum">-'+(_narrow?shortWon(daysum):comma(daysum))+'</span>':'')+'</div>';
+    if(calView()==='life')lines=calLifeBody(ds);
+    cells+='<div class="cell'+(ds===today?' today':'')+(ds===selDate?' sel':'')+(calView()==='life'?' life':'')+'" data-date="'+ds+'">'+hdr+lines+'</div>';
   }
   var WATCH=(DB.ui.watchCats&&DB.ui.watchCats.length)?DB.ui.watchCats:['식비','카페','간식/편의점'];
   var catSum={};monthTxns(m).forEach(function(t){if(t.type==='expense')catSum[t.cat]=(catSum[t.cat]||0)+t.amt;});
@@ -1401,10 +1491,16 @@ function renderCal(){
    +'<div class="calwrap"><div class="calmain">'
    +'<div class="mhead"><div class="mnav"><span id="calPick" style="cursor:pointer;margin-right:6px" title="연·월 선택">📅</span><span data-mv="-1">◀</span><b id="calTitle" style="cursor:pointer">'+y+'년 '+mo+'월</b><span data-mv="1">▶</span></div>'
    +statBar+'</div>'
-   +'<div class="plbar">'+plToggle
-      +'<span class="plmsg">'+(_md==='cash'
+   +'<div class="plbar">'
+      +'<div class="plmode" title="가계부=거래 · 생활=루틴·복약·체중·식사" style="margin-left:0;margin-right:6px">'
+      +'<span class="plm'+(calView()==='money'?' on':'')+'" onclick="setCalView(\'money\')">💰 가계부</span>'
+      +'<span class="plm'+(calView()==='life'?' on':'')+'" onclick="setCalView(\'life\')">🩺 생활</span></div>'
+      +(calView()==='money'?plToggle:'')
+      +'<span class="plmsg">'+(calView()==='life'
+        ? '☀🌙 복약 · 체중 · 식사 — <b>검사일 앞뒤로 뭘 먹었는지</b> 대조하려고 만든 화면이다'
+        : (_md==='cash'
         ? '이 달 <b>통장에서 나가는</b> 돈'+((_show.exp!==_alt)?(' · 이 달에 <b>산</b> 것은 '+won(pl.exp)):'')
-        : '이 달에 <b>산</b> 것'+((_show.exp!==_alt)?(' · 통장에서 <b>나가는</b> 돈은 '+won(_cash.exp)):''))
+        : '이 달에 <b>산</b> 것'+((_show.exp!==_alt)?(' · 통장에서 <b>나가는</b> 돈은 '+won(_cash.exp)):'')))
       +'</span></div>'
    +'<div class="cal">'+cells+'</div></div>'
    +'<div class="calside" id="dayPanel"></div></div>';
@@ -2512,6 +2608,44 @@ function eventModal(id){var H=DB.health;var e=id?(H.events||[]).filter(function(
 }
 function saveEvent(id){var H=DB.health;H.events=H.events||[];var n=document.getElementById('e_name').value.trim();if(!n)return alert('병명 입력');var rec={name:n,date:document.getElementById('e_date').value,status:document.getElementById('e_status').value,symptom:document.getElementById('e_symptom').value,treatment:document.getElementById('e_treatment').value,memo:document.getElementById('e_memo').value};if(id){Object.assign(H.events.filter(function(x){return x.id===id;})[0],rec);}else{rec.id=uid();H.events.push(rec);}logAct((id?'질병수정':'질병추가')+' · '+n);save();closeModal();renderWeight();}
 function delEvent(id){if(!confirm('삭제할까요?'))return;var H=DB.health;H.events=H.events.filter(function(e){return e.id!==id;});save();renderWeight();}
+/* ====== 💊 복약 (v2.5) ======
+   🔒 저장 구조를 바꾸지 않는다. labMeds[i] = {am:[문자열], pm:[문자열]} 그대로다.
+      "엔트레스토 100mg" 처럼 쓰면 이미 저장된다 — 21개 검사일 × 6~7개 약을
+      마이그레이션할 이유가 없다. **이름·용량은 읽을 때 파생한다.**
+   ⚠️ 용량 비교는 단위가 같을 때만 한다. 12.5mg 과 1정을 비교하면 거짓말이 된다. */
+function medParse(x){
+  var t=String(x==null?'':x).trim();
+  /* 뒤쪽의 '숫자+단위'만 용량으로 본다. 앞에 붙은 숫자는 약 이름의 일부일 수 있다(자디앙 25). */
+  var m=/^(.*?)[\s]+([0-9]+(?:\.[0-9]+)?)\s*(mg|g|mcg|ug|ml|IU|iu|정|알|포|캡슐)?$/.exec(t);
+  if(!m)return {n:t,d:'',v:null,u:''};
+  var u=m[3]||'';
+  return {n:m[1].trim(), d:m[2]+(u?u:''), v:parseFloat(m[2]), u:u};
+}
+/* 같은 약의 직전 기록. 검사일 배열은 오름차순이므로 i 이전에서 가장 가까운 것. */
+function medPrev(slot,i,name){
+  var H=DB.health;
+  for(var k=i-1;k>=0;k--){
+    var arr=((H.labMeds||[])[k]||{})[slot]||[];
+    for(var j=0;j<arr.length;j++){var p=medParse(arr[j]);if(p.n===name)return p;}
+  }
+  return null;
+}
+function medCellHtml(slot,i){
+  var arr=((DB.health.labMeds||[])[i]||{})[slot]||[];
+  if(!arr.length)return '·';
+  return arr.map(function(x){
+    var p=medParse(x), mark='';
+    if(p.v!=null){
+      var q=medPrev(slot,i,p.n);
+      /* ⚠️ 단위가 다르면 비교하지 않는다 */
+      if(q&&q.v!=null&&q.u===p.u){
+        if(p.v>q.v)mark=' <span class="medup" title="이전 '+q.d+' → 증량">▲</span>';
+        else if(p.v<q.v)mark=' <span class="meddn" title="이전 '+q.d+' → 감량">▼</span>';
+      } else if(!q)mark=' <span class="mednew" title="이 검사일에 새로 추가">＋</span>';
+    }
+    return '<span class="medn">'+mdEsc(p.n)+'</span>'+(p.d?'<span class="medd">'+mdEsc(p.d)+'</span>':'')+mark;
+  }).join('<br>');
+}
 /* ====== 건강: 피검사 ====== */
 function labFlag(m,v){if(typeof v!=='number'||m.low==null||m.high==null)return '';if(v>m.high)return 'hi';if(v<m.low)return 'lo';return '';}
 function labResort(){var H=DB.health;var o=H.labDates.map(function(d,i){return i;}).sort(function(a,b){return H.labDates[a]<H.labDates[b]?-1:1;});H.labDates=o.map(function(i){return H.labDates[i];});H.labTypes=o.map(function(i){return H.labTypes[i];});H.labMeds=o.map(function(i){return H.labMeds[i];});
@@ -2528,8 +2662,8 @@ function renderLabs(){
       +'</th>';}).join('');
   var typerow='<tr><td class="cM" style="font-weight:400;color:var(--muted);font-size:10px">타입</td>'+H.labTypes.map(function(t,i){return '<td class="v" onclick="labDate('+i+')" style="color:var(--muted);font-size:9.5px">'+(t||'')+'</td>';}).join('')+'</tr>';
   var medcellStyle='white-space:normal;vertical-align:top;text-align:left;font-size:9px;color:#5a6b86;line-height:1.45;min-width:78px;max-width:120px';
-  var amrow='<tr><td class="cM" style="font-weight:400;color:#b26a00;font-size:10px">☀ 아침약</td>'+(H.labMeds||[]).map(function(md,i){var am=(md&&md.am)||[];return '<td class="v medcell" onclick="labDate('+i+')" style="'+medcellStyle+'">'+(am.join('<br>')||'·')+'</td>';}).join('')+'</tr>';
-  var pmrow='<tr><td class="cM" style="font-weight:400;color:#6f5fc7;font-size:10px">🌙 저녁약</td>'+(H.labMeds||[]).map(function(md,i){var pm=(md&&md.pm)||[];return '<td class="v medcell" onclick="labDate('+i+')" style="'+medcellStyle+'">'+(pm.join('<br>')||'·')+'</td>';}).join('')+'</tr>';
+  var amrow='<tr><td class="cM" style="font-weight:400;color:#b26a00;font-size:10px">☀ 아침약</td>'+(H.labMeds||[]).map(function(md,i){return '<td class="v medcell" onclick="labDate('+i+')" style="'+medcellStyle+'">'+medCellHtml('am',i)+'</td>';}).join('')+'</tr>';
+  var pmrow='<tr><td class="cM" style="font-weight:400;color:#6f5fc7;font-size:10px">🌙 저녁약</td>'+(H.labMeds||[]).map(function(md,i){return '<td class="v medcell" onclick="labDate('+i+')" style="'+medcellStyle+'">'+medCellHtml('pm',i)+'</td>';}).join('')+'</tr>';
   /* v2.2 — ⚠️ v2.1까지 체중은 **날짜가 원 단위로 똑같아야만** 떴다.
      로한: "검사 날짜 기준으로 데이터는 기록하고, 맨위 탭 날짜는 진료 날짜라 완전히 매칭되지 않는다."
      실측 21열 중 6열이 어긋나 있었다(마지막 열은 7일 차 — 체중 08-27 / 열 09-03).
@@ -2695,9 +2829,20 @@ function labDate(i){var H=DB.health;var meds=H.labMeds[i]||{am:[],pm:[]};
    +'<div class="field"><label>진료일 <span class="mut">결과를 들은 날 · 같으면 비워라</span></label>'
      +'<input id="ld_visit" type="date" value="'+((H.labVisits||[])[i]||'')+'"></div>'
    +'<div class="field"><label>타입</label><select id="ld_type">'+['외래','입원','응급실'].map(function(t){return '<option'+(t===H.labTypes[i]?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div>'
-   +'<div class="field"><label>아침약 <span class="mut">(쉼표 또는 줄바꿈으로 구분)</span></label><textarea id="ld_am" rows="3">'+((meds.am||[]).join(', '))+'</textarea></div>'
+   +'<div class="field"><label>아침약 <span class="mut">(쉼표·줄바꿈 구분 · <b>이름 뒤에 용량</b>: 엔트레스토 100mg)</span></label><textarea id="ld_am" rows="3">'+((meds.am||[]).join(', '))+'</textarea></div>'
    +'<div class="field"><label>저녁약</label><textarea id="ld_pm" rows="2">'+((meds.pm||[]).join(', '))+'</textarea></div>'
+   +(i>0?('<div class="mut" style="font-size:11px;margin:-4px 0 10px">'
+     +'<button class="ghost sm" onclick="medCopyPrev('+i+')">⤵ 직전 검사일('+(H.labDates[i-1]||'')+') 약 불러오기</button>'
+     +' <span style="margin-left:4px">용량만 고치면 표에 ▲▼ 로 뜬다</span></div>'):'')
    +'<button class="btn" onclick="saveLabDate('+i+')">저장</button> <button class="ghost" onclick="delLabDate('+i+')">이 검사일 삭제</button>');
+}
+/* v2.5 — 매번 6~7개를 다시 타이핑하지 않는다. 직전 검사일 처방을 그대로 끌어온다.
+   ⚠️ 덮어쓰기 전에 묻는다 — 이미 적어둔 걸 조용히 날리면 안 된다. */
+function medCopyPrev(i){
+  var H=DB.health, p=(H.labMeds||[])[i-1]; if(!p)return;
+  var am=document.getElementById('ld_am'), pm=document.getElementById('ld_pm');
+  if(((am.value||'').trim()||(pm.value||'').trim())&&!confirm('지금 적힌 약을 직전 검사일 것으로 덮어쓴다.\n진행할까?'))return;
+  am.value=(p.am||[]).join(', '); pm.value=(p.pm||[]).join(', ');
 }
 function saveLabDate(i){var H=DB.health;
   var _d=document.getElementById('ld_date').value.trim();
@@ -4283,6 +4428,8 @@ var TL_TAGS=[
   {k:'social',label:'사교',  c:'#d87fae'},
   {k:'family',label:'가족',  c:'#b5619b'},
   {k:'home',  label:'집안일',c:'#a89070'},
+  /* v2.5 — 로한: “출근 준비·공부 준비·요리 준비를 기타로 넣기엔 기타가 너무 많아진다” */
+  {k:'prep',  label:'준비',  c:'#c98f6a'},
   {k:'etc',   label:'기타',  c:'#9aa6b6'}
 ];
 function tlTag(k){return TL_TAGS.filter(function(x){return x.k===k;})[0]||TL_TAGS[TL_TAGS.length-1];}
@@ -4358,8 +4505,42 @@ function tlDel(ds,i){
    ⚠️ 다만 연계성이 끊기면 그냥 할 일 목록이 된다.
       → 상단에 연간 목표 진행률 칩을 두고, 체크리스트는 목표별로 묶는다. */
 function gotoTab(v){var m=document.querySelector('.side .m[data-v="'+v+'"]');if(m)m.click();}
-function dailyTab(){return (DB.ui&&DB.ui.dailyTab)==='log'?'log':'routine';}
+function dailyTab(){var t=(DB.ui&&DB.ui.dailyTab);return (t==='log'||t==='meal')?t:'routine';}
 function setDailyTab(v){DB.ui.dailyTab=v;DB.ui.tlPick=null;save();renderDaily();}
+
+/* ====== 🍚 식사 기록 (v2.5) ======
+   로한: "매일 뭘 먹었는지 기록해야 피검사 수치와 연계성이 생긴다."
+   🔒 checks·timelog 와 같은 **날짜키 맵**이다 — 동기화 diff 가 이미 이 모양을 안다.
+   ⚠️ 칼로리 칸은 넣지 않는다. 매번 못 채워서 빈 칸만 남는다. 필요해지면 그때 붙인다.
+   ⚠️ 빈 값은 저장하지 않는다 — app_state 는 한 덩어리로 매번 왕복한다.
+      30년이면 1만 일이라 '빈 서랍'이 그대로 용량이 된다. */
+var MEAL_SLOTS=[{k:'b',label:'아침',ico:'🍚'},{k:'l',label:'점심',ico:'🍜'},
+                {k:'d',label:'저녁',ico:'🍲'},{k:'s',label:'간식',ico:'🍪'}];
+function mealsAll(){DB.meals=DB.meals||{};return DB.meals;}
+function mealOf(ds){return mealsAll()[ds]||{};}
+function mealHas(ds){var m=mealOf(ds);for(var k in m)if((m[k]||'').trim())return true;return false;}
+function mealSet(ds,k,txt){
+  var all=mealsAll(), m=all[ds]||{}, v=(txt||'').trim();
+  if(v)m[k]=v; else delete m[k];
+  var any=false;for(var x in m)if(m[x])any=true;
+  if(any)all[ds]=m; else delete all[ds];   /* 빈 날은 서랍째 지운다 */
+}
+function mealSaveAll(ds){
+  MEAL_SLOTS.forEach(function(s){
+    var el=document.getElementById('ml_'+s.k); if(el)mealSet(ds,s.k,el.value);
+  });
+  logAct('식사 기록 · '+ds); save(); renderDaily();
+}
+function mealPanel(ds){
+  var m=mealOf(ds);
+  return '<div class="mut" style="font-size:11px;margin:2px 0 9px">뭘 먹었는지만 적어라. 양·칼로리는 안 받는다 — 채우지 못할 칸은 만들지 않는다.</div>'
+   +MEAL_SLOTS.map(function(s){
+      return '<div class="field" style="margin-bottom:8px"><label>'+s.ico+' '+s.label+'</label>'
+       +'<textarea id="ml_'+s.k+'" rows="2" placeholder="예: 현미밥, 김치찌개">'+mdEsc(m[s.k]||'')+'</textarea></div>';
+     }).join('')
+   +'<button class="btn" onclick="mealSaveAll(\''+ds+'\')">저장</button>'
+   +'<div class="mut" style="font-size:11px;margin-top:9px">🩺 캘린더 <b>생활</b> 모드에서 한 달치를 한눈에 본다 — 검사일 앞뒤로 뭘 먹었는지 대조하려고 만든 것이다.</div>';
+}
 function renderDaily(){
   syncAllMilestones();
   var t=todayStr(), d=curDate(), ym=curMonth(), yy=t.slice(0,4);
@@ -4431,8 +4612,10 @@ function renderDaily(){
    +'<div class="dtabs"><span class="dtab'+(tab==='routine'?' on':'')+'" data-dtab="routine">✓ 루틴'
    +(nMiss?' <em>'+nMiss+'</em>':'')+'</span>'
    +'<span class="dtab'+(tab==='log'?' on':'')+'" data-dtab="log">⏳ 로그'
-   +(used?' <em>'+hrs(used)+'</em>':'')+'</span></div>'
-   +(tab==='routine'?routinePane:tlPanel(d))
+   +(used?' <em>'+hrs(used)+'</em>':'')+'</span>'
+   +'<span class="dtab'+(tab==='meal'?' on':'')+'" data-dtab="meal">🍚 식사'
+   +(mealHas(d)?' <em>●</em>':'')+'</span></div>'
+   +(tab==='routine'?routinePane:tab==='meal'?mealPanel(d):tlPanel(d))
    +'</div>';
 
   document.getElementById('v-daily').innerHTML=topbar+'<div class="g2col dcol">'+calPane+dayPane+'</div>';
@@ -4871,13 +5054,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.4';
+var APP_VERSION='2.5';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.5',date:'2026-09-03',note:"<b>\ud83c\udf5a 식사 기록 · \ud83d\udc8a 복약 용량 · ⇔ 메뉴 접기 · 준비 태그.</b> (로한 요청 4건) · \ud83c\udf5a <b>식사 기록 신설</b> — 데일리에 아침·점심·저녁·간식 4칸. 로한: <i>“그래야 피검사 수치와 연계성이 생긴다”</i> · \ud83d\udd12 checks·timelog 와 같은 <b>날짜키 맵</b>이라 동기화 diff 가 이미 이 모양을 안다 · ⚠️ 칼로리 칸은 넣지 않았다(못 채우면 빈 칸만 남는다) · ⚠️ 빈 값은 저장하지 않는다 — 30년이면 1만 일이라 ‘빈 서랍’이 그대로 용량이 된다 · \ud83e\ude7a <b>캘린더를 두 모드로</b> 갈랐다: \ud83d\udcb0 가계부(기존) / \ud83e\ude7a 생활(루틴·복약·체중·식사). 한 셀에 둘 다 넣으면 둘 다 못 읽는다 · \ud83d\udd12 <b>복약 기록을 새로 만들지 않았다</b> — 루틴·체크가 이미 날짜별로 쌓고 있다. ‘☀ 아침약’ ‘\ud83c\udf19 저녁약’ 루틴 2개로 끝난다 · \ud83d\udc8a <b>복약 용량</b> — “엔트레스토 100mg” 처럼 적으면 이름·용량을 <b>읽을 때 파생</b>한다. \ud83d\udd12 <b>저장 구조를 안 바꿨다</b> — 21개 검사일 × 6~7개 약을 마이그레이션할 이유가 없다 · 검사일 사이 <b>증량 ▲ · 감량 ▼ · 신규 ＋</b> 표시 — 심부전은 용량 변화 자체가 치료 경과다. ⚠️ <b>단위가 같을 때만 비교한다</b> — 12.5mg 과 1정을 비교하면 거짓말이 된다 · 직전 검사일 처방 <b>⤵ 불러오기</b> — 매번 6개를 다시 타이핑하지 않는다 · ⇔ <b>사이드바 접기</b>(176→54px) — 캘린더를 넓게 보려고. 메뉴가 ‘\ud83d\udcc5 데일리’ 형태라 <b>이모지가 그대로 아이콘</b>이 된다. ⚠️ 이모지는 서로게이트 쌍이라 ::first-letter 로 못 자른다 — JS 로 한 번 감싼다 · ⏳ 타임로그에 <b>‘준비’ 태그</b> 추가(로한: <i>“준비를 기타로 넣기엔 기타가 너무 많아진다”</i>) · t36 신설"},
   {v:'2.4',date:'2026-08-31',note:"<b>\ud83d\udcca 월별 자산 스냅샷.</b> ⚠️ <b>[결함] <code>netSnapshots</code> 는 시드 6건(2026-02~07)이 전부였고 쓰는 코드가 하나도 없었다.</b> 읽는 곳은 <code>metricModal</code> 한 군데뿐 — 현황판 ‘12개월 추세’가 <b>2026-07 에 멈춰 있었다</b>. 8월부터는 영원히 안 쌀이는 구조였다 · 접속할 때마다 <b>이번 달 행을 갱신</b>한다. 달이 바뀌면 새 행이 생기고 지난 달은 그대로 굳는다 · \ud83d\udd12 <b>지난 달 행은 절대 덮지 않는다</b> — 덮으면 그 달 말 상태가 사라진다 · \ud83d\udd12 이건 <b>파생이 아니라 관측 기록이다</b>. 총부채는 <code>debts[].balance</code> 현재값 하나뿐이라 <b>과거 시점을 계산할 방법이 없다</b> — 그때 적어두지 않으면 영영 모른다 · 그룹별(현금성·투자·저축·외환)과 카드미결제까지 함께 남긴다 — 다음 단계의 기초·기말 표가 이걸 쓴다 · ⚠️ <b>[결함] 추세 모달이 빈 배열에서 죽었다</b>(<code>series[length-1]</code> 가 undefined) · 마이그레이션 보장도 없었다 · t35 26건 신설"},
   {v:'2.3',date:'2026-08-28',note:"<b>\ud83d\udccb 로그 페이지 재편 + 핸드오프 게시판.</b> ⚠️ v2.2까지 이 페이지는 성격이 다른 다섯(백업·스냅샷·체인지로그·활동·기록)을 <b>세로로 쌓아둔 곳</b>이었다. 분량의 대부분을 체인지로그가 먹어서 아래쪽은 스크롤에 묻혔다 · <b>4탭으로 나눔</b>: 핸드오프 / 활동 / 백업·복원 / 버전. 버전은 <b>최근 3건만 펼침</b> · <b>\ud83d\udccb 핸드오프 신설</b> — 각 방의 로버트가 서버에 남긴 인수인계를 앱에서 읽는다. 방 필터 + 카드 클릭 → 본문 · ⚠️ <b>[결함] handoffs 테이블은 RLS 가 켜져 있는데 정책이 0개</b>였다 — 앱 키로는 한 줄도 못 읽었다. SELECT 정책 추가 · \ud83d\udd12 <b>핸드오프는 app_state 에 복사하지 않는다</b> — 원본은 handoffs 테이블이다. 복사하면 방에서 갱신해도 앱이 옛 판을 들고 있게 된다. <b>읽기 전용</b>(R 만) · 마크다운은 <b>자체 렌더 40줄</b> — CDN 의존을 만들지 않는다. innerHTML 전 <b>이스케이프 먼저</b> · 활동 로그는 40건 → <b>200건 전체 · 날짜 그룹</b> · ‘재정경제부 로그’(logs2)는 핸드오프로 대체되어 <b>UI 에서 내린다</b>. ⚠️ 데이터는 그대로 남아 있다(2건) — 지우지 않았다"},
   {v:'2.2',date:'2026-08-27',note:"<b>⚖ 체중 셀 · 검사일↔진료일 분리.</b> 로한: <i>“몸무게는 클릭시 반응이 없는데 · 검사 날짜 기준으로 데이터는 기록하고 맨위 탭 날짜는 진료 날짜라 완전히 매칭되지 않는다.”</i> · ⚠️ <b>[결함] 체중 행만 클릭이 없었다.</b> 다른 셀은 다 눌리는데 체중만 안 눌렸다 — 이제 눌러서 그 날 체중을 기록한다 · ⚠️ <b>[결함] 체중이 날짜 원 단위로 같아야만 떴다.</b> 실측 21열 중 <b>6열이 어긋나</b> 있었고, 마지막 열은 <b>7일 차</b>(체중 08-27 / 열 09-03)라 통째로 비어 보였다 · \ud83d\udd12 ±7일 <b>근사 매칭</b>으로 붙이되 <b>근사라는 사실을 숨기지 않는다</b> — 며칠 차인지 같이 띄우고 색을 달리한다. 창을 넓히면 <b>몇 달 전 체중이 그날 값처럼 보인다</b> — 7일로 좁게 잡았다 · <b>검사일 / 진료일을 분리</b>(<code>labVisits</code>) — 채혈한 날과 결과를 들은 날이 다르다. 다를 때만 헤더에 작게 붙고, 같으면 저장하지 않는다(빈 서랍 금지) · \ud83d\udd12 정렬·추가·삭제에서 진료일이 <b>짝을 지켜 따라간다</b> — 안 따라가면 남의 진료일이 붙는다 · 검사일 형식 검증 추가 · t33 66건"},
@@ -6041,6 +6225,8 @@ function migrateV6(d){
   if(!d.activity)d.activity=[];
   /* v2.4 📊 월별 자산 스냅샷. 없으면 metricModal 이 죽는다. */
   if(!d.netSnapshots)d.netSnapshots=[];
+  /* v2.5 🍚 식사 기록. 날짜키 맵 — checks·timelog 와 같은 모양이다. */
+  if(!d.meals)d.meals={};
   if(!d.taxParams)d.taxParams=JSON.parse(JSON.stringify(SEED.taxParams));
   else{var _tp=SEED.taxParams;for(var _k in _tp)if(d.taxParams[_k]===undefined)d.taxParams[_k]=_tp[_k];}
   if(!d.missTags)d.missTags=MISS_TAGS.slice();
@@ -6051,6 +6237,8 @@ function migrateV6(d){
   /* v2.3 📋 로그 탭. 핸드오프 본문은 여기 저장하지 않는다 — handoffs 테이블이 원본이다. */
   if(!d.ui)d.ui={};
   if(!d.ui.logTab)d.ui.logTab='ho';
+  /* v2.5 ⇔ 사이드바 접기 상태 */
+  if(d.ui.sideMini===undefined)d.ui.sideMini=false;
   /* v2.0 🧾 세무. 시드는 '한 번만' — 로한이 고친 원장을 되살리면 안 된다.
      🔒 filings 는 저장하지만, 진행 연도 숫자는 저장하지 않는다(가계부에서 파생). */
   if(!d.tax)d.tax={};
@@ -6484,6 +6672,33 @@ var VIEW_RENDER={daily:renderDaily,goal:renderGoal,reward:renderReward,dash:rend
   saju:renderSaju,journal:renderJournal,items:renderItems,log:renderLog};
 
 /* ====== 이벤트 ====== */
+/* v2.5 ⇔ 메뉴 텍스트를 아이콘/글자로 가른다. 접을 때 글자만 숨기면 된다.
+   ⚠️ 한 번만 감싸야 한다 — 두 번 돌면 .mi 안에 또 .mi 가 생긴다. */
+function sideWrapLabels(){
+  var ms=document.querySelectorAll('.side .m[data-v]');
+  for(var i=0;i<ms.length;i++){
+    var m=ms[i]; if(m.querySelector('.mi'))continue;
+    var t=(m.textContent||'').trim(), sp=t.indexOf(' ');
+    if(sp<0){m.innerHTML='<span class="mi">'+t+'</span>';continue;}
+    m.innerHTML='<span class="mi">'+t.slice(0,sp)+'</span><span class="mt">'+t.slice(sp+1)+'</span>';
+  }
+}
+function sideMini(){return !!(DB&&DB.ui&&DB.ui.sideMini);}
+function sideApply(){
+  var el=document.getElementById('sideBar'),tg=document.getElementById('sideTog');
+  if(!el)return; var on=sideMini();
+  el.classList.toggle('mini',on);
+  if(tg){tg.textContent=on?'\u25b6':'\u25c0';tg.title=on?'메뉴 펴기':'메뉴 접기';}
+}
+function sideToggle(){
+  if(!DB)return; DB.ui=DB.ui||{}; DB.ui.sideMini=!sideMini(); save(); sideApply();
+  /* 캘린더·타임로그처럼 폭을 재는 화면은 다시 그려야 칸이 맞는다 */
+  var cur=document.querySelector('.side .m.on');
+  var v=cur&&cur.dataset?cur.dataset.v:null;
+  if(v&&VIEW_RENDER[v])try{VIEW_RENDER[v]();}catch(e){}
+}
+sideWrapLabels();
+document.getElementById('sideTog').addEventListener('click',sideToggle);
 var navs=document.querySelectorAll('.side .m[data-v]');
 for(var i=0;i<navs.length;i++)(function(m){m.addEventListener('click',function(){
   var all=document.querySelectorAll('.side .m');for(var j=0;j<all.length;j++)all[j].classList.remove('on');m.classList.add('on');
@@ -6640,7 +6855,7 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();netSnapTouch();renderDaily();snapAutoOnLoad();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
