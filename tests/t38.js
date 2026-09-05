@@ -53,7 +53,7 @@ const T=p=>p.evaluate(()=>todayStr());
  {
   const {b,p,errs}=await boot(BASE());
   ok('A1 메뉴 존재',(await p.$$('.side .m[data-v="study"]')).length===1);
-  ok('A2 탭 4개',(await p.$$('#v-study .logtabs button')).length===4);   /* v2.8 주간 추가 */
+  ok('A2 탭 5개',(await p.$$('#v-study .logtabs button')).length===5);   /* v2.9 오답 추가 */
   ok('A3 기본은 현황',(await p.evaluate(()=>stTab()))==='now');
   const txt=await p.$eval('#v-study',e=>e.textContent);
   ok('A4 연간 목표를 읽어온다',txt.indexOf('JLPT N4')>=0);
