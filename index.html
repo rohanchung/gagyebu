@@ -1245,6 +1245,18 @@ function latest(h){if(!h||!h.length)return 0;var s=h.slice().sort(function(a,b){
 function monthOf(d){return d.slice(0,7);}
 function mIdx(d){return parseInt(d.slice(5,7),10)-1;}
 function creditCard(name){var c=DB.cards.filter(function(x){return x.name===name})[0];return c&&c.type==='credit';}
+/* ══════ v2.10 💳 이 거래가 후불(신용)이었나 ══════
+   ⚠️ 로한: "우리 K패스는 교통비만 후불이라 25일에 나간다. 나머지는 즉시 출금이다."
+      **한 장의 카드가 두 성격을 갖는다.** card.type 은 카드의 기본값일 뿐이고,
+      이 거래가 후불이었는지는 카드에서 **파생할 수 없다** — 사람만 안다.
+   🔒 v1.42 의 교훈은 "카드에서 **파생 가능한 것**을 복사 저장하지 마라"였지
+      "아무것도 저장하지 마라"가 아니다. 계좌는 파생하고, 후불 여부는 저장한다.
+   🔒 t.credit 이 없으면 카드 기본값을 따른다 — **기존 932건은 손댈 필요가 없다.** */
+function txnIsCredit(t){
+  var c=cardBy(t&&t.method); if(!c)return false;
+  if(t&&t.credit!=null)return !!t.credit;
+  return c.type==='credit';
+}
 
 /* ====== 선그래프 ====== */
 function lineChart(series,opt){
@@ -1390,7 +1402,7 @@ function cardCycleList(name){
   var cy=cardCycles()[name]||{};
   return Object.keys(cy).sort();
 }
-function cardPendingByCard(){var m={};DB.transactions.forEach(function(t){if(t.card&&t.type==='expense'&&creditCard(t.method))m[t.method]=(m[t.method]||0)+t.amt;});return m;}
+function cardPendingByCard(){var m={};DB.transactions.forEach(function(t){if(t.card&&t.type==='expense'&&txnIsCredit(t))m[t.method]=(m[t.method]||0)+t.amt;});return m;}
 function cardPending(){var m=cardPendingByCard(),s=0;for(var k in m)s+=m[k];return s;}
 function totalDebt(){return DB.debts.reduce(function(s,d){return s+d.balance},0)+cardPending();}
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -1656,7 +1668,7 @@ function renderDay(ds){
       _il='<div class="instline">'+_ps.join('<i>·</i>')+(_dn?' <b>'+_dn+'/'+_n+' 결제완료</b>':'')+'</div>';}
     var meta=[sajuEsc(t.method||'')], _ac=txnAcct(t);
     if(_ac)meta.push(acctName(_ac));
-    else if(t.type==='expense'&&!creditCard(t.method))meta.push('<span class="warnx">출금계좌 미지정</span>');
+    else if(t.type==='expense'&&!txnIsCredit(t))meta.push('<span class="warnx">출금계좌 미지정</span>');
     if(t.food)meta.push('<span class="foodx">🍽 '+sajuEsc(t.food)+'</span>');
     var tags=(_n>1?'<span class="insttag">'+_n+'개월</span>':'')
             +(t.card?'<span class="badge">미결제</span>':'')
@@ -2442,14 +2454,14 @@ function txnAcct(t){
   if(t.type==='transfer')return null;
   if(t.type==='settle')return t.acct||null;      /* 선결제는 확정 시점에 고른 계좌가 사실이다 */
   var c=cardBy(t.method);
-  if(c)return (c.type==='check')?(c.acct||null):null;  /* 신용은 선결제 때 나간다 */
+  if(c)return txnIsCredit(t)?null:(c.acct||null);  /* 후불은 선결제 때 나간다 */
   return t.acct||null;
 }
 /* 그 거래가 '현금 유출'로 잡히는가 — 신용카드 원거래는 아니다(선결제 때 나간다) */
 function cfIsCashOut(t){
   if(t.type==='settle')return !!txnAcct(t);
   if(t.type!=='expense')return false;
-  return !creditCard(t.method) && !!txnAcct(t);
+  return !txnIsCredit(t) && !!txnAcct(t);
 }
 function cfIsCashIn(t){return t.type==='income'&&!!txnAcct(t);}
 /* 앱이 아는 결제수단 = 현금·이체 + 등록된 카드 */
@@ -5874,13 +5886,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.9';
+var APP_VERSION='2.10';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.10',date:'2026-09-05',note:"<b>💳 한 카드가 두 성격을 갖는다 — 거래별 후불 판정.</b> 로한: <i>“우리 K패스는 교통비만 후불이라 25일에 나간다. 차라리 가계부 쓸 때 신용인지 체크인지 고르게 하면 되겠네.”</i> <b>맞다.</b> 실측으로 확인: 9월 교통비 3건 11,950원이 앱에선 즉시 빠졌는데 <b>통장엔 없다</b> — 25일에 나간다. · 🔒 <code>card.type</code> 은 <b>카드의 기본값</b>일 뿐이고, <b>이 거래가 후불이었는지는 카드에서 파생할 수 없다</b> — 사람만 안다. → <code>txnIsCredit(t)</code> 신설. <code>t.credit</code> 이 없으면 카드 기본값을 따르므로 <b>기존 932건은 손댈 필요가 없고</b>, 기본값과 같으면 저장하지 않는다(빈 서랍을 남기지 않는다) · ⚠️ v1.42 의 교훈은 “카드에서 <b>파생 가능한 것</b>을 복사 저장하지 마라”였지 “아무것도 저장하지 마라”가 아니다. <b>계좌는 파생하고, 후불 여부는 저장한다.</b> · 결제수단이 카드면 <b>[즉시출금 | 후불(카드값)]</b> 토글이 뜬다. 이미 회차가 확정된 할부는 즉시출금으로 못 되돌린다 · 할부 개월 선택지 <b>1·2·3 → 1·2·3·6·12·24</b> — 단말기 24개월 할부가 실제로 있었다 · 삼성 탭탭오 마감일 <b>10 → 12</b>. 실측: 8/12 승인은 8/25 결제, 8/13 승인은 9/25 결제 · 🧾 <b>은행 원장 대조로 131,897원 오차를 전부 규명</b> — 기초잔액 9,200(8/31 23:30 건 누락) · 삼성 선결제 112,707 · 네이버페이 충전 20,000 · GS25 3,740 · 후불교통 −13,750 · 승인액 ≠ 청구액이다(스타벅스·쿠팡 할인). <b>선결제는 실제 청구액으로 맞춘다</b> · 📱 LG유플러스 단말기 24개월 할부(2025-01-30, 월 51,900, 잔여 4회 207,600) <b>원거래 복구</b> — 앱이 이 존재를 몰랐다 · 네이버페이 <b>계좌 신설</b> — 충전은 이체, 사용은 지출. 그래야 안 쓴 잔액이 보인다"},
   {v:'2.9',date:'2026-09-05',note:"<b>🎯 과락 게이지 · ❌ 오답노트.</b> 로한: <i>“로버트가 시험을 내고, 내가 풀고, 점수를 체크한다.”</i> · 🔒 <b>총점 하나는 거짓말을 한다.</b> JLPT 는 과목별 과락이 있어 <b>총점 110 이어도 청해 15 면 불합격</b>이다. 그래서 숫자 하나가 아니라 <b>과목별 막대 + 과락선</b>이다. 기준은 JLPT N4 공식값(언어지식·독해 120/과락 38, 청해 60/과락 19, 합격 90/180) · ⚠️ <b>시험일은 추측하지 않는다</b> — 비어 있으면 D-day 를 아예 안 그리고 로한이 넣는다 · 🔒 <b>총점은 파생</b>이다 — 과목 점수만 저장한다. 같이 저장하면 두 숫자가 어긋날 자리가 생긴다 · ⚠️ 안 친 과목을 0 으로 치지 않는다 — <b>없는 과락</b>이 생긴다 · 테스트에 <b>유형</b>(주간 확인·모의고사·복습) 신설. 모의고사만 과목 점수를 받고, 문항수/맞은수 축은 쓰지 않는다 · ❌ <b>오답노트</b> — <b>2회 연속 맞아야 회수</b>한다. 한 번 맞으면 지우는 방식은 <b>운으로 맞은 것까지</b> 지운다. X 하나면 0 으로 되돌아간다 · 📄 <b>복습 뽑기</b>는 미회수만, <b>정답은 빼고</b> 뽑는다 — 붙여넣고 바로 답이 보이면 시험이 아니다 · ⚠️ [결함·스크린샷으로 잡음] 과락선을 빨강으로 뒀더니 <b>과락일 때 막대도 빨강</b>이라 선이 사라졌다. 경고가 필요한 순간에 안 보이는 선이다 → 잉크색 · ⚠️ [결함] ‘87/90’ 은 ‘87점 만점 90’ 처럼 읽힌다. 90 은 만점이 아니라 <b>합격선</b>이다 → ‘87점 · 청해 과락’ · ⚠️ 모의고사 2회는 추이가 아니다 — 점 두 개를 선으로 부르지 않는다(3회부터) · t39 신설(50건)"},
   {v:'2.8',date:'2026-09-04',note:"<b>\ud83d\udcc5 학습 주간 플랜 (B단계) · ⏰ 리듬 넷지.</b> 로한: <i>“각 방의 로버트들과 논의 먼저 하고, 결정하면 로한북에 업데이트. 그리고 그걸 이행했는지 점검한다.”</i> · \ud83d\udd12 식단과 <b>같은 구조</b>: p(로버트 제안) × a(실제). 합치면 ‘하기로 한 것’과 ‘한 것’을 못 가른다 — <b>그 차이가 이 표의 존재 이유다</b> · 요일별 행에 <b>그날 실제 뽀모</b>를 나란히 붙였다 — 계획만 보면 이행 점검이 안 된다. 상단에 <b>이행 n/m</b> · ⚠️ 주차 키는 <b>그 주 일요일 날짜</b>다 — ‘W37’ 같은 주차 번호는 연말에 애매해지고, weekStart() 가 이미 일요일 시작이라 계산이 하나로 끝난다 · ⏰ <b>리듬 넷지</b> — <b>일요일</b>이면 ‘주간 플랜을 정해라’, <b>월말 3일</b>이면 ‘다음 달 눈금이 없다’. ⚠️ 강요하지 않는다 — 띄 하나로 알리고 판단은 로한이 한다. 이미 적어둔 주·달에는 뜨지 않는다 · <b>⤵ 제안대로 했다</b> 복사(이미 다르게 적은 칸은 미덮음) · 빈 주는 서랍쨸 삭제 · ⚠️ 날짜 산수를 직접 하지 않는다 — lastDayOfYM·ymAdd 가 이미 있고 연말 넘김까지 처리한다 · t38 확장"},
   {v:'2.7',date:'2026-09-04',note:"<b>\ud83c\udf93 학습 페이지 신설 (A단계).</b> 로한: <i>“루틴이 데일리 관리·로그라면 학습은 학습만 집중한다.”</i> · <b>진단</b>: C 계열이 전부 <code>binary</code> 였다 — “일 6뽀모 달성” 이 달성\/미달 둘 중 하나라 <b>30일 중 며칠 했는지가 안 남았고</b>, JLPT N4 까지 <b>뭐를 얼마나 해야 하는지가 어디에도 없었다</b> · \ud83d\udd12 <b>목표 시스템을 새로 만들지 않았다</b> — 연간(C)·월간 눈금(C.9)은 <code>goals</code> 가 하나의 진실이다. 여기선 읽기만 한다 · ⚠️ 주간·일간은 goals 에 넣지 않는다 — 그건 목표가 아니라 <b>계획</b>이고, 넣으면 1년에 52+365개가 쌓여 목표 탭이 터진다 · \ud83d\udd12 <b>투입(뽀모)과 산출(진도)를 둘 다 센다</b> — 뽀모만 세면 지금 월간 눈금과 똑같아진다. “6뽀모 했는데 3쪽” 이 보여야 이 페이지가 존재할 이유가 생긴다 · \ud83d\udd12 <b>교재 진도는 파생</b>이다(시작값 + 매일 기록). 저장하면 “언제 얼마나 나갔나” 가 사라지고 두 숫자가 어긋난다 · <b>예상 완료일</b> — 최근 14일 속도로 남은 분량을 나눈다. “이 속도면 시험 전에 못 끝낸다” 가 보인다. ⚠️ 기록이 없으면 계산하지 않는다 · <b>데일리 연동</b> — 오늘 목표 뽀모를 채우면 학습 루틴이 자동 체크된다. ⚠️ <b>체크만 하고 해제하지 않는다</b> — 뽀모를 줄였다고 푸면 손으로 켜둔 체크까지 날아간다 · 목표 뽀모는 설정값 우선, 없으면 <b>월간 눈금 제목에서 읽는다</b>(⚠️ 추측이므로 ‘눈금 C.9’ 라고 밝힌다) · B단계(주간 플랜 · 학습방 로버트 제안×실제)는 첫 플랜이 나온 뒤에 붙인다 — 빈 표를 먼저 만들면 형식이 실제와 안 맞는다 · t38 신설"},
@@ -7337,6 +7350,12 @@ function txnModal(id){
    +'<div class="field" id="methodField" style="display:'+(isInc?'none':'block')+'"><label>결제수단</label><select id="fMethod" onchange="methodChange()">'+methOpts+'</select></div>'
    +'<div class="field" id="acctField"><label id="acctLabel">'+(isInc?'입금계좌':'출금계좌')+'</label><select id="fAcct">'+cashOpts(defAcct)+'</select></div>'
    +'<div id="acctNote" class="autoNote" style="margin-top:0;display:none"></div>'
+   /* v2.10 — 한 카드가 두 성격을 갖는다. 카드 기본값을 보여주고, 다르면 여기서 바꾼다. */
+   +'<div class="field" id="payKindField" style="display:none"><label>결제 성격 <span class="mut">이 건은 언제 통장에서 빠지나</span></label>'
+     +'<div class="seg" id="payKindSeg">'
+       +'<button onclick="setPayKind(this,0)">즉시출금</button>'
+       +'<button onclick="setPayKind(this,1)">후불(카드값)</button>'
+     +'</div></div>'
    +'</div>'
    +'<div id="transferBody" style="display:'+(isTr?'block':'none')+'">'
    +'<div class="field"><label>출발계좌</label><select id="fFrom">'+cashOpts(t.from)+'</select></div>'
@@ -7344,7 +7363,7 @@ function txnModal(id){
    +'</div>'
    +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900" oninput="instPreview()"></div>'
    +'<div class="field" id="instField" style="display:none"><label>결제 방식</label><div class="seg" id="instSeg">'
-     +[1,2,3].map(function(n){return '<button class="'+((parseInt(t.inst||1,10)===n)?'on':'')+'" onclick="setInst(this,'+n+')">'+(n===1?'일시불':n+'개월 할부')+'</button>';}).join('')
+     +[1,2,3,6,12,24].map(function(n){return '<button class="'+((parseInt(t.inst||1,10)===n)?'on':'')+'" onclick="setInst(this,'+n+')">'+(n===1?'일시불':n+'개월')+'</button>';}).join('')
      +'</div><div class="hint" id="instHint"></div></div>'
    +rwCardField(t)
    +'<div class="field"><label>날짜</label><input id="fDate" value="'+t.date+'" onchange="instPreview()"></div>'
@@ -7359,6 +7378,7 @@ function txnModal(id){
   setTimeout(taxKindSync,0);
   setTimeout(foodFieldSync,0);
   modal._instDone=parseInt(t.instDone||0,10);
+  modal._credit=(t.credit==null)?null:!!t.credit;
   updIncInfo();methodChange();
 }
 function setInst(b,n){
@@ -7374,7 +7394,7 @@ function setInst(b,n){
 function instPreview(){
   var f=document.getElementById('instField'); if(!f)return;
   var m=(document.getElementById('fMethod')||{}).value, c=cardBy(m);
-  var isCredit=c&&c.type==='credit'&&modal._type==='expense';
+  var isCredit=c&&payKindCredit(c)&&modal._type==='expense';
   f.style.display=isCredit?'block':'none';
   if(!isCredit)return;
   var h=document.getElementById('instHint'); if(!h)return;
@@ -7382,7 +7402,7 @@ function instPreview(){
   var date=(document.getElementById('fDate')||{}).value||todayStr();
   var n=modal._inst||1;
   if(!amt||!isDateStr(date)){h.textContent='';return;}
-  var fake={amt:amt,date:date,method:m,inst:n};
+  var fake={amt:amt,date:date,method:m,inst:n,credit:true};
   var parts=[];
   for(var k=1;k<=n;k++)parts.push('<b>'+cycleLabel(instCycle(fake,k))+'</b> '+comma(instAmt(fake,k))+'원');
   var r=cycleRange(instCycle(fake,1),cardClose(c));
@@ -7416,9 +7436,42 @@ function methodChange(){var af=document.getElementById('acctField'),nt=document.
   if(modal._type==='transfer'){af.style.display='none';hideNote();return;}
   var m=(document.getElementById('fMethod')||{}).value;
   var card=DB.cards.filter(function(c){return c.name===m;})[0];
-  if(card){af.style.display='none';if(nt){nt.style.display='block';nt.innerHTML=card.type==='credit'?('💳 신용 → 미결제로 쌓였다가 <b>'+(card.acct?acctName(card.acct):'선결제 계좌')+'</b>에서 선결제 시 차감'):('💳 체크 → <b>'+(card.acct?acctName(card.acct):'⚠ 연결계좌 미설정')+'</b>에서 즉시 출금');}}
-  else{af.style.display='block';hideNote();}
+  var pk=document.getElementById('payKindField');
+  if(card){
+    af.style.display='none';
+    if(pk)pk.style.display=(modal._type==='expense')?'block':'none';
+    var cr=payKindCredit(card);
+    payKindPaint(cr);
+    if(nt){nt.style.display='block';nt.innerHTML=cr
+      ?('💳 후불 → 미결제로 쌓였다가 <b>'+(card.acct?acctName(card.acct):'선결제 계좌')+'</b>에서 '+cardPay(card)+'일(또는 선결제)에 차감')
+      :('💳 즉시 → <b>'+(card.acct?acctName(card.acct):'⚠ 연결계좌 미설정')+'</b>에서 바로 출금');}
+  }
+  else{af.style.display='block';hideNote();if(pk)pk.style.display='none';}
   instPreview();}
+/* 지금 모달이 들고 있는 후불 여부. 카드 기본값을 쓰되 로한이 바꿨으면 그 값이 이긴다. */
+function payKindCredit(card){
+  if(modal._credit!=null)return !!modal._credit;
+  return !!(card&&card.type==='credit');
+}
+function payKindPaint(cr){
+  var sg=document.getElementById('payKindSeg'); if(!sg)return;
+  var bs=sg.querySelectorAll('button');
+  if(bs[0])bs[0].classList.toggle('on',!cr);
+  if(bs[1])bs[1].classList.toggle('on',!!cr);
+}
+function setPayKind(b,v){
+  /* ⚠️ 이미 회차가 확정된 할부를 즉시출금으로 되돌리면 결제 이력이 붕 뜬다 */
+  if(!v&&modal._instDone>0)return alert('이미 '+modal._instDone+'회차가 결제 확정된 건이다.\n먼저 결제 확정을 되돌려라.');
+  modal._credit=!!v;
+  if(!v)modal._inst=1;
+  payKindPaint(!!v);
+  var m=(document.getElementById('fMethod')||{}).value, card=cardBy(m);
+  var nt=document.getElementById('acctNote');
+  if(nt&&card)nt.innerHTML=v
+    ?('💳 후불 → 미결제로 쌓였다가 <b>'+(card.acct?acctName(card.acct):'선결제 계좌')+'</b>에서 '+cardPay(card)+'일(또는 선결제)에 차감')
+    :('💳 즉시 → <b>'+(card.acct?acctName(card.acct):'⚠ 연결계좌 미설정')+'</b>에서 바로 출금');
+  instPreview();
+}
 function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
   var isTr=v==='transfer',inc=v==='income';
   document.getElementById('txnBody').style.display=isTr?'none':'block';
@@ -7467,7 +7520,8 @@ function saveTxn(id){
   var method=modal._type==='income'?'이체':document.getElementById('fMethod').value;
   var itemCat=(document.getElementById('fItemCat')||{}).value||'해당없음';
   var cardObj=DB.cards.filter(function(c){return c.name===method;})[0];
-  var isCardPay=cardObj&&cardObj.type==='credit'&&modal._type==='expense';
+  var _cr=(modal._credit!=null)?!!modal._credit:(cardObj&&cardObj.type==='credit');
+  var isCardPay=!!(cardObj&&_cr&&modal._type==='expense');
   var acctEl=document.getElementById('fAcct');
   var acct;
   if(modal._type==='income')acct=acctEl?acctEl.value:undefined;
@@ -7476,6 +7530,10 @@ function saveTxn(id){
   else if(cardObj)acct=undefined;
   else acct=acctEl?acctEl.value:undefined; // 현금·이체
   var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
+  /* 🔒 카드 기본값과 같으면 저장하지 않는다 — 빈 서랍을 남기지 않고, 카드 설정을 바꿔도 따라온다 */
+  /* ⚠️ undefined 를 넣으면 **키는 남는다**. 빈 서랍을 남기지 않으려면 지워야 한다 — t40-C2 가 잡았다. */
+  if(cardObj&&modal._type==='expense'&&_cr!==(cardObj.type==='credit'))rec.credit=!!_cr;
+  else delete rec.credit;
   /* v2.0 🧾 세무 구분. ⚠️ 빈 서랍을 남기지 않는다 — 기본값이면 필드를 만들지 않는다. */
   var _tk=modal._tk||(modal._scope==='business'?'biz':'priv');
   var _def=(modal._scope==='business'?'biz':'priv');
@@ -7499,7 +7557,9 @@ function saveTxn(id){
   if(_n>1){rec.inst=_n;rec.instDone=Math.min(modal._instDone||0,_n);}
   else{rec.inst=undefined;rec.instDone=undefined;}
   if(id){var _to=DB.transactions.filter(function(x){return x.id===id})[0];
-    Object.assign(_to,rec); if(!_wantFood)delete _to.food; if(!_slot)delete _to.slot;}
+    Object.assign(_to,rec); if(!_wantFood)delete _to.food; if(!_slot)delete _to.slot;
+    /* 🔒 카드 기본값으로 되돌렸으면 옛 credit 을 지운다 — 안 지우면 설정을 바꿔도 안 따라온다 */
+    if(!('credit' in rec))delete _to.credit;}
   else{rec.id=uid();DB.transactions.push(rec);}
   /* v2.6 — 끼니를 골랐으면 데일리 식사(실제)에 같이 적는다.
      🔒 덮어쓰지 않고 **이어붙인다** — 한 끼에 두 건을 쓸 수 있다(밥 + 음료).
