@@ -167,6 +167,32 @@ const T=(d,m,amt,cat,extra)=>Object.assign(
   await b.close();
  }
 
+ /* ── G. 미결제는 '아직 안 낸 돈'이다 — 할부 총액이 아니라 잔여 ── */
+ {
+  const {b,p,errs}=await boot(BASE([
+    /* 24개월 할부, 20회 완료 → 잔여 4회 = 207,600 */
+    T('2025-01-30','탭탭오',1245600,'식비',{card:true,inst:24,instDone:20}),
+    /* 3개월 할부, 1회 완료 → 잔여 2회 */
+    T('2026-08-29','탭탭오',435100,'식비',{card:true,inst:3,instDone:1}),
+    /* 일시불 → 전액 */
+    T('2026-09-02','탭탭오',72870,'식비',{card:true})
+  ]));
+  /* ⚠️ [결함·중대] v2.10 까지 t.amt(총액)를 셌다. 로한: "총부채가 어떻게 4,200만이 되냐?" */
+  ok('G1 24개월 할부는 잔여 4회만',(await p.evaluate(()=>txnOwed(DB.transactions[0])))===207600,
+     String(await p.evaluate(()=>txnOwed(DB.transactions[0]))));
+  ok('G2 3개월 할부는 잔여 2회',(await p.evaluate(()=>txnOwed(DB.transactions[1])))===290066,
+     String(await p.evaluate(()=>txnOwed(DB.transactions[1]))));
+  ok('G3 일시불은 전액',(await p.evaluate(()=>txnOwed(DB.transactions[2])))===72870);
+  /* 🔒 현황판이 세는 값과 선결제 화면이 세는 값이 같아야 한다 */
+  const pend=await p.evaluate(()=>cardPending());
+  ok('G4 미결제 합 = 잔여 합',pend===207600+290066+72870,String(pend));
+  ok('G5 총액(1,753,570)을 세지 않는다',pend!==1245600+435100+72870,String(pend));
+  ok('G6 총부채에 반영',(await p.evaluate(()=>totalDebt()))===570536,
+     String(await p.evaluate(()=>totalDebt())));
+  ok('G7 콘솔 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));
  process.exit(fail?1:0);
 })();
