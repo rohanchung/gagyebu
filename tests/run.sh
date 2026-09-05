@@ -18,11 +18,11 @@ HTML="${HTML:-$(cd .. && pwd)/work.html}"
 
 # ── 영역 → 테스트 (t22·t23 은 데이터층이라 어디서든 잘 깨진다) ──
 case "${1:-all}" in
-  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t38 t39 t40 t14 t18 t19 t20 t21" ;;
-  money) T="t_reg t20 t21 t25 t26 t27 t28 t31 t32 t37 t40 t22" ;;
+  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t38 t39 t40 t41 t14 t18 t19 t20 t21" ;;
+  money) T="t_reg t20 t21 t25 t26 t27 t28 t31 t32 t37 t40 t41 t22" ;;
   goal)  T="t_reg t24 t30 t36 t38 t39 t22" ;;
   time)  T="t_reg t18 t19 t28 t22" ;;
-  data)  T="t22 t23 t_reg t24 t25 t26 t27 t29 t31 t32 t33 t34 t35 t36 t37 t38 t39 t40" ;;
+  data)  T="t22 t23 t_reg t24 t25 t26 t27 t29 t31 t32 t33 t34 t35 t36 t37 t38 t39 t40 t41" ;;
   css)   T="t14 t26 t29 t36 t_reg" ;;
   quick) T="t_reg t22" ;;                # 30초 컷 · 살아는 있나
   *)     T="$*" ;;

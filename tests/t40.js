@@ -193,6 +193,31 @@ const T=(d,m,amt,cat,extra)=>Object.assign(
   await b.close();
  }
 
+ /* ── H. 파생 기준은 그룹이 아니라 기초잔액 (v2.12) ── */
+ {
+  const st=BASE([]);
+  /* 저축 그룹 + 기초잔액 있음 → 파생되어야 한다 (노랑우산) */
+  st.accounts.push({id:'sav1',name:'노랑우산',group:'저축',mode:'auto',
+    hist:[{date:'2026-09-01',amount:2400000}],opening:{date:'2026-09-01',amount:2400000}});
+  /* 투자 그룹 + 기초 없음 → 평가액(수기) 그대로 */
+  st.accounts.push({id:'inv1',name:'ETF',group:'투자',mode:'manual',
+    hist:[{date:'2026-08-31',amount:61360}]});
+  st.transactions=[{id:'tr1',type:'transfer',date:'2026-09-30',amt:100000,
+    from:'ac1',to:'sav1',cat:'이체',memo:'노랑우산 9월 납입'}];
+  const {b,p,errs}=await boot(st);
+  /* 🔒 그룹이 아니라 기초잔액 유무가 기준이다 — 판단은 로한이 한다 */
+  ok('H1 저축이라도 기초 있으면 파생',(await p.evaluate(()=>accIsDerived(DB.accounts[1])))===true);
+  ok('H2 투자에 기초 없으면 수기',(await p.evaluate(()=>accIsDerived(DB.accounts[2])))===false);
+  ok('H3 납입 이체가 잔액에 반영',(await p.evaluate(()=>accVal(DB.accounts[1])))===2500000,
+     String(await p.evaluate(()=>accVal(DB.accounts[1]))));
+  /* ⚠️ 평가액 계좌는 거래로 파생하면 안 된다 — 주식은 산 값이 아니라 지금 값이다 */
+  ok('H4 수기 계좌는 hist 그대로',(await p.evaluate(()=>accVal(DB.accounts[2])))===61360);
+  ok('H5 출금계좌도 같이 줄었다',(await p.evaluate(()=>accVal(DB.accounts[0])))===0,
+     String(await p.evaluate(()=>accVal(DB.accounts[0]))));
+  ok('H6 콘솔 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));
  process.exit(fail?1:0);
 })();

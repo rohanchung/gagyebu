@@ -1287,7 +1287,12 @@ function mainInAcct(){
   for(var i=0;i<cs.length;i++)if(/SUPER/i.test(cs[i].name))return cs[i];
   return cs[0]||null;
 }
-function accIsDerived(a){return !!(isCashAcct(a)&&a.opening&&a.opening.date);}
+/* ⚠️ [설계 정정 v2.12] 예전엔 **그룹**으로 잘랐다(현금성만 파생). 그래서 노랑우산이 같이 잘렸다.
+     노랑우산은 평가액이 아니라 **납입액이 쌓이는 계좌**다 — 매달 10만원 내면 그만큼 늘어야 한다.
+   🔒 기준은 그룹이 아니라 **기초잔액이 있느냐**다. 로한이 기초를 넣은 계좌만 파생하고,
+      안 넣으면 수기로 남는다. 주식·외환은 opening 을 비워두면 그대로 평가액이다.
+      **판단을 코드가 아니라 로한이 한다.** */
+function accIsDerived(a){return !!(a.opening&&a.opening.date);}
 function accVal(a){return accIsDerived(a)?acctComputed(a):latest(a.hist);}
 function groupTotals(){var g={};DB.accounts.forEach(function(a){g[a.group]=(g[a.group]||0)+accVal(a)});return g;}
 function totalAssets(){return DB.accounts.reduce(function(s,a){return s+accVal(a)},0);}
@@ -1446,6 +1451,47 @@ function acctFlow(a){ var base=acctBaseline(a),s=0; DB.transactions.forEach(func
   if(txnAcct(t)!==a.id)return;
   if(t.type==='income')s+=t.amt; else if(t.type==='expense'||t.type==='settle')s-=t.amt; }); return s; }
 function acctComputed(a){return acctBaseline(a).amount+acctFlow(a);}
+
+/* ══════ v2.13 💚 선불 지갑 (네이버페이) ══════
+   ⚠️ 로한: "네페도 결국 우리슈퍼에서 받아서 거기서 나가는 거라 구조 자체를 이렇게 그리면 안 된다."
+      **맞다. 네이버페이는 목적지가 아니라 경유지다.**
+   🔒 계좌에 fundedBy 를 둔다. 어느 계좌에서 충전하는지는 **카드 설정에서 파생할 수 없다** — 사람만 안다.
+      Sankey 에서만 자금원으로 치환하고, **잔액은 그대로 지갑에 남긴다**(지갑에 얼마 있는지는 봐야 한다).
+   ⚠️ 실측으로 뽑은 충전 규칙: **부족분을 10,000 단위로 올림.**
+      9/2 110,000 · 9/4 10,000 · 9/5 10,000 · 8/7 30,000 — 네 건 모두 이 공식과 일치했다. */
+var TOPUP_UNIT=10000;
+function acctById(id){return (DB.accounts||[]).filter(function(x){return x.id===id;})[0]||null;}
+function isWallet(a){return !!(a&&a.fundedBy);}
+/* 결제수단이 지갑에 연결돼 있나 */
+function walletOf(method){
+  var c=cardBy(method); if(!c||!c.acct)return null;
+  var a=acctById(c.acct);
+  return isWallet(a)?a:null;
+}
+/* 그 날짜까지의 잔액. ⚠️ 수정 중이면 자기 자신은 빼야 한다 — 안 그러면 옛 금액이 두 번 반영된다. */
+function acctBalAt(a,ds,exceptId){
+  if(!a)return 0;
+  /* ⚠️ [결함] 처음엔 exceptId 만 뺐다. **틀렸다.** 그 결제와 짝인 **충전 이체까지** 빼야
+       '충전 전 잔액'이 나온다. 안 빼면 이미 충전된 상태로 계산해 충전을 또 제안하지 않는다.
+       t41-F1 이 잡았다 (25,939 vs 5,939). */
+  var _ex=exceptId?((DB.transactions||[]).filter(function(t){return t.id===exceptId;})[0]||null):null;
+  var _exLink=_ex&&_ex.linkId;
+  var base=acctBaseline(a), s=base.amount;
+  (DB.transactions||[]).forEach(function(t){
+    if(!t.date||t.date<base.date||(ds&&t.date>ds))return;
+    if(exceptId&&(t.id===exceptId||(_exLink&&t.linkId===_exLink)))return;
+    if(t.type==='transfer'){if(t.from===a.id)s-=t.amt;if(t.to===a.id)s+=t.amt;return;}
+    if(txnAcct(t)!==a.id)return;
+    if(t.type==='income')s+=t.amt; else if(t.type==='expense'||t.type==='settle')s-=t.amt;
+  });
+  return s;
+}
+/* 🔒 부족분만 채운다. 남으면 0 — 잔액이 충분하면 충전하지 않는다. */
+function topupNeed(bal,amt){
+  var need=(+amt||0)-(+bal||0);
+  if(need<=0)return 0;
+  return Math.ceil(need/TOPUP_UNIT)*TOPUP_UNIT;
+}
 
 /* ====== 현황판 ====== */
 function renderDash(){
@@ -2532,9 +2578,12 @@ function cfShort(v){v=Math.round(v);
 function cfBuildSankey(txns){
   var S={},A={},K={},linksSA=[],linksAK=[];
   function acctById(id){return DB.accounts.filter(function(x){return x.id===id})[0];}
+  /* v2.13 — 지갑(네이버페이)은 **경유지**다. 그림에선 자금원 계좌로 접는다.
+     ⚠️ 충전 이체는 Sankey 에 안 그려지므로 이중계상이 아니다 — 지갑 지출을 자금원 유출로 그리면 정확히 맞는다. */
+  function foldWallet(id){var a=acctById(id);return (a&&a.fundedBy)?a.fundedBy:id;}
   txns.forEach(function(t){
     /* 🔒 합계와 같은 판정(cfIsCashIn/Out)을 쓴다. 판정이 둘이면 그림과 숫자가 또 어긋난다. */
-    var _ac=cfAcct(t);
+    var _ac=foldWallet(cfAcct(t));
     if(cfIsIn(t)){S['in:'+t.cat]=(S['in:'+t.cat]||0)+t.amt;A[_ac]=A[_ac]||{in:0,out:0};A[_ac].in+=t.amt;linksSA.push({s:'in:'+t.cat,a:_ac,v:t.amt});}
     else if(t.type==='expense'&&cfIsOut(t)){K['ex:'+t.cat]=(K['ex:'+t.cat]||0)+t.amt;A[_ac]=A[_ac]||{in:0,out:0};A[_ac].out+=t.amt;linksAK.push({a:_ac,k:'ex:'+t.cat,v:t.amt});}
     else if(t.type==='settle'&&cfIsOut(t)&&_ac){
@@ -5891,13 +5940,15 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.11';
+var APP_VERSION='2.13';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'2.13',date:'2026-09-05',note:"<b>💚 선불 지갑(네이버페이) — 경유지로 다룬다.</b> 로한: <i>“네페도 결국 우리슈퍼에서 받아서 거기서 나가는 거라 구조 자체를 이렇게 그리면 안 된다. 결제수단에서 네이버페이를 클릭하면 잔액이 보이고, 충전 여부를 확인해서 이체와 지출을 한 모달에서 처리한 후 표현은 지금처럼 이체·지출 구분해서.”</i> · 🔒 계좌에 <code>fundedBy</code> 를 둔다. <b>어느 계좌에서 충전하는지는 카드 설정에서 파생할 수 없다</b> — 사람만 안다. 네이버페이는 <b>우리 SUPER 고정</b> · 🌊 <b>현금흐름 Sankey 에서 지갑을 자금원으로 접는다.</b> 예전엔 지갑 노드가 유입 없이 떠 있어 <b>돈이 어디서 왔는지 끊겼다</b>. 충전 이체는 Sankey 에 안 그려지므로 이중계상이 아니다 · ⚠️ 접는 건 <b>그림뿐</b>이다 — 잔액은 지갑에 남는다. 지갑에 얼마 있는지는 봐야 한다 · 💳 모달: 결제수단이 지갑이면 <b>잔액 · 결제액 · 충전액 · 결제 후 잔액</b>이 금액을 칠 때마다 실시간으로 계산된다 · ⚠️ 충전 공식은 <b>로한의 실제 내역에서 뽑았다</b> — 부족분을 10,000 단위 올림. 9/2 110,000 · 9/4 10,000 · 9/5 10,000 · 8/7 30,000 <b>네 건 모두 일치</b>. 잔액이 충분하면 충전하지 않는다 · 저장하면 <b>이체 + 지출 두 건</b>이 된다. 합치지 않는다 — 합치면 <b>통장에서 나간 돈과 쓴 돈</b>이 섞여 나중에 못 가른다. 두 건은 <code>linkId</code> 로 묶이고, 지출을 지우면 짝인 충전도 같이 지운다(유령 방지) · ⚠️ [결함] 수정 중 잔액에서 <b>자기 자신만 뺐다.</b> 짝인 충전까지 빼야 ‘충전 전 잔액’이 나온다 — t41-F1 이 잡았다 · ⚠️ [결함·스크린샷] 선불 지갑에 <b>[후불(카드값)] 토글이 떴다.</b> 미리 채워 쓰는 돈에 후불은 없다. 누르면 지갑 잔액이 안 줄고 카드 미결제로 잘못 쌓인다 → 지갑은 언제나 즉시 · t41 신설 39건"},
+  {v:'2.12',date:'2026-09-05',note:"<b>💰 파생 기준을 그룹 → 기초잔액으로.</b> 로한: <i>“노랑우산은 가계부랑 연동이 되어야되는데 안되고 있다.”</i> 실측: hist 가 3/31 190만 → 8/31 240만, <b>매달 정확히 +100,000</b> 인데 가계부엔 납입 기록이 <b>0건</b>이었다 · 원인: <code>accIsDerived()</code> 가 <b>그룹</b>으로 잘랐다(현금성만 파생). 노랑우산이 저축이라 같이 잘렸다 · 🔒 <b>노랑우산은 평가액이 아니라 납입액이 쌓이는 계좌다.</b> 주식·외환은 ‘지금 값’이라 거래로 파생이 불가능하지만, 공제부금은 <b>낸 만큼 는다</b> — 둘을 그룹으로 뭉뚱그린 게 잘못이었다 · → 기준을 <b>기초잔액이 있느냐</b>로 바꿨다. 로한이 기초를 넣은 계좌만 파생하고 안 넣으면 수기로 남는다. <b>판단을 코드가 아니라 로한이 한다</b> · ⚠️ 현재 투자·외환 계좌는 전부 opening 이 비어 있어 <b>영향 0</b> — 확인함 · 노랑우산에 기초 2026-09-01 / 2,400,000 부여. 이제 납입을 <b>이체</b>로 넣으면 잔액이 따라온다 · 삼성 ID MOVE 마감일 <b>10 → 12</b> (탭탭오와 동일 · 삼성카드는 하나로 돌아간다) · t40 에 H 블록 6건 추가(48건) — <b>저축이라도 기초가 있으면 파생 / 투자에 기초가 없으면 수기</b>를 못 박는다"},
   {v:'2.11',date:'2026-09-05',note:"<b>⚠️ [결함·중대] 미결제를 할부 <b>총액</b>으로 세고 있었다.</b> 로한 신고: <i>“현황판에 총부채가 어떻게 4,200만원이 되냐?”</i> 실측 <b>2,102,213</b>(계상) vs <b>756,750</b>(실제 잔여) — <b>총부채가 1,345,463 부풀어 있었다.</b> · 원인: <code>cardPendingByCard()</code> 가 <code>t.amt</code>(총액)를 더했다. <b>이미 낸 할부 회차까지 부채로 남았다.</b> · 🔒 미결제는 <b>‘아직 안 낸 돈’</b>이다. 잔여만 세는 <code>txnOwed()</code> 가 <b>이미 있었는데</b> 현황판이 안 썼다 — <b>선결제 화면은 그걸 쓰고 있어서 두 화면이 다른 숫자를 내고 있었다.</b> · ⚠️ 3개월 할부뿐일 땐 오차가 작아 안 보였다. <b>24개월 단말기 할부(1,245,600 · 잔여 207,600)</b>를 넣자 터졌다. 로한이 총부채를 안 물었으면 못 잡았다 · 총부채 42,002,213 → <b>40,656,750</b> (대출 39,900,000 + 카드 미결제 756,750) · t40 에 G 블록 7건 추가 — <b>현황판과 선결제 화면이 같은 숫자를 내는지</b>를 못 박는다"},
   {v:'2.10',date:'2026-09-05',note:"<b>💳 한 카드가 두 성격을 갖는다 — 거래별 후불 판정.</b> 로한: <i>“우리 K패스는 교통비만 후불이라 25일에 나간다. 차라리 가계부 쓸 때 신용인지 체크인지 고르게 하면 되겠네.”</i> <b>맞다.</b> 실측으로 확인: 9월 교통비 3건 11,950원이 앱에선 즉시 빠졌는데 <b>통장엔 없다</b> — 25일에 나간다. · 🔒 <code>card.type</code> 은 <b>카드의 기본값</b>일 뿐이고, <b>이 거래가 후불이었는지는 카드에서 파생할 수 없다</b> — 사람만 안다. → <code>txnIsCredit(t)</code> 신설. <code>t.credit</code> 이 없으면 카드 기본값을 따르므로 <b>기존 932건은 손댈 필요가 없고</b>, 기본값과 같으면 저장하지 않는다(빈 서랍을 남기지 않는다) · ⚠️ v1.42 의 교훈은 “카드에서 <b>파생 가능한 것</b>을 복사 저장하지 마라”였지 “아무것도 저장하지 마라”가 아니다. <b>계좌는 파생하고, 후불 여부는 저장한다.</b> · 결제수단이 카드면 <b>[즉시출금 | 후불(카드값)]</b> 토글이 뜬다. 이미 회차가 확정된 할부는 즉시출금으로 못 되돌린다 · 할부 개월 선택지 <b>1·2·3 → 1·2·3·6·12·24</b> — 단말기 24개월 할부가 실제로 있었다 · 삼성 탭탭오 마감일 <b>10 → 12</b>. 실측: 8/12 승인은 8/25 결제, 8/13 승인은 9/25 결제 · 🧾 <b>은행 원장 대조로 131,897원 오차를 전부 규명</b> — 기초잔액 9,200(8/31 23:30 건 누락) · 삼성 선결제 112,707 · 네이버페이 충전 20,000 · GS25 3,740 · 후불교통 −13,750 · 승인액 ≠ 청구액이다(스타벅스·쿠팡 할인). <b>선결제는 실제 청구액으로 맞춘다</b> · 📱 LG유플러스 단말기 24개월 할부(2025-01-30, 월 51,900, 잔여 4회 207,600) <b>원거래 복구</b> — 앱이 이 존재를 몰랐다 · 네이버페이 <b>계좌 신설</b> — 충전은 이체, 사용은 지출. 그래야 안 쓴 잔액이 보인다"},
   {v:'2.9',date:'2026-09-05',note:"<b>🎯 과락 게이지 · ❌ 오답노트.</b> 로한: <i>“로버트가 시험을 내고, 내가 풀고, 점수를 체크한다.”</i> · 🔒 <b>총점 하나는 거짓말을 한다.</b> JLPT 는 과목별 과락이 있어 <b>총점 110 이어도 청해 15 면 불합격</b>이다. 그래서 숫자 하나가 아니라 <b>과목별 막대 + 과락선</b>이다. 기준은 JLPT N4 공식값(언어지식·독해 120/과락 38, 청해 60/과락 19, 합격 90/180) · ⚠️ <b>시험일은 추측하지 않는다</b> — 비어 있으면 D-day 를 아예 안 그리고 로한이 넣는다 · 🔒 <b>총점은 파생</b>이다 — 과목 점수만 저장한다. 같이 저장하면 두 숫자가 어긋날 자리가 생긴다 · ⚠️ 안 친 과목을 0 으로 치지 않는다 — <b>없는 과락</b>이 생긴다 · 테스트에 <b>유형</b>(주간 확인·모의고사·복습) 신설. 모의고사만 과목 점수를 받고, 문항수/맞은수 축은 쓰지 않는다 · ❌ <b>오답노트</b> — <b>2회 연속 맞아야 회수</b>한다. 한 번 맞으면 지우는 방식은 <b>운으로 맞은 것까지</b> 지운다. X 하나면 0 으로 되돌아간다 · 📄 <b>복습 뽑기</b>는 미회수만, <b>정답은 빼고</b> 뽑는다 — 붙여넣고 바로 답이 보이면 시험이 아니다 · ⚠️ [결함·스크린샷으로 잡음] 과락선을 빨강으로 뒀더니 <b>과락일 때 막대도 빨강</b>이라 선이 사라졌다. 경고가 필요한 순간에 안 보이는 선이다 → 잉크색 · ⚠️ [결함] ‘87/90’ 은 ‘87점 만점 90’ 처럼 읽힌다. 90 은 만점이 아니라 <b>합격선</b>이다 → ‘87점 · 청해 과락’ · ⚠️ 모의고사 2회는 추이가 아니다 — 점 두 개를 선으로 부르지 않는다(3회부터) · t39 신설(50건)"},
@@ -7367,7 +7418,8 @@ function txnModal(id){
    +'<div class="field"><label>출발계좌</label><select id="fFrom">'+cashOpts(t.from)+'</select></div>'
    +'<div class="field"><label>도착계좌 <span class="mut">(저축·투자 포함)</span></label><select id="fTo">'+allOpts(t.to)+'</select></div>'
    +'</div>'
-   +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900" oninput="instPreview()"></div>'
+   +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900" oninput="instPreview();walletSync()"></div>'
+   +'<div id="walletBox" class="autoNote" style="display:none;margin:-4px 0 10px"></div>'
    +'<div class="field" id="instField" style="display:none"><label>결제 방식</label><div class="seg" id="instSeg">'
      +[1,2,3,6,12,24].map(function(n){return '<button class="'+((parseInt(t.inst||1,10)===n)?'on':'')+'" onclick="setInst(this,'+n+')">'+(n===1?'일시불':n+'개월')+'</button>';}).join('')
      +'</div><div class="hint" id="instHint"></div></div>'
@@ -7385,6 +7437,7 @@ function txnModal(id){
   setTimeout(foodFieldSync,0);
   modal._instDone=parseInt(t.instDone||0,10);
   modal._credit=(t.credit==null)?null:!!t.credit;
+  modal._id=id||null; modal._wallet=null; modal._topup=0;
   updIncInfo();methodChange();
 }
 function setInst(b,n){
@@ -7453,8 +7506,40 @@ function methodChange(){var af=document.getElementById('acctField'),nt=document.
       :('💳 즉시 → <b>'+(card.acct?acctName(card.acct):'⚠ 연결계좌 미설정')+'</b>에서 바로 출금');}
   }
   else{af.style.display='block';hideNote();if(pk)pk.style.display='none';}
+  /* 지갑이면 카드 안내문 대신 지갑 패널이 말한다 — 두 줄이 같은 말을 하면 시끄럽다.
+     ⚠️ [결함·스크린샷으로 잡음] 선불 지갑에 **[후불(카드값)] 토글이 떴다.**
+        네이버페이는 미리 채워 쓰는 돈이라 후불이 있을 수 없다. 있으면 로한이 누를 수 있고,
+        누르면 지갑 잔액이 안 줄고 카드 미결제로 잘못 쌓인다. 🔒 지갑은 언제나 즉시다. */
+  if(walletOf(m)){
+    if(nt)nt.style.display='none';
+    if(pk)pk.style.display='none';
+    modal._credit=false;
+  }
+  walletSync();
   instPreview();}
 /* 지금 모달이 들고 있는 후불 여부. 카드 기본값을 쓰되 로한이 바꿨으면 그 값이 이긴다. */
+/* 💚 지갑 패널 — 결제수단을 고르거나 금액을 칠 때마다 다시 계산한다 */
+function walletSync(){
+  var box=document.getElementById('walletBox'); if(!box)return;
+  var m=(document.getElementById('fMethod')||{}).value;
+  var w=(modal._type==='expense')?walletOf(m):null;
+  if(!w){box.style.display='none';modal._wallet=null;modal._topup=0;return;}
+  var ds=(document.getElementById('fDate')||{}).value||todayStr();
+  var amt=parseFloat(((document.getElementById('fAmt')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+  var bal=acctBalAt(w,ds,modal._editing?modal._id:null);
+  var need=topupNeed(bal,amt);
+  modal._wallet=w; modal._topup=need;
+  var src=acctById(w.fundedBy);
+  var after=bal+need-amt;
+  box.style.display='block';
+  box.innerHTML='💚 <b>'+mdEsc(w.name)+'</b> 잔액 <b>'+won(bal)+'</b>'
+    +(amt?(' · 결제 '+won(amt)):'')
+    +(need
+      ? ('<br>⤵ <b>'+won(need)+'</b> 충전 <span class="mut">('+mdEsc(src?src.name:'?')+' → '+mdEsc(w.name)+')</span>'
+         +' · 결제 후 <b>'+won(after)+'</b>'
+         +'<br><span class="mut" style="font-size:10.5px">저장하면 <b>이체</b>와 <b>지출</b> 두 건으로 나뉜다</span>')
+      : (amt?('<br><span class="pos">잔액으로 충분하다 — 충전 없음</span> · 결제 후 <b>'+won(after)+'</b>'):''));
+}
 function payKindCredit(card){
   if(modal._credit!=null)return !!modal._credit;
   return !!(card&&card.type==='credit');
@@ -7566,7 +7651,21 @@ function saveTxn(id){
     Object.assign(_to,rec); if(!_wantFood)delete _to.food; if(!_slot)delete _to.slot;
     /* 🔒 카드 기본값으로 되돌렸으면 옛 credit 을 지운다 — 안 지우면 설정을 바꿔도 안 따라온다 */
     if(!('credit' in rec))delete _to.credit;}
-  else{rec.id=uid();DB.transactions.push(rec);}
+  else{
+    rec.id=uid();
+    /* 💚 지갑 결제인데 잔액이 모자라면 **충전 이체를 같이 만든다.**
+       🔒 한 건으로 합치지 않는다 — 로한: "표현은 지금처럼 이체, 지출 구분해서."
+          합치면 통장에서 나간 돈(충전액)과 쓴 돈(결제액)이 섞여 나중에 못 가른다.
+       ⚠️ 신규 입력에만 만든다. 수정 때 또 만들면 충전이 중복된다. */
+    if(modal._wallet&&modal._topup>0){
+      var _lk=uid();
+      DB.transactions.push({id:uid(),type:'transfer',date:rec.date,amt:modal._topup,
+        from:modal._wallet.fundedBy,to:modal._wallet.id,cat:'이체',
+        memo:modal._wallet.name+' 충전',linkId:_lk});
+      rec.linkId=_lk;
+      logAct('💚 '+modal._wallet.name+' 충전 '+won(modal._topup)+' (자동)');
+    }
+    DB.transactions.push(rec);}
   /* v2.6 — 끼니를 골랐으면 데일리 식사(실제)에 같이 적는다.
      🔒 덮어쓰지 않고 **이어붙인다** — 한 끼에 두 건을 쓸 수 있다(밥 + 음료).
      ⚠️ 이미 같은 말이 적혀 있으면 두 번 넣지 않는다. */
@@ -7622,7 +7721,19 @@ function delTxn(id){
     logAct('카드결제 삭제 · '+(_s.method||'')+' '+(_s.cycle?cycleLabel(_s.cycle):'')+' '+won(_s.amt)+' → 미결제 복원 '+_r+'건');
     save();renderCal();renderDash();return;
   }
-  if(!confirm('삭제할까요?'))return;var _t=DB.transactions.filter(function(t){return t.id===id})[0];
+  var _lt=DB.transactions.filter(function(t){return t.id===id})[0];
+  /* 💚 지갑 결제와 짝인 충전 이체 — 지출만 지우면 충전이 유령으로 남는다 */
+  var _pair=(_lt&&_lt.linkId)?DB.transactions.filter(function(t){return t.linkId===_lt.linkId&&t.id!==id;}):[];
+  if(_pair.length){
+    if(!confirm('이 결제와 짝인 충전 이체 '+_pair.length+'건도 같이 지운다.\n\n'
+      +_pair.map(function(t){return '· '+t.date+' '+won(t.amt)+' '+(t.memo||'');}).join('\n')
+      +'\n\n진행할까?'))return;
+    var _pids={}; _pair.forEach(function(t){_pids[t.id]=1;});
+    DB.transactions=DB.transactions.filter(function(t){return !_pids[t.id];});
+    logAct('충전 이체 동반 삭제 '+_pair.length+'건');
+  }
+  else if(!confirm('삭제할까요?'))return;
+  var _t=DB.transactions.filter(function(t){return t.id===id})[0];
   /* 거래가 사라지면 붙어 있던 보상 카드는 되살아난다 */
   var _c=cardByTxn(id); if(_c){_c.usedAt=null;_c.txnId=null;_c.spent=0;_c.memo='';logAct('🎁 보상 카드 복원 · '+_c.code+' '+_c.title);}logAct('거래삭제 · '+(_t?_t.date+' '+_t.cat+' '+won(_t.amt):id));DB.transactions=DB.transactions.filter(function(t){return t.id!==id});save();renderCal();renderDash();}
 
