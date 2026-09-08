@@ -99,6 +99,28 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .gtot{display:flex;justify-content:space-between;align-items:center;gap:8px;
   border-top:1px solid var(--line);padding-top:9px;margin-top:2px;font-size:13.5px}
 .sterr{border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:7px;background:var(--card)}
+/* v3.0 🎓 학습 — 장소로 과제를 고른다 */
+.sthead{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.stph{margin-top:5px;font-size:12px;color:var(--gold)}
+.stchs{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}
+.stchs button{flex:1;min-width:78px;font-size:12px;padding:7px 6px;border:1px solid var(--line);
+  border-radius:9px;background:var(--soft);color:var(--muted);cursor:pointer;font-weight:600}
+.stchs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.stchs button b{font-weight:800}
+.stu{display:flex;align-items:flex-start;gap:9px;padding:9px 10px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:6px;background:var(--card);cursor:pointer}
+.stu:hover{border-color:var(--accent)}
+.stu.done{opacity:.5}
+.stu.done .stumain b{text-decoration:line-through}
+/* ⚠️ 다른 채널 과제는 지우지 않고 흐리게 남긴다 — 있다는 건 알아야 한다 */
+.stu.dim{opacity:.42;cursor:default;background:var(--soft)}
+.stu.dim:hover{border-color:var(--line)}
+.stubox{font-size:15px;line-height:1.2;color:var(--accent)}
+.stu.done .stubox{color:var(--pos)}
+.stumain{flex:1;font-size:12.5px;line-height:1.45}
+.stumin{font-size:10.5px;text-align:right;white-space:nowrap;line-height:1.4}
+.stcar{display:inline-block;margin-left:6px;background:var(--neg);color:#fff;border-radius:999px;
+  padding:1px 7px;font-size:9.5px;font-weight:700}
 .sterr.cl{opacity:.48}
 .sttest:hover{border-color:var(--accent)}
 .stbook[data-stbook]{cursor:pointer}
@@ -2825,453 +2847,215 @@ function medCellHtml(slot,i){
       +((p.d&&medDoseOn())?'<span class="medd">'+mdEsc(p.d)+'</span>':'')+mark+'</span>';
   }).join('<br>');
 }
-/* ══════ 🎓 학습 (v2.7 · A단계) ══════
-   로한: "루틴이 데일리 루틴관리·로그라면, 학습 페이지는 학습만 집중한다."
+/* ══════════════════════════════════════════════════════════════
+   🎓 학습 — v3.0 제로베이스 (로버트(학습) 기획서 v5)
+   "오늘 지금 여기서 뭘 해야 하고, 나는 붙을 궤도에 있는가"에 3초 안에 답한다.
 
-   🔒 목표 시스템을 새로 만들지 않는다.
-      연간(C JLPT N4)·월간 눈금(C.9)은 이미 goals 에 있다 — **거기가 하나의 진실**이다.
-      여기서는 읽어서 보여주기만 한다. 두 곳에 목표가 있으면 반드시 어긋난다(세무 때와 같다).
-      ⚠️ 주간·일간은 goals 에 넣지 않는다. 그건 목표가 아니라 **계획**이고,
-         넣으면 1년에 52+365개가 쌓여 목표 탭이 터진다.
+   🔒 왜 갈아엎었나 — 실측 근거:
+      옛 목표는 마일스톤이 '일 4/6/8뽀모'였다. 루틴 due 11일 / done 0일, timelog study 0시간.
+      **뽀모 개수는 합격의 대리지표가 아니고 실행 판정도 못 한다.**
+      9/7부터 실제 학습이 시작됐고 종이와 대화창으로만 굴러간다. 그걸 담을 그릇이다.
 
-   🔒 투입(뽀모)과 산출(진도)을 둘 다 센다.
-      뽀모만 세면 지금 월간 눈금과 똑같아진다. "6뽀모 했는데 3쪽" 이 보여야 이 페이지가 존재할 이유가 있다.
+   🔒 이 페이지가 답하는 질문은 넷뿐이다. 그 밖은 만들지 않는다.
+      ① 오늘 뭘 하나(장소 기준)  ② 붙을 궤도인가  ③ 못 하는 건 뭔가  ④ 지난주 했나
 
-   🔒 교재의 현재 진도는 **파생**이다. book.start + 로그 누적.
-      저장하면 "언제 얼마나 나갔나"가 사라지고, 로그와 어긋났을 때 어느 쪽이 맞는지 알 수 없다. */
+   ⚠️ 시간표가 아니라 **장소**로 과제를 고른다. 교재를 분철해서 1권은 학원, 2권은 집에 둔다.
+      장소를 무시하면 '집에 있는 책' 과제가 학원에서 계속 미완으로 뜨고, 미완이 쌓이면 앱을 안 본다.
+   ⚠️ 학습시간은 timelog 의 tag **또는 tag2** 에서 파생한다.
+      로한은 근무 중 학습을 tag:'work' + tag2:'study' 로 이중 기록한다 — tag 만 보면 0시간이 나온다.
+   🚫 문항 본문·채점 엔진·풀이 UI 는 만들지 않는다. 출제와 채점은 대화방에서 한다.
+   ══════════════════════════════════════════════════════════════ */
 
-function studyDB(){DB.study=DB.study||{};var S=DB.study;
-  S.books=S.books||[];S.plan=S.plan||{};S.logs=S.logs||{};S.tests=S.tests||[];S.cfg=S.cfg||{};
-  S.errors=S.errors||[];   /* v2.9 ❌ 오답노트 */
-  S.cfg.target=S.cfg.target||{};return S;}
-function stBooks(){return studyDB().books.filter(function(b){return b.status!=='done';});}
-function stBookById(id){var r=null;studyDB().books.forEach(function(b){if(b.id===id)r=b;});return r;}
-function stLog(ds){return studyDB().logs[ds]||null;}
-function stPomo(ds){var l=stLog(ds);return (l&&l.pomo)||0;}
-
-/* --- 목표 뽀모: cfg 우선, 없으면 월간 눈금 제목에서 읽는다 ---
-   ⚠️ 제목 파싱은 추측이다. 그래서 화면에 '눈금에서 읽음' 이라고 밝히고, 로한이 덮어쓸 수 있게 둔다. */
-function stMsOfMonth(ym){
-  var out=null;
-  (DB.goals||[]).forEach(function(g){
-    if(g.kind!=='milestone'||g.period!==ym)return;
-    var p=goalById(g.parentId);
-    if(p&&/JLPT|학습|공부/.test(p.title||''))out=g;
-  });
-  return out;
-}
-function stTargetSrc(ym){
-  var S=studyDB();
-  if(S.cfg.target[ym]!=null)return {n:S.cfg.target[ym],src:'설정'};
-  var m=stMsOfMonth(ym);
-  var mm=m&&/(\d+)\s*뽀모/.exec(m.title||'');
-  if(mm)return {n:parseInt(mm[1],10),src:'눈금 '+m.code};
-  return {n:0,src:''};
-}
-function stTarget(ym){return stTargetSrc(ym).n;}
-function stSetTarget(ym,n){var S=studyDB();
-  if(n>0)S.cfg.target[ym]=n; else delete S.cfg.target[ym];
-  save();renderStudy();}
-
-/* --- 교재 진도는 파생 --- */
-function stBookDone(b){
-  var n=(b.start!=null?+b.start:0), L=studyDB().logs;
-  for(var ds in L){var p=L[ds]&&L[ds].prog;if(p&&p[b.id])n+=(+p[b.id]||0);}
-  return n;
-}
-function stBookPct(b){var t=+b.total||0;return t?Math.max(0,Math.min(100,Math.round(stBookDone(b)/t*100))):0;}
-/* 최근 N일 속도로 남은 분량을 나눈다 — "이 속도면 시험 전에 못 끝낸다" 가 보여야 한다.
-   ⚠️ 기록이 없으면 계산하지 않는다. 0 으로 나눈 '무한대'를 보여주지 않는다. */
-function stPace(b,days){
-  days=days||14; var L=studyDB().logs, end=todayStr(), from=addDays(end,-(days-1)), sum=0, n=0;
-  for(var ds in L){ if(ds<from||ds>end)continue;
-    var v=(L[ds].prog||{})[b.id]; if(v){sum+=(+v||0);n++;} }
-  if(!sum)return null;
-  var perDay=sum/days, left=Math.max(0,(+b.total||0)-stBookDone(b));
-  if(!left)return {perDay:perDay,days:0,eta:end,n:n};
-  var d=Math.ceil(left/perDay);
-  return {perDay:perDay,days:d,eta:addDays(end,d),n:n};
-}
-
-/* --- 🔗 데일리 루틴 자동 체크 ---
-   제목에 '학습' 또는 '뽀모' 가 들어간 활성 루틴을 학습 루틴으로 본다(복약 판별과 같은 방식).
-   🔒 **체크만 하고 해제하지 않는다.** 뽀모를 줄였다고 자동으로 풀면
-      로한이 손으로 켠 체크까지 날아간다 — 코드가 사용자 데이터를 덮어쓰지 않는다. */
-function studyRoutines(){
-  return routinesSorted().filter(function(r){
-    return r.status!=='retired' && /학습|뽀모/.test(r.title||'');
-  });
-}
-function stSyncRoutine(ds){
-  var tg=stTarget(ds.slice(0,7)); if(!tg||stPomo(ds)<tg)return 0;
-  var rs=studyRoutines(); if(!rs.length)return 0;
-  var due=dueOf(ds), c=ensureDay(ds), n=0;
-  rs.forEach(function(r){
-    if(due.indexOf(r.code)<0)return;          /* 그날 해당 없는 루틴은 건드리지 않는다 */
-    if(c.done.indexOf(r.code)>=0)return;
-    c.done.push(r.code); n++;
-  });
-  if(n)logAct('학습 목표 달성 · 루틴 '+n+'개 자동 체크 ('+ds+')');
-  return n;
-}
-
-/* --- 기록 --- */
-function stAddPomo(ds,d){
-  var S=studyDB(), l=S.logs[ds]||{};
-  var v=Math.max(0,(+l.pomo||0)+d);
-  if(v)l.pomo=v; else delete l.pomo;
-  if(Object.keys(l).length)S.logs[ds]=l; else delete S.logs[ds];   /* 빈 서랍을 남기지 않는다 */
-  var n=stSyncRoutine(ds);
-  save();renderStudy();
-  if(n)renderDaily();
-}
-function stProgModal(ds){
-  var bs=stBooks();
-  if(!bs.length){openModal('<div class="mtop"><h3>진도 기록</h3><span class="x" onclick="closeModal()">×</span></div>'
-    +'<div class="mut" style="padding:12px 0">교재가 없다. <b>📚 교재</b> 탭에서 먼저 추가해라.</div>');return;}
-  var l=stLog(ds)||{}, pg=l.prog||{};
-  openModal('<div class="mtop"><h3>'+ds+' 진도</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">그날 <b>나간 만큼</b>만 적어라 — 누적 위치가 아니다. 비우면 기록이 지워진다.</div>'
-   +bs.map(function(b){
-      return '<div class="field"><label>'+mdEsc(b.title)+' <span class="mut">'+stBookDone(b)+'/'+(b.total||'?')+' '+mdEsc(b.unit||'')+'</span></label>'
-       +'<input id="sp_'+b.id+'" inputmode="numeric" value="'+(pg[b.id]!=null?pg[b.id]:'')+'" placeholder="0"></div>';
-     }).join('')
-   +'<div class="field"><label>메모 <span class="mut">(선택)</span></label><input id="sp_memo" value="'+sajuEsc(l.memo||'')+'" placeholder="막힌 부분·다음에 할 것"></div>'
-   +'<button class="btn" onclick="stSaveProg(\''+ds+'\')">저장</button>');
-}
-function stSaveProg(ds){
-  var S=studyDB(), l=S.logs[ds]||{}, pg={};
-  stBooks().forEach(function(b){
-    var el=document.getElementById('sp_'+b.id); if(!el)return;
-    var v=parseFloat((el.value+'').replace(/[^0-9.\-]/g,''));
-    if(!isNaN(v)&&v!==0)pg[b.id]=v;
-  });
-  if(Object.keys(pg).length)l.prog=pg; else delete l.prog;
-  var m=((document.getElementById('sp_memo')||{}).value||'').trim();
-  if(m)l.memo=m; else delete l.memo;
-  if(Object.keys(l).length)S.logs[ds]=l; else delete S.logs[ds];
-  logAct('학습 진도 · '+ds); save(); closeModal(); renderStudy();
-}
-function stBookModal(id){
-  var b=id?stBookById(id):{title:'',unit:'쪽',total:'',start:0,status:'active'};
-  var us=['쪽','과','회','강','개','문제'].map(function(u){return '<option'+(u===(b.unit||'쪽')?' selected':'')+'>'+u+'</option>';}).join('');
-  openModal('<div class="mtop"><h3>'+(id?'교재 수정':'교재 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="field"><label>제목</label><input id="sb_title" value="'+sajuEsc(b.title||'')+'" placeholder="예: 신일본어능력시험 N4 문법"></div>'
-   +'<div class="field"><label>단위</label><select id="sb_unit">'+us+'</select></div>'
-   +'<div class="field"><label>전체 분량</label><input id="sb_total" inputmode="numeric" value="'+(b.total||'')+'" placeholder="예: 120"></div>'
-   +'<div class="field"><label>시작 시점 진도 <span class="mut">(이미 나간 만큼 · 앞으로는 매일 기록에서 누적된다)</span></label>'
-     +'<input id="sb_start" inputmode="numeric" value="'+(b.start||0)+'" placeholder="0"></div>'
-   +'<button class="btn" onclick="stSaveBook('+(id?"'"+id+"'":'null')+')">저장</button>'
-   +(id?' <button class="ghost" onclick="stDelBook(\''+id+'\')">삭제</button>':''));
-}
-function stSaveBook(id){
-  var t=(document.getElementById('sb_title').value||'').trim();
-  if(!t)return alert('제목을 입력해라');
-  var rec={title:t,unit:document.getElementById('sb_unit').value,
-    total:parseFloat((document.getElementById('sb_total').value+'').replace(/[^0-9.]/g,''))||0,
-    start:parseFloat((document.getElementById('sb_start').value+'').replace(/[^0-9.]/g,''))||0};
-  var S=studyDB();
-  if(id){Object.assign(stBookById(id),rec);}
-  else{rec.id=uid();rec.status='active';S.books.push(rec);}
-  logAct((id?'교재 수정':'교재 추가')+' · '+t); save(); closeModal(); renderStudy();
-}
-function stDelBook(id){
-  var b=stBookById(id); if(!b)return;
-  /* ⚠️ 교재를 지워도 로그의 진도 기록은 남는다 — 지우면 '그날 뭘 했는지'가 사라진다.
-     대신 유령 참조가 되므로 목록에서만 뺀다. */
-  if(!confirm('['+b.title+'] 을 목록에서 뺀다.\n\n지난 진도 기록은 그대로 남는다.\n진행할까?'))return;
-  b.status='done'; logAct('교재 종료 · '+b.title); save(); closeModal(); renderStudy();
-}
-
-/* --- 📅 주간 플랜 (B단계) ---
-   로한: "각 방의 로버트들이랑 논의 먼저 하고, 결정하면 로한북에 업데이트 한다. 그리고 그걸 이행했는지 점검한다.
-          각 월 말에 월간 목표를 설정하고, 각 일요일에 주간 목표를 설정한다."
-   🔒 식단과 같은 구조다: p(로버트 제안) × a(실제). 합치면 '하기로 한 것'과 '한 것'을 못 가른다.
-   🔒 주차 키는 **그 주 일요일 날짜**다. 'W37' 같은 주차 번호는 연말에 애매해지고
-      weekStart() 가 이미 일요일 시작이라 계산이 하나로 끝난다. */
-var STD_DOW=['일','월','화','수','목','금','토'];
-function stPlan(ws){return studyDB().plan[ws]||null;}
-function stPlanDay(ws,i){var p=stPlan(ws);var d=(p&&p.d&&p.d[i])||null;
-  return {p:(d&&d.p)||'', a:(d&&d.a)||''};}
-function stPlanSet(ws,i,side,txt){
-  var S=studyDB(), p=S.plan[ws]||{d:{}}; p.d=p.d||{};
-  var c=stPlanDay(ws,i), v=(txt||'').trim(); c[side]=v;
-  if(c.p||c.a)p.d[i]={p:c.p,a:c.a}; else delete p.d[i];
-  var any=(p.memo||'').trim()||Object.keys(p.d).length;
-  if(any)S.plan[ws]=p; else delete S.plan[ws];   /* 빈 주는 서랍째 지운다 */
-}
-function stPlanMemo(ws,txt){
-  var S=studyDB(), p=S.plan[ws]||{d:{}}, v=(txt||'').trim();
-  if(v)p.memo=v; else delete p.memo;
-  var any=(p.memo||'').trim()||Object.keys(p.d||{}).length;
-  if(any)S.plan[ws]=p; else delete S.plan[ws];
-}
-function stPlanSave(ws){
-  stPlanMemo(ws,(document.getElementById('sw_memo')||{}).value);
-  for(var i=0;i<7;i++){
-    var pe=document.getElementById('sw_p'+i), ae=document.getElementById('sw_a'+i);
-    if(pe)stPlanSet(ws,i,'p',pe.value);
-    if(ae)stPlanSet(ws,i,'a',ae.value);
-  }
-  logAct('주간 플랜 · '+ws); save(); renderStudy();
-}
-function stPlanCopy(ws){
-  var n=0;
-  for(var i=0;i<7;i++){
-    var pe=document.getElementById('sw_p'+i), ae=document.getElementById('sw_a'+i);
-    if(!pe||!ae)continue; var pv=(pe.value||'').trim(); if(!pv)continue;
-    if((ae.value||'').trim()&&ae.value!==pv)continue;   /* 이미 다르게 적은 건 덮지 않는다 */
-    ae.value=pv; n++;
-  }
-  if(!n)alert('가져올 제안이 없거나, 이미 다르게 적어뒀다.');
-}
-function stWeek(){return (DB.ui&&DB.ui.stWeek)||weekStart(todayStr());}
-function setStWeek(ws){DB.ui=DB.ui||{};DB.ui.stWeek=ws;save();renderStudy();}
-function stWeekMove(n){setStWeek(addDays(stWeek(),n*7));}
-
-/* --- ⏰ 리듬 넛지 — 로한이 정한 주기를 앱이 상기시킨다 ---
-   ⚠️ 강요하지 않는다. 띠 하나로 알리고 판단은 로한이 한다. */
-function stNudge(){
-  var d=todayStr(), out=[];
-  /* 일요일: 주간 플랜 */
-  if(dowOf(d)===0){
-    var ws=weekStart(d), p=stPlan(ws);
-    var has=p&&(p.memo||Object.keys(p.d||{}).length);
-    if(!has)out.push({k:'week',t:'📅 오늘은 일요일이다 — <b>이번 주 플랜</b>을 학습방 로버트와 정해라',go:"setStTab('plan')"});
-  }
-  /* 월말 3일: 다음 달 눈금
-     ⚠️ 날짜 산수를 직접 하지 않는다 — lastDayOfYM·ymAdd 가 이미 있다(연말 넘김까지 처리한다). */
-  var _eo=stErrOpen().length;
-  if(_eo>=10)out.push({k:'err',t:'❌ 미회수 오답 <b>'+_eo+'</b>개 — 복습 테스트를 뽑을 때다',go:"setStTab('err')"});
-  if(daysBetween(d,lastDayOfYM(d.slice(0,7)))<=2){
-    var nx=ymAdd(d.slice(0,7),1);
-    if(!stMsOfMonth(nx))out.push({k:'month',t:'🎯 월말이다 — <b>'+nx+' 월간 눈금</b>이 아직 없다. 목표·루틴 탭에서 정해라',go:"gotoTab('goal')"});
-  }
-  return out;
-}
-
-/* --- 📝 테스트 ---
-   로한: "로버트가 시험을 내고, 내가 풀고, 점수를 체크한다."
-   🔒 이게 학습 페이지의 특이점이다. 뽀모(투입)·진도(산출)만으로는 **늘었는지 알 수 없다.**
-      점수가 세 번째 축이고, 셋이 같이 있어야 "많이 했는데 왜 안 늘지"에 답할 수 있다.
-   ⚠️ 문제 본문은 여기 저장하지 않는다 — 시험지는 대화방(핸드오프)에 있고 여기 남기는 건 **결과**다. */
+var ST_CH=[{k:'move',label:'이동',ico:'🚌',hint:'폰만 있다'},
+           {k:'academy',label:'학원',ico:'🏫',hint:'교재 1권'},
+           {k:'home',label:'집',ico:'🏠',hint:'교재 2권 + 음원'}];
+var ST_TYPE=[{k:'kana',label:'가나'},{k:'conj',label:'활용'},{k:'vocab',label:'단어'},
+             {k:'kanji',label:'한자'},{k:'grammar',label:'문법'},{k:'read',label:'독해'},
+             {k:'listen',label:'청해'},{k:'mock',label:'모의'}];
 var ST_TKIND=[{k:'weekly',label:'주간 확인'},{k:'mock',label:'모의고사'},{k:'review',label:'복습'}];
-function stKindLabel(k){var r='주간 확인';ST_TKIND.forEach(function(x){if(x.k===k)r=x.label;});return r;}
-function stKindChip(k){return '<span class="pill">'+stKindLabel(k)+'</span>';}
-function stTestKindChg(){
-  var k=document.getElementById('st_kind').value;
-  document.getElementById('st_mockbox').style.display=(k==='mock')?'block':'none';
-  document.getElementById('st_qbox').style.display=(k==='mock')?'none':'flex';}
-function stTests(){return studyDB().tests.slice().sort(function(a,b){return a.date<b.date?1:-1;});}
-function stPct(t){var n=+t.total||0;return n?Math.round((+t.score||0)/n*100):0;}
-function stTestModal(id){
-  var t=id?(studyDB().tests.filter(function(x){return x.id===id;})[0]||null):null;
-  if(id&&!t)return;
-  t=t||{date:todayStr(),title:'',total:'',score:'',bookId:'',memo:'',kind:'weekly'};
-  var kind=t.kind||'weekly';
-  var kopt=ST_TKIND.map(function(x){return '<option value="'+x.k+'"'+(x.k===kind?' selected':'')+'>'+x.label+'</option>';}).join('');
-  var mrows=stExam().parts.map(function(p){
-    var v=stPartVal(t,p.k);
-    return '<div class="field" style="flex:1"><label>'+mdEsc(p.label)+' <span class="mut">/'+p.max+'</span></label>'
-      +'<input id="st_p_'+p.k+'" inputmode="numeric" value="'+(v==null?'':v)+'" placeholder="'+p.cut+'"></div>';}).join('');
-  var bopt='<option value="">— 범위 선택 안 함 —</option>'
-    +stBooks().map(function(b){return '<option value="'+b.id+'"'+(b.id===t.bookId?' selected':'')+'>'+mdEsc(b.title)+'</option>';}).join('');
-  openModal('<div class="mtop"><h3>'+(id?'테스트 수정':'테스트 기록')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">문제는 대화방에 있다. 여기엔 <b>결과만</b> 남긴다.</div>'
-   +'<div class="field"><label>날짜</label><input id="st_date" type="date" value="'+t.date+'"></div>'
-   +'<div class="field"><label>제목</label><input id="st_title" value="'+sajuEsc(t.title||'')+'" placeholder="예: N4 문법 1~3과 확인"></div>'
-   +'<div class="field"><label>유형</label><select id="st_kind" onchange="stTestKindChg()">'+kopt+'</select></div>'
-   +'<div class="field"><label>범위 <span class="mut">(교재)</span></label><select id="st_book">'+bopt+'</select></div>'
-   +'<div id="st_qbox" style="display:'+(kind==='mock'?'none':'flex')+';gap:8px">'
-     +'<div class="field" style="flex:1"><label>문항 수</label><input id="st_total" inputmode="numeric" value="'+(t.total||'')+'" placeholder="20"></div>'
-     +'<div class="field" style="flex:1"><label>맞은 수</label><input id="st_score" inputmode="numeric" value="'+(t.score||'')+'" placeholder="16"></div>'
-   +'</div>'
-   /* ⚠️ 모의고사는 문항수/맞은수 축을 쓰지 않는다 — 과목별 점수가 과락을 판정하는 유일한 근거다 */
-   +'<div id="st_mockbox" style="display:'+(kind==='mock'?'block':'none')+'">'
-     +'<div class="mut" style="font-size:11px;margin-bottom:5px">과목별 점수 — <b>과락선</b>이 여기서 판정된다</div>'
-     +'<div style="display:flex;gap:8px">'+mrows+'</div></div>'
-   +'<div class="field"><label>메모 <span class="mut">(틀린 것·다시 볼 것)</span></label><textarea id="st_memo" rows="3">'+mdEsc(t.memo||'')+'</textarea></div>'
-   +'<button class="btn" onclick="stSaveTest('+(id?"'"+id+"'":'null')+')">저장</button>'
-   +(id?' <button class="ghost" onclick="stDelTest(\''+id+'\')">삭제</button>':''));
-}
-function stSaveTest(id){
-  var ti=(document.getElementById('st_title').value||'').trim();
-  if(!ti)return alert('제목을 입력해라');
-  var kind=document.getElementById('st_kind').value||'weekly';
-  var tot=parseFloat((document.getElementById('st_total').value+'').replace(/[^0-9.]/g,''))||0;
-  var sc=parseFloat((document.getElementById('st_score').value+'').replace(/[^0-9.]/g,''))||0;
-  var rec={date:document.getElementById('st_date').value||todayStr(),title:ti,kind:kind,
-    total:0,score:0,bookId:document.getElementById('st_book').value||'',
-    memo:(document.getElementById('st_memo').value||'').trim()};
-  if(kind==='mock'){
-    /* 🔒 과목별 점수만 저장한다. 총점은 파생이다 — 따로 넣으면 두 숫자가 어긋날 자리가 생긴다. */
-    var ps={}, over='';
-    stExam().parts.forEach(function(p){
-      var el=document.getElementById('st_p_'+p.k), raw=((el&&el.value)||'').trim();
-      if(raw==='')return;
-      var n=parseFloat(raw.replace(/[^0-9.]/g,''));
-      if(isNaN(n))return;
-      if(n>(+p.max||0))over=p.label;
-      ps[p.k]=n;});
-    if(over)return alert(over+' 점수가 만점을 넘는다');
-    if(!Object.keys(ps).length)return alert('과목 점수를 최소 하나는 넣어라');
-    rec.parts=ps;
-  }else{
-    if(tot&&sc>tot)return alert('맞은 수가 문항 수보다 많다');
-    rec.total=tot; rec.score=sc; rec.parts=null;
-  }
-  var S=studyDB();
-  if(id)Object.assign(S.tests.filter(function(x){return x.id===id;})[0],rec);
-  else{rec.id=uid();S.tests.push(rec);}
-  logAct('테스트 '+(id?'수정':'기록')+' · '+ti+(tot?' '+sc+'/'+tot:'')); save(); closeModal(); renderStudy();
-}
-function stDelTest(id){
-  if(!confirm('이 테스트 기록을 지운다.\n진행할까?'))return;
-  var S=studyDB();S.tests=S.tests.filter(function(x){return x.id!==id;});
-  logAct('테스트 삭제'); save(); closeModal(); renderStudy();
-}
-function stTestRows(n){
-  var ts=stTests(); if(n)ts=ts.slice(0,n);
-  if(!ts.length)return '<div class="mut" style="padding:8px 0;font-size:11.5px">아직 테스트 기록이 없다. 로버트에게 시험을 받아 풀고 점수를 남겨라.</div>';
-  return ts.map(function(t){
-    var pct=stPct(t), b=t.bookId?stBookById(t.bookId):null;
-    var cls=pct>=80?'pos':(pct>=60?'':'neg');
-    var right=(t.total?(t.score+'/'+t.total+' · '+pct+'%'):'—');
-    var v=(t.kind==='mock')?stMockVerdict(t):null;
-    if(v){cls=v.pass?'pos':'neg';
-      /* ⚠️ [결함] '87/90' 은 '87점 만점 90'처럼 읽힌다. 90 은 만점이 아니라 **합격선**이다. */
-      right=v.sum+'점'+(v.pass?' · 합격권':(v.fails.length?' · '+v.fails.map(function(f){return f.label;}).join('·')+' 과락':' · 총점 미달'));}
-    return '<div class="sttest" data-sttest="'+t.id+'">'
-      +'<div class="row" style="border-bottom:0;padding:2px 0"><span>'+stKindChip(t.kind)+' <b>'+mdEsc(t.title)+'</b>'
-        +(b?' <span class="chip auto">'+mdEsc(b.title)+'</span>':'')+'</span>'
-        +'<span class="'+cls+'" style="font-weight:800;font-variant-numeric:tabular-nums">'+right+'</span></div>'
-      +'<div class="mut" style="font-size:10.5px">'+t.date+(t.memo?' · '+mdEsc(t.memo.split('\n')[0]):'')+'</div></div>';
-  }).join('');
-}
-/* 점수 추이 — 늘고 있는지가 이 페이지의 최종 질문이다 */
-function stScoreSpark(){
-  var ts=stTests().filter(function(t){return +t.total>0;}).reverse().slice(-12);
-  if(ts.length<2)return '';
-  return '<div class="mut" style="font-size:10.5px;margin-top:12px">점수 추이 <span>'+ts.length+'회</span></div>'
-   +'<div class="stspark">'+ts.map(function(t){var p=stPct(t);
-      return '<i class="stspk'+(p>=80?' full':(p<60?' zero':''))+'" style="height:'+Math.max(6,p*0.34+6)+'px" data-tip="'+t.date+' · '+mdEsc(t.title)+' '+p+'%"></i>';
-     }).join('')+'</div>';
-}
-
-/* ====== v2.9 🎯 과락 게이지 ======
-   로한: "총점 110인데 청해 15라서 불합격" — 이게 매일 보여야 한다.
-   🔒 총점 하나로는 거짓말이 된다. JLPT 는 **과목별 과락**이 있어서
-      한 과목이 기준 미만이면 총점이 아무리 높아도 떨어진다.
-      그래서 숫자 하나가 아니라 **과목별 막대 + 과락선**이다.
-   ⚠️ 기준값(언어지식·독해 120/과락 38, 청해 60/과락 19, 합격 90/180)은 JLPT N4 공식 기준이다.
-      **시험일은 추측하지 않는다** — 로한이 직접 넣는다. 빈 값이면 D-day 를 아예 표시하지 않는다. */
-var ST_EXAM_DEF={name:'JLPT N4',date:'',pass:90,parts:[
+/* ⚠️ 기준값은 JLPT N4 공식값이다. 시험일·입실시각은 로한이 넣는다 — 추측하지 않는다. */
+var ST_DEF_EXAM={name:'JLPT N4',date:'',enterBy:'',pass:90,parts:[
   {k:'lang',label:'언어지식·독해',max:120,cut:38,goal:60},
   {k:'listen',label:'청해',max:60,cut:19,goal:40}]};
-function stExam(){var S=studyDB();
-  if(!S.cfg.exam)S.cfg.exam=JSON.parse(JSON.stringify(ST_EXAM_DEF));
-  var e=S.cfg.exam;
-  if(!e.parts||!e.parts.length)e.parts=JSON.parse(JSON.stringify(ST_EXAM_DEF.parts));
-  if(e.pass==null)e.pass=ST_EXAM_DEF.pass;
-  return e;}
-/* ⚠️ parts 가 없는 옛 기록은 모의고사로 치지 않는다 — 게이지가 빈 막대를 그리게 된다 */
-function stMocks(){return studyDB().tests.filter(function(t){return t.kind==='mock'&&t.parts;})
+
+/* 🔒 존재 보장은 여기 한 곳에서만 한다. 이 유형(마이그레이션 누락)이 세 번 터졌다. */
+function studyDB(){
+  DB.study=DB.study||{}; var S=DB.study;
+  if(S.v!==1){                       /* 옛 구조(뽀모·주간제안)는 버린다 — 내용물이 없었다 */
+    S.v=1; delete S.cfg; delete S.plan;
+  }
+  if(!S.exam)S.exam=JSON.parse(JSON.stringify(ST_DEF_EXAM));
+  if(!S.exam.parts||!S.exam.parts.length)S.exam.parts=JSON.parse(JSON.stringify(ST_DEF_EXAM.parts));
+  if(S.exam.pass==null)S.exam.pass=90;
+  S.phases=S.phases||[]; S.books=S.books||[]; S.units=S.units||[];
+  S.week=S.week||{}; S.month=S.month||{}; S.tests=S.tests||[]; S.errors=S.errors||[];
+  S.logs=S.logs||{};
+  return S;
+}
+function stExam(){return studyDB().exam;}
+function stChLabel(k){var r=k;ST_CH.forEach(function(c){if(c.k===k)r=c.label;});return r;}
+function stTypeLabel(k){var r=k||'';ST_TYPE.forEach(function(t){if(t.k===k)r=t.label;});return r;}
+
+/* ── ① D-day · phase ── */
+function stDday(){var e=stExam();
+  return (e.date&&isDateStr(e.date))?daysBetween(todayStr(),e.date):null;}
+function stPhase(ds){
+  ds=ds||todayStr(); var r=null;
+  studyDB().phases.forEach(function(p){
+    if(p.start&&p.end&&ds>=p.start&&ds<=p.end)r=p;});
+  return r;
+}
+function stPhaseLeft(p){return (p&&p.end)?daysBetween(todayStr(),p.end):null;}
+
+/* ── ② 과락 게이지 ──
+   🔒 총점 하나는 거짓말을 한다. 총점 110 이어도 청해 15 면 불합격이다.
+      그래서 숫자가 아니라 과목별 막대 + 과락선이다. */
+function stMocks(){return studyDB().tests.filter(function(t){return t.kind==='mock';})
   .slice().sort(function(a,b){return a.date<b.date?1:-1;});}
 function stLastMock(){return stMocks()[0]||null;}
-function stPartVal(t,k){var v=(t&&t.parts)?t.parts[k]:null;return (v==null||v==='')?null:(+v||0);}
-function stMockSum(t){var e=stExam(),s=0,any=false;
-  e.parts.forEach(function(p){var v=stPartVal(t,p.k);if(v!=null){s+=v;any=true;}});
-  return any?s:null;}
+function stPartVal(t,k){var v=t?t[k]:null;return (v==null||v==='')?null:(+v||0);}
 function stMockVerdict(t){
-  var e=stExam(), sum=stMockSum(t); if(sum==null)return null;
+  if(!t)return null;
+  var e=stExam(),sum=0,any=false;
+  e.parts.forEach(function(p){var v=stPartVal(t,p.k);if(v!=null){sum+=v;any=true;}});
+  if(!any)return null;
+  /* ⚠️ 안 친 과목을 0 으로 치지 않는다 — 없는 과락이 생긴다 */
   var fails=e.parts.filter(function(p){var v=stPartVal(t,p.k);return v!=null&&v<(+p.cut||0);});
-  return {sum:sum, pass:(sum>=(+e.pass||0)&&!fails.length), fails:fails};}
-function stGaugeBar(v,p){
+  return {sum:sum,pass:(sum>=(+e.pass||0)&&!fails.length),fails:fails};
+}
+function stGaugeBar(v,p,measured){
   var max=+p.max||1;
-  var pct=Math.max(0,Math.min(100,v/max*100));
+  var pct=measured?Math.max(0,Math.min(100,v/max*100)):0;
   var cutp=Math.max(0,Math.min(100,(+p.cut||0)/max*100));
   var goalp=Math.max(0,Math.min(100,(+p.goal||0)/max*100));
-  var bad=v<(+p.cut||0);
-  return '<div class="gbar"><span class="'+(bad?'bad':(v>=(+p.goal||0)?'ok':''))+'" style="width:'+pct.toFixed(1)+'%"></span>'
+  var bad=measured&&v<(+p.cut||0);
+  return '<div class="gbar"><span class="'+(!measured?'':(bad?'bad':(v>=(+p.goal||0)?'ok':'')))
+    +'" style="width:'+pct.toFixed(1)+'%"></span>'
     +'<i class="goal" style="left:'+goalp.toFixed(1)+'%"></i>'
-    +'<i class="cut" style="left:'+cutp.toFixed(1)+'%"></i></div>';}
-function stExamHead(){
-  var e=stExam(), dd=(e.date&&isDateStr(e.date))?daysBetween(todayStr(),e.date):null;
-  return '<div class="row" style="border-bottom:0;padding:0 0 8px"><span><b>'+mdEsc(e.name||'시험')+'</b>'
-    +(e.date?' <span class="mut" style="font-size:11px">'+e.date+'</span>':'')+'</span>'
-    +'<span>'+(dd!=null
-      ?'<b class="'+(dd<0?'mut':(dd<30?'neg':''))+'" style="font-size:16px;cursor:pointer" onclick="stExamPrompt()">'+(dd>=0?'D-'+dd:'D+'+(-dd))+'</b>'
-      :'<button class="ghost sm" onclick="stExamPrompt()">시험일 설정</button>')+'</span></div>';}
+    +'<i class="cut" style="left:'+cutp.toFixed(1)+'%"></i></div>';
+}
 function stGauge(){
-  var e=stExam(), t=stLastMock();
-  if(!t)return '<div class="sec">'+stExamHead()
-    +'<div class="mut" style="font-size:11.5px">모의고사 기록이 없다. <b>📝 테스트</b>에서 유형을 <b>모의고사</b>로 기록하면 여기 과락 게이지가 뜬다.</div></div>';
-  var v=stMockVerdict(t);
+  var e=stExam(), t=stLastMock(), v=stMockVerdict(t);
   var rows=e.parts.map(function(p){
-    var x=stPartVal(t,p.k), bad=(x!=null&&x<(+p.cut||0));
+    var x=v?stPartVal(t,p.k):null, has=(x!=null), bad=has&&x<(+p.cut||0);
     return '<div class="grow"><div class="glab"><span>'+mdEsc(p.label)+'</span>'
-      +'<span style="font-variant-numeric:tabular-nums"><b class="'+(bad?'neg':(x!=null&&x>=(+p.goal||0)?'pos':''))+'">'+(x==null?'—':x)+'</b>'
-      +'<span class="mut"> / '+p.max+'</span></span></div>'
-      +stGaugeBar(x||0,p)
-      +'<div class="gsub"><span class="'+(bad?'neg':'mut')+'">과락 '+p.cut+(x==null?'':(bad?' ✗':' ✓'))+'</span>'
+      +'<span style="font-variant-numeric:tabular-nums">'
+      +(has?('<b class="'+(bad?'neg':(x>=(+p.goal||0)?'pos':''))+'">'+x+'</b><span class="mut"> / '+p.max+'</span>')
+           :'<span class="mut">미측정</span>')+'</span></div>'
+      +stGaugeBar(x||0,p,has)
+      +'<div class="gsub"><span class="'+(bad?'neg':'mut')+'">과락 '+p.cut+(has?(bad?' ✗':' ✓'):'')+'</span>'
       +'<span class="mut">목표 '+p.goal+'</span></div></div>';}).join('');
-  var vd=v.pass?'합격권':(v.fails.length?(v.fails.map(function(f){return f.label;}).join('·')+' 과락'):'총점 미달');
-  return '<div class="sec">'+stExamHead()+rows
-   +'<div class="gtot"><span>총점 <b>'+v.sum+'</b> <span class="mut">/ 합격선 '+e.pass+'</span></span>'
-   +'<span class="'+(v.pass?'pos':'neg')+'" style="font-weight:800">'+vd+'</span></div>'
-   +'<div class="mut" style="font-size:10.5px;margin-top:5px">'+t.date+' · '+mdEsc(t.title||'모의고사')
-   +(stMocks().length>1?' · 모의고사 '+stMocks().length+'회':'')+'</div>'+stMockSpark()+'</div>';}
-function stMockSpark(){
-  /* ⚠️ 2회는 추이가 아니다 — 점 두 개를 선으로 부르지 않는다 */
-  var ms=stMocks().slice().reverse(); if(ms.length<3)return '';
-  var e=stExam(), max=0; e.parts.forEach(function(p){max+=(+p.max||0);}); max=max||180;
-  return '<div class="mut" style="font-size:10.5px;margin-top:11px">모의고사 총점 추이 <span>'+ms.length+'회</span></div>'
-   +'<div class="stspark">'+ms.map(function(t){
-      var v=stMockVerdict(t); if(!v)return '';
-      return '<i class="stspk'+(v.pass?' full':(v.fails.length?' zero':''))+'" style="height:'
-        +Math.max(6,v.sum/max*100*0.34+6).toFixed(0)+'px" data-tip="'+t.date+' · '+v.sum+'점'
-        +(v.pass?' 합격권':(v.fails.length?' '+v.fails.map(function(f){return f.label;}).join('·')+' 과락':' 총점 미달'))+'"></i>';
-     }).join('')+'</div>';}
-function stExamPrompt(){
-  var e=stExam();
-  var v=prompt(mdEsc(e.name||'시험')+' 시험일 (YYYY-MM-DD)\n\n비우면 D-day 를 표시하지 않는다.', e.date||'');
-  if(v===null)return;
-  v=(v+'').trim();
-  if(v&&!/^\d{4}-\d{2}-\d{2}$/.test(v))return alert('YYYY-MM-DD 형식으로 넣어라');
-  e.date=v; logAct('시험일 설정 · '+(v||'해제')); save(); renderStudy();}
+  var foot=v
+    ? ('<div class="gtot"><span>총점 <b>'+v.sum+'</b> <span class="mut">/ 합격선 '+e.pass+'</span></span>'
+       +'<span class="'+(v.pass?'pos':'neg')+'" style="font-weight:800">'
+       +(v.pass?'합격권':(v.fails.length?v.fails.map(function(f){return f.label;}).join('·')+' 과락':'총점 미달'))
+       +'</span></div><div class="mut" style="font-size:10.5px;margin-top:5px">'+t.date+' · '+mdEsc(t.scope||'모의고사')+'</div>')
+    : '<div class="mut" style="font-size:11px;margin-top:2px">모의고사를 아직 안 쳤다. '
+      +'<b>기록</b>에서 모의고사 점수를 넣으면 여기에 궤도가 뜬다.</div>';
+  return rows+foot;
+}
 
-/* ====== v2.9 ❌ 오답노트 ======
-   로한: 마감 국면(P4)의 유일한 과제.
-   🔒 **2회 연속 맞아야 회수(cleared)** 한다. 한 번 맞았다고 지우면 **운으로 맞은 것까지** 지운다.
-   ⚠️ 문제 본문은 짧게만 적는다 — 시험지는 대화방에 있다. 여기 있는 건 **다시 볼 목록**이다. */
-var ERR_KINDS=[{k:'kana',label:'가나'},{k:'vocab',label:'단어'},{k:'kanji',label:'한자'},
-  {k:'conj',label:'활용'},{k:'grammar',label:'문법'},{k:'read',label:'독해'},{k:'listen',label:'청해'}];
-function errLabel(k){var r=k||'';ERR_KINDS.forEach(function(x){if(x.k===k)r=x.label;});return r;}
+/* ── ③ 오늘 할 일 (채널) ── */
+function stCh(){var c=(DB.ui&&DB.ui.stCh);return (c==='move'||c==='academy'||c==='home')?c:'academy';}
+function setStCh(v){DB.ui=DB.ui||{};DB.ui.stCh=v;save();renderStudy();}
+function stUnits(){return studyDB().units;}
+function stUnitById(id){var r=null;stUnits().forEach(function(u){if(u.id===id)r=u;});return r;}
+/* 지금 이 채널에서 할 수 있는 것 — 완료는 뒤로, 마감 가까운 것부터 */
+function stOpenUnits(ch){
+  return stUnits().filter(function(u){return u.status!=='done'&&(!ch||u.ch===ch);})
+    .sort(function(a,b){return (a.due||'9999')<(b.due||'9999')?-1:1;});
+}
+function stOtherUnits(ch){
+  return stUnits().filter(function(u){return u.status!=='done'&&u.ch!==ch;})
+    .sort(function(a,b){return (a.due||'9999')<(b.due||'9999')?-1:1;});
+}
+/* ⚠️ [결함·스크린샷] 완료하면 목록에서 사라졌다. 오늘 한 것이 안 보이면 성취도 안 보이고
+     잘못 누른 체크를 되돌릴 수도 없다. 🔒 오늘 끝낸 것은 남긴다. */
+function stDoneToday(){
+  var d=todayStr();
+  return stUnits().filter(function(u){return u.status==='done'&&u.doneAt===d;});
+}
+/* 🔒 체크는 켜고 끄기 둘 다 된다 — 잘못 누른 걸 되돌릴 수 없으면 안 누른다 */
+function stToggleUnit(id){
+  var u=stUnitById(id); if(!u)return;
+  if(u.status==='done'){u.status='todo';u.doneAt=null;}
+  else{u.status='done';u.doneAt=todayStr();
+    var L=studyDB().logs, l=L[todayStr()]||{unitIds:[]};
+    l.unitIds=l.unitIds||[]; if(l.unitIds.indexOf(id)<0)l.unitIds.push(id);
+    L[todayStr()]=l;}
+  logAct('학습 '+(u.status==='done'?'완료':'해제')+' · '+(u.title||id));
+  save(); renderStudy();
+}
+function stUnitRow(u,dim){
+  var done=u.status==='done';
+  var od=u.due&&u.due<todayStr()&&!done;
+  return '<div class="stu'+(done?' done':'')+(dim?' dim':'')+'" data-stunit="'+u.id+'">'
+    +'<span class="stubox">'+(done?'☑':'☐')+'</span>'
+    +'<span class="stumain"><b>'+mdEsc(u.title||'')+'</b>'
+      +'<span class="mut" style="font-size:10px"> '+stTypeLabel(u.type)+'</span>'
+      +(dim?'<span class="chip auto" style="margin-left:5px">'+stChLabel(u.ch)+'</span>':'')
+      +((+u.carried||0)>=2?'<span class="stcar">'+u.carried+'주 밀림</span>':'')
+      +'</span>'
+    +'<span class="stumin '+(od?'neg':'mut')+'">'+(u.mins?u.mins+'분':'')
+      +(od?'<br>기한 '+u.due.slice(5):'')+'</span></div>';
+}
+
+/* ── 학습시간 파생 ──
+   ⚠️ tag2 를 빠뜨리면 0 으로 읽힌다. 근무 중 학습은 tag:'work' + tag2:'study' 다. */
+function stMinsOn(ds){
+  var a=(DB.timelog||{})[ds]; if(!a||!a.length)return 0;
+  var n=0;
+  a.forEach(function(x){
+    if(x.tag!=='study'&&x.tag2!=='study')return;
+    var s=+x.s, e=(x.e==null?s:+x.e);
+    n+=(Math.max(s,e)-Math.min(s,e)+1)*30;   /* 슬롯 1칸 = 30분 */
+  });
+  return n;
+}
+function stMinsRange(from,to){var n=0,d=from;
+  while(d<=to){n+=stMinsOn(d);d=addDays(d,1);}return n;}
+
+/* ── ④ 오답 ── */
 function stErrs(){return studyDB().errors;}
 function stErrById(id){var r=null;stErrs().forEach(function(e){if(e.id===id)r=e;});return r;}
 function stErrOpen(){return stErrs().filter(function(e){return !e.cleared;});}
 function stErrCount(){var m={};stErrOpen().forEach(function(e){m[e.kind]=(m[e.kind]||0)+1;});return m;}
+/* 🔒 2회 연속 맞아야 회수한다. 한 번 맞으면 지우면 운으로 맞은 것까지 지운다. */
+function stErrHit(id,ok){
+  var e=stErrById(id); if(!e)return;
+  if(ok){e.hits=(+e.hits||0)+1; if(e.hits>=2)e.cleared=true;}
+  else{e.hits=0; e.cleared=false;}
+  e.lastSeen=todayStr();
+  logAct('오답 '+(ok?'○':'✗')+' · '+(e.q||'').slice(0,20)+(e.cleared?' → 회수':''));
+  save(); renderStudy();
+}
+function stErrSheet(){
+  var os=stErrOpen();
+  if(!os.length)return alert('미회수 오답이 없다. 지금은 뽑을 게 없다.');
+  var txt=os.map(function(e,i){return (i+1)+'. ['+stTypeLabel(e.kind)+'] '+(e.q||'');}).join('\n');
+  openModal('<div class="mtop"><h3>회독 목록 '+os.length+'문항</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:8px">미회수만 뽑았다. 복사해서 <b>학습방</b>에 주면 시험지가 된다.<br>'
+   +'⚠️ 정답은 일부러 뺐다 — 붙여넣고 바로 답이 보이면 시험이 아니다.</div>'
+   +'<textarea id="se_sheet" rows="12" onclick="this.select()">'+mdEsc(txt)+'</textarea>');
+  var el=document.getElementById('se_sheet'); if(el){el.focus();el.select();}
+}
 function stErrModal(id){
   var e=id?stErrById(id):null; if(id&&!e)return;
   e=e||{date:todayStr(),kind:'vocab',q:'',myAns:'',ans:'',note:'',testId:''};
-  var kopt=ERR_KINDS.map(function(x){return '<option value="'+x.k+'"'+(x.k===e.kind?' selected':'')+'>'+x.label+'</option>';}).join('');
-  var topt='<option value="">— 테스트 연결 안 함 —</option>'
-    +stTests().map(function(t){return '<option value="'+t.id+'"'+(t.id===e.testId?' selected':'')+'>'+t.date+' '+mdEsc(t.title||'')+'</option>';}).join('');
+  var kopt=ST_TYPE.filter(function(x){return x.k!=='mock';})
+    .map(function(x){return '<option value="'+x.k+'"'+(x.k===e.kind?' selected':'')+'>'+x.label+'</option>';}).join('');
   openModal('<div class="mtop"><h3>'+(id?'오답 수정':'오답 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">문제는 <b>짧게</b>. 시험지는 대화방에 있고 여기 남기는 건 <b>다시 볼 목록</b>이다.</div>'
    +'<div style="display:flex;gap:8px">'
      +'<div class="field" style="flex:1"><label>날짜</label><input id="se_date" type="date" value="'+e.date+'"></div>'
-     +'<div class="field" style="flex:1"><label>분류</label><select id="se_kind">'+kopt+'</select></div>'
-   +'</div>'
-   +'<div class="field"><label>문제</label><input id="se_q" value="'+sajuEsc(e.q||'')+'" placeholder="예: 食べます의 て형"></div>'
+     +'<div class="field" style="flex:1"><label>분류</label><select id="se_kind">'+kopt+'</select></div></div>'
+   +'<div class="field"><label>문제</label><input id="se_q" value="'+sajuEsc(e.q||'')+'" placeholder="예: 安全 / 一生 읽기"></div>'
    +'<div style="display:flex;gap:8px">'
      +'<div class="field" style="flex:1"><label>내 답</label><input id="se_my" value="'+sajuEsc(e.myAns||'')+'"></div>'
-     +'<div class="field" style="flex:1"><label>정답</label><input id="se_ans" value="'+sajuEsc(e.ans||'')+'"></div>'
-   +'</div>'
+     +'<div class="field" style="flex:1"><label>정답</label><input id="se_ans" value="'+sajuEsc(e.ans||'')+'"></div></div>'
    +'<div class="field"><label>메모 <span class="mut">(왜 틀렸나)</span></label><input id="se_note" value="'+sajuEsc(e.note||'')+'"></div>'
-   +'<div class="field"><label>출처 테스트</label><select id="se_test">'+topt+'</select></div>'
    +'<button class="btn" onclick="stSaveErr('+(id?"'"+id+"'":'null')+')">저장</button>'
-   +(id?' <button class="ghost" onclick="stDelErr(\''+id+'\')">삭제</button>':''));}
+   +(id?' <button class="ghost" onclick="stDelErr(\''+id+'\')">삭제</button>':''));
+}
 function stSaveErr(id){
   var q=(document.getElementById('se_q').value||'').trim();
   if(!q)return alert('문제를 적어라');
@@ -3279,215 +3063,209 @@ function stSaveErr(id){
     kind:document.getElementById('se_kind').value||'vocab', q:q,
     myAns:(document.getElementById('se_my').value||'').trim(),
     ans:(document.getElementById('se_ans').value||'').trim(),
-    note:(document.getElementById('se_note').value||'').trim(),
-    testId:document.getElementById('se_test').value||''};
+    note:(document.getElementById('se_note').value||'').trim()};
   var S=studyDB();
   if(id)Object.assign(stErrById(id),rec);
-  /* 🔒 새 오답은 hits 0 · 미회수로 시작한다 */
-  else{rec.id=uid();rec.hits=0;rec.cleared=false;rec.lastSeen='';S.errors.push(rec);}
-  logAct('오답 '+(id?'수정':'추가')+' · '+q.slice(0,24)); save(); closeModal(); renderStudy();}
+  else{rec.id=uid();rec.testId='';rec.hits=0;rec.cleared=false;rec.lastSeen=null;S.errors.push(rec);}
+  logAct('오답 '+(id?'수정':'추가')+' · '+q.slice(0,24)); save(); closeModal(); renderStudy();
+}
 function stDelErr(id){
   if(!confirm('이 오답을 지운다.\n진행할까?'))return;
   var S=studyDB();S.errors=S.errors.filter(function(x){return x.id!==id;});
-  logAct('오답 삭제'); save(); closeModal(); renderStudy();}
-/* 🔒 O 는 연속 정답을 쌓고, X 는 **0 으로 되돌린다**. 2회 연속이면 회수. */
-function stErrHit(id,ok){
-  var e=stErrById(id); if(!e)return;
-  if(ok){e.hits=(+e.hits||0)+1; if(e.hits>=2)e.cleared=true;}
-  else{e.hits=0; e.cleared=false;}
-  e.lastSeen=todayStr();
-  logAct('오답 '+(ok?'○':'✗')+' · '+(e.q||'').slice(0,20)+(e.cleared?' → 회수':''));
-  save(); renderStudy();}
-function stErrSheet(){
-  var os=stErrOpen();
-  if(!os.length)return alert('미회수 오답이 없다. 지금은 뽑을 게 없다.');
-  var txt=os.map(function(e,i){return (i+1)+'. ['+errLabel(e.kind)+'] '+(e.q||'');}).join('\n');
-  openModal('<div class="mtop"><h3>복습 테스트 '+os.length+'문항</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="font-size:11.5px;margin-bottom:8px">미회수 오답만 뽑았다. 복사해서 <b>학습방 로버트</b>에게 주면 시험지로 만들어준다.<br>'
-   +'⚠️ 정답은 일부러 뺐다 — 붙여넣고 바로 답이 보이면 시험이 아니다.</div>'
-   +'<textarea id="se_sheet" rows="12" onclick="this.select()">'+mdEsc(txt)+'</textarea>');
-  var el=document.getElementById('se_sheet'); if(el){el.focus();el.select();}}
-function stErrRows(){
+  logAct('오답 삭제'); save(); closeModal(); renderStudy();
+}
+
+/* ── 기록(tests) ── */
+function stTests(){return studyDB().tests.slice().sort(function(a,b){return a.date<b.date?1:-1;});}
+function stPct(t){var n=+t.n||0;return n?Math.round((+t.correct||0)/n*100):0;}
+function stTestModal(id){
+  var t=id?(studyDB().tests.filter(function(x){return x.id===id;})[0]||null):null;
+  if(id&&!t)return;
+  t=t||{date:todayStr(),kind:'weekly',scope:'',n:'',correct:'',lang:null,listen:null,memo:''};
+  var kind=t.kind||'weekly';
+  var kopt=ST_TKIND.map(function(x){return '<option value="'+x.k+'"'+(x.k===kind?' selected':'')+'>'+x.label+'</option>';}).join('');
+  var mrows=stExam().parts.map(function(p){
+    var v=stPartVal(t,p.k);
+    return '<div class="field" style="flex:1"><label>'+mdEsc(p.label)+' <span class="mut">/'+p.max+'</span></label>'
+      +'<input id="st_p_'+p.k+'" inputmode="numeric" value="'+(v==null?'':v)+'" placeholder="'+p.cut+'"></div>';}).join('');
+  openModal('<div class="mtop"><h3>'+(id?'기록 수정':'테스트 기록')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:9px">문제는 대화방에 있다. 여기엔 <b>결과만</b> 남긴다.</div>'
+   +'<div style="display:flex;gap:8px">'
+     +'<div class="field" style="flex:1"><label>날짜</label><input id="st_date" type="date" value="'+t.date+'"></div>'
+     +'<div class="field" style="flex:1"><label>유형</label><select id="st_kind" onchange="stTestKindChg()">'+kopt+'</select></div></div>'
+   +'<div class="field"><label>범위</label><input id="st_scope" value="'+sajuEsc(t.scope||'')+'" placeholder="예: p150 명사 あ행"></div>'
+   +'<div id="st_qbox" style="display:'+(kind==='mock'?'none':'flex')+';gap:8px">'
+     +'<div class="field" style="flex:1"><label>문항 수</label><input id="st_n" inputmode="numeric" value="'+(t.n||'')+'" placeholder="10"></div>'
+     +'<div class="field" style="flex:1"><label>맞은 수</label><input id="st_c" inputmode="numeric" value="'+(t.correct||'')+'" placeholder="8"></div></div>'
+   +'<div id="st_mockbox" style="display:'+(kind==='mock'?'block':'none')+'">'
+     +'<div class="mut" style="font-size:11px;margin-bottom:5px">과목별 점수 — <b>과락선</b>이 여기서 판정된다</div>'
+     +'<div style="display:flex;gap:8px">'+mrows+'</div></div>'
+   +'<div class="field"><label>메모</label><input id="st_memo" value="'+sajuEsc(t.memo||'')+'"></div>'
+   +'<button class="btn" onclick="stSaveTest('+(id?"'"+id+"'":'null')+')">저장</button>'
+   +(id?' <button class="ghost" onclick="stDelTest(\''+id+'\')">삭제</button>':''));
+}
+function stTestKindChg(){
+  var k=document.getElementById('st_kind').value;
+  document.getElementById('st_mockbox').style.display=(k==='mock')?'block':'none';
+  document.getElementById('st_qbox').style.display=(k==='mock')?'none':'flex';
+}
+function stSaveTest(id){
+  var kind=document.getElementById('st_kind').value||'weekly';
+  var rec={date:document.getElementById('st_date').value||todayStr(),kind:kind,
+    scope:(document.getElementById('st_scope').value||'').trim(),
+    memo:(document.getElementById('st_memo').value||'').trim(),
+    n:0,correct:0,lang:null,listen:null};
+  if(kind==='mock'){
+    var over='',any=false;
+    stExam().parts.forEach(function(p){
+      var el=document.getElementById('st_p_'+p.k), raw=((el&&el.value)||'').trim();
+      if(raw==='')return;
+      var v=parseFloat(raw.replace(/[^0-9.]/g,'')); if(isNaN(v))return;
+      if(v>(+p.max||0))over=p.label;
+      rec[p.k]=v; any=true;});
+    if(over)return alert(over+' 점수가 만점을 넘는다');
+    if(!any)return alert('과목 점수를 최소 하나는 넣어라');
+  }else{
+    var n=parseFloat((document.getElementById('st_n').value+'').replace(/[^0-9.]/g,''))||0;
+    var c=parseFloat((document.getElementById('st_c').value+'').replace(/[^0-9.]/g,''))||0;
+    if(n&&c>n)return alert('맞은 수가 문항 수보다 많다');
+    rec.n=n; rec.correct=c;
+  }
+  var S=studyDB();
+  if(id)Object.assign(S.tests.filter(function(x){return x.id===id;})[0],rec);
+  else{rec.id=uid();S.tests.push(rec);}
+  logAct('테스트 '+(id?'수정':'기록')+' · '+(rec.scope||kind)); save(); closeModal(); renderStudy();
+}
+function stDelTest(id){
+  if(!confirm('이 기록을 지운다.\n진행할까?'))return;
+  var S=studyDB();S.tests=S.tests.filter(function(x){return x.id!==id;});
+  logAct('테스트 삭제'); save(); closeModal(); renderStudy();
+}
+
+/* ── 시험 설정 ──
+   ⚠️ 2025년에 시험장 앞에서 돌아온 이력이 있다. **입실까지가 목표에 포함된다.** */
+function stExamPrompt(){
+  var e=stExam();
+  var v=prompt(e.name+' 시험일 (YYYY-MM-DD)\n\n비우면 D-day 를 표시하지 않는다.', e.date||'');
+  if(v===null)return; v=(v+'').trim();
+  if(v&&!/^\d{4}-\d{2}-\d{2}$/.test(v))return alert('YYYY-MM-DD 형식으로 넣어라');
+  e.date=v;
+  if(v){var t=prompt('입실 마감 시각 (HH:MM)\n\n시험장에 몇 시까지 들어가야 하나.', e.enterBy||'13:40');
+    if(t!==null){t=(t+'').trim(); if(!t||/^\d{1,2}:\d{2}$/.test(t))e.enterBy=t;}}
+  logAct('시험일 설정 · '+(v||'해제')); save(); renderStudy();
+}
+
+/* ══════ 화면 ══════ */
+function stTab(){var t=(DB.ui&&DB.ui.studyTab);return (t==='err'||t==='rec')?t:'home';}
+function setStTab(v){DB.ui=DB.ui||{};DB.ui.studyTab=v;save();renderStudy();}
+
+function stHead(){
+  var e=stExam(), dd=stDday(), ph=stPhase(), left=stPhaseLeft(ph);
+  return '<div class="sthead">'
+   +'<div class="row" style="border-bottom:0;padding:0">'
+     +'<span><b style="font-size:14px">'+mdEsc(e.name||'시험')+'</b>'
+       +(e.date?'<span class="mut" style="font-size:11px"> '+e.date
+          +(e.enterBy?' · 입실 '+mdEsc(e.enterBy):'')+'</span>':'')+'</span>'
+     +'<span>'+(dd!=null
+        ?'<b class="'+(dd<0?'mut':(dd<30?'neg':''))+'" style="font-size:19px;cursor:pointer" onclick="stExamPrompt()">'
+          +(dd>=0?'D-'+dd:'D+'+(-dd))+'</b>'
+        :'<button class="ghost sm" onclick="stExamPrompt()">시험일 설정</button>')+'</span></div>'
+   +(ph?('<div class="stph"><b>'+mdEsc(ph.id)+' '+mdEsc(ph.name)+'</b>'
+        +(left!=null?'<span class="mut"> · '+(left>=0?left+'일 남음':'기간 지남')+'</span>':'')+'</div>')
+      :'<div class="mut" style="font-size:10.5px;margin-top:4px">구간(phase)이 설정되지 않았다</div>')
+   +'</div>';
+}
+function stPaneHome(){
+  var ch=stCh(), open=stOpenUnits(ch), other=stOtherUnits(ch);
+  var chTabs='<div class="stchs">'+ST_CH.map(function(c){
+    var n=stOpenUnits(c.k).length;
+    return '<button class="'+(ch===c.k?'on':'')+'" onclick="setStCh(\''+c.k+'\')">'
+      +c.ico+' '+c.label+(n?' <b>'+n+'</b>':'')+'</button>';}).join('')+'</div>';
+  var list=open.length
+    ? open.map(function(u){return stUnitRow(u,false);}).join('')
+    : '<div class="mut" style="font-size:11.5px;padding:8px 0">이 채널에 남은 과제가 없다.</div>';
+  /* ⚠️ 다른 채널 과제를 지우지 않고 흐리게 남긴다 — 있다는 건 알아야 한다 */
+  var dt=stDoneToday();
+  var doneHtml=dt.length
+    ? '<div class="mut" style="font-size:10.5px;margin:12px 0 5px">오늘 끝낸 것 '+dt.length+'개</div>'
+      +dt.map(function(u){return stUnitRow(u,false);}).join('')
+    : '';
+  var otherHtml=other.length
+    ? '<div class="mut" style="font-size:10.5px;margin:12px 0 5px">다른 곳에서 할 것 '+other.length+'개</div>'
+      +other.slice(0,4).map(function(u){return stUnitRow(u,true);}).join('')
+    : '';
+  var c=stErrCount(), openErr=stErrOpen().length;
+  var chips=ST_TYPE.filter(function(x){return c[x.k];})
+    .map(function(x){return x.label+c[x.k];}).join(' · ');
+  var d=todayStr(), ws=weekStart(d);
+  var wk=studyDB().week[ws]||null;
+  var wIds=(wk&&wk.unitIds)||[];
+  var wDone=wIds.filter(function(id){var u=stUnitById(id);return u&&u.status==='done';}).length;
+  var carry=stUnits().filter(function(u){return u.status!=='done'&&(+u.carried||0)>0;}).length;
+  var mins=stMinsOn(d), wMins=stMinsRange(ws,d);
+  return stHead()
+   +'<div class="sec">'+stGauge()+'</div>'
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">오늘 할 일</span>'
+     +'<span class="mut" style="font-size:10.5px">오늘 '+(mins?mins+'분':'0분')+' · 이번 주 '+Math.round(wMins/60*10)/10+'시간</span></div>'
+     +chTabs+list+doneHtml+otherHtml+'</div>'
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">❌ 오답 <span class="mut">미회수 '+openErr+'</span></span>'
+     +'<span><button class="ghost sm" onclick="stErrSheet()">📄 회독 목록</button> '
+     +'<button class="btn sm" onclick="stErrModal(null)">+ 오답</button></span></div>'
+     +(chips?'<div class="mut" style="font-size:11.5px">'+mdEsc(chips)+'</div>'
+            :'<div class="mut" style="font-size:11.5px">미회수 없음</div>')
+     +(openErr?'<div style="margin-top:8px"><button class="ghost sm" onclick="setStTab(\'err\')">오답노트 열기 →</button></div>':'')+'</div>'
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">이번 주 <span class="mut">'+weekLabel(ws)+'</span></span>'
+     +'<span'+(carry?' class="neg" style="font-weight:700"':' class="mut"')+'>'
+     +(wIds.length?wDone+'/'+wIds.length+' 완료':'주간 설정 없음')
+     +(carry?' · 이월 '+carry+'건':'')+'</span></div></div>';
+}
+function stPaneErr(){
   var all=stErrs().slice().sort(function(a,b){
     if(!!a.cleared!==!!b.cleared)return a.cleared?1:-1;
-    var av=(a.lastSeen||a.date||''), bv=(b.lastSeen||b.date||'');
+    var av=(a.lastSeen||a.date||''),bv=(b.lastSeen||b.date||'');
     return av<bv?1:(av>bv?-1:0);});
-  if(!all.length)return '<div class="mut" style="padding:8px 0;font-size:11.5px">오답이 없다. 테스트를 풀고 틀린 것을 여기 넣어라.</div>';
-  return all.map(function(e){
+  var rows=all.length?all.map(function(e){
     return '<div class="sterr'+(e.cleared?' cl':'')+'">'
-     +'<div class="row" style="border-bottom:0;padding:1px 0"><span><span class="pill">'+errLabel(e.kind)+'</span> <b>'+mdEsc(e.q||'')+'</b></span>'
+     +'<div class="row" style="border-bottom:0;padding:1px 0"><span><span class="pill">'+stTypeLabel(e.kind)+'</span> <b>'+mdEsc(e.q||'')+'</b></span>'
      +'<span class="'+(e.cleared?'pos':'mut')+'" style="font-size:10.5px;font-weight:700">'+(e.cleared?'회수':('연속 '+(+e.hits||0)+'/2'))+'</span></div>'
      +'<div class="mut" style="font-size:10.5px;margin:2px 0 6px">내 답 <b>'+mdEsc(e.myAns||'—')+'</b> → 정답 <b>'+mdEsc(e.ans||'—')+'</b>'
        +(e.note?' · '+mdEsc(e.note):'')+(e.lastSeen?' · 최근 '+e.lastSeen:'')+'</div>'
      +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
        +'<button class="ghost sm" data-sterrok="'+e.id+'">○ 맞음</button>'
        +'<button class="ghost sm" data-sterrx="'+e.id+'">✗ 틀림</button>'
-       +'<button class="ghost sm" data-sterred="'+e.id+'">수정</button>'
-     +'</div></div>';}).join('');}
-function stPaneErr(){
-  var c=stErrCount(), open=stErrOpen().length, tot=stErrs().length;
-  var chips=ERR_KINDS.filter(function(x){return c[x.k];}).map(function(x){
-    return '<span class="chip">'+x.label+' <b>'+c[x.k]+'</b></span>';}).join(' ')
-    ||'<span class="mut" style="font-size:11.5px">미회수 없음</span>';
-  return '<div class="sec"><div class="bkhd"><span class="subhd2">❌ 오답노트 <span class="mut">미회수 '+open+' / 전체 '+tot+'</span></span>'
-   +'<span><button class="ghost sm" onclick="stErrSheet()">📄 복습 뽑기</button> '
-   +'<button class="btn sm" onclick="stErrModal(null)">+ 오답</button></span></div>'
-   +'<div style="margin-bottom:10px">'+chips+'</div>'
-   +stErrRows()
-   +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 <b>2회 연속 맞아야</b> 회수된다. 한 번 맞으면 지우는 방식은 <b>운으로 맞은 것까지</b> 지운다.<br>'
-   +'문제 본문은 짧게만 적는다 — 시험지는 대화방에 있고, 여기 있는 건 <b>다시 볼 목록</b>이다.</div></div>';}
-
-/* --- 화면 --- */
-function stTab(){var t=(DB.ui&&DB.ui.studyTab);return (t==='book'||t==='test'||t==='plan'||t==='err')?t:'now';}
-function setStTab(v){DB.ui=DB.ui||{};DB.ui.studyTab=v;save();renderStudy();}
-function stBar(pct,cls){return '<div class="pbar"><span class="'+(cls||'')+'" style="width:'+Math.max(0,Math.min(100,pct))+'%"></span></div>';}
-
-function stPaneNow(){
-  var d=todayStr(), ym=d.slice(0,7), ws=weekStart(d);
-  var ts=stTargetSrc(ym), tg=ts.n, pm=stPomo(d);
-  /* 연간 목표 — goals 가 진실이다. 여기서 고치지 않는다. */
-  var yg=(DB.goals||[]).filter(function(g){return g.kind==='year'&&/JLPT|학습|공부/.test(g.title||'')&&g.status!=='done';});
-  var head=yg.map(function(g){
-    var dd=g.due?daysBetween(d,g.due):null;
-    var ms=stMsOfMonth(ym);
-    return '<div class="stgoal"><div class="row" style="border-bottom:0;padding:2px 0">'
-      +'<span><span class="pill">'+mdEsc(g.code||'')+'</span> <b>'+mdEsc(g.title)+'</b></span>'
-      +'<span class="'+((dd!=null&&dd<30)?'neg':'mut')+'" style="font-weight:700">'+(dd!=null?(dd>=0?'D-'+dd:'D+'+(-dd)):'')+'</span></div>'
-      +(ms?'<div class="mut" style="font-size:11px">이번 달 눈금 · <b>'+mdEsc(ms.code)+'</b> '+mdEsc(ms.title)+'</div>':'')
-      +'<div class="mut" style="font-size:10.5px;margin-top:3px">🔒 연간·월간 목표는 <b>목표·루틴</b> 탭에서 고친다 — 여기선 읽기만 한다</div></div>';
-  }).join('')||'<div class="mut" style="font-size:11.5px;padding:6px 0">학습 관련 연간 목표가 없다. <b>목표·루틴</b> 탭에서 만들면 여기 뜬다.</div>';
-
-  /* 이번 주 */
-  var wk=0,wd=0;
-  for(var i=0;i<7;i++){var dd2=addDays(ws,i);if(dd2>d)break;var v=stPomo(dd2);wk+=v;if(v)wd++;}
-  var wkTarget=tg*Math.min(7,daysBetween(ws,d)+1);
-
-  /* 최근 14일 스파크 */
-  var spark='';
-  for(var k=13;k>=0;k--){var ds2=addDays(d,-k),v2=stPomo(ds2);
-    var h=tg?Math.min(100,Math.round(v2/tg*100)):(v2?100:0);
-    spark+='<i class="stspk'+(tg&&v2>=tg?' full':(v2?'':' zero'))+'" style="height:'+Math.max(6,h*0.34+6)+'px" data-tip="'+ds2+' · '+v2+'뽀모"></i>';}
-
-  return stGauge()+'<div class="sec">'+head+'</div>'
-   +'<div class="sec"><h4>오늘 <span class="mut">'+d+'</span></h4>'
-     +'<div class="stbig"><b class="'+(tg&&pm>=tg?'pos':'')+'">'+pm+'</b><span class="mut"> / '+(tg||'—')+' 뽀모</span>'
-       +(ts.src?'<span class="chip auto" style="margin-left:7px">'+mdEsc(ts.src)+'</span>':'')+'</div>'
-     +stBar(tg?pm/tg*100:0,tg&&pm>=tg?'ok':'')
-     +'<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">'
-       +'<button class="btn sm" onclick="stAddPomo(\''+d+'\',1)">＋ 뽀모</button>'
-       +'<button class="ghost sm" onclick="stAddPomo(\''+d+'\',-1)">－</button>'
-       +'<button class="ghost sm" onclick="stProgModal(\''+d+'\')">📖 진도 기록</button>'
-       +'<button class="ghost sm" onclick="stTargetPrompt(\''+ym+'\')">🎯 목표 뽀모</button>'
-     +'</div>'
-     +(tg&&pm>=tg?'<div class="mut" style="font-size:11px;margin-top:8px;color:var(--pos)">✅ 오늘 목표 달성 — 학습 루틴이 자동으로 체크됐다</div>':'')
-   +'</div>'
-   +'<div class="sec"><h4>이번 주 <span class="mut">'+weekLabel(ws)+'</span></h4>'
-     +'<div class="stbig"><b>'+wk+'</b><span class="mut"> / '+(wkTarget||'—')+' 뽀모 · '+wd+'일 수행</span></div>'
-     +stBar(wkTarget?wk/wkTarget*100:0)
-     +(function(){var p=stPlan(ws);return (p&&p.memo)?('<div class="mut" style="font-size:11.5px;margin-top:8px">🎯 '+mdEsc(p.memo)+'</div>'):'';})()
-     +'<div class="mut" style="font-size:10.5px;margin-top:12px">최근 14일</div>'
-     +'<div class="stspark">'+spark+'</div>'
-   +'</div>'
-   +'<div class="sec"><h4>📚 교재 진도</h4>'+stBookRows(true)+'</div>'
-   +'<div class="sec"><div class="bkhd"><span class="subhd2">📝 최근 테스트</span>'
-     +'<button class="btn sm" onclick="stTestModal(null)">+ 기록</button></div>'
-     +stTestRows(3)+stScoreSpark()+'</div>';
+       +'<button class="ghost sm" data-sterred="'+e.id+'">수정</button></div></div>';}).join('')
+    : '<div class="mut" style="padding:8px 0;font-size:11.5px">오답이 없다. 테스트를 풀고 틀린 것을 넣어라.</div>';
+  return '<div class="sec"><div class="bkhd"><span class="subhd2">❌ 오답노트 <span class="mut">미회수 '+stErrOpen().length+' / 전체 '+stErrs().length+'</span></span>'
+   +'<span><button class="ghost sm" onclick="stErrSheet()">📄 회독 목록</button> '
+   +'<button class="btn sm" onclick="stErrModal(null)">+ 오답</button></span></div>'+rows
+   +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 <b>2회 연속 맞아야</b> 회수된다. 한 번 맞으면 지우는 방식은 <b>운으로 맞은 것까지</b> 지운다.</div></div>';
 }
-function stBookRows(compact){
-  var bs=stBooks();
-  if(!bs.length)return '<div class="mut" style="padding:8px 0;font-size:11.5px">교재가 없다.'
-    +(compact?' <b>📚 교재</b> 탭에서 추가해라.':'')+'</div>';
-  return bs.map(function(b){
-    var done=stBookDone(b), pct=stBookPct(b), pace=stPace(b);
-    var eta='';
-    if(pace&&pace.days>0)eta='<span class="mut" style="font-size:10.5px">이 속도면 '+pace.eta+' 완료 ('+pace.days+'일)</span>';
-    else if(pace&&pace.days===0)eta='<span class="pos" style="font-size:10.5px;font-weight:700">완료</span>';
-    else eta='<span class="mut" style="font-size:10.5px">최근 기록이 없어 속도를 못 잰다</span>';
-    return '<div class="stbook"'+(compact?'':' data-stbook="'+b.id+'"')+'>'
-      +'<div class="row" style="border-bottom:0;padding:2px 0"><span><b>'+mdEsc(b.title)+'</b></span>'
-        +'<span style="font-variant-numeric:tabular-nums">'+done+' / '+(b.total||'?')+' '+mdEsc(b.unit||'')+' <b>'+pct+'%</b></span></div>'
-      +stBar(pct)+'<div style="margin-top:4px">'+eta+'</div></div>';
-  }).join('');
-}
-function stPaneBook(){
-  return '<div class="sec"><div class="bkhd"><span class="subhd2">📚 교재 <span class="mut">진도는 매일 기록에서 누적된다</span></span>'
-     +'<button class="btn sm" onclick="stBookModal(null)">+ 교재</button></div>'
-     +stBookRows(false)
-     +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 현재 진도는 <b>시작값 + 매일 기록</b>으로 계산한다 — 따로 저장하지 않는다. '
-       +'그래야 “언제 얼마나 나갔나”가 남고, 두 숫자가 어긋날 일이 없다.</div>'
-   +'</div>';
-}
-function stTargetPrompt(ym){
-  var cur=stTargetSrc(ym);
-  var v=prompt(ym+' 하루 목표 뽀모\n\n비우면 월간 눈금에서 자동으로 읽는다.', cur.n||'');
-  if(v===null)return;
-  stSetTarget(ym, parseInt((v+'').replace(/[^0-9]/g,''),10)||0);
-}
-function stPanePlan(){
-  var ws=stWeek(), we=addDays(ws,6), p=stPlan(ws)||{}, today=todayStr();
-  var rows='';
-  for(var i=0;i<7;i++){
-    var ds=addDays(ws,i), c=stPlanDay(ws,i), pm=stPomo(ds);
-    var tg=stTarget(ds.slice(0,7));
-    var done=!!c.a, same=done&&c.a===c.p;
-    var mark=ds>today?'<span class="mut">—</span>'
-      :(done?(same?'<span class="pos" style="font-weight:800">✅</span>':'<span style="color:var(--warn);font-weight:800">△</span>')
-            :'<span class="neg" style="font-weight:800">·</span>');
-    rows+='<div class="swrow'+(ds===today?' td':'')+'">'
-      +'<div class="swday"><b>'+STD_DOW[i]+'</b><span class="mut">'+parseInt(ds.slice(8),10)+'</span></div>'
-      +'<div class="mlpair">'
-        +'<textarea id="sw_p'+i+'" class="mlp" rows="2" placeholder="제안 없음">'+mdEsc(c.p)+'</textarea>'
-        +'<textarea id="sw_a'+i+'" class="mla'+(same?' same':'')+'" rows="2" placeholder="실제 한 것">'+mdEsc(c.a)+'</textarea>'
-      +'</div>'
-      +'<div class="swchk">'+mark+'<span class="mut" style="font-size:10px">'+(pm?pm+'뽀모':'')+(tg&&pm>=tg?' ✓':'')+'</span></div>'
-    +'</div>';
-  }
-  /* 이행률 — 지난 날 중 실제를 적은 비율 */
-  var due=0,did=0;
-  for(var k=0;k<7;k++){var dk=addDays(ws,k); if(dk>today)break;
-    var ck=stPlanDay(ws,k); if(!ck.p)continue; due++; if(ck.a)did++;}
-  return '<div class="sec">'
-   +'<div class="bkhd"><span class="subhd2"><span class="mnav2"><span onclick="stWeekMove(-1)">◀</span>'
-     +'<b>'+weekLabel(ws)+'</b><span onclick="stWeekMove(1)">▶</span></span></span>'
-     +'<span>'+(ws!==weekStart(today)?'<button class="ghost sm" onclick="setStWeek(\''+weekStart(today)+'\')">이번 주로</button> ':'')
-     +'<button class="btn sm" onclick="stPlanSave(\''+ws+'\')">저장</button></span></div>'
-   +'<div class="field"><label>주간 목표 <span class="mut">학습방 로버트와 합의한 한 줄</span></label>'
-     +'<input id="sw_memo" value="'+sajuEsc(p.memo||'')+'" placeholder="예: N4 문법 3~5과 끝내고 단어 300개"></div>'
-   +(due?('<div class="mut" style="font-size:11.5px;margin:-2px 0 9px">이행 <b>'+did+'/'+due+'</b>'
-       +(did===due?' — 계획대로 갔다':(did?' — 밀린 날이 있다':' — 아직 아무것도 못 했다'))+'</div>'):'')
-   /* ⚠️ 헤더 칸이 본문과 같은 격자여야 한다 — span 을 4개 두고 3열 격자에 넣었더니 밀렸다 */
-   +'<div class="swhd"><span></span>'
-     +'<span class="swhdmid"><span>🍽 제안 <span class="mut">로버트(학습)</span></span><span>✍ 실제</span></span>'
-     +'<span>점검</span></div>'
-   +rows
-   +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
-     +'<button class="btn" onclick="stPlanSave(\''+ws+'\')">저장</button>'
-     +'<button class="ghost sm" onclick="stPlanCopy(\''+ws+'\')">⤵ 제안대로 했다</button></div>'
-   +'<div class="mut" style="font-size:11px;margin-top:9px">🔒 제안은 <b>학습방 로버트</b>가 넣고, 실제는 로한이 적는다. '
-     +'둘을 합치지 않는 이유는 식단과 같다 — <b>하기로 한 것과 한 것의 차이</b>가 이 표의 존재 이유다.</div>'
-   +'</div>';
-}
-function stPaneTest(){
-  return '<div class="sec"><div class="bkhd"><span class="subhd2">📝 테스트 <span class="mut">로버트가 내고 · 내가 풀고 · 점수를 남긴다</span></span>'
-     +'<button class="btn sm" onclick="stTestModal(null)">+ 기록</button></div>'
-     +stTestRows(0)+stScoreSpark()
-     +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 문제 본문은 여기 저장하지 않는다 — 시험지는 대화방에 있고 여기 남기는 건 <b>결과</b>다.<br>'
-       +'뽀모(얼마나 했나) · 진도(어디까지 갔나) · 점수(늘었나) 셋이 같이 있어야 “많이 했는데 왜 안 늘지”에 답할 수 있다.</div>'
-   +'</div>';
+function stPaneRec(){
+  var ts=stTests();
+  var rows=ts.length?ts.map(function(t){
+    var v=(t.kind==='mock')?stMockVerdict(t):null;
+    var right=v?(v.sum+'점'+(v.pass?' · 합격권':(v.fails.length?' · '+v.fails.map(function(f){return f.label;}).join('·')+' 과락':' · 미달')))
+               :(t.n?(t.correct+'/'+t.n+' · '+stPct(t)+'%'):'—');
+    var cls=v?(v.pass?'pos':'neg'):(stPct(t)>=80?'pos':(stPct(t)>=60?'':'neg'));
+    var kl='주간 확인';ST_TKIND.forEach(function(x){if(x.k===t.kind)kl=x.label;});
+    return '<div class="sttest" data-sttest="'+t.id+'">'
+      +'<div class="row" style="border-bottom:0;padding:2px 0"><span><span class="pill">'+kl+'</span> <b>'+mdEsc(t.scope||'')+'</b></span>'
+      +'<span class="'+cls+'" style="font-weight:800;font-variant-numeric:tabular-nums">'+right+'</span></div>'
+      +'<div class="mut" style="font-size:10.5px">'+t.date+(t.memo?' · '+mdEsc(t.memo):'')+'</div></div>';}).join('')
+    : '<div class="mut" style="padding:8px 0;font-size:11.5px">기록이 없다.</div>';
+  return '<div class="sec"><div class="bkhd"><span class="subhd2">📝 기록</span>'
+   +'<button class="btn sm" onclick="stTestModal(null)">+ 기록</button></div>'+rows
+   +'<div class="mut" style="font-size:11px;margin-top:10px">🚫 문항 본문은 저장하지 않는다 — 출제·채점은 대화방에서 한다.</div></div>';
 }
 function renderStudy(){
   var t=stTab();
   var tabs='<div class="logtabs">'
-    +'<button class="'+(t==='now'?'on':'')+'" onclick="setStTab(\'now\')">📊 현황</button>'
-    +'<button class="'+(t==='plan'?'on':'')+'" onclick="setStTab(\'plan\')">📅 주간</button>'
-    +'<button class="'+(t==='book'?'on':'')+'" onclick="setStTab(\'book\')">📚 교재</button>'
-    +'<button class="'+(t==='test'?'on':'')+'" onclick="setStTab(\'test\')">📝 테스트</button>'
+    +'<button class="'+(t==='home'?'on':'')+'" onclick="setStTab(\'home\')">🎯 오늘</button>'
     +'<button class="'+(t==='err'?'on':'')+'" onclick="setStTab(\'err\')">❌ 오답'
-      +(stErrOpen().length?' <b>'+stErrOpen().length+'</b>':'')+'</button></div>';
-  var nudge=stNudge().map(function(n){
-    return '<div class="stnudge" onclick="'+n.go+'">'+n.t+'</div>';}).join('');
-  document.getElementById('v-study').innerHTML=tabs+nudge
-    +(t==='book'?stPaneBook():t==='test'?stPaneTest():t==='plan'?stPanePlan():t==='err'?stPaneErr():stPaneNow());
+      +(stErrOpen().length?' <b>'+stErrOpen().length+'</b>':'')+'</button>'
+    +'<button class="'+(t==='rec'?'on':'')+'" onclick="setStTab(\'rec\')">📝 기록</button></div>';
+  document.getElementById('v-study').innerHTML=tabs
+    +(t==='err'?stPaneErr():t==='rec'?stPaneRec():stPaneHome());
 }
 
 /* ====== 건강: 피검사 ====== */
@@ -5940,13 +5718,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='2.14';
+var APP_VERSION='3.0';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'3.0',date:'2026-09-08',note:"<b>🎓 학습 페이지 — 제로베이스 재설계.</b> 로버트(학습) 기획서 v5 를 그대로 구현했다. · <b>왜 갈아엎었나:</b> 옛 마일스톤이 ‘일 4/6/8뽀모’였다. 실측 루틴 <b>due 11일 / done 0일</b>, timelog study <b>0시간</b>. <b>뽀모 개수는 합격의 대리지표가 아니고 실행 판정도 못 한다.</b> 옛 <code>study</code> 는 books·tests·errors 전부 빈 배열, plan 1건뿐이라 <b>버려도 손실이 없음을 실조회로 확인</b>하고 지웠다 · 🔒 <b>시간표가 아니라 장소로 과제를 고른다.</b> 교재를 분철해 1권은 학원, 2권은 집에 둔다 — 장소를 무시하면 ‘집에 있는 책’ 과제가 학원에서 계속 미완으로 뜨고, 미완이 쌓이면 앱을 안 본다. 채널 <b>이동·학원·집</b> 탭. ⚠️ 다른 채널 과제는 <b>지우지 않고 흐리게</b> 남긴다 — 있다는 건 알아야 한다 · ⚠️ <b>학습시간은 timelog 의 tag 또는 tag2 에서 파생</b>한다. 로한은 근무 중 학습을 <code>tag:'work' + tag2:'study'</code> 로 이중 기록한다 — <b>tag 만 보면 0시간이 나온다</b> · 상단 고정: <b>D-day + 입실시각 + phase(P1~P4)</b>. 2025년에 시험장 앞에서 돌아온 이력이 있어 <b>입실까지가 목표</b>다 · 과락 게이지는 데이터가 없으면 <b>‘미측정’</b>으로 정직하게 비운다 · ⚠️ [결함·스크린샷] 완료한 과제가 목록에서 <b>사라졌다.</b> 오늘 한 것이 안 보이면 성취도 안 보이고 잘못 누른 체크를 되돌릴 수도 없다 → <b>‘오늘 끝낸 것’</b> 섹션 신설 · 탭 5개 → <b>3개</b>(오늘·오답·기록). 🚫 문항 본문·채점 엔진은 만들지 않는다 — 출제·채점은 대화방에서 한다 · t38·t39 폐기, <b>t42 신설 50건</b>"},
   {v:'2.14',date:'2026-09-08',note:"<b>🍪 끼니를 안 고르면 조용히 버리지 않는다.</b> 로한: <i>“데일리에 식사는 제대로 들어가는데 간식이 들어가질 않는다.”</i> · <b>코드도 화면도 정상이었다.</b> 저장 경로를 실제로 재현해봤고(간식 칩 → slot:'s' → meals.s), 데일리 패널에도 간식 칸이 정상으로 있었다. isFood 플래그도 4개 다 켜져 있었다 · 실측 9/7 간식/편의점 4,050 — <b>음식명 “빵, 제로콜라”는 적혀 있는데 slot 이 비어 있었다.</b> 칩을 안 누른 것이다 · 🔒 <b>문제는 조용히 버린다는 점이다.</b> 음식명을 적었다는 건 ‘이건 끼니다’라는 신호인데, 끼니를 안 고르면 아무 말 없이 데일리에서 빠진다. 그래서 며칠이 지나서야 알아챘다 · ⚠️ <b>막지는 않는다</b> — 장보기·식재료는 실제로 ‘해당없음’이 맞다. 알리기만 한다 · t40 에 I 블록 6건 추가(54건)"},
   {v:'2.13',date:'2026-09-05',note:"<b>💚 선불 지갑(네이버페이) — 경유지로 다룬다.</b> 로한: <i>“네페도 결국 우리슈퍼에서 받아서 거기서 나가는 거라 구조 자체를 이렇게 그리면 안 된다. 결제수단에서 네이버페이를 클릭하면 잔액이 보이고, 충전 여부를 확인해서 이체와 지출을 한 모달에서 처리한 후 표현은 지금처럼 이체·지출 구분해서.”</i> · 🔒 계좌에 <code>fundedBy</code> 를 둔다. <b>어느 계좌에서 충전하는지는 카드 설정에서 파생할 수 없다</b> — 사람만 안다. 네이버페이는 <b>우리 SUPER 고정</b> · 🌊 <b>현금흐름 Sankey 에서 지갑을 자금원으로 접는다.</b> 예전엔 지갑 노드가 유입 없이 떠 있어 <b>돈이 어디서 왔는지 끊겼다</b>. 충전 이체는 Sankey 에 안 그려지므로 이중계상이 아니다 · ⚠️ 접는 건 <b>그림뿐</b>이다 — 잔액은 지갑에 남는다. 지갑에 얼마 있는지는 봐야 한다 · 💳 모달: 결제수단이 지갑이면 <b>잔액 · 결제액 · 충전액 · 결제 후 잔액</b>이 금액을 칠 때마다 실시간으로 계산된다 · ⚠️ 충전 공식은 <b>로한의 실제 내역에서 뽑았다</b> — 부족분을 10,000 단위 올림. 9/2 110,000 · 9/4 10,000 · 9/5 10,000 · 8/7 30,000 <b>네 건 모두 일치</b>. 잔액이 충분하면 충전하지 않는다 · 저장하면 <b>이체 + 지출 두 건</b>이 된다. 합치지 않는다 — 합치면 <b>통장에서 나간 돈과 쓴 돈</b>이 섞여 나중에 못 가른다. 두 건은 <code>linkId</code> 로 묶이고, 지출을 지우면 짝인 충전도 같이 지운다(유령 방지) · ⚠️ [결함] 수정 중 잔액에서 <b>자기 자신만 뺐다.</b> 짝인 충전까지 빼야 ‘충전 전 잔액’이 나온다 — t41-F1 이 잡았다 · ⚠️ [결함·스크린샷] 선불 지갑에 <b>[후불(카드값)] 토글이 떴다.</b> 미리 채워 쓰는 돈에 후불은 없다. 누르면 지갑 잔액이 안 줄고 카드 미결제로 잘못 쌓인다 → 지갑은 언제나 즉시 · t41 신설 39건"},
   {v:'2.12',date:'2026-09-05',note:"<b>💰 파생 기준을 그룹 → 기초잔액으로.</b> 로한: <i>“노랑우산은 가계부랑 연동이 되어야되는데 안되고 있다.”</i> 실측: hist 가 3/31 190만 → 8/31 240만, <b>매달 정확히 +100,000</b> 인데 가계부엔 납입 기록이 <b>0건</b>이었다 · 원인: <code>accIsDerived()</code> 가 <b>그룹</b>으로 잘랐다(현금성만 파생). 노랑우산이 저축이라 같이 잘렸다 · 🔒 <b>노랑우산은 평가액이 아니라 납입액이 쌓이는 계좌다.</b> 주식·외환은 ‘지금 값’이라 거래로 파생이 불가능하지만, 공제부금은 <b>낸 만큼 는다</b> — 둘을 그룹으로 뭉뚱그린 게 잘못이었다 · → 기준을 <b>기초잔액이 있느냐</b>로 바꿨다. 로한이 기초를 넣은 계좌만 파생하고 안 넣으면 수기로 남는다. <b>판단을 코드가 아니라 로한이 한다</b> · ⚠️ 현재 투자·외환 계좌는 전부 opening 이 비어 있어 <b>영향 0</b> — 확인함 · 노랑우산에 기초 2026-09-01 / 2,400,000 부여. 이제 납입을 <b>이체</b>로 넣으면 잔액이 따라온다 · 삼성 ID MOVE 마감일 <b>10 → 12</b> (탭탭오와 동일 · 삼성카드는 하나로 돌아간다) · t40 에 H 블록 6건 추가(48건) — <b>저축이라도 기초가 있으면 파생 / 투자에 기초가 없으면 수기</b>를 못 박는다"},
@@ -7882,7 +7661,7 @@ document.addEventListener('click',function(e){
   var dni=e.target.closest('[data-doneitem]');if(dni)return itemDone(dni.dataset.doneitem);
   var ri=e.target.closest('[data-restoreitem]');if(ri)return itemRestore(ri.dataset.restoreitem);
   var di=e.target.closest('[data-delitem]');if(di)return delItem(di.dataset.delitem);
-  var _sb=e.target.closest('[data-stbook]');if(_sb)return stBookModal(_sb.dataset.stbook);
+  var _su=e.target.closest('[data-stunit]');if(_su)return stToggleUnit(_su.dataset.stunit);
   var _eo=e.target.closest('[data-sterrok]');if(_eo)return stErrHit(_eo.dataset.sterrok,1);
   var _ex=e.target.closest('[data-sterrx]');if(_ex)return stErrHit(_ex.dataset.sterrx,0);
   var _ee=e.target.closest('[data-sterred]');if(_ee)return stErrModal(_ee.dataset.sterred);
