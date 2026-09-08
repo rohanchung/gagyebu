@@ -218,6 +218,40 @@ const T=(d,m,amt,cat,extra)=>Object.assign(
   await b.close();
  }
 
+ /* ── I. 음식명만 적고 끼니를 안 고르면 조용히 버리지 않는다 (v2.14) ── */
+ {
+  const st=BASE([]);
+  st.categories=[{name:'간식/편의점',type:'expense',isFood:true},{name:'생활용품',type:'expense'}];
+  const {b,p,dlg}=await boot(st);
+  const put=(cat,food,slot)=>p.evaluate(([cat,food,slot])=>{
+    txnModal(null);
+    const sel=document.getElementById('fCat');
+    for(const o of sel.options)if(o.value===cat)sel.value=cat;
+    sel.dispatchEvent(new Event('change')); foodFieldSync();
+    document.getElementById('fFood').value=food;
+    document.getElementById('fAmt').value='4050';
+    document.getElementById('fDate').value='2026-09-08';
+    if(slot){const cs=[...document.querySelectorAll('#fSlotWrap .dchip')];
+      const el=cs.filter(e=>e.dataset.slot===slot)[0]; if(el)setMealSlot(el,slot);}
+    saveTxn(null);},[cat,food,slot]);
+  /* ⚠️ 로한의 9/7 간식이 정확히 이 경우였다 — 음식명은 있고 slot 이 비었다 */
+  await put('간식/편의점','빵, 제로콜라',null);await p.waitForTimeout(600);
+  ok('I1 끼니 없이 저장하면 경고한다',dlg.some(m=>m.indexOf('끼니를 안 골랐다')>=0),dlg.join('|'));
+  /* 🔒 막지는 않는다 — 장보기는 '해당없음'이 맞다 */
+  ok('I2 그래도 저장은 된다',(await p.evaluate(()=>DB.transactions.length))===1);
+  ok('I3 데일리엔 안 들어간다',(await p.evaluate(()=>DB.meals['2026-09-08']))===undefined);
+  const n0=dlg.length;
+  await put('간식/편의점','후레이크바','s');await p.waitForTimeout(600);
+  ok('I4 끼니를 고르면 안 묻는다',dlg.length===n0,dlg.slice(n0).join('|'));
+  ok('I5 간식이 데일리에 들어간다',
+     (await p.evaluate(()=>DB.meals['2026-09-08']&&DB.meals['2026-09-08'].s.a))==='후레이크바',
+     JSON.stringify(await p.evaluate(()=>DB.meals['2026-09-08'])));
+  const n1=dlg.length;
+  await put('생활용품','',null);await p.waitForTimeout(600);
+  ok('I6 음식 아닌 계정과목은 안 묻는다',dlg.length===n1,dlg.slice(n1).join('|'));
+  await b.close();
+ }
+
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));
  process.exit(fail?1:0);
 })();
