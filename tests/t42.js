@@ -206,6 +206,62 @@ async function boot(st){
   await b.close();
  }
 
+ /* ── I. 데일리 「학습」 탭 — 실행은 여기서 (v3.1) ── */
+ {
+  const st=BASE();
+  const U=(id,ch,ti,mins,day,bk,stt,car)=>({id,phase:'P1',ch,type:'vocab',title:ti,mins,
+    due:'2026-09-13',day,backlog:bk,status:stt,doneAt:stt==='done'?day:null,carried:car||0});
+  st.study.units=[
+   U('u1','academy','어제완료',5,'2026-09-08',false,'done'),
+   U('u2','academy','어제미완',10,'2026-09-08',false,'todo',2),
+   U('u3','academy','오늘A',20,'2026-09-09',false,'todo'),
+   U('u4','move','오늘B',10,'2026-09-09',false,'todo'),
+   U('u5','home','내일',20,'2026-09-10',false,'todo'),
+   U('u6','home','백로그',20,null,true,'todo')];
+  st.ui.goalDate='2026-09-09'; st.ui.dailyTab='study';
+  const {b,p,errs}=await boot(st);
+  await p.click('.m[data-v="daily"]');await p.waitForTimeout(600);
+  /* 🔒 day(실행 예정일)로 거른다 — due(마감)가 아니다 */
+  ok('I1 오늘 것만 2건',(await p.evaluate(()=>stUnitsOn('2026-09-09').length))===2,
+     JSON.stringify(await p.evaluate(()=>stUnitsOn('2026-09-09').map(u=>u.id))));
+  ok('I2 내일 것은 안 보인다',(await p.evaluate(()=>stUnitsOn('2026-09-09').some(u=>u.id==='u5')))===false);
+  ok('I3 backlog 는 날짜 목록에서 빠진다',
+     (await p.evaluate(()=>stUnitsOn('2026-09-09').some(u=>u.id==='u6')))===false);
+  /* ⚠️ 미완은 자동 이월하지 않는다 — 그날 자리에 남고 개수만 뜬다 */
+  ok('I4 밀린 것 1건',(await p.evaluate(()=>stOverdue('2026-09-09').length))===1);
+  ok('I5 밀린 것이 오늘로 안 옮겨진다',(await p.evaluate(()=>stUnitById('u2').day))==='2026-09-08');
+  ok('I6 어제 완료분은 밀린 것이 아니다',
+     (await p.evaluate(()=>stOverdue('2026-09-09').some(u=>u.id==='u1')))===false);
+  ok('I7 backlog 3섹션',(await p.evaluate(()=>stBacklog().length))===1);
+  const t=await p.evaluate(()=>stWeekTally('2026-09-09'));
+  ok('I8 주간 총량은 backlog 제외',t.n===5&&t.done===1,JSON.stringify(t));
+  ok('I9 주간 분 합계',t.mins===65,String(t.mins));
+  const txt=await p.$eval('#v-daily',e=>e.textContent);
+  ok('I10 탭 진입점 노출',txt.indexOf('🎓 학습')>=0||txt.indexOf('학습')>=0);
+  ok('I11 밀린 것 문구',txt.indexOf('밀린 것 1건')>=0,txt.slice(0,300));
+  ok('I12 이월 규칙을 화면이 말한다',txt.indexOf('자동으로 넘어가지 않는다')>=0);
+  /* 체크하면 logs 에 들어간다 */
+  await p.evaluate(()=>stToggleUnit('u3'));await p.waitForTimeout(500);
+  ok('I13 체크 시 logs 기록',(await p.evaluate(()=>DB.study.logs[todayStr()]&&DB.study.logs[todayStr()].unitIds.indexOf('u3')>=0))===true);
+  ok('I14 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+ /* ── J. day·backlog 없는 옛 unit 도 렌더된다 ── */
+ {
+  const st=BASE();
+  st.study.units=[{id:'x1',phase:'P1',ch:'academy',type:'vocab',title:'옛유닛',mins:10,
+    due:'2026-09-13',status:'todo',carried:0}];   /* day·backlog 없음 */
+  const {b,p,errs}=await boot(st);
+  ok('J1 day 기본값 null',(await p.evaluate(()=>DB.study.units[0].day))===null);
+  ok('J2 backlog 기본값 false',(await p.evaluate(()=>DB.study.units[0].backlog))===false);
+  /* ⚠️ 날짜가 없으면 데일리엔 안 뜨지만 학습 페이지 채널 목록엔 남아야 한다 */
+  ok('J3 학습 페이지엔 보인다',(await p.evaluate(()=>stOpenUnits('academy').length))===1);
+  ok('J4 데일리엔 안 뜬다',(await p.evaluate(()=>stUnitsOn('2026-09-09').length))===0);
+  ok('J5 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));
  process.exit(fail?1:0);
 })();
