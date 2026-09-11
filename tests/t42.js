@@ -48,13 +48,13 @@ async function boot(st){
  /* ── A. 빈 상태에서 죽지 않는다 ── */
  {
   const {b,p,errs}=await boot(BASE());
-  ok('A1 탭 3개',(await p.$$('#v-study .logtabs button')).length===3);
+  ok('A1 탭 4개',(await p.$$('#v-study .logtabs button')).length===4);   /* v3.2 단어 탭 추가 */
   const txt=await p.$eval('#v-study',e=>e.textContent);
   ok('A2 모의고사 안내',txt.indexOf('모의고사를 아직 안 쳤다')>=0);
   ok('A3 미측정 2개',(txt.match(/미측정/g)||[]).length===2,txt.slice(0,200));
   ok('A4 D-day',/D-\d+/.test(txt));
   ok('A5 phase 없으면 알린다',txt.indexOf('구간(phase)이 설정되지 않았다')>=0);
-  for(const t of ['err','rec','home']){await p.evaluate(x=>setStTab(x),t);await p.waitForTimeout(250);}
+  for(const t of ['err','rec','word','home']){await p.evaluate(x=>setStTab(x),t);await p.waitForTimeout(250);}
   ok('A6 전 탭 렌더 · 에러 0',errs.length===0,errs.join('|'));
   /* 🔒 옛 구조(cfg·plan)는 버린다 */
   ok('A7 v=1 로 표시',(await p.evaluate(()=>DB.study.v))===1);
@@ -259,6 +259,123 @@ async function boot(st){
   ok('J3 학습 페이지엔 보인다',(await p.evaluate(()=>stOpenUnits('academy').length))===1);
   ok('J4 데일리엔 안 뜬다',(await p.evaluate(()=>stUnitsOn('2026-09-09').length))===0);
   ok('J5 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+
+ /* ── K. 🈶 단어 드릴 (v3.2 · 기획서 v7 PART 2) ──
+    🔒 불변식 넷:
+       ① 출제는 랜덤이 아니다 — miss 많은 것 → flag → 오래 안 본 것
+       ② 채점은 문자열 비교로 끝난다. seen·miss·lastSeen 은 앱이 갱신한다
+       ③ 드릴 오답은 errors 로 자동 승격되지 않는다(오답노트 홍수 방지)
+       ④ 진행 중 세션은 DB 에 저장되지 않는다 — 끝나면 drills 1건만 남는다 */
+ {
+  const W=(id,kana,kanji,ko,cat,flag,seen,miss,last)=>
+    ({id,lv:'N4',src:'b1:155',kana,kanji,ko,cat,flag,seen,miss,lastSeen:last});
+  const st=BASE();
+  st.study.words=[
+   W('w1','にもつ','荷物','짐','sino',true,0,0,null),
+   W('w2','あんぜん','安全','안전','sino',false,5,3,'2026-09-09'),
+   W('w3','はなび','花火','불꽃놀이','native',true,2,1,'2026-09-08'),
+   W('w4','ほうりつ','法律','법률','sino',false,1,0,'2026-09-07'),
+   W('w5','こくさい','国際','국제','sino',false,0,0,null),
+   W('w6','あせ','汗','땀','native',false,3,0,'2026-09-10')];
+  const {b,p,errs,dlg}=await boot(st);
+  ok('K1 탭 4개',(await p.$$('#v-study .logtabs button')).length===4);
+  await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(350);
+  const wtxt=await p.$eval('#v-study',e=>e.textContent);
+  ok('K2 단어 수·체크 수 표시',wtxt.indexOf('6개')>=0&&wtxt.indexOf('책 체크 2')>=0,wtxt.slice(0,160));
+  /* ① 🚫 랜덤 금지 — 순서가 고정이어야 한다 */
+  ok('K3 출제 순서 = miss → flag → 오래된 것',
+     (await p.evaluate(()=>stDrillPool('k2r').map(w=>w.id).join(','))) === 'w2,w3,w1,w5,w4,w6',
+     await p.evaluate(()=>stDrillPool('k2r').map(w=>w.id).join(',')));
+  /* 미구현 모드는 누를 수 없다 */
+  ok('K4 r2k·kata·w2m 비활성',(await p.$$('#v-study .stdmode button[disabled]')).length===3);
+  await p.evaluate(()=>stDrillStart('k2r',3));await p.waitForTimeout(350);
+  ok('K5 3문항 · 첫 문항은 miss 최다',
+     (await p.evaluate(()=>ST_DRILL.ids.join(',')))==='w2,w3,w1');
+  ok('K6 보기 4개 · 정답 포함',
+     (await p.evaluate(()=>ST_DRILL.opts[0].length===4&&ST_DRILL.opts[0].indexOf('あんぜん')>=0))===true,
+     JSON.stringify(await p.evaluate(()=>ST_DRILL.opts[0])));
+  /* 보기를 실제로 눌러서 채점된다 — 함수만 맞고 화면이 안 붙은 사고가 4회+ 있었다 */
+  const btn=(await p.$$('#v-study .stdopt button'));
+  let hit=null;
+  for(const el of btn){if((await el.textContent()).trim()==='あんぜん')hit=el;}
+  ok('K7 정답 버튼이 화면에 있다',!!hit);
+  if(hit){await hit.click();await p.waitForTimeout(300);}
+  ok('K8 정답 → seen+1 · miss 유지 · lastSeen 오늘',
+     (await p.evaluate(()=>{const w=stWordById('w2');return w.seen===6&&w.miss===3&&w.lastSeen===todayStr();}))===true,
+     JSON.stringify(await p.evaluate(()=>stWordById('w2'))));
+  ok('K9 정답 표시 후엔 중복 채점 안 된다',
+     (await p.evaluate(()=>{stDrillGrade('あんぜん');return stWordById('w2').seen;}))===6);
+  await p.evaluate(()=>stDrillNext());await p.waitForTimeout(300);
+  await p.evaluate(()=>stDrillGrade('まちがい'));await p.waitForTimeout(300);
+  ok('K10 오답 → miss+1',
+     (await p.evaluate(()=>{const w=stWordById('w3');return w.seen===3&&w.miss===2;}))===true,
+     JSON.stringify(await p.evaluate(()=>stWordById('w3'))));
+  /* ⚠️ 공백만 넣은 것은 정답이 아니다 */
+  await p.evaluate(()=>stDrillNext());await p.waitForTimeout(250);
+  ok('K11 빈 답은 오답',
+     (await p.evaluate(()=>{stDrillGrade('   ');return !ST_DRILL.res[2].ok;}))===true);
+  await p.evaluate(()=>stDrillNext());await p.waitForTimeout(400);
+  ok('K12 드릴 1건 기록 · 집계 정확',
+     (await p.evaluate(()=>{const d=DB.study.drills[0];
+       return DB.study.drills.length===1&&d.n===3&&d.correct===1&&d.mode==='k2r'
+              &&d.wrongIds.join(',')==='w3,w1'&&d.date===todayStr()&&typeof d.secs==='number';}))===true,
+     JSON.stringify(await p.evaluate(()=>DB.study.drills)));
+  /* ③ 🔒 오답노트 홍수 방지 — 승격은 로버트가 한다 */
+  ok('K13 errors 로 자동 승격되지 않는다',(await p.evaluate(()=>DB.study.errors.length))===0);
+  /* ④ 🔒 세션 상태는 저장하지 않는다 */
+  ok('K14 진행 상태가 study 에 안 남는다',
+     (await p.evaluate(()=>{const k=Object.keys(DB.study);
+       return k.indexOf('ids')<0&&k.indexOf('res')<0&&k.indexOf('opts')<0;}))===true);
+  const rtxt=await p.$eval('#v-study',e=>e.textContent);
+  ok('K15 결과 화면 1/3',rtxt.indexOf('1/3')>=0,rtxt.slice(0,200));
+  await p.evaluate(()=>stDrillClose());await p.waitForTimeout(300);
+  ok('K16 최근 드릴 이력 노출',(await p.$eval('#v-study',e=>e.textContent)).indexOf('최근 드릴')>=0);
+  ok('K17 에러 0',errs.length===0,errs.join('|'));
+  ok('K18 alert 없음',dlg.length===0,dlg.join('|'));
+  await b.close();
+ }
+
+ /* ── L. 단어 0개 — 빈 상태에서 입구를 만들지 않는다 ── */
+ {
+  const {b,p,errs}=await boot(BASE());
+  await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(350);
+  const txt=await p.$eval('#v-study',e=>e.textContent);
+  ok('L1 안내문',txt.indexOf('교재 페이지를 사진으로')>=0,txt.slice(0,160));
+  ok('L2 시작 버튼 없음',(await p.$$('#v-study .stdmode button:not([disabled])')).length===0);
+  ok('L3 자주 틀리는 단어 섹션 없음',txt.indexOf('자주 틀리는 단어')<0);
+  /* 🔒 words 가 없어도 드릴을 강제로 호출해도 죽지 않는다 */
+  ok('L4 빈 pool 에서 시작해도 안 죽는다',
+     (await p.evaluate(()=>{stDrillStart('k2r',10);return ST_DRILL===null;}))===true);
+  /* 데일리에도 입구가 안 생긴다 */
+  await p.evaluate(()=>{DB.ui.dailyTab='study';DB.ui.goalDate=todayStr();renderDaily();});
+  await p.click('.m[data-v="daily"]');await p.waitForTimeout(500);
+  ok('L5 데일리에 드릴 버튼 없음',(await p.$eval('#v-daily',e=>e.textContent)).indexOf('단어 드릴')<0);
+  ok('L6 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+ /* ── M. words 기본값 주입 · verdict.rate 제거 ── */
+ {
+  const st=BASE();
+  st.study.words=[{id:'w9',kana:'あめ',kanji:'雨',ko:'비'}];   /* seen·miss·lastSeen·cat·flag 없음 */
+  st.study.week={'2026-09-06':{setAt:'2026-09-05',unitIds:[],carryIn:[],
+    verdict:{rate:0.5,memo:'x',closedAt:null}}};
+  const {b,p,errs}=await boot(st);
+  const w=await p.evaluate(()=>DB.study.words[0]);
+  ok('M1 seen·miss 0',w.seen===0&&w.miss===0,JSON.stringify(w));
+  ok('M2 lastSeen null · flag false · cat 빈문자',w.lastSeen===null&&w.flag===false&&w.cat==='',JSON.stringify(w));
+  ok('M3 drills 서랍 생성',(await p.evaluate(()=>Array.isArray(DB.study.drills)))===true);
+  /* 🔒 파생 가능한 것은 저장하지 않는다 — rate 는 unitIds 에서 파생 */
+  ok('M4 verdict.rate 삭제',
+     (await p.evaluate(()=>{const v=DB.study.week['2026-09-06'].verdict;
+       return !('rate' in v)&&v.memo==='x';}))===true,
+     JSON.stringify(await p.evaluate(()=>DB.study.week['2026-09-06'].verdict)));
+  ok('M5 빈 서랍 cfg·plan 이 되살아나지 않는다',
+     (await p.evaluate(()=>DB.study.cfg===undefined&&DB.study.plan===undefined))===true);
+  ok('M6 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
 

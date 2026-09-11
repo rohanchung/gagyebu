@@ -130,6 +130,35 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .stback:hover{color:var(--accent)}
 .sterr.cl{opacity:.48}
 .sttest:hover{border-color:var(--accent)}
+/* v3.2 🈶 단어 드릴 — 🔒 base 규칙(.name{)을 먼저 쓴다. modifier 만 넣어서 스타일 없이 렌더된 사고가 2회 있었다 */
+.stdbar{display:flex;gap:3px;margin-bottom:11px}
+.stdcell{flex:1;height:6px;border-radius:3px;background:#e4e8f0}
+.stdcell.ok{background:var(--pos)}
+.stdcell.no{background:var(--neg)}
+.stdcell.cur{background:var(--accent)}
+.stdq{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 14px;text-align:center;margin-bottom:10px}
+.stdk{font-size:38px;font-weight:700;line-height:1.25;letter-spacing:3px}
+.stdk .mut{display:block;font-size:11.5px;font-weight:600;letter-spacing:0;margin-top:6px}
+.stdopt{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
+.stdopt button{padding:12px 8px;font-size:17px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);cursor:pointer;font-weight:700}
+.stdopt button:hover{border-color:var(--accent)}
+.stdin{width:100%;text-align:center;font-size:20px;padding:11px;margin-top:13px;
+  border:1px solid var(--line);border-radius:10px;font-weight:700}
+.stdmark{font-size:15px;font-weight:800;margin-top:12px}
+.stdmark.ok{color:var(--pos)}
+.stdmark.no{color:var(--neg)}
+.stdrow{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;
+  padding:7px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;background:var(--card)}
+.stdw{display:inline-block;font-size:11.5px;padding:3px 9px;border:1px solid var(--line);
+  border-radius:999px;margin:0 5px 5px 0;background:var(--card)}
+.stdw.hot{border-color:var(--neg);color:var(--neg);font-weight:700}
+.stdmode{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.stdmode button{flex:1;min-width:120px;text-align:left;font-size:11.5px;padding:9px 11px;
+  border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
+.stdmode button b{display:block;font-size:12.5px;font-weight:800;margin-bottom:2px}
+.stdmode button.on{border-color:var(--accent)}
+.stdmode button.off{opacity:.45;cursor:not-allowed;background:var(--soft)}
 .stbook[data-stbook]{cursor:pointer}
 .stbook[data-stbook]:hover{border-color:var(--accent)}
 .mlchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
@@ -2888,9 +2917,11 @@ var ST_DEF_EXAM={name:'JLPT N4',date:'',enterBy:'',pass:90,parts:[
 /* 🔒 존재 보장은 여기 한 곳에서만 한다. 이 유형(마이그레이션 누락)이 세 번 터졌다. */
 function studyDB(){
   DB.study=DB.study||{}; var S=DB.study;
-  if(S.v!==1){                       /* 옛 구조(뽀모·주간제안)는 버린다 — 내용물이 없었다 */
-    S.v=1; delete S.cfg; delete S.plan;
-  }
+  if(S.v!==1)S.v=1;
+  /* 🔒 v3.2 — 옛 구조(뽀모·주간제안) 제거는 **매번** 돈다.
+     v3.1까지 v!==1 일 때만 지웠는데 migrateV6 가 매 로드마다 되살려서 영원히 안 지워졌다.
+     ⚠️ undefined 를 넣으면 키가 남는다 — delete 여야 한다. */
+  delete S.cfg; delete S.plan;
   if(!S.exam)S.exam=JSON.parse(JSON.stringify(ST_DEF_EXAM));
   if(!S.exam.parts||!S.exam.parts.length)S.exam.parts=JSON.parse(JSON.stringify(ST_DEF_EXAM.parts));
   if(S.exam.pass==null)S.exam.pass=90;
@@ -2902,6 +2933,24 @@ function studyDB(){
   });
   S.week=S.week||{}; S.month=S.month||{}; S.tests=S.tests||[]; S.errors=S.errors||[];
   S.logs=S.logs||{};
+  /* 🔒 v3.2 — verdict.rate 는 저장하지 않는다. 완료율은 unitIds 중 done 비율에서 파생한다.
+     저장하면 두 화면이 다른 숫자를 낸다(v2.11 총부채 결함과 같은 유형). */
+  [S.week,S.month].forEach(function(m){
+    Object.keys(m||{}).forEach(function(k){
+      var w=m[k]; if(w&&w.verdict)delete w.verdict.rate;
+    });
+  });
+  /* ══ v3.2 단어 드릴 ══
+     ⚠️ 데이터는 로버트가 채운다 — 앱은 드릴 화면과 채점만 한다.
+     🔒 빈 배열 상태에서도 화면이 떠야 한다(지금이 그 상태다). */
+  S.words=S.words||[]; S.drills=S.drills||[];
+  S.words.forEach(function(w){
+    if(w.cat===undefined)w.cat='';
+    if(w.flag===undefined)w.flag=false;
+    if(w.seen===undefined)w.seen=0;
+    if(w.miss===undefined)w.miss=0;
+    if(w.lastSeen===undefined)w.lastSeen=null;
+  });
   return S;
 }
 function stExam(){return studyDB().exam;}
@@ -3236,12 +3285,18 @@ function stDailyPane(ds){
    +todayHtml+odHtml+bkHtml
    +(eo?('<div class="stsub" style="margin-top:12px">❌ 오답 미회수 <b>'+eo+'</b>건 '
         +'<span class="mut">— 학습 탭에서 회전</span></div>'):'')
+   /* v3.2 🈶 단어 드릴 진입점 — 실행은 데일리에서 일어난다.
+      ⚠️ 단어가 없으면 버튼을 띄우지 않는다 — 누르면 빈 화면이 나오는 입구는 만들지 않는다. */
+   +(stDrillPool('k2r').length?('<div style="margin-top:12px"><button class="btn sm" '
+      +'onclick="stDrillStart(\'k2r\','+Math.min(stDrillPool('k2r').length,10)+')">🈶 단어 드릴 '
+      +Math.min(stDrillPool('k2r').length,10)+'문항</button> '
+      +'<span class="mut" style="font-size:10.5px">한자→히라가나 · もんだい1</span></div>'):'')
    +'<div class="mut" style="font-size:10.5px;margin-top:10px">🔒 미완은 <b>자동으로 넘어가지 않는다.</b> '
    +'그날 자리에 남는다 — 밀린 게 보여야 일요일에 판정할 수 있다.</div></div>';
 }
 
 /* ══════ 화면 ══════ */
-function stTab(){var t=(DB.ui&&DB.ui.studyTab);return (t==='err'||t==='rec')?t:'home';}
+function stTab(){var t=(DB.ui&&DB.ui.studyTab);return (t==='err'||t==='rec'||t==='word')?t:'home';}
 function setStTab(v){DB.ui=DB.ui||{};DB.ui.studyTab=v;save();renderStudy();}
 
 function stHead(){
@@ -3342,15 +3397,244 @@ function stPaneRec(){
    +'<button class="btn sm" onclick="stTestModal(null)">+ 기록</button></div>'+rows
    +'<div class="mut" style="font-size:11px;margin-top:10px">🚫 문항 본문은 저장하지 않는다 — 출제·채점은 대화방에서 한다.</div></div>';
 }
+/* ══════ v3.2 🈶 단어 드릴 ══════
+   로버트(학습) 기획서 v7 PART 2.
+   🚫 v5 §9 는 "채점 엔진 금지"였다. 단어 드릴만 예외다 — 데이터가 {kana,kanji,ko} 3필드고
+      채점이 문자열 비교로 끝난다. 문법·독해·청해 문항은 여전히 앱에서 만들지 않는다.
+   ⚠️ 단어 데이터는 **로버트가 채운다.** 앱은 출제·채점·기록만 한다.
+   🔒 words 가 빈 배열인 상태에서도 화면이 떠야 한다(지금이 그 상태다). */
+var ST_MODES=[
+  {k:'k2r', label:'한자 → 히라가나', hint:'もんだい1 한자읽기'},
+  {k:'r2k', label:'히라가나 → 한자', hint:'もんだい2 표기'},
+  {k:'kata',label:'가타카나 → 뜻',   hint:'외래어'},
+  {k:'w2m', label:'단어 → 뜻',       hint:'기반 · 시험에 직접 안 나온다'}];
+/* 🔒 구현된 모드만 켠다. '기능은 있는데 입구를 막아둠'의 반대 사고 —
+   입구만 만들고 안이 비면 그게 더 나쁘다. 4회+ 터진 유형이다. */
+var ST_MODE_ON={k2r:true};
+
+function stWords(){return studyDB().words;}
+function stDrills(){return studyDB().drills;}
+function stWordById(id){var r=null;stWords().forEach(function(w){if(w.id===id)r=w;});return r;}
+/* 채점 정규화 — 공백·구두점만 지운다.
+   🚫 히라가나↔가타카나 변환은 하지 않는다: k2r 정답은 히라가나이고 가타카나로 적었으면 틀린 것이다.
+   🚫 장음(ー)·촉음도 지우지 않는다 — ラーメン 과 ラメン 은 다른 단어다. */
+function stNorm(s){return String(s==null?'':s).replace(/[\s　・、。,.]/g,'').trim();}
+function stDrillQ(w,mode){return mode==='k2r'?w.kanji:mode==='r2k'?w.kana:w.kanji||w.kana;}
+function stDrillA(w,mode){return mode==='k2r'?w.kana:mode==='r2k'?w.kanji:w.ko;}
+function stModeLabel(k){var r=k;ST_MODES.forEach(function(m){if(m.k===k)r=m.label;});return r;}
+
+/* 출제 대상 — 🚫 랜덤 금지. 랜덤이면 아는 단어만 계속 나온다.
+   ① miss 많은 것 → ② 책에 체크한 것(flag) → ③ 오래 안 본 것(미출제가 먼저) */
+function stDrillPool(mode){
+  return stWords().filter(function(w){
+    if(mode==='k2r'||mode==='r2k')return !!stNorm(w.kanji)&&!!stNorm(w.kana);
+    if(mode==='kata')return w.cat==='katakana'&&!!stNorm(w.ko);
+    return !!stNorm(w.ko);
+  }).slice().sort(function(a,b){
+    var m=(+b.miss||0)-(+a.miss||0); if(m)return m;
+    var f=(b.flag?1:0)-(a.flag?1:0); if(f)return f;
+    var av=a.lastSeen||'', bv=b.lastSeen||'';
+    return av<bv?-1:(av>bv?1:0);
+  });
+}
+/* 🔒 세션 상태는 DB 에 저장하지 않는다 — 끝나면 drills 1건만 남는다.
+   새로고침하면 진행 중 드릴은 사라진다(의도됨). */
+var ST_DRILL=null;
+function stdIn(){return !!(DB.ui&&DB.ui.stdIn);}          /* true = 직접입력(IME 필요) */
+function setStdIn(v){DB.ui=DB.ui||{};DB.ui.stdIn=!!v;save();renderStudy();}
+
+/* 보기 4개 — ⚠️ 출제 순서는 랜덤이 아니지만 **보기 위치는 섞는다.**
+   안 섞으면 정답이 항상 첫 칸이라 단어를 안 보고도 맞힌다.
+   🔒 시작할 때 한 번 만들어 세션에 박는다 — 채점할 때마다 다시 섞으면 보기가 춤춘다. */
+function stMkOpts(w,mode,pool){
+  var ans=stDrillA(w,mode), an=stNorm(ans), out=[ans];
+  var cand=pool.filter(function(x){
+    var v=stDrillA(x,mode); return x.id!==w.id&&stNorm(v)&&stNorm(v)!==an;});
+  var same=cand.filter(function(x){return String(stDrillA(x,mode)).length===String(ans).length;});
+  var order=same.concat(cand.filter(function(x){return same.indexOf(x)<0;}));
+  while(out.length<4&&order.length){
+    var i=Math.floor(Math.random()*Math.min(order.length,8));
+    var v=stDrillA(order.splice(i,1)[0],mode);
+    if(out.map(stNorm).indexOf(stNorm(v))<0)out.push(v);
+  }
+  for(var j=out.length-1;j>0;j--){var k=Math.floor(Math.random()*(j+1));var t=out[j];out[j]=out[k];out[k]=t;}
+  return out;
+}
+function stDrillStart(mode,n){
+  if(!ST_MODE_ON[mode])return;
+  var pool=stDrillPool(mode);
+  if(!pool.length)return;
+  n=Math.min(+n||10,pool.length);
+  var picked=pool.slice(0,n);
+  ST_DRILL={mode:mode,ids:picked.map(function(w){return w.id;}),
+    opts:picked.map(function(w){return stMkOpts(w,mode,pool);}),
+    i:0,res:[],show:false,fin:false,start:Date.now()};
+  DB.ui=DB.ui||{};DB.ui.studyTab='word';save();renderStudy();
+}
+function stDrillGrade(my){
+  var D=ST_DRILL; if(!D||D.show||D.fin)return;
+  var w=stWordById(D.ids[D.i]); if(!w)return;
+  var ok=!!stNorm(my)&&stNorm(my)===stNorm(stDrillA(w,D.mode));
+  /* 🔒 seen·miss·lastSeen 은 앱이 갱신한다(출제 알고리즘이 이걸 읽는다).
+     miss 는 누적이다 — 맞혔다고 깎지 않는다. */
+  w.seen=(+w.seen||0)+1; if(!ok)w.miss=(+w.miss||0)+1; w.lastSeen=todayStr();
+  D.res.push({id:w.id,my:String(my||''),ok:ok});
+  D.show=true; save(); renderStudy();
+}
+function stDrillType(){var el=document.getElementById('stdAns');stDrillGrade(el?el.value:'');}
+function stDrillNext(){
+  var D=ST_DRILL; if(!D)return;
+  D.show=false; D.i++;
+  if(D.i>=D.ids.length)return stDrillFinish();
+  renderStudy();
+}
+function stDrillFinish(){
+  var D=ST_DRILL; if(!D||D.fin)return;
+  if(!D.res.length){ST_DRILL=null;return renderStudy();}
+  var wrong=D.res.filter(function(r){return !r.ok;});
+  studyDB().drills.push({id:uid(),date:todayStr(),mode:D.mode,n:D.res.length,
+    correct:D.res.length-wrong.length,wrongIds:wrong.map(function(r){return r.id;}),
+    secs:Math.round((Date.now()-D.start)/1000)});
+  logAct('🈶 단어드릴 '+stModeLabel(D.mode)+' '+(D.res.length-wrong.length)+'/'+D.res.length);
+  D.fin=true; save(); renderStudy();
+}
+/* 중간에 그만둬도 **푼 만큼은 기록한다** — 안 남기면 그만둔 사실이 안 보인다 */
+function stDrillQuit(){stDrillFinish();}
+function stDrillClose(){ST_DRILL=null;renderStudy();}
+
+/* ── 진행 화면 ── */
+function stDrillRun(){
+  var D=ST_DRILL, w=stWordById(D.ids[D.i]);
+  if(!w){D.fin=true;return stPaneWord();}
+  var bar='<div class="stdbar">'+D.ids.map(function(_,i){
+    var r=D.res[i];
+    return '<span class="stdcell'+(r?(r.ok?' ok':' no'):(i===D.i?' cur':''))+'"></span>';}).join('')+'</div>';
+  var last=D.show?D.res[D.res.length-1]:null;
+  var ans=stDrillA(w,D.mode);
+  var body;
+  if(D.show){
+    body='<div class="stdmark '+(last.ok?'ok':'no')+'">'+(last.ok?'○ 맞음':'✗ 틀림')+'</div>'
+      +'<div style="margin-top:8px;font-size:22px;font-weight:800">'+mdEsc(ans)+'</div>'
+      +'<div class="mut" style="font-size:11.5px;margin-top:4px">'
+        +(last.ok?'':'내 답 <b>'+mdEsc(last.my||'—')+'</b> · ')
+        +mdEsc(w.ko||'')+(w.src?' · '+mdEsc(w.src):'')
+        +' · 누적 '+(+w.miss||0)+'틀림/'+(+w.seen||0)+'회</div>'
+      +'<div style="margin-top:14px"><button class="btn" onclick="stDrillNext()">'
+        +(D.i+1>=D.ids.length?'결과 보기':'다음 →')+'</button></div>';
+  }else if(stdIn()||D.opts[D.i].length<2){
+    body='<input class="stdin" id="stdAns" autocomplete="off" placeholder="'
+      +(D.mode==='k2r'?'히라가나로':'답')+'" onkeydown="if(event.key===\'Enter\')stDrillType()">'
+      +'<div style="margin-top:10px"><button class="btn" onclick="stDrillType()">채점</button></div>';
+  }else{
+    body='<div class="stdopt">'+D.opts[D.i].map(function(o){
+      return '<button onclick="stDrillGrade('+JSON.stringify(String(o)).replace(/"/g,'&quot;')+')">'
+        +mdEsc(o)+'</button>';}).join('')+'</div>';
+  }
+  return '<div class="sec">'
+   +'<div class="row" style="padding:0 0 9px"><span class="subhd2">🈶 '+stModeLabel(D.mode)
+     +' <span class="mut">'+(D.i+1)+'/'+D.ids.length+'</span></span>'
+     +'<span><button class="ghost sm" onclick="setStdIn('+(stdIn()?'false':'true')+')">'
+       +(stdIn()?'⌨ 직접입력':'☰ 4지선다')+'</button> '
+     +'<button class="ghost sm" onclick="stDrillQuit()">그만</button></span></div>'
+   +bar
+   +'<div class="stdq"><div class="stdk">'+mdEsc(stDrillQ(w,D.mode))
+     +(w.flag?'<span class="mut">✔ 책에 체크한 단어</span>':'')+'</div>'+body+'</div>'
+   +'<div class="mut" style="font-size:10.5px">출제 순서는 <b>miss 많은 것 → 책에 체크한 것 → 오래 안 본 것</b>. 랜덤이 아니다.</div></div>';
+}
+/* ── 결과 화면 ── */
+function stDrillResult(){
+  var D=ST_DRILL, n=D.res.length, ok=D.res.filter(function(r){return r.ok;}).length;
+  var secs=Math.round((Date.now()-D.start)/1000);
+  var wrong=D.res.filter(function(r){return !r.ok;});
+  return '<div class="sec"><div class="bkhd"><span class="subhd2">🈶 '+stModeLabel(D.mode)+' 결과</span>'
+   +'<span class="mut" style="font-size:10.5px">'+Math.floor(secs/60)+'분 '+(secs%60)+'초</span></div>'
+   +'<div class="stbig '+(ok===n?'pos':(ok*2<n?'neg':''))+'">'+ok+'/'+n
+     +' <span class="mut">'+Math.round(ok/n*100)+'%</span></div>'
+   +(wrong.length?('<div class="stsub neg">틀린 것 '+wrong.length+'개</div>'
+     +wrong.map(function(r){var w=stWordById(r.id)||{};
+       return '<div class="stdrow"><span><b>'+mdEsc(stDrillQ(w,D.mode))+'</b> '
+         +'<span class="mut">'+mdEsc(w.ko||'')+'</span></span>'
+         +'<span>'+mdEsc(r.my||'—')+' → <b>'+mdEsc(stDrillA(w,D.mode))+'</b></span></div>';}).join(''))
+     :'<div class="mut" style="font-size:11.5px;padding:6px 0">전부 맞았다.</div>')
+   +'<div style="margin-top:13px;display:flex;gap:7px;flex-wrap:wrap">'
+     +'<button class="btn" onclick="stDrillStart(\''+D.mode+'\','+n+')">한 번 더</button>'
+     +'<button class="ghost" onclick="stDrillClose()">닫기</button></div>'
+   +'<div class="mut" style="font-size:10.5px;margin-top:10px">🔒 드릴 오답은 <b>오답노트로 바로 안 넘긴다.</b> '
+   +'하루 20문항이면 며칠 만에 오답노트가 쓸모없어진다 — <b>miss 3회 이상</b>만 로버트가 승격한다.</div></div>';
+}
+/* ── 시작 화면 ── */
+function stPaneWord(){
+  var D=ST_DRILL;
+  if(D&&D.fin)return stDrillResult();
+  if(D)return stDrillRun();
+  var ws=stWords(), ds=stDrills();
+  var flag=ws.filter(function(w){return w.flag;}).length;
+  var fresh=ws.filter(function(w){return !w.lastSeen;}).length;
+  var hot=ws.filter(function(w){return (+w.miss||0)>0;}).slice()
+    .sort(function(a,b){return (+b.miss||0)-(+a.miss||0);}).slice(0,12);
+  var modes='<div class="stdmode">'+ST_MODES.map(function(m){
+    var impl=!!ST_MODE_ON[m.k], n=impl?stDrillPool(m.k).length:0, on=impl&&n>0;
+    /* 🔒 단어가 0개면 구현된 모드도 누를 수 없다 — 누르면 빈 화면이 나오는 입구는 만들지 않는다 */
+    return '<button class="'+(on?'on':'off')+'"'
+      +(on?' onclick="stDrillStart(\''+m.k+'\','+(n>=20?20:10)+')"':' disabled title="'+(impl?'단어가 없다':'다음 차례')+'"')+'>'
+      +'<b>'+m.label+'</b><span class="mut">'+m.hint
+      +(impl?' · '+n+'개':' · 미구현')+'</span></button>';}).join('')+'</div>';
+  var pool=stDrillPool('k2r').length;
+  /* 모드 칸을 누르면 바로 시작한다. 문항 수 선택은 **고를 게 있을 때만** 띄운다 —
+     8개뿐인데 '8문항 시작' 버튼을 따로 두면 같은 일을 하는 버튼이 둘이 된다. */
+  var start=pool>=20
+    ? '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:4px">'
+      +[10,20,40].filter(function(n){return n<=pool;}).map(function(n){
+        return '<button class="btn sm" onclick="stDrillStart(\'k2r\','+n+')">'+n+'문항</button>';}).join(' ')
+      +'</div>'
+    : '';
+  var empty=!ws.length
+    ? '<div class="mut" style="font-size:11.5px;padding:8px 0">단어가 없다. '
+      +'<b>교재 페이지를 사진으로 대화방에 보내면 로버트가 넣는다.</b> '
+      +'일괄 입력은 하지 않는다 — 진도와 어긋난 1500개는 쓸모가 없다.</div>'
+    : (!pool?'<div class="mut" style="font-size:11.5px;padding:8px 0">한자·읽기가 같이 있는 단어가 없어 한자읽기 드릴을 못 만든다.</div>':'');
+  var recent=ds.slice().sort(function(a,b){return a.date<b.date?1:-1;}).slice(0,6)
+    .map(function(d){
+      var p=d.n?Math.round(d.correct/d.n*100):0;
+      return '<div class="stdrow"><span><span class="pill">'+stModeLabel(d.mode)+'</span> '
+        +'<span class="mut">'+d.date+'</span></span>'
+        +'<span class="'+(p>=80?'pos':(p>=60?'':'neg'))+'" style="font-weight:800">'
+        +d.correct+'/'+d.n+' · '+p+'%</span></div>';}).join('');
+  return stHead()
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">🈶 단어 <span class="mut">'
+     +ws.length+'개 · 책 체크 '+flag+' · 미출제 '+fresh+'</span></span>'
+     +'<button class="ghost sm" onclick="setStdIn('+(stdIn()?'false':'true')+')">'
+     +(stdIn()?'⌨ 직접입력':'☰ 4지선다')+'</button></div>'
+     +empty+modes+start+'</div>'
+   +(hot.length?('<div class="sec"><div class="bkhd"><span class="subhd2">자주 틀리는 단어</span>'
+     +'<span class="mut" style="font-size:10.5px">miss 3회↑ 는 로버트가 오답노트로 승격</span></div>'
+     +hot.map(function(w){
+       return '<span class="stdw'+((+w.miss||0)>=3?' hot':'')+'">'+mdEsc(w.kanji||w.kana)
+         +' <b>'+(+w.miss||0)+'</b>/'+(+w.seen||0)+'</span>';}).join('')+'</div>'):'')
+   +(recent?('<div class="sec"><div class="bkhd"><span class="subhd2">최근 드릴</span>'
+     +'<span class="mut" style="font-size:10.5px">'+ds.length+'회</span></div>'+recent+'</div>'):'');
+}
+/* 데일리에서 학습 화면의 특정 탭으로 건너간다 — 사이드 메뉴를 대신 누른다 */
+function stGoto(tab){
+  DB.ui=DB.ui||{};DB.ui.studyTab=tab||'home';save();
+  var m=document.querySelector('.side .m[data-v="study"]');
+  if(m&&m.click)return m.click();
+  renderStudy();
+}
 function renderStudy(){
   var t=stTab();
   var tabs='<div class="logtabs">'
     +'<button class="'+(t==='home'?'on':'')+'" onclick="setStTab(\'home\')">🎯 오늘</button>'
     +'<button class="'+(t==='err'?'on':'')+'" onclick="setStTab(\'err\')">❌ 오답'
       +(stErrOpen().length?' <b>'+stErrOpen().length+'</b>':'')+'</button>'
+    +'<button class="'+(t==='word'?'on':'')+'" onclick="setStTab(\'word\')">🈶 단어'
+      +(stWords().length?' <b>'+stWords().length+'</b>':'')+'</button>'
     +'<button class="'+(t==='rec'?'on':'')+'" onclick="setStTab(\'rec\')">📝 기록</button></div>';
   document.getElementById('v-study').innerHTML=tabs
-    +(t==='err'?stPaneErr():t==='rec'?stPaneRec():stPaneHome());
+    +(t==='err'?stPaneErr():t==='rec'?stPaneRec():t==='word'?stPaneWord():stPaneHome());
+  /* 직접입력 모드는 칸에 커서를 넣어준다 — 매 문항 마우스로 클릭하면 10분 뽀모가 안 된다 */
+  if(t==='word'&&ST_DRILL&&!ST_DRILL.fin&&!ST_DRILL.show)setTimeout(function(){
+    var el=document.getElementById('stdAns'); if(el)el.focus();},0);
 }
 
 /* ====== 건강: 피검사 ====== */
@@ -5808,13 +6092,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.1';
+var APP_VERSION='3.2';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'3.2',date:'2026-09-11',note:"<b>🈶 단어 드릴(k2r) 신설 · ⚠️ [결함] study 빈 서랍 · 주 경계 키 수정.</b> 로버트(학습) 기획서 v7 PART 2 · ⚠️ <b>[결함] 존재 보장이 두 곳에 있었다.</b> <code>studyDB()</code> 주석은 '여기 한 곳에서만'인데 <code>migrateV6</code> 가 매 로드마다 <code>study.plan</code>·<code>study.cfg.target</code> 을 <b>되살렸다.</b> studyDB 는 <code>v!==1</code> 일 때만 지우니까 영원히 못 지웠고, v3.0 에서 버린 옛 구조가 실 DB 에 <code>cfg:{target:{}}</code>·<code>plan:{}</code> 로 남아 있었다 — 원칙 2·5 동시 위반 · ⚠️ <b>[결함] 주간 키가 월요일이었다.</b> <code>weekStart()</code> 는 일요일 기준이라 <code>week[2026-09-07]</code> 은 <b>어느 주에도 안 걸렸다</b> — 주간 판정이 빈 주를 보고 있었다. <code>2026-09-06</code> 으로 이전 · <code>verdict.rate</code> 삭제 — 완료율은 <code>unitIds</code> 중 done 비율에서 파생한다. 저장하면 두 화면이 다른 숫자를 낸다(v2.11 총부채 결함과 같은 유형) · 🈶 <b>단어 드릴 — k2r(한자→히라가나)부터.</b> 시험 もんだい1(한자읽기)에 직접 대응한다 · 🚫 <b>랜덤 금지</b> — 랜덤이면 아는 단어만 계속 나온다. 출제 순서는 <b>miss 많은 것 → 책에 체크한 것(flag) → 오래 안 본 것</b> · 보기 <b>위치는 섞는다</b> — 정답이 항상 첫 칸이면 단어를 안 보고도 맞힌다. 단 시작할 때 한 번 만들어 세션에 박는다(채점마다 다시 섞으면 보기가 춤춘다) · ⌨ 4지선다 ↔ 직접입력 토글 — IME 없이도 돌아가야 한다 · 🔒 <b>드릴 오답을 오답노트로 바로 밀지 않는다</b> — 하루 20문항이면 며칠 만에 오답노트가 무용지물이 된다. <code>miss>=3</code> 만 로버트가 승격한다 · ⚠️ <b>단어 데이터는 일괄 입력하지 않는다</b> — 교재 페이지 사진을 로버트가 받아 append 한다. 진도와 어긋난 N5·N4 1500개는 쓸모가 없고 그 작업이 9~10월을 먹는다 · 드릴 진입점을 <b>데일리 학습 탭에도</b> 뒀다 — 실행은 데일리에서 일어난다. ⚠️ 단어가 0개면 버튼을 띄우지 않는다(빈 화면이 나오는 입구는 만들지 않는다) · r2k·kata·w2m 은 버튼만 회색으로 남기고 <b>누를 수 없게</b> 했다 · 🔒 진행 중 드릴은 DB 에 저장하지 않는다 — 끝나면 <code>drills</code> 1건만 남는다"},
   {v:'3.1',date:'2026-09-09',note:"<b>📅 데일리에 「학습」 탭 신설 · 3일 롤링 창.</b> 로버트(학습) 기획서 v6. · <b>왜:</b> v3.0 학습 페이지는 <b>전략·판정</b>용인데 로한이 매일 여는 건 <b>데일리</b>다. 실행이 거기서 일어나야 하는데 이번 주 과제가 한꺼번에 떠서 <b>‘오늘 뭘 하나’에 답을 못 했다</b> · 역할을 갈랐다 — <b>학습 페이지 = 전략·판정</b>(D-day·과락 게이지·오답노트) / <b>데일리 학습 탭 = 실행</b>(오늘 것만) · 🔒 <code>day</code>(실행 예정일)와 <code>due</code>(마감)를 <b>분리</b>했다. 데일리는 <code>day</code> 로 거른다 · 🔒 <b>미완은 자동 이월하지 않는다.</b> 그날 자리에 남고 <b>‘밀린 것 n건’</b>으로만 뜬다 — 자동으로 밀어주면 실패가 안 보이고, 안 보이면 일요일에 판정이 안 된다 · <code>backlog</code> 섹션(접힘 기본) — 청해 회독·오답 회전·재인출처럼 <b>배점·마감 근거가 있는 것만</b> 넣는다. ⚠️ 단어 신규 진도는 넣지 않는다(로한이 ‘명분 없는 분량 추가’를 명시적으로 거부했다) · 3일만 보면 큰 그림이 사라지므로 상단에 <b>이번 주 총량</b>을 항상 띄운다 · ⚠️ 3일 롤링 창(오늘+이틀)은 <b>로버트가 채운다.</b> 앱은 만들지 않는다 — 90일치를 미리 깔면 첫 주에 속도가 틀렸을 때 89일치가 통째로 틀어진다 · ⚠️ <code>day</code>·<code>backlog</code> 없는 옛 unit 도 기본값 주입으로 렌더된다 · t42 에 I·J 블록 19건 추가(69건)"},
   {v:'3.0',date:'2026-09-08',note:"<b>🎓 학습 페이지 — 제로베이스 재설계.</b> 로버트(학습) 기획서 v5 를 그대로 구현했다. · <b>왜 갈아엎었나:</b> 옛 마일스톤이 ‘일 4/6/8뽀모’였다. 실측 루틴 <b>due 11일 / done 0일</b>, timelog study <b>0시간</b>. <b>뽀모 개수는 합격의 대리지표가 아니고 실행 판정도 못 한다.</b> 옛 <code>study</code> 는 books·tests·errors 전부 빈 배열, plan 1건뿐이라 <b>버려도 손실이 없음을 실조회로 확인</b>하고 지웠다 · 🔒 <b>시간표가 아니라 장소로 과제를 고른다.</b> 교재를 분철해 1권은 학원, 2권은 집에 둔다 — 장소를 무시하면 ‘집에 있는 책’ 과제가 학원에서 계속 미완으로 뜨고, 미완이 쌓이면 앱을 안 본다. 채널 <b>이동·학원·집</b> 탭. ⚠️ 다른 채널 과제는 <b>지우지 않고 흐리게</b> 남긴다 — 있다는 건 알아야 한다 · ⚠️ <b>학습시간은 timelog 의 tag 또는 tag2 에서 파생</b>한다. 로한은 근무 중 학습을 <code>tag:'work' + tag2:'study'</code> 로 이중 기록한다 — <b>tag 만 보면 0시간이 나온다</b> · 상단 고정: <b>D-day + 입실시각 + phase(P1~P4)</b>. 2025년에 시험장 앞에서 돌아온 이력이 있어 <b>입실까지가 목표</b>다 · 과락 게이지는 데이터가 없으면 <b>‘미측정’</b>으로 정직하게 비운다 · ⚠️ [결함·스크린샷] 완료한 과제가 목록에서 <b>사라졌다.</b> 오늘 한 것이 안 보이면 성취도 안 보이고 잘못 누른 체크를 되돌릴 수도 없다 → <b>‘오늘 끝낸 것’</b> 섹션 신설 · 탭 5개 → <b>3개</b>(오늘·오답·기록). 🚫 문항 본문·채점 엔진은 만들지 않는다 — 출제·채점은 대화방에서 한다 · t38·t39 폐기, <b>t42 신설 50건</b>"},
   {v:'2.14',date:'2026-09-08',note:"<b>🍪 끼니를 안 고르면 조용히 버리지 않는다.</b> 로한: <i>“데일리에 식사는 제대로 들어가는데 간식이 들어가질 않는다.”</i> · <b>코드도 화면도 정상이었다.</b> 저장 경로를 실제로 재현해봤고(간식 칩 → slot:'s' → meals.s), 데일리 패널에도 간식 칸이 정상으로 있었다. isFood 플래그도 4개 다 켜져 있었다 · 실측 9/7 간식/편의점 4,050 — <b>음식명 “빵, 제로콜라”는 적혀 있는데 slot 이 비어 있었다.</b> 칩을 안 누른 것이다 · 🔒 <b>문제는 조용히 버린다는 점이다.</b> 음식명을 적었다는 건 ‘이건 끼니다’라는 신호인데, 끼니를 안 고르면 아무 말 없이 데일리에서 빠진다. 그래서 며칠이 지나서야 알아챘다 · ⚠️ <b>막지는 않는다</b> — 장보기·식재료는 실제로 ‘해당없음’이 맞다. 알리기만 한다 · t40 에 I 블록 6건 추가(54건)"},
@@ -6997,11 +7282,11 @@ function migrateV6(d){
   if(!d.netSnapshots)d.netSnapshots=[];
   /* v2.5 🍚 식사 기록. 날짜키 맵 — checks·timelog 와 같은 모양이다. */
   if(!d.meals)d.meals={};
-  /* v2.7 🎓 학습. plan·logs 는 날짜키 맵 — checks·meals 와 같은 모양이다. */
-  if(!d.study)d.study={};
-  d.study.books=d.study.books||[]; d.study.plan=d.study.plan||{}; d.study.tests=d.study.tests||[];
-  d.study.logs=d.study.logs||{}; d.study.cfg=d.study.cfg||{};
-  d.study.cfg.target=d.study.cfg.target||{};
+  /* v3.2 🎓 학습 — 🔒 존재 보장은 studyDB() 한 곳에서만 한다. 여기선 아무것도 만들지 않는다.
+     ⚠️ [결함] v3.1까지 여기서 d.study.plan / d.study.cfg.target 을 **매 로드마다 되살렸다.**
+        studyDB() 는 v!==1 일 때만 지우니까 영원히 못 지웠다 —
+        v3.0 에서 버린 옛 구조가 빈 서랍으로 남아 실 DB 에 cfg:{target:{}} · plan:{} 로 있었다.
+     🔒 같은 구조를 두 곳에서 보장하면 한쪽을 고쳐도 다른 쪽이 되돌린다. 원칙 2 위반이었다. */
   /* v2.51 — 한 끼를 {p:제안, a:실제} 로 넓혔다.
      ⚠️ 멱등이어야 한다 — 이미 객체면 손대지 않는다. 두 번 감싸면 {a:{a:'…'}} 가 된다. */
   Object.keys(d.meals).forEach(function(_dk){
