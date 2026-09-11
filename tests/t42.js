@@ -290,7 +290,10 @@ async function boot(st){
      (await p.evaluate(()=>stDrillPool('k2r').map(w=>w.id).join(','))) === 'w2,w3,w1,w5,w4,w6',
      await p.evaluate(()=>stDrillPool('k2r').map(w=>w.id).join(',')));
   /* 미구현 모드는 누를 수 없다 */
-  ok('K4 r2k·kata·w2m 비활성',(await p.$$('#v-study .stdmode button[disabled]')).length===3);
+  /* v3.3 — 4모드 전부 구현됐다. 막히는 건 **낼 단어가 없는 모드**뿐이다.
+     이 픽스처엔 가타카나가 없으니 kata 하나만 disabled 여야 한다. */
+  ok('K4 kata 만 막혀 있다 (가타카나 0건)',(await p.$$('#v-study .stdmode button[disabled]')).length===1,
+     String((await p.$$('#v-study .stdmode button[disabled]')).length));
   await p.evaluate(()=>stDrillStart('k2r',3));await p.waitForTimeout(350);
   ok('K5 3문항 · 첫 문항은 miss 최다',
      (await p.evaluate(()=>ST_DRILL.ids.join(',')))==='w2,w3,w1');
@@ -343,7 +346,8 @@ async function boot(st){
   const {b,p,errs}=await boot(BASE());
   await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(350);
   const txt=await p.$eval('#v-study',e=>e.textContent);
-  ok('L1 안내문',txt.indexOf('교재 페이지를 사진으로')>=0,txt.slice(0,160));
+  /* 🔒 콘텐츠는 학습방 소관 — 앱은 비어 있다는 사실만 정직하게 말한다 */
+  ok('L1 안내문',txt.indexOf('학습방에서 올린다')>=0,txt.slice(0,160));
   ok('L2 시작 버튼 없음',(await p.$$('#v-study .stdmode button:not([disabled])')).length===0);
   ok('L3 자주 틀리는 단어 섹션 없음',txt.indexOf('자주 틀리는 단어')<0);
   /* 🔒 words 가 없어도 드릴을 강제로 호출해도 죽지 않는다 */
@@ -376,6 +380,139 @@ async function boot(st){
   ok('M5 빈 서랍 cfg·plan 이 되살아나지 않는다',
      (await p.evaluate(()=>DB.study.cfg===undefined&&DB.study.plan===undefined))===true);
   ok('M6 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+
+ /* ── N. 🈶 드릴 4모드 (v3.3) — 실데이터 284건에서 나온 함정 3개 ──
+    ① r2k 동음이의어: は→葉·歯 는 뜻 없이는 정답이 유일하지 않다
+    ② kata 판정: 업로드 데이터의 cat 에 katakana 가 0건이었다 → kana 문자범위로 파생
+    ③ 뜻 답 복수: "사이, 동안" 46건 — 전체 비교로 채점하면 아는 단어를 틀렸다고 한다 */
+ {
+  const W=(id,kana,kanji,ko,extra)=>Object.assign(
+    {id,lv:'N4',src:'b1:150',kana,kanji,ko,cat:'native',flag:false,seen:0,miss:0,lastSeen:null},extra||{});
+  /* N-1 r2k — 히라가나 → 한자 */
+  {
+   const st=BASE();
+   st.study.words=[
+    W('h1','は','葉','잎',{miss:5,homophone:true}),
+    W('h2','は','歯','이빨',{homophone:true}),
+    W('h3','あめ','雨','비'),W('h4','あし','足','발, 다리'),
+    W('h5','あす','明日','내일'),W('h6','あせ','汗','땀')];
+   const {b,p,errs}=await boot(st);
+   ok('N1 r2k pool = 한자·읽기 있는 것',(await p.evaluate(()=>stDrillPool('r2k').length))===6);
+   await p.evaluate(()=>stDrillStart('r2k',3));await p.waitForTimeout(350);
+   ok('N2 첫 문항은 miss 최다',(await p.evaluate(()=>ST_DRILL.ids[0]))==='h1');
+   const q=await p.$eval('#v-study .stdq',e=>e.textContent);
+   /* 🔒 뜻이 안 보이면 葉·歯 중 뭘 쓰라는지 알 수 없다 */
+   ok('N3 r2k 문제에 뜻이 붙는다',q.indexOf('は')>=0&&q.indexOf('잎')>=0,q.slice(0,80));
+   ok('N4 정답은 그 단어의 한자',(await p.evaluate(()=>stIsRight(stWordById('h1'),'r2k','葉')))===true);
+   ok('N5 동음이의어의 다른 한자는 오답',
+      (await p.evaluate(()=>stIsRight(stWordById('h1'),'r2k','歯')))===false);
+   ok('N6 k2r 은 뜻을 안 붙인다',(await p.evaluate(()=>stDrillHint(stWordById('h1'),'k2r')))==='');
+   /* 🔒 동음이의어를 보기에 **반드시** 넣는다 — 우연에 맡기면 동음이의어 문항이 쉬운 문항이 된다.
+      실데이터로 찍어 보니 歯 가 보기에 없었다(v3.3 초안 결함). */
+   ok('N6a 같은 읽기의 다른 한자가 보기에 들어간다',
+      (await p.evaluate(()=>ST_DRILL.opts[0].indexOf('歯')>=0))===true,
+      JSON.stringify(await p.evaluate(()=>ST_DRILL.opts[0])));
+   ok('N6b 정답도 보기에 있다',(await p.evaluate(()=>ST_DRILL.opts[0].indexOf('葉')>=0))===true);
+   /* 뜻은 보조 텍스트가 아니라 문제의 일부다 — 전용 칸으로 뗀다 */
+   ok('N6c 뜻이 전용 칸에 뜬다',
+      (await p.$eval('#v-study .stdhint',e=>e.textContent.trim()))==='잎');
+   ok('N7 에러 0',errs.length===0,errs.join('|'));
+   await b.close();
+  }
+  /* N-2 kata — 가타카나 → 뜻. ⚠️ cat 을 일부러 틀리게 넣는다 */
+  {
+   const st=BASE();
+   st.study.words=[
+    W('t1','ラーメン',null,'라멘',{cat:'native',miss:4}),   /* cat 이 틀렸다 */
+    W('t2','テーブル',null,'테이블',{cat:'sino'}),          /* 이것도 틀렸다 */
+    W('t3','コート',null,'코트',{cat:''}),
+    W('t4','パソコン',null,'컴퓨터',{cat:'katakana'}),
+    W('t5','あめ','雨','비')];
+   const {b,p,errs}=await boot(st);
+   /* 🔒 cat 필드를 믿지 않는다 — kana 문자범위에서 파생한다 */
+   ok('N8 kata pool = 가타카나 4건 (cat 무시)',
+      (await p.evaluate(()=>stDrillPool('kata').map(w=>w.id).join(',')))==='t1,t2,t3,t4',
+      await p.evaluate(()=>stDrillPool('kata').map(w=>w.id).join(',')));
+   ok('N9 히라가나 단어는 kata 에 안 들어간다',
+      (await p.evaluate(()=>stDrillPool('kata').some(w=>w.id==='t5')))===false);
+   ok('N10 kata 문제는 가타카나, 정답은 뜻',
+      (await p.evaluate(()=>stDrillQ(stWordById('t1'),'kata')==='ラーメン'&&stDrillA(stWordById('t1'),'kata')==='라멘'))===true);
+   await p.evaluate(()=>stDrillStart('kata',2));await p.waitForTimeout(350);
+   await p.evaluate(()=>stDrillGrade('라멘'));await p.waitForTimeout(300);
+   ok('N11 kata 채점 · seen+1',
+      (await p.evaluate(()=>{const w=stWordById('t1');return w.seen===1&&w.miss===4;}))===true);
+   ok('N12 에러 0',errs.length===0,errs.join('|'));
+   await b.close();
+  }
+  /* N-3 w2m — 단어 → 뜻. 복수 뜻 채점 */
+  {
+   const st=BASE();
+   st.study.words=[
+    W('m1','あいだ','間','사이, 동안',{miss:9}),
+    W('m2','あいさつ',null,'인사'),          /* 한자 없음 */
+    W('m3','あし','足','발, 다리'),W('m4','あめ','雨','비'),W('m5','あす','明日','내일')];
+   const {b,p,errs}=await boot(st);
+   /* 한자 없는 단어도 w2m 에는 들어간다 — 물을 수 있다 */
+   ok('N13 w2m pool 5건 (한자 없는 것 포함)',(await p.evaluate(()=>stDrillPool('w2m').length))===5);
+   ok('N14 k2r·r2k 은 한자 없는 것을 뺀다',
+      (await p.evaluate(()=>stDrillPool('k2r').some(w=>w.id==='m2')||stDrillPool('r2k').some(w=>w.id==='m2')))===false);
+   const W1=()=>p.evaluate(()=>stWordById('m1'));
+   ok('N15 복수 뜻 중 하나만 맞아도 정답',
+      (await p.evaluate(()=>stIsRight(stWordById('m1'),'w2m','사이')))===true);
+   ok('N16 두 번째 뜻도 정답',(await p.evaluate(()=>stIsRight(stWordById('m1'),'w2m','동안')))===true);
+   ok('N17 4지선다의 전체 문자열도 정답',
+      (await p.evaluate(()=>stIsRight(stWordById('m1'),'w2m','사이, 동안')))===true);
+   ok('N18 공백 무시',(await p.evaluate(()=>stIsRight(stWordById('m1'),'w2m',' 사이 ')))===true);
+   ok('N19 틀린 뜻은 오답',(await p.evaluate(()=>stIsRight(stWordById('m1'),'w2m','비')))===false);
+   ok('N20 빈 답은 오답',(await p.evaluate(()=>stIsRight(stWordById('m1'),'w2m','')))===false);
+   /* ⚠️ k2r 은 부분 일치를 쓰지 않는다 — 읽기는 통째로 맞아야 한다 */
+   ok('N21 k2r 은 부분 일치 금지',
+      (await p.evaluate(()=>stIsRight(stWordById('m3'),'k2r','あ')))===false);
+   await p.evaluate(()=>stDrillStart('w2m',2));await p.waitForTimeout(350);
+   await p.evaluate(()=>stDrillGrade('사이'));await p.waitForTimeout(300);
+   ok('N22 드릴에서도 부분 일치가 정답으로 잡힌다',
+      (await p.evaluate(()=>ST_DRILL.res[0].ok))===true);
+   await p.evaluate(()=>{stDrillNext();stDrillGrade('x');stDrillNext();});await p.waitForTimeout(400);
+   ok('N23 mode 가 기록된다',(await p.evaluate(()=>DB.study.drills[0].mode))==='w2m');
+   ok('N24 에러 0',errs.length===0,errs.join('|'));
+   await b.close();
+  }
+ }
+
+ /* ── O. 모드 기억 · pool 0 모드 차단 ── */
+ {
+  const W=(id,kana,kanji,ko)=>({id,lv:'N4',src:'b1:150',kana,kanji,ko,cat:'native',
+    flag:false,seen:0,miss:0,lastSeen:null});
+  const st=BASE();
+  st.study.words=[W('a1','あめ','雨','비'),W('a2','あし','足','발'),
+    W('a3','あす','明日','내일'),W('a4','あせ','汗','땀')];
+  st.study.units=[{id:'u1',phase:'P1',ch:'academy',type:'vocab',title:'오늘것',mins:10,
+    due:'2026-09-13',day:'2026-09-11',backlog:false,status:'todo',carried:0}];
+  st.ui.goalDate='2026-09-11'; st.ui.dailyTab='study';
+  const {b,p,errs}=await boot(st);
+  ok('O1 기본 모드는 k2r',(await p.evaluate(()=>stdMode()))==='k2r');
+  /* 🔒 가타카나가 0건이면 그 모드는 disabled — 누르면 빈 화면이 되는 입구는 안 만든다 */
+  const dis=await p.evaluate(()=>{setStTab('word');return null;});
+  await p.waitForTimeout(300);
+  ok('O2 kata 는 막혀 있다 (0건)',(await p.$$('#v-study .stdmode button[disabled]')).length===1,
+     String((await p.$$('#v-study .stdmode button[disabled]')).length));
+  ok('O3 나머지 3모드는 열려 있다',
+     (await p.$$('#v-study .stdmode button:not([disabled])')).length===3);
+  await p.evaluate(()=>setStdMode('w2m'));await p.waitForTimeout(300);
+  ok('O4 고른 모드를 기억한다',(await p.evaluate(()=>stdMode()))==='w2m');
+  ok('O5 시작 버튼이 그 모드를 쓴다',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('단어 → 뜻')>=0);
+  /* 데일리 진입점도 기억된 모드로 */
+  await p.click('.m[data-v="daily"]');await p.waitForTimeout(600);
+  ok('O6 데일리 버튼이 기억된 모드 표시',
+     (await p.$eval('#v-daily',e=>e.textContent)).indexOf('단어 → 뜻')>=0);
+  /* 쓰레기 값이 저장돼 있어도 폴백 */
+  await p.evaluate(()=>{DB.ui.stdMode='없는모드';});
+  ok('O7 알 수 없는 모드는 k2r 로 폴백',(await p.evaluate(()=>stdMode()))==='k2r');
+  ok('O8 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
 
