@@ -588,14 +588,20 @@ async function boot(st){
   const W=(id,kana,ko,extra)=>Object.assign({id,lv:'N4',src:'b1:150',kana,kanji:null,ko,
     cat:'native',flag:false,seen:0,miss:0,lastSeen:null,streak:0},extra||{});
   const st=BASE();
+  /* ⚠️ 날짜를 박아 쓰면 **테스트가 며칠 뒤에 깨진다.**
+     9/11 에 'lastSeen:2026-09-11'(=오늘)로 짠 걸 9/15 에 돌리자 경과일이 4일이 되어 순서가 바뀌었다.
+     🔒 경과일이 정렬에 들어가는 함수는 **오늘 기준 상대 날짜**로 먹인다. */
+  const ago=(n)=>{const d=new Date(Date.now()-n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   st.study.words=[
-   W('q1','あめ','비',{miss:3,seen:10,lastSeen:'2026-09-11'}),   /* 30 + 0 = 30 */
-   W('q2','あし','발',{flag:true,seen:2,lastSeen:'2026-09-11'}),  /* 0 + 3 + 0 = 3 */
-   W('q3','あす','내일',{seen:5,lastSeen:'2026-09-01'}),          /* 0 + 0 + 7(상한) = 7 */
-   W('q4','あせ','땀',{seen:1,lastSeen:null}),                    /* 미출제 = 7, seen 1 */
-   W('q5','あく','열리다',{seen:9,lastSeen:null})];                /* 미출제 = 7, seen 9 */
+   W('q1','あめ','비',{miss:3,seen:10,lastSeen:ago(0)}),    /* 30 + 0 = 30 */
+   W('q2','あし','발',{flag:true,seen:2,lastSeen:ago(0)}),   /* 0 + 3 + 0 = 3 */
+   W('q3','あす','내일',{seen:5,lastSeen:ago(10)}),          /* 0 + 0 + 7(상한) = 7 */
+   W('q4','あせ','땀',{seen:1,lastSeen:null}),               /* 미출제 = 7, seen 1 */
+   W('q5','あく','열리다',{seen:9,lastSeen:null})];           /* 미출제 = 7, seen 9 */
   const {b,p,errs}=await boot(st);
-  const sc=await p.evaluate(()=>{const f={};stWords().forEach(w=>f[w.id]=stWordScore(w,'2026-09-11'));return f;});
+  const today=await p.evaluate(()=>todayStr());
+  const sc=await p.evaluate((d)=>{const f={};stWords().forEach(w=>f[w.id]=stWordScore(w,d));return f;},today);
   ok('Q1 miss 가 10배로 지배한다',sc.q1===30,JSON.stringify(sc));
   ok('Q2 flag 는 3점',sc.q2===3,JSON.stringify(sc));
   ok('Q3 안 본 날수는 7에서 멈춘다',sc.q3===7,JSON.stringify(sc));
@@ -674,6 +680,160 @@ async function boot(st){
      JSON.stringify(await p.evaluate(()=>stWordById('r1'))));
   ok('R12 에러 0',errs.length===0,errs.join('|'));
   await b.close();
+ }
+
+
+ /* ── S. 🎯 오답 선택지 규칙 · 4지선다 고정 · 「모르겠다」 (v3.5) ──
+    🔴 **객관식의 난도는 오답이 100% 결정한다.**
+    v3.4 는 '같은 글자수 우선 → 랜덤'이라 「いがく」에 「おちゃ·うりば·おっと」가 떴다.
+    글자가 안 겹치면 눈감고 맞히고, 그러면 miss 가 안 쌓여 출제 가중식과 주간 판정이 죽는다. */
+ {
+  const W=(id,kana,kanji,ko,extra)=>Object.assign({id,lv:'N4',src:'b1:150',kana,kanji,ko,
+    cat:'native',flag:false,seen:0,miss:0,streak:0,lastSeen:null},extra||{});
+  const st=BASE();
+  st.study.words=[
+   /* 같은 한자, 다른 읽기 — k2r 1순위 오답 */
+   W('s1','あく','開く','열리다',{sub:'자동사',miss:9}),
+   W('s2','ひらく','開く','펴다'),
+   /* 청탁 변형 대상 */
+   W('s3','うでどけい','腕時計','손목시계'),
+   /* 편집거리 1 무리 — 소리 모드 1순위 오답 */
+   W('s4','あせ','汗','땀'),W('s5','あめ','雨','비'),W('s6','あし','足','발'),W('s7','あす','明日','내일'),
+   /* 자·타동사 짝 */
+   W('s8','おこる','起こる','일어나다',{sub:'자동사'}),
+   W('s9','おこす','起こす','일으키다',{sub:'타동사'}),
+   /* 멀리 떨어진 단어들 — 예전 로직이면 이것들이 오답으로 왔다 */
+   W('s10','ゆうびんきょく','郵便局','우체국'),W('s11','れいぞうこ','冷蔵庫','냉장고'),
+   W('s12','しょうがっこう','小学校','초등학교'),W('s13','うりば','売場','매장')];
+  const {b,p,errs,dlg}=await boot(st);
+  await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(300);
+
+  /* ① k2r — 같은 한자의 다른 읽기가 1순위 */
+  const o1=await p.evaluate(()=>stMkOpts(stWordById('s1'),'k2r',stDrillPool('k2r')));
+  ok('S1 같은 한자의 다른 읽기가 보기에 들어간다',o1.indexOf('ひらく')>=0,JSON.stringify(o1));
+  ok('S2 정답도 보기에 있다',o1.indexOf('あく')>=0,JSON.stringify(o1));
+  /* ② 청탁·촉음 변형 — 실제로 틀린 패턴을 오답으로 만든다 */
+  const vs=await p.evaluate(()=>stKanaVariants('うでどけい'));
+  ok('S3 청탁 변형 생성 (うでどけい→うでとけい)',vs.indexOf('うでとけい')>=0,JSON.stringify(vs.slice(0,6)));
+  ok('S4 다른 청탁도 만든다 (こくさい→こくざい)',
+     (await p.evaluate(()=>stKanaVariants('こくさい').indexOf('こくざい')>=0))===true);
+  ok('S5 원본은 변형 목록에 없다',vs.indexOf('うでどけい')<0);
+  /* 🔒 사전에 없는 가짜 읽기가 실제 오답으로 쓰여야 한다 — もんだい1 이 원래 그렇게 낸다 */
+  ok('S6 변형이 실제 오답으로 쓰인다',
+     (await p.evaluate(()=>{
+       const pool=stDrillPool('k2r'), real={};
+       pool.forEach(x=>real[x.kana]=1);
+       return stMkOpts(stWordById('s3'),'k2r',pool)
+         .filter(x=>x!=='うでどけい').some(x=>!real[x]);
+     }))===true,
+     JSON.stringify(await p.evaluate(()=>stMkOpts(stWordById('s3'),'k2r',stDrillPool('k2r')))));
+
+  /* ③ 오답이 정답과 가까운가 — 정량. v3.4 는 실데이터에서 3.33 이었다 */
+  const far=await p.evaluate(()=>{
+    function lev(a,b){a=String(a||'');b=String(b||'');const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+      let cur=[];for(let j=0;j<=n;j++)cur[j]=j;
+      for(let i=1;i<=m;i++){let prev=cur[0];cur[0]=i;
+        for(let j=1;j<=n;j++){const t=cur[j];cur[j]=Math.min(cur[j]+1,cur[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=t;}}
+      return cur[n];}
+    const pool=stDrillPool('k2r');let tot=0,cnt=0;
+    pool.forEach(w=>{
+      stMkOpts(w,'k2r',pool).filter(o=>o!==w.kana).forEach(o=>{tot+=lev(w.kana,o);cnt++;});
+    });
+    return cnt?tot/cnt:99;
+  });
+  ok('S7 오답 평균 편집거리 2.5 이하',far<=2.5,String(Math.round(far*100)/100));
+
+  /* ④ 소리 모드 — 읽기 1글자 차이 / 자타동사 짝 */
+  const o5=await p.evaluate(()=>stMkOpts(stWordById('s4'),'r2m',stDrillPool('r2m')));
+  ok('S8 읽기 1글자 차이 단어의 뜻이 오답으로 온다',
+     ['비','발','내일'].some(x=>o5.indexOf(x)>=0),JSON.stringify(o5));
+  const pair=await p.evaluate(()=>stPairWords(stWordById('s8'),stDrillPool('r2m')).map(x=>x.id));
+  ok('S9 자·타동사 짝을 찾는다',pair.indexOf('s9')>=0,JSON.stringify(pair));
+  const o6=await p.evaluate(()=>stMkOpts(stWordById('s8'),'r2m',stDrillPool('r2m')));
+  ok('S10 자·타동사 짝의 반대쪽 뜻이 보기에 들어간다',o6.indexOf('일으키다')>=0,JSON.stringify(o6));
+
+  /* ⑤ 전 모드 4지선다 고정 — 입력칸이 없다 */
+  await p.evaluate(()=>stDrillStart('k2r',4));await p.waitForTimeout(350);
+  ok('S11 입력칸이 없다',(await p.$$('#v-study #stdAns')).length===0);
+  ok('S12 보기 버튼 4개',(await p.$$('#v-study .stdopt button')).length===4);
+  ok('S13 직접입력 토글이 사라졌다',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('직접입력')<0);
+
+  /* ⑥ 「모르겠다」 — 오답과 동일 처리. 찍기 제거가 목적 */
+  const before=await p.evaluate(()=>{const w=stWordById(ST_DRILL.ids[0]);return {m:+w.miss||0,s:+w.streak||0};});
+  ok('S14 모르겠다 버튼이 있다',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('모르겠다')>=0);
+  await p.evaluate(()=>stDrillDunno());await p.waitForTimeout(300);
+  const after=await p.evaluate(()=>{const w=stWordById(ST_DRILL.res[0].id);return {m:+w.miss||0,s:+w.streak||0};});
+  ok('S15 모르겠다 = miss+1 · streak 0',after.m===before.m+1&&after.s===0,JSON.stringify({before,after}));
+  ok('S16 res 에 dunno 표시',(await p.evaluate(()=>ST_DRILL.res[0].dunno))===true);
+  ok('S17 오답으로 집계된다',(await p.evaluate(()=>ST_DRILL.res[0].ok))===false);
+
+  /* ⑦ drills 에 dunno 집계 */
+  for(let i=0;i<3;i++){
+    await p.evaluate(()=>stDrillNext());await p.waitForTimeout(200);
+    await p.evaluate(()=>{const w=stWordById(ST_DRILL.ids[ST_DRILL.i]);stDrillGrade(stDrillA(w,ST_DRILL.mode));});
+    await p.waitForTimeout(200);
+  }
+  await p.evaluate(()=>stDrillNext());await p.waitForTimeout(400);
+  ok('S18 drills 에 dunno 1건 기록',(await p.evaluate(()=>DB.study.drills[0].dunno))===1,
+     JSON.stringify(await p.evaluate(()=>DB.study.drills[0])));
+  ok('S19 결과 화면에 모르겠다 표시',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('모르겠다')>=0);
+  await p.evaluate(()=>stDrillClose());await p.waitForTimeout(250);
+  /* dunno 가 0 이면 키를 만들지 않는다 — 빈 서랍 금지 */
+  await p.evaluate(()=>stDrillStart('k2r',2));await p.waitForTimeout(300);
+  for(let i=0;i<2;i++){
+    await p.evaluate(()=>{const w=stWordById(ST_DRILL.ids[ST_DRILL.i]);stDrillGrade(stDrillA(w,ST_DRILL.mode));});
+    await p.waitForTimeout(200);
+    await p.evaluate(()=>stDrillNext());await p.waitForTimeout(200);
+  }
+  ok('S20 dunno 0 이면 키를 안 만든다',
+     (await p.evaluate(()=>!('dunno' in DB.study.drills[1])))===true,
+     JSON.stringify(await p.evaluate(()=>DB.study.drills[1])));
+  ok('S21 에러 0',errs.length===0,errs.join('|'));
+  ok('S22 alert 없음',dlg.length===0,dlg.join('|'));
+  await b.close();
+ }
+
+ /* ── T. 세트 크기 20 기본 · 단어 4개 미만이면 막는다 ── */
+ {
+  const W=(id,kana,kanji,ko)=>({id,lv:'N4',src:'b1:150',kana,kanji,ko,cat:'native',
+    flag:false,seen:0,miss:0,streak:0,lastSeen:null});
+  /* 단어 3개 — 4지선다를 못 만든다 */
+  {
+   const st=BASE();
+   st.study.words=[W('a1','あめ','雨','비'),W('a2','あし','足','발'),W('a3','あす','明日','내일')];
+   const {b,p,errs}=await boot(st);
+   await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(300);
+   ok('T1 4개 미만이면 시작되지 않는다',
+      (await p.evaluate(()=>{stDrillStart('k2r',3);return ST_DRILL===null;}))===true);
+   ok('T2 모드 카드가 전부 막혀 있다',
+      (await p.$$('#v-study .stdmode button:not([disabled])')).length===0);
+   ok('T3 이유를 말해준다',
+      (await p.$eval('#v-study',e=>e.textContent)).indexOf('4개 이상 필요')>=0);
+   ok('T4 에러 0',errs.length===0,errs.join('|'));
+   await b.close();
+  }
+  /* 단어 30개 — 기본 20문항 */
+  {
+   const st=BASE();
+   st.study.words=[];
+   for(let i=0;i<30;i++)st.study.words.push(W('b'+i,'かな'+i,'漢'+i,'뜻'+i));
+   st.ui.goalDate='2026-09-15'; st.ui.dailyTab='study';
+   const {b,p,errs}=await boot(st);
+   await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(300);
+   ok('T5 기본 세트는 20문항',
+      (await p.evaluate(()=>{stDrillStart('k2r');return ST_DRILL.ids.length;}))===20);
+   await p.evaluate(()=>stDrillClose());await p.waitForTimeout(250);
+   ok('T6 20문항 시작 버튼이 있다',
+      (await p.$eval('#v-study',e=>e.textContent)).indexOf('20문항 시작')>=0);
+   await p.click('.m[data-v="daily"]');await p.waitForTimeout(500);
+   ok('T7 데일리 진입점도 20문항',
+      (await p.$eval('#v-daily',e=>e.textContent)).indexOf('20문항')>=0);
+   ok('T8 에러 0',errs.length===0,errs.join('|'));
+   await b.close();
+  }
  }
 
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));

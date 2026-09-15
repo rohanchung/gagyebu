@@ -144,8 +144,6 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .stdopt button{padding:12px 8px;font-size:17px;border:1px solid var(--line);border-radius:10px;
   background:var(--card);cursor:pointer;font-weight:700}
 .stdopt button:hover{border-color:var(--accent)}
-.stdin{width:100%;text-align:center;font-size:20px;padding:11px;margin-top:13px;
-  border:1px solid var(--line);border-radius:10px;font-weight:700}
 .stdmark{font-size:15px;font-weight:800;margin-top:12px}
 .stdmark.ok{color:var(--pos)}
 .stdmark.no{color:var(--neg)}
@@ -3289,9 +3287,9 @@ function stDailyPane(ds){
         +'<span class="mut">— 학습 탭에서 회전</span></div>'):'')
    /* v3.2 🈶 단어 드릴 진입점 — 실행은 데일리에서 일어난다.
       ⚠️ 단어가 없으면 버튼을 띄우지 않는다 — 누르면 빈 화면이 나오는 입구는 만들지 않는다. */
-   +(stDrillPool(stdMode()).length?('<div style="margin-top:12px"><button class="btn sm" '
-      +'onclick="stDrillStart(\''+stdMode()+'\','+Math.min(stDrillPool(stdMode()).length,10)+')">🈶 단어 드릴 '
-      +Math.min(stDrillPool(stdMode()).length,10)+'문항</button> '
+   +(stDrillPool(stdMode()).length>=4?('<div style="margin-top:12px"><button class="btn sm" '
+      +'onclick="stDrillStart(\''+stdMode()+'\','+Math.min(stDrillPool(stdMode()).length,20)+')">🈶 단어 드릴 '
+      +Math.min(stDrillPool(stdMode()).length,20)+'문항</button> '
       +'<span class="mut" style="font-size:10.5px">'+stModeLabel(stdMode())+'</span></div>'):'')
    +'<div class="mut" style="font-size:10.5px;margin-top:10px">🔒 미완은 <b>자동으로 넘어가지 않는다.</b> '
    +'그날 자리에 남는다 — 밀린 게 보여야 일요일에 판정할 수 있다.</div></div>';
@@ -3548,8 +3546,10 @@ function stWordScore(w,ds){
 /* 🔒 세션 상태는 DB 에 저장하지 않는다 — 끝나면 drills 1건만 남는다.
    새로고침하면 진행 중 드릴은 사라진다(의도됨). */
 var ST_DRILL=null;
-function stdIn(){return !!(DB.ui&&DB.ui.stdIn);}          /* true = 직접입력(IME 필요) */
-function setStdIn(v){DB.ui=DB.ui||{};DB.ui.stdIn=!!v;save();renderStudy();}
+/* 🔒 v3.5 — **전 모드 4지선다.** 직접입력 토글은 없앴다(학습방 v10).
+   ① JLPT 는 전 영역이 4지선다다 — 주관식은 시험에 없는 능력을 훈련시킨다
+   ② 주 사용처가 **이동 중**이다. 20문항 타이핑은 불가능하다
+   ③ 일본어 IME 입력 부하는 학습과 무관하다 */
 /* 마지막에 고른 모드를 기억한다 — 10분 뽀모로 돌리는데 매번 두 번 누르게 하지 않는다 */
 /* 기본은 r2m — 학습방이 지목한 최대 약점이고, a2m 과 달리 TTS 없이도 항상 돈다 */
 function stdMode(){var m=DB.ui&&DB.ui.stdMode;return stModeOK(m)?m:'r2m';}
@@ -3558,6 +3558,122 @@ function setStdMode(m){DB.ui=DB.ui||{};DB.ui.stdMode=m;save();renderStudy();}
 /* 보기 4개 — ⚠️ 출제 순서는 랜덤이 아니지만 **보기 위치는 섞는다.**
    안 섞으면 정답이 항상 첫 칸이라 단어를 안 보고도 맞힌다.
    🔒 시작할 때 한 번 만들어 세션에 박는다 — 채점할 때마다 다시 섞으면 보기가 춤춘다. */
+/* ══ v3.5 오답 선택지 생성 — 학습방 v10 ══
+   🔴 **객관식의 난도는 오답이 100% 결정한다.**
+   v3.4 는 '같은 글자수 우선 → 나머지 랜덤'이었다. 실데이터 290문항 측정:
+   정답↔오답 평균 편집거리 **3.33**, **74%가 거리 3 이상** —
+   「いがく(의학)」 문제에 「おちゃ·うりば·おっと」가 떴다. 글자가 하나도 안 겹친다.
+   눈감고 맞히면 `miss` 가 안 쌓이고, 그러면 출제 가중식(v9)과 주간 판정이 통째로 죽는다.
+   🚫 **랜덤은 최후 수단이다.** */
+
+/* 편집거리 — 두 문자열이 몇 글자 다른가 */
+function stLev(a,b){
+  a=String(a||'');b=String(b||'');
+  var m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+  var cur=[],i,j,prev,tmp;
+  for(j=0;j<=n;j++)cur[j]=j;
+  for(i=1;i<=m;i++){
+    prev=cur[0]; cur[0]=i;
+    for(j=1;j<=n;j++){
+      tmp=cur[j];
+      cur[j]=Math.min(cur[j]+1,cur[j-1]+1,prev+(a.charAt(i-1)===b.charAt(j-1)?0:1));
+      prev=tmp;
+    }
+  }
+  return cur[n];
+}
+/* 청탁·반탁 짝 */
+/* 촉음 っ 뒤에 올 수 있는 글자 — か·さ·た·ぱ행 */
+var ST_SOKU='かきくけこさしすせそたちつてとぱぴぷぺぽ'.split('');
+var ST_DAKU=[['か','が'],['き','ぎ'],['く','ぐ'],['け','げ'],['こ','ご'],
+  ['さ','ざ'],['し','じ'],['す','ず'],['せ','ぜ'],['そ','ぞ'],
+  ['た','だ'],['ち','ぢ'],['つ','づ'],['て','で'],['と','ど'],
+  ['は','ば'],['ひ','び'],['ふ','ぶ'],['へ','べ'],['ほ','ぼ'],
+  ['は','ぱ'],['ひ','ぴ'],['ふ','ぷ'],['へ','ぺ'],['ほ','ぽ']];
+/* 읽기 변형 — **로한이 실제로 틀린 패턴**을 그대로 오답으로 만든다.
+   실측 오답: うでどけい→うでとけい(청탁), こくさい→こくざい(청탁), 촉음 누락.
+   ⚠️ 사전에 없는 가짜 읽기가 정답 — もんだい1 이 원래 그렇게 낸다. */
+function stKanaVariants(kana){
+  var s=String(kana||''), out=[], i, k, p;
+  if(!s)return out;
+  /* ⚠️ 청탁 변형은 **1글자에도 적용된다** — は→ば·ぱ, し→じ, け→げ.
+     실데이터에 한 글자 단어가 8건 있다(は·し·じ·ち·け·ゆ·ひ·ひ).
+     길이 2 미만을 통째로 막아 두면 그 문항만 오답이 무의미해진다. */
+  for(i=0;i<s.length;i++)for(k=0;k<ST_DAKU.length;k++){
+    p=ST_DAKU[k];
+    if(s.charAt(i)===p[0])out.push(s.slice(0,i)+p[1]+s.slice(i+1));
+    else if(s.charAt(i)===p[1])out.push(s.slice(0,i)+p[0]+s.slice(i+1));
+  }
+  /* ⚠️ 촉음은 아무 데나 안 들어간다 — っ 는 **か·さ·た·ぱ행 앞**에서만 온다.
+     무차별로 넣으면 「いぜっん」 같은 **일본어에 없는 표기**가 생기고,
+     그건 오히려 눈감고 배제된다. 쉬운 오답은 없느니만 못하다. */
+  if(s.length>=2){
+    if(s.indexOf('っ')>=0){out.push(s.replace('っ',''));out.push(s.replace('っ','つ'));}
+    else for(i=1;i<s.length;i++){
+      if(ST_SOKU.indexOf(s.charAt(i))>=0)out.push(s.slice(0,i)+'っ'+s.slice(i));
+    }
+    if(s.indexOf('う')>0)out.push(s.replace('う',''));
+  }
+  return out.filter(function(v,j,arr){return v&&v!==s&&arr.indexOf(v)===j;});
+}
+/* 편집거리가 가까운 것부터 */
+function stByLev(list,target,field,maxD){
+  var t=stNorm(target); if(!t)return [];
+  return list.map(function(x){return {x:x,d:stLev(t,stNorm(x[field]))};})
+    .filter(function(o){return o.d>0&&o.d<=(maxD||2);})
+    .sort(function(a,b){return a.d-b.d;})
+    .map(function(o){return o.x;});
+}
+/* 자·타동사 짝 — 어간이 같고 sub 가 반대. おこる↔おこす, あく↔あける.
+   🔒 이걸 오답에 넣으면 **자·타동 구분을 강제로 묻게 된다.** `sub` 필드가 이걸 가능하게 한다. */
+function stPairWords(w,cand){
+  if(w.sub!=='자동사'&&w.sub!=='타동사')return [];
+  var other=(w.sub==='자동사')?'타동사':'자동사';
+  var stem=String(w.kana||'').slice(0,2);
+  if(stem.length<2)return [];
+  return cand.filter(function(x){
+    return x.sub===other&&String(x.kana||'').slice(0,2)===stem;});
+}
+/* 모드별 오답 우선순위 — 학습방 v10 표 그대로. 앞 티어부터 채운다 */
+function stDistractors(w,mode,pool,cand){
+  var tiers=[];
+  if(mode==='k2r'){
+    /* ① 같은 한자의 다른 읽기 (開く: あく ↔ ひらく) */
+    tiers.push(cand.filter(function(x){return stNorm(x.kanji)&&stNorm(x.kanji)===stNorm(w.kanji);}));
+    /* ② 청탁·촉음·장음 변형. 실재 단어와 겹치면 뺀다 — 정답이 둘인 문항이 된다 */
+    var real={}; pool.forEach(function(x){real[stNorm(x.kana)]=1;});
+    tiers.push(stKanaVariants(w.kana).filter(function(v){return !real[stNorm(v)];})
+      .map(function(v){return {__raw:v};}));
+    /* ③ 읽기 편집거리 1~2 */
+    tiers.push(stByLev(cand,w.kana,'kana',2));
+  }else if(mode==='r2k'){
+    tiers.push(cand.filter(function(x){return stNorm(x.kana)===stNorm(w.kana);}));  /* ① 동음 */
+    tiers.push(stByLev(cand,w.kanji,'kanji',2));   /* ② 시각 유사 = 한자를 공유하거나 한 글자 차이 */
+    tiers.push(cand.filter(function(x){return x.cat&&x.cat===w.cat;}));
+  }else if(stSoundMode(mode)){
+    tiers.push(stByLev(cand,w.kana,'kana',1));     /* ① 읽기 1글자 차이 (あせ/あめ/あし/あす) */
+    tiers.push(stPairWords(w,cand));               /* ② 자타동사 짝의 반대쪽 */
+    tiers.push(cand.filter(function(x){return w.sub&&x.sub===w.sub;}));
+    tiers.push(stByLev(cand,w.kana,'kana',2));
+  }else{                                            /* k2m */
+    tiers.push(stByLev(cand,w.kanji,'kanji',2));
+    tiers.push(cand.filter(function(x){return x.cat&&x.cat===w.cat;}));
+  }
+  /* 폴백 — 같은 cat → 같은 lv → 나머지.
+     🔒 마지막 폴백도 **가까운 것부터** 쓴다. 어차피 채워야 한다면 조금이라도 헷갈리는 쪽이 낫다.
+        긴 단어(いっしゅうかん)는 편집거리 1~2 후보가 없어서 여기까지 내려온다 —
+        그때 아무거나 집으면 v3.4 와 똑같이 '눈감고 맞히는' 오답이 된다. */
+  var key=(mode==='r2k'||mode==='k2m')?'kanji':'kana';
+  var base=stNorm(key==='kanji'?w.kanji:w.kana);
+  /* ⚠️ cat·lv 를 **거리보다 앞에 두면 안 된다.** 그러면 긴 단어(いっしゅうかん)에
+     같은 cat 이라는 이유로 「あし」가 붙는다 — v3.4 와 똑같이 눈감고 맞히는 오답이다.
+     거리가 먼저고, 같은 거리끼리 cat·lv 가 같은 쪽을 앞에 둔다. */
+  tiers.push(cand.slice().sort(function(a,b){
+    var d=stLev(base,stNorm(a[key]))-stLev(base,stNorm(b[key])); if(d)return d;
+    var c=((b.cat===w.cat)?1:0)-((a.cat===w.cat)?1:0); if(c)return c;
+    return ((b.lv===w.lv)?1:0)-((a.lv===w.lv)?1:0);}));
+  return tiers;
+}
 function stMkOpts(w,mode,pool){
   var ans=stDrillA(w,mode), an=stNorm(ans), out=[ans];
   var ansSet=stAnsSet(w,mode);
@@ -3570,41 +3686,53 @@ function stMkOpts(w,mode,pool){
     if(ansSet.indexOf(stNorm(v))>=0)return false;
     if(stSoundMode(mode)&&stNorm(x.kana)===stNorm(w.kana))return false;
     return true;});
-  /* 🔒 r2k 는 **같은 읽기의 다른 한자를 보기에 먼저 넣는다** — は 에 葉·歯 를 나란히 놓는 게
-     もんだい2(표기)의 핵심 연습이다. 문제에 뜻이 붙어 있으니 정답은 그래도 하나다.
-     ⚠️ v3.3 초안은 이걸 우연에 맡겼다 — 실데이터로 찍어 보니 歯 가 보기에 없었다.
-        같은 읽기가 안 나오면 동음이의어 문항이 그냥 쉬운 문항이 된다. */
-  var homo=(mode==='r2k')
-    ? cand.filter(function(x){return stNorm(x.kana)===stNorm(w.kana);}) : [];
-  var rest=cand.filter(function(x){return homo.indexOf(x)<0;});
-  var same=rest.filter(function(x){return String(stDrillA(x,mode)).length===String(ans).length;});
-  var order=homo.concat(same, rest.filter(function(x){return same.indexOf(x)<0;}));
-  var forced=homo.length;   /* 동음이의어는 우연에 맡기지 않는다 — 앞에서부터 그대로 집는다 */
-  while(out.length<4&&order.length){
-    var i=forced>0?0:Math.floor(Math.random()*Math.min(order.length,8));
-    if(forced>0)forced--;
-    var v=stDrillA(order.splice(i,1)[0],mode);
-    if(out.map(stNorm).indexOf(stNorm(v))<0)out.push(v);
+  var tiers=stDistractors(w,mode,pool,cand), seen={};
+  seen[an]=1;
+  /* 🔒 **모든 티어를 거리순으로 통일한다.** 티어가 '어떤 종류'를 고르고,
+     그 안에서는 **가까운 것부터** 쓴다. 정렬을 빼먹은 티어가 하나라도 있으면
+     거기서 먼 오답이 새어 나온다 — 같은 `sub` 티어가 그랬고, r2m 오답의 23%가 거리 3 이상이었다. */
+  var _key=(mode==='r2k'||mode==='k2m')?'kanji':'kana';
+  var _base=stNorm(_key==='kanji'?w.kanji:w.kana);
+  var _val=function(x){return (x.__raw!==undefined)?x.__raw:x[_key];};
+  tiers=tiers.map(function(list){
+    return (list||[]).slice().sort(function(a,b){
+      return stLev(_base,stNorm(_val(a)))-stLev(_base,stNorm(_val(b)));});});
+  /* ⚠️ 한 티어가 3개를 다 먹으면 문항이 단조로워진다 —
+     변형만 셋이면 '변형 찾기' 문제가 되고, 실재 단어가 섞여야 진짜 헷갈린다.
+     그래서 **티어당 2개까지**만 쓰고 다음 티어로 넘어간다. 마지막 폴백은 제한 없음. */
+  for(var t=0;t<tiers.length&&out.length<4;t++){
+    var list=tiers[t]||[], cap=(t>=tiers.length-1)?9:2, took=0;
+    for(var i=0;i<list.length&&out.length<4&&took<cap;i++){
+      var v=(list[i].__raw!==undefined)?list[i].__raw:stDrillA(list[i],mode);
+      var nv=stNorm(v);
+      if(!nv||seen[nv])continue;
+      if(ansSet.indexOf(nv)>=0)continue;
+      seen[nv]=1; out.push(v); took++;
+    }
   }
-  for(var j=out.length-1;j>0;j--){var k=Math.floor(Math.random()*(j+1));var t=out[j];out[j]=out[k];out[k]=t;}
+  /* ⚠️ 보기 **위치**는 섞는다 — 정답이 항상 첫 칸이면 단어를 안 보고도 맞힌다.
+     단 시작할 때 한 번 만들어 세션에 박는다(채점마다 다시 섞으면 보기가 춤춘다). */
+  for(var j=out.length-1;j>0;j--){var k=Math.floor(Math.random()*(j+1));var tt=out[j];out[j]=out[k];out[k]=tt;}
   return out;
 }
+
 function stDrillStart(mode,n){
   if(!stModeOK(mode))return;
   if(mode==='a2m'&&!stTtsReady())return;   /* 소리를 못 내면 음성 모드는 시작하지 않는다 */
   var pool=stDrillPool(mode);
-  if(!pool.length)return;
-  n=Math.min(+n||10,pool.length);
+  if(pool.length<4)return;   /* 보기 4개를 못 만들면 문항이 성립하지 않는다 */
+  n=Math.min(+n||20,pool.length);   /* v3.5 — 한 세트 20문항이 기본(학습방 v10) */
   var picked=pool.slice(0,n);
   ST_DRILL={mode:mode,ids:picked.map(function(w){return w.id;}),
     opts:picked.map(function(w){return stMkOpts(w,mode,pool);}),
     i:0,res:[],show:false,fin:false,start:Date.now()};
   DB.ui=DB.ui||{};DB.ui.studyTab='word';save();renderStudy();
 }
-function stDrillGrade(my){
+/* 🔒 채점 결과를 기록하는 곳은 **여기 하나뿐이다.**
+   「모르겠다」가 따로 세면 두 곳이 같은 일을 다르게 하게 된다(원칙 2). */
+function stDrillRecord(ok,my,dunno){
   var D=ST_DRILL; if(!D||D.show||D.fin)return;
   var w=stWordById(D.ids[D.i]); if(!w)return;
-  var ok=stIsRight(w,D.mode,my);
   /* 🔒 seen·miss·lastSeen·streak 는 앱이 갱신한다(출제 알고리즘이 이걸 읽는다).
      v3.4 — 로버트(학습) v9 확정: **연속 2회 정답이면 miss 를 1 깎는다.**
      v3.3 까지는 miss 가 누적이라 3번 틀린 단어가 10번 맞혀도 1순위에 영구히 박혔다.
@@ -3617,10 +3745,20 @@ function stDrillGrade(my){
     w.miss=(+w.miss||0)+1; w.streak=0;
   }
   w.seen=(+w.seen||0)+1; w.lastSeen=todayStr();
-  D.res.push({id:w.id,my:String(my||''),ok:ok});
+  var r={id:w.id,my:String(my||''),ok:ok};
+  if(dunno)r.dunno=true;
+  D.res.push(r);
   D.show=true; save(); renderStudy();
 }
-function stDrillType(){var el=document.getElementById('stdAns');stDrillGrade(el?el.value:'');}
+function stDrillGrade(my){
+  var D=ST_DRILL; if(!D||D.show||D.fin)return;
+  var w=stWordById(D.ids[D.i]); if(!w)return;
+  stDrillRecord(stIsRight(w,D.mode,my),my,false);
+}
+/* 「모르겠다」 — 5번째 선택지가 아니라 **별도 버튼**이다.
+   🔒 처리는 오답과 완전히 같다(`miss+1`, `streak=0`). **목적은 찍기 제거다** —
+      찍어서 맞히면 `miss` 가 안 쌓이고, 그러면 약점 탐지가 죽는다. */
+function stDrillDunno(){stDrillRecord(false,'',true);}
 function stDrillNext(){
   var D=ST_DRILL; if(!D)return;
   D.show=false; D.i++;
@@ -3631,9 +3769,13 @@ function stDrillFinish(){
   var D=ST_DRILL; if(!D||D.fin)return;
   if(!D.res.length){ST_DRILL=null;return renderStudy();}
   var wrong=D.res.filter(function(r){return !r.ok;});
-  studyDB().drills.push({id:uid(),date:todayStr(),mode:D.mode,n:D.res.length,
+  var dunno=D.res.filter(function(r){return r.dunno;}).length;
+  var rec={id:uid(),date:todayStr(),mode:D.mode,n:D.res.length,
     correct:D.res.length-wrong.length,wrongIds:wrong.map(function(r){return r.id;}),
-    secs:Math.round((Date.now()-D.start)/1000)});
+    secs:Math.round((Date.now()-D.start)/1000)};
+  /* ⚠️ 빈 서랍을 남기지 않는다 — 0 이면 키를 만들지 않는다 */
+  if(dunno)rec.dunno=dunno;
+  studyDB().drills.push(rec);
   logAct('🈶 단어드릴 '+stModeLabel(D.mode)+' '+(D.res.length-wrong.length)+'/'+D.res.length);
   D.fin=true; save(); renderStudy();
 }
@@ -3676,29 +3818,21 @@ function stDrillRun(){
         +'onclick="stSpeak('+JSON.stringify(String(w.kana)).replace(/"/g,'&quot;')+')">🔊 다시 듣기</button></div>':'')
       +'<div style="margin-top:12px"><button class="btn" onclick="stDrillNext()">'
         +(D.i+1>=D.ids.length?'결과 보기':'다음 →')+'</button></div>';
-  }else if(D.mode==='a2m'&&!stdIn()&&D.opts[D.i].length>=2){
-    /* 🔊 음성 모드 — 글자가 없다. 소리만 듣고 뜻을 고른다. 청해는 한 번에 안 들리니 반복 버튼은 필수 */
-    body='<div style="margin:6px 0 2px"><button class="btn" onclick="stSpeakCur()">🔊 다시 듣기</button></div>'
+  }else{
+    /* 🔊 음성 모드는 글자가 없다. 청해는 한 번에 안 들리니 반복 버튼은 필수 */
+    body=(D.mode==='a2m'?'<div style="margin:6px 0 2px"><button class="btn" onclick="stSpeakCur()">🔊 다시 듣기</button></div>':'')
       +'<div class="stdopt">'+D.opts[D.i].map(function(o){
         return '<button onclick="stDrillGrade('+JSON.stringify(String(o)).replace(/"/g,'&quot;')+')">'
-          +mdEsc(o)+'</button>';}).join('')+'</div>';
-  }else if(stdIn()||D.opts[D.i].length<2){
-    body=(D.mode==='a2m'?'<div style="margin:6px 0 2px"><button class="btn" onclick="stSpeakCur()">🔊 다시 듣기</button></div>':'')
-      +'<input class="stdin" id="stdAns" autocomplete="off" placeholder="'
-      +(D.mode==='k2r'?'히라가나로':D.mode==='r2k'?'한자로':'뜻')+'" onkeydown="if(event.key===\'Enter\')stDrillType()">'
-      +'<div style="margin-top:10px"><button class="btn" onclick="stDrillType()">채점</button></div>';
-  }else{
-    body='<div class="stdopt">'+D.opts[D.i].map(function(o){
-      return '<button onclick="stDrillGrade('+JSON.stringify(String(o)).replace(/"/g,'&quot;')+')">'
-        +mdEsc(o)+'</button>';}).join('')+'</div>';
+          +mdEsc(o)+'</button>';}).join('')+'</div>'
+      /* 🔒 「모르겠다」는 5번째 선택지가 아니라 별도 버튼이다 — 찍기를 없애려고 둔다 */
+      +'<div style="margin-top:11px"><button class="ghost sm" onclick="stDrillDunno()">모르겠다</button>'
+      +'<div class="mut" style="font-size:10px;margin-top:4px">찍지 마라 — 찍어서 맞히면 약점이 안 보인다</div></div>';
   }
   var hint=stDrillHint(w,D.mode);
   return '<div class="sec">'
    +'<div class="row" style="padding:0 0 9px"><span class="subhd2">🈶 '+stModeLabel(D.mode)
      +' <span class="mut">'+(D.i+1)+'/'+D.ids.length+'</span></span>'
-     +'<span><button class="ghost sm" onclick="setStdIn('+(stdIn()?'false':'true')+')">'
-       +(stdIn()?'⌨ 직접입력':'☰ 4지선다')+'</button> '
-     +'<button class="ghost sm" onclick="stDrillQuit()">그만</button></span></div>'
+     +'<span><button class="ghost sm" onclick="stDrillQuit()">그만</button></span></div>'
    +bar
    +'<div class="stdq"><div class="stdk">'
      +(D.mode==='a2m'?'🔊':mdEsc(stDrillQ(w,D.mode)))
@@ -3709,17 +3843,20 @@ function stDrillRun(){
    +'<div class="mut" style="font-size:10.5px">출제 순서 = <b>틀린 횟수×10 + 체크 3 + 안 본 날수(최대 7)</b>. 랜덤이 아니다.'
    +(D.mode==='r2k'?' · 뜻을 같이 보여주는 이유: <b>동음이의어</b>(は→葉·歯)는 뜻 없이는 정답이 하나로 안 정해진다.':'')
    +(D.mode==='a2m'?' · 🔴 <b>읽히는 건 히라가나다</b> — 한자를 읽히면 開く 를 ひらく 로 읽어 틀린 발음을 외운다.':'')
-   +(stKoMode(D.mode)&&stdIn()?' · 뜻은 <b>복수 뜻 중 하나만</b> 맞아도 정답이다.':'')+'</div></div>';
+   +'</div></div>';
 }
 /* ── 결과 화면 ── */
 function stDrillResult(){
   var D=ST_DRILL, n=D.res.length, ok=D.res.filter(function(r){return r.ok;}).length;
   var secs=Math.round((Date.now()-D.start)/1000);
   var wrong=D.res.filter(function(r){return !r.ok;});
+  var dunno=D.res.filter(function(r){return r.dunno;}).length;
   return '<div class="sec"><div class="bkhd"><span class="subhd2">🈶 '+stModeLabel(D.mode)+' 결과</span>'
-   +'<span class="mut" style="font-size:10.5px">'+Math.floor(secs/60)+'분 '+(secs%60)+'초</span></div>'
+   +'<span class="mut" style="font-size:10.5px">'+Math.floor(secs/60)+'분 '+(secs%60)+'초'
+   +(n?' · 문항당 '+(Math.round(secs/n*10)/10)+'초':'')+'</span></div>'
    +'<div class="stbig '+(ok===n?'pos':(ok*2<n?'neg':''))+'">'+ok+'/'+n
      +' <span class="mut">'+Math.round(ok/n*100)+'%</span></div>'
+   +(dunno?('<div class="mut" style="font-size:11px;margin-top:-4px">그중 <b>모르겠다</b> '+dunno+'개 — 찍지 않은 만큼 약점이 정확히 잡혔다</div>'):'')
    +(wrong.length?('<div class="stsub neg">틀린 것 '+wrong.length+'개</div>'
      +wrong.map(function(r){var w=stWordById(r.id)||{};
        return '<div class="stdrow"><span><b>'+mdEsc(stDrillQ(w,D.mode))+'</b> '
@@ -3749,19 +3886,23 @@ function stPaneWord(){
   var modes='<div class="stdmode">'+ST_MODES.filter(function(m){
       return !(m.tts&&!tts);
     }).map(function(m){
-    var n=stDrillPool(m.k).length, on=n>0;
+    /* 🔒 4지선다는 보기가 4개 나와야 성립한다 — 단어가 4개 미만이면 모드를 막는다 */
+    var n=stDrillPool(m.k).length, on=n>=4;
     return '<button class="'+(on?(cur===m.k?'on':''):'off')+'"'
-      +(on?' onclick="setStdMode(\''+m.k+'\')"':' disabled title="이 모드로 낼 단어가 없다"')+'>'
-      +'<b>'+(m.tts?'🔊 ':'')+m.label+'</b><span class="mut">'+m.hint+' · '+(on?n+'개':'0개')+'</span></button>';}).join('')
+      +(on?' onclick="setStdMode(\''+m.k+'\')"':' disabled title="'+(n?'단어가 '+n+'개뿐이라 4지선다를 못 만든다':'이 모드로 낼 단어가 없다')+'"')+'>'
+      +'<b>'+(m.tts?'🔊 ':'')+m.label+'</b><span class="mut">'+m.hint+' · '+(on?n+'개':n+'개 · 4개 이상 필요')+'</span></button>';}).join('')
     +'</div>'
     +(tts?'':'<div class="mut" style="font-size:10.5px;margin:-4px 0 10px">'
       +'🔊 음성 모드는 이 기기에 <b>일본어 음성이 없어</b> 숨겼다. '
       +'윈도우 설정 → 시간 및 언어 → 음성에서 일본어 음성을 추가하면 나타난다.</div>');
   var pool=stDrillPool(cur).length;
   /* 모드를 고르고 → 문항 수를 누르면 시작. 모드는 기억되니 다음부터는 한 번만 누른다. */
-  var start=pool
+  /* 한 세트 **20문항 · 문항당 5초**가 목표다(학습방 v10). 20 을 앞에 둔다 */
+  var sizes=[20,40,10].filter(function(n){return n<=pool;});
+  if(!sizes.length&&pool>=4)sizes=[pool];
+  var start=sizes.length
     ? '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:4px">'
-      +[10,20,40].filter(function(n){return n<=pool;}).concat(pool<10?[pool]:[]).map(function(n){
+      +sizes.map(function(n){
         return '<button class="btn sm" onclick="stDrillStart(\''+cur+'\','+n+')">'+n+'문항 시작</button>';}).join(' ')
       +'<span class="mut" style="font-size:10.5px">'+stModeLabel(cur)+'</span></div>'
     : '';
@@ -3787,9 +3928,7 @@ function stPaneWord(){
    +'<div class="sec"><div class="bkhd"><span class="subhd2">🈶 단어 <span class="mut">'
      +ws.length+'개 · 책 체크 '+flag+' · 미출제 '+fresh
      +(subKeys.length?' · '+subKeys.map(function(k){return mdEsc(k)+' '+subN[k];}).join('·'):'')
-     +'</span></span>'
-     +'<button class="ghost sm" onclick="setStdIn('+(stdIn()?'false':'true')+')">'
-     +(stdIn()?'⌨ 직접입력':'☰ 4지선다')+'</button></div>'
+     +'</span></span></div>'
      +empty+modes+start+'</div>'
    +(hot.length?('<div class="sec"><div class="bkhd"><span class="subhd2">자주 틀리는 단어</span>'
      +'<span class="mut" style="font-size:10.5px">miss 3회↑ 는 로버트가 오답노트로 승격</span></div>'
@@ -3821,9 +3960,6 @@ function renderStudy(){
     +'<button class="'+(t==='rec'?'on':'')+'" onclick="setStTab(\'rec\')">📝 기록</button></div>';
   document.getElementById('v-study').innerHTML=tabs
     +(t==='err'?stPaneErr():t==='rec'?stPaneRec():t==='word'?stPaneWord():stPaneHome());
-  /* 직접입력 모드는 칸에 커서를 넣어준다 — 매 문항 마우스로 클릭하면 10분 뽀모가 안 된다 */
-  if(t==='word'&&ST_DRILL&&!ST_DRILL.fin&&!ST_DRILL.show)setTimeout(function(){
-    var el=document.getElementById('stdAns'); if(el)el.focus();},0);
   /* 🔊 음성 문항은 **뜨면 한 번 읽어준다** — 매 문항 버튼을 눌러야 하면 문항이 성립하지 않는다.
      ⚠️ 문항당 1회만. 채점 후 다시 그릴 때 또 읽으면 시끄럽다(다시 듣기는 버튼으로). */
   if(t==='word'&&ST_DRILL&&!ST_DRILL.fin&&!ST_DRILL.show&&ST_DRILL.mode==='a2m'){
@@ -6290,13 +6426,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.4';
+var APP_VERSION='3.5';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'3.5',date:'2026-09-15',note:"<b>🎯 오답 선택지 전면 교체 · 전 모드 4지선다 고정 · 「모르겠다」 버튼.</b> 로버트(학습) v10 반영 · 🔴 <b>[결함] 오답의 74%가 무의미했다.</b> v3.4 까지 오답은 <b>같은 글자수 우선 → 나머지 랜덤</b>이었다. 실데이터 290문항 측정: 정답↔오답 <b>평균 편집거리 3.33</b>, <b>거리 3 이상이 74%</b> — 「いがく(의학)」 문제에 「おちゃ·うりば·おっと」가 떴다. <b>글자가 하나도 안 겹치면 눈감고 맞힌다.</b> 그러면 정답률이 부풀고 <code>miss</code> 가 안 쌓여서 <b>출제 가중식(v9)과 주간 판정이 통째로 죽는다</b> · 🔒 <b>객관식의 난도는 오답이 100% 결정한다</b> — 모드별로 오답을 골라낸다: <code>k2r</code> ① 같은 한자의 다른 읽기(開く: あく↔ひらく) ② <b>청탁·촉음·장음 변형을 생성</b>(うでどけい→うでとけい, こくさい→こくざい — 실제로 틀린 패턴이다) ③ 읽기 편집거리 1~2 / <code>r2k</code> ① 동음 레코드 ② 한자 편집거리 ③ 같은 <code>cat</code> / <code>r2m</code>·<code>a2m</code> ① 읽기 1글자 차이 단어의 뜻(あせ/あめ/あし/あす) ② <b>자·타동사 짝의 반대쪽 뜻</b>(おこる 일어나다 ↔ おこす 일으키다) ③ 같은 <code>sub</code> / <code>k2m</code> 한자 편집거리 · ⚠️ 생성한 변형이 <b>실재 단어와 겹치면 뺀다</b> — 정답이 둘인 문항이 된다 · 🚫 <b>랜덤은 최후 수단</b>(같은 cat → 같은 lv → 나머지) · ⌨ <b>직접입력 토글 삭제 — 전 모드 4지선다.</b> ① JLPT 는 전 영역이 4지선다고 주관식은 시험에 없는 능력을 훈련시킨다 ② 주 사용처가 이동 중이라 20문항 타이핑이 불가능하다 ③ IME 입력 부하는 학습과 무관하다. 옛 <code>ui.stdIn</code> 은 빈 서랍이라 지운다 · ❓ <b>「모르겠다」 버튼 신설</b> — 5번째 선택지가 아니라 별도 버튼이고 <b>처리는 오답과 완전히 같다</b>(<code>miss+1</code>, <code>streak=0</code>). <b>목적은 찍기 제거다</b> — 찍어서 맞히면 miss 가 안 쌓여 약점 탐지가 죽는다. 결과 화면에 몇 개를 모른다고 했는지 따로 보여준다 · 🔒 채점 기록은 <code>stDrillRecord()</code> <b>한 곳</b>에서만 한다 — 「모르겠다」가 따로 세면 두 곳이 같은 일을 다르게 한다(원칙 2) · <b>한 세트 20문항 기본</b>(문항당 5초 목표). 시작 버튼 20·40·10 순, 데일리 진입점도 20 · 🔒 단어가 <b>4개 미만인 모드는 막는다</b> — 보기 4개를 못 만들면 문항이 성립하지 않는다 · <code>drills</code> 에 <code>dunno</code> 집계 추가(0 이면 키를 안 만든다) · 결과 화면에 <b>문항당 소요초</b> 표시 · t42 S 블록 신설"},
   {v:'3.4',date:'2026-09-11',note:"<b>🔊 음성 모드 · 모드 6개 재정의 · 출제 가중치 확정.</b> 로버트(학습) v8·v9 반영 · 🔴 <b><code>w2m</code>(단어→뜻) 폐기.</b> 한자가 보이면 한국어 한자음으로 찍히고 그게 <b>안다는 착각</b>을 만든다. 로한 자가보고: <i>\"한자 보고 뜻은 쉽고 히라가나 보고 뜻이 어렵다.\"</i> <b>청해 60점(과락 19)은 전부 소리라 한자가 안 보인다</b> → <code>r2m</code>(히라가나→뜻)·<code>k2m</code>(한자→뜻)으로 쪼개고 맨 위에 <code>a2m</code>(음성→뜻)을 뒀다. 기본 모드도 k2r → <b>r2m</b> 으로 바꿨다 · 🔊 <b>음성은 브라우저 내장 <code>speechSynthesis</code></b> — 외부 API·음원파일·키 없다. 🔴 <b>읽히는 건 언제나 <code>kana</code> 다</b>: <code>開く</code> 를 넣으면 <code>あく</code> 가 아니라 <code>ひらく</code> 로 읽어 <b>틀린 발음을 외우게 된다</b>(p157 에 실제로 있다). 🔒 일본어 음성이 없는 기기에서는 <b>카드 자체를 그리지 않고</b> 왜 없는지·어떻게 추가하는지 한 줄로 알린다. <code>getVoices()</code> 가 첫 호출에 빈 배열을 주는 문제는 <code>onvoiceschanged</code> 에서 다시 그려 해결. 반복 재생 버튼 필수(청해는 한 번에 안 들린다) · ⚠️ 고저 악센트는 신뢰하지 마라. 단어 발음 ≠ 청해 — 교재 2권 음원이 본체고 이건 보조다 · 🔴 <b>[결함] 소리로 뜻을 묻는 모드에서 동음이의어는 정답이 둘이다.</b> 실데이터 313건에 5쌍 — <code>おる</code>(있다·겸양 / 접다), <code>おこる</code>(일어나다 / 화내다), <code>おりる</code>, <code>は</code>, <code>ちゅうしゃ</code>. 하나만 정답으로 치면 <b>맞는 답이 오답으로 기록되고, miss 가 올라가고, 출제 알고리즘이 그 문제를 계속 낸다</b> — 틀릴 수밖에 없는 문제가 반복된다 → <b>같은 읽기의 모든 뜻을 정답으로 인정</b>하고, <b>4지선다 보기에서는 같은 읽기 단어를 뺀다</b>(보기 두 개가 다 정답이 되므로). 정답 화면에 \"같은 읽기 — ○○ 도 정답\"을 띄운다. ⚠️ k2r·r2k 는 확장하지 않는다 — 한자가 정답을 하나로 고정한다(kanji 중복 0건) · ⚖️ <b>출제 가중치 확정</b>(학습방 v9): <code>score = miss×10 + (flag?3:0) + min(안 본 날수, 7)</code>, 동점이면 <code>seen</code> 적은 순. <b>lastSeen 결합이 핵심</b> — miss 만으로 정렬하면 <code>miss=0</code> 단어가 영영 안 나온다. miss 가 내려갈수록 경과일이 정렬을 주도해 <b>자연히 순환</b>한다 · ✅ <b><code>streak</code> 신설 — 연속 2회 정답이면 <code>miss</code> 를 1 깎는다.</b> v3.3 까지는 miss 가 누적이라 <b>3번 틀린 단어가 10번 맞혀도 1순위에 영구히 박혔다.</b> 리셋이 아니라 점진 하향이라(3번 틀리면 6번 연속 정답에 0) '어려웠던 단어' 이력이 남는다. <code>errors.cleared</code>(2연속) 와 같은 원리 · 🈶 <b><code>sub</code> 필드</b>(존경어·겸양어·자동사·타동사) — 개수를 상단에 세고 정답 화면에 배지로 띄운다. 앱이 만들지 않는다, 학습방이 채운다 · 정답 화면에 <b>읽기·한자·뜻을 전부</b> 보여준다(소리로 맞혔어도 표기를 같이 봐야 남는다) + 🔊 다시 듣기 + 누적/연속 표시 · t42 P~R 블록 신설"},
   {v:'3.3',date:'2026-09-11',note:"<b>🈶 단어 드릴 4모드 완성 — r2k·kata·w2m 신설.</b> 학습방이 p150~156 단어 <b>284건</b>을 올려서 실데이터로 만들었다(v3.2 는 k2r 만) · ⚠️ <b>r2k(히라가나→한자)는 뜻을 같이 보여준다.</b> 실데이터에 동음이의어가 있다 — <code>は</code>→葉·歯, <code>ちゅうしゃ</code>→注射·駐車. 뜻이 없으면 <b>정답이 하나로 안 정해지고 보기 두 개가 다 맞는 문항</b>이 된다. 시험 もんだい2 는 문맥 문장이 그 역할을 하는데 앱엔 문맥이 없으니 뜻이 그 자리를 메운다 · 🔒 <b>가타카나 판정을 <code>cat</code> 필드에서 파생으로 바꿨다.</b> 업로드된 284건은 <code>cat</code> 이 sino·native 뿐이고 katakana 가 <b>0건</b>이었다 — 필드를 믿었으면 kata 모드가 이유도 모르게 빈 화면이었다. 이제 <code>kana</code> 의 문자 범위로 판정한다. 파생 가능한 건 저장에 의존하지 않는다 · ⚠️ <b>뜻 답은 복수 뜻 중 하나만 맞아도 정답.</b> 284건 중 <b>46건</b>이 \"사이, 동안\" 처럼 쉼표로 들어온다 — 전체 문자열 비교로 채점하면 <b>아는 단어를 틀렸다고 한다.</b> 4지선다는 보기 전체 문자열, 직접입력은 쉼표로 쪼개 하나만 맞으면 정답 · 한자 없는 순가나 단어 14건은 k2r·r2k 에서 자동 제외(<code>あいさつ</code> 등) · <b>모드 선택 → 문항 수(10·20·40)</b> 2단계로 바꾸고 <b>고른 모드를 기억한다</b> — 10분 뽀모로 돌리는데 매번 두 번 누르게 하지 않는다. 데일리 진입점도 기억된 모드로 시작한다 · 🔒 <b>pool 0 인 모드는 누를 수 없다</b> — 가타카나는 현재 0건이고, 데이터가 들어오면 저절로 켜진다 · w2m 은 시험에 직접 안 나오니 순위는 여전히 최하위지만 기반 회상용으로 둔다 · t42 N·O 블록 신설"},
   {v:'3.2',date:'2026-09-11',note:"<b>🈶 단어 드릴(k2r) 신설 · ⚠️ [결함] study 빈 서랍 · 주 경계 키 수정.</b> 로버트(학습) 기획서 v7 PART 2 · ⚠️ <b>[결함] 존재 보장이 두 곳에 있었다.</b> <code>studyDB()</code> 주석은 '여기 한 곳에서만'인데 <code>migrateV6</code> 가 매 로드마다 <code>study.plan</code>·<code>study.cfg.target</code> 을 <b>되살렸다.</b> studyDB 는 <code>v!==1</code> 일 때만 지우니까 영원히 못 지웠고, v3.0 에서 버린 옛 구조가 실 DB 에 <code>cfg:{target:{}}</code>·<code>plan:{}</code> 로 남아 있었다 — 원칙 2·5 동시 위반 · ⚠️ <b>[결함] 주간 키가 월요일이었다.</b> <code>weekStart()</code> 는 일요일 기준이라 <code>week[2026-09-07]</code> 은 <b>어느 주에도 안 걸렸다</b> — 주간 판정이 빈 주를 보고 있었다. <code>2026-09-06</code> 으로 이전 · <code>verdict.rate</code> 삭제 — 완료율은 <code>unitIds</code> 중 done 비율에서 파생한다. 저장하면 두 화면이 다른 숫자를 낸다(v2.11 총부채 결함과 같은 유형) · 🈶 <b>단어 드릴 — k2r(한자→히라가나)부터.</b> 시험 もんだい1(한자읽기)에 직접 대응한다 · 🚫 <b>랜덤 금지</b> — 랜덤이면 아는 단어만 계속 나온다. 출제 순서는 <b>miss 많은 것 → 책에 체크한 것(flag) → 오래 안 본 것</b> · 보기 <b>위치는 섞는다</b> — 정답이 항상 첫 칸이면 단어를 안 보고도 맞힌다. 단 시작할 때 한 번 만들어 세션에 박는다(채점마다 다시 섞으면 보기가 춤춘다) · ⌨ 4지선다 ↔ 직접입력 토글 — IME 없이도 돌아가야 한다 · 🔒 <b>드릴 오답을 오답노트로 바로 밀지 않는다</b> — 하루 20문항이면 며칠 만에 오답노트가 무용지물이 된다. <code>miss>=3</code> 만 로버트가 승격한다 · ⚠️ <b>단어 데이터는 일괄 입력하지 않는다</b> — 교재 페이지 사진을 로버트가 받아 append 한다. 진도와 어긋난 N5·N4 1500개는 쓸모가 없고 그 작업이 9~10월을 먹는다 · 드릴 진입점을 <b>데일리 학습 탭에도</b> 뒀다 — 실행은 데일리에서 일어난다. ⚠️ 단어가 0개면 버튼을 띄우지 않는다(빈 화면이 나오는 입구는 만들지 않는다) · r2k·kata·w2m 은 버튼만 회색으로 남기고 <b>누를 수 없게</b> 했다 · 🔒 진행 중 드릴은 DB 에 저장하지 않는다 — 끝나면 <code>drills</code> 1건만 남는다"},
@@ -7482,6 +7619,8 @@ function migrateV6(d){
   if(!d.netSnapshots)d.netSnapshots=[];
   /* v2.5 🍚 식사 기록. 날짜키 맵 — checks·timelog 와 같은 모양이다. */
   if(!d.meals)d.meals={};
+  /* v3.5 — 직접입력 토글을 없앴다. 남은 키는 빈 서랍이므로 지운다(원칙 5) */
+  if(d.ui&&d.ui.stdIn!==undefined)delete d.ui.stdIn;
   /* v3.2 🎓 학습 — 🔒 존재 보장은 studyDB() 한 곳에서만 한다. 여기선 아무것도 만들지 않는다.
      ⚠️ [결함] v3.1까지 여기서 d.study.plan / d.study.cfg.target 을 **매 로드마다 되살렸다.**
         studyDB() 는 v!==1 일 때만 지우니까 영원히 못 지웠다 —
