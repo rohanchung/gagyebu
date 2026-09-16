@@ -271,23 +271,29 @@ async function boot(st){
        ④ 진행 중 세션은 DB 에 저장되지 않는다 — 끝나면 drills 1건만 남는다 */
  {
   const W=(id,kana,kanji,ko,cat,flag,seen,miss,last)=>
-    ({id,lv:'N4',src:'b1:155',kana,kanji,ko,cat,flag,seen,miss,lastSeen:last});
+    ({id,lv:'N4',src:'b1:155',kana,kanji,ko,cat,flag,seen,miss,streak:0,lastSeen:last});
+  const ago=(n)=>{const d=new Date(Date.now()-n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const st=BASE();
   st.study.words=[
-   W('w1','にもつ','荷物','짐','sino',true,0,0,null),
-   W('w2','あんぜん','安全','안전','sino',false,5,3,'2026-09-09'),
-   W('w3','はなび','花火','불꽃놀이','native',true,2,1,'2026-09-08'),
-   W('w4','ほうりつ','法律','법률','sino',false,1,0,'2026-09-07'),
-   W('w5','こくさい','国際','국제','sino',false,0,0,null),
-   W('w6','あせ','汗','땀','native',false,3,0,'2026-09-10')];
+   /* ⚠️ v3.6 — 미출제(seen 0)는 100점 + 동점 랜덤이라 **순서가 안 정해진다.**
+      순서를 검증하는 픽스처는 전부 seen>0 · lastSeen 제각각으로 둬야 결정적이 된다. */
+   W('w1','にもつ','荷物','짐','sino',true,4,0,ago(3)),
+   W('w2','あんぜん','安全','안전','sino',false,5,3,ago(1)),
+   W('w3','はなび','花火','불꽃놀이','native',true,2,1,ago(2)),
+   W('w4','ほうりつ','法律','법률','sino',false,1,0,ago(5)),
+   W('w5','こくさい','国際','국제','sino',false,6,0,ago(4)),
+   W('w6','あせ','汗','땀','native',false,3,0,ago(0))];
   const {b,p,errs,dlg}=await boot(st);
   ok('K1 탭 4개',(await p.$$('#v-study .logtabs button')).length===4);
   await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(350);
   const wtxt=await p.$eval('#v-study',e=>e.textContent);
   ok('K2 단어 수·체크 수 표시',wtxt.indexOf('6개')>=0&&wtxt.indexOf('책 체크 2')>=0,wtxt.slice(0,160));
-  /* ① 🚫 랜덤 금지 — 순서가 고정이어야 한다 */
-  ok('K3 출제 순서 = miss → flag → 오래된 것',
-     (await p.evaluate(()=>stDrillPool('k2r').map(w=>w.id).join(','))) === 'w2,w3,w1,w5,w4,w6',
+  /* ① 🚫 랜덤 금지 — 순서가 고정이어야 한다.
+     v3.6 식: miss*10 + 경과일(최대7). flag 는 0점이다 —
+     w1·w3 가 flag:true 인데도 miss 없으면 앞으로 안 온다. */
+  ok('K3 출제 순서 = miss → 오래 안 본 것 (flag 는 0점)',
+     (await p.evaluate(()=>stDrillPool('k2r').map(w=>w.id).join(','))) === 'w2,w3,w4,w5,w1,w6',
      await p.evaluate(()=>stDrillPool('k2r').map(w=>w.id).join(',')));
   /* 미구현 모드는 누를 수 없다 */
   /* v3.3 — 4모드 전부 구현됐다. 막히는 건 **낼 단어가 없는 모드**뿐이다.
@@ -296,7 +302,8 @@ async function boot(st){
      String((await p.$$('#v-study .stdmode button[disabled]')).length));
   await p.evaluate(()=>stDrillStart('k2r',3));await p.waitForTimeout(350);
   ok('K5 3문항 · 첫 문항은 miss 최다',
-     (await p.evaluate(()=>ST_DRILL.ids.join(',')))==='w2,w3,w1');
+     (await p.evaluate(()=>ST_DRILL.ids.join(',')))==='w2,w3,w4',
+     await p.evaluate(()=>ST_DRILL.ids.join(',')));
   ok('K6 보기 4개 · 정답 포함',
      (await p.evaluate(()=>ST_DRILL.opts[0].length===4&&ST_DRILL.opts[0].indexOf('あんぜん')>=0))===true,
      JSON.stringify(await p.evaluate(()=>ST_DRILL.opts[0])));
@@ -306,7 +313,7 @@ async function boot(st){
   for(const el of btn){if((await el.textContent()).trim()==='あんぜん')hit=el;}
   ok('K7 정답 버튼이 화면에 있다',!!hit);
   if(hit){await hit.click();await p.waitForTimeout(300);}
-  ok('K8 정답 → seen+1 · miss 유지 · lastSeen 오늘',
+  ok('K8 정답 → seen+1 · miss 유지(streak 1) · lastSeen 오늘',
      (await p.evaluate(()=>{const w=stWordById('w2');return w.seen===6&&w.miss===3&&w.lastSeen===todayStr();}))===true,
      JSON.stringify(await p.evaluate(()=>stWordById('w2'))));
   ok('K9 정답 표시 후엔 중복 채점 안 된다',
@@ -324,7 +331,7 @@ async function boot(st){
   ok('K12 드릴 1건 기록 · 집계 정확',
      (await p.evaluate(()=>{const d=DB.study.drills[0];
        return DB.study.drills.length===1&&d.n===3&&d.correct===1&&d.mode==='k2r'
-              &&d.wrongIds.join(',')==='w3,w1'&&d.date===todayStr()&&typeof d.secs==='number';}))===true,
+              &&d.wrongIds.join(',')==='w3,w4'&&d.date===todayStr()&&typeof d.secs==='number';}))===true,
      JSON.stringify(await p.evaluate(()=>DB.study.drills)));
   /* ③ 🔒 오답노트 홍수 방지 — 승격은 로버트가 한다 */
   ok('K13 errors 로 자동 승격되지 않는다',(await p.evaluate(()=>DB.study.errors.length))===0);
@@ -433,9 +440,10 @@ async function boot(st){
     W('t5','あめ','雨','비')];
    const {b,p,errs}=await boot(st);
    /* 🔒 cat 필드를 믿지 않는다 — kana 문자범위에서 파생한다 */
+   /* ⚠️ 순서가 아니라 **구성**을 본다 — v3.6 부터 미출제 동점은 랜덤으로 섞인다 */
    ok('N8 kata pool = 가타카나 4건 (cat 무시)',
-      (await p.evaluate(()=>stDrillPool('kata').map(w=>w.id).join(',')))==='t1,t2,t3,t4',
-      await p.evaluate(()=>stDrillPool('kata').map(w=>w.id).join(',')));
+      (await p.evaluate(()=>stDrillPool('kata').map(w=>w.id).sort().join(',')))==='t1,t2,t3,t4',
+      await p.evaluate(()=>stDrillPool('kata').map(w=>w.id).sort().join(',')));
    ok('N9 히라가나 단어는 kata 에 안 들어간다',
       (await p.evaluate(()=>stDrillPool('kata').some(w=>w.id==='t5')))===false);
    ok('N10 kata 문제는 가타카나, 정답은 뜻',
@@ -531,11 +539,15 @@ async function boot(st){
     🔴 한자를 읽히면 開く 를 ひらく 로 읽어 **틀린 발음을 외운다.** 읽히는 건 언제나 kana.
     🔒 일본어 음성이 없는 기기에서는 카드 자체를 그리지 않는다. */
  {
-  const W=(id,kana,kanji,ko)=>({id,lv:'N4',src:'b1:157',kana,kanji,ko,cat:'native',
-    flag:false,seen:0,miss:0,lastSeen:null,streak:0});
+  const W=(id,kana,kanji,ko,extra)=>Object.assign({id,lv:'N4',src:'b1:157',kana,kanji,ko,
+    cat:'native',flag:false,seen:0,miss:0,lastSeen:null,streak:0},extra||{});
   const st=BASE();
-  st.study.words=[W('v1','あく','開く','열리다'),W('v2','あける','開ける','열다'),
-    W('v3','あげる','上げる','올리다'),W('v4','いれる','入れる','넣다'),W('v5','おちる','落ちる','떨어지다')];
+  /* ⚠️ v1 이 반드시 첫 문항이어야 한다(읽힌 문자열을 검사하므로).
+     미출제 동점은 랜덤이니 seen·miss 로 순서를 못 박는다. */
+  st.study.words=[W('v1','あく','開く','열리다',{seen:3,miss:9,lastSeen:'2026-01-01'}),
+    W('v2','あける','開ける','열다',{seen:3}),
+    W('v3','あげる','上げる','올리다',{seen:3}),W('v4','いれる','入れる','넣다',{seen:3}),
+    W('v5','おちる','落ちる','떨어지다',{seen:3})];
   const {b,p,errs}=await boot(st);
   await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(300);
   ok('P1 음성 없으면 a2m 시작도 안 된다',
@@ -603,14 +615,17 @@ async function boot(st){
   const today=await p.evaluate(()=>todayStr());
   const sc=await p.evaluate((d)=>{const f={};stWords().forEach(w=>f[w.id]=stWordScore(w,d));return f;},today);
   ok('Q1 miss 가 10배로 지배한다',sc.q1===30,JSON.stringify(sc));
-  ok('Q2 flag 는 3점',sc.q2===3,JSON.stringify(sc));
+  /* v3.6 — flag 가중치를 뺐다(콜드스타트 편향). V 블록이 이걸 본격적으로 잠근다 */
+  ok('Q2 flag 는 0점 (v3.6에서 제거)',sc.q2===0,JSON.stringify(sc));
   ok('Q3 안 본 날수는 7에서 멈춘다',sc.q3===7,JSON.stringify(sc));
   ok('Q4 lastSeen 이 null 이면 7',sc.q4===7&&sc.q5===7,JSON.stringify(sc));
   const order=await p.evaluate(()=>stDrillPool('r2m').map(w=>w.id).join(','));
-  /* q1(30) → 7점 동점 3건은 seen 적은 순(q4:1 → q3:5 → q5:9) → q2(3) */
-  ok('Q5 정렬 = score 내림 → seen 오름',order==='q1,q4,q3,q5,q2',order);
+  /* ⚠️ q4·q5 는 `lastSeen:null` 이지만 `seen>0` 이라 **미출제가 아니다** — 100점을 못 받는다.
+     미출제 판정은 `seen==0` 이다. lastSeen 이 null 이면 경과일만 최대(7)로 잡힌다.
+     q1=30 / q4·q3·q5=7(동점 → seen 오름: 1,5,9) / q2=0 */
+  ok('Q5 정렬 = miss → 경과일 → seen 오름',order==='q1,q4,q3,q5,q2',order);
   /* 🔒 miss=0 단어가 영영 안 나오는 문제가 해결됐는지 — 경과일이 정렬을 주도한다 */
-  ok('Q6 오늘 본 단어는 뒤로 밀린다',order.indexOf('q2')>order.indexOf('q3'));
+  ok('Q6 오늘 본 flag 단어가 꼴찌로 밀린다',order.indexOf('q2')>order.indexOf('q3'));
   /* streak — 3번 틀린 단어는 6번 연속 맞혀야 0 */
   await p.evaluate(()=>stDrillStart('r2m',1));await p.waitForTimeout(300);
   ok('Q7 첫 문항은 miss 최다',(await p.evaluate(()=>ST_DRILL.ids[0]))==='q1');
@@ -834,6 +849,119 @@ async function boot(st){
    ok('T8 에러 0',errs.length===0,errs.join('|'));
    await b.close();
   }
+ }
+
+
+ /* ── U. 🔴 동기화 충돌 — 학습 데이터 유실 방지 (v3.6) ──
+    사고: `words` 96건이 **두 번** 사라졌다. 낙관적 잠금은 정상이었고,
+    충돌 확인창이 `study` 를 **비교 목록에 넣지 않아** "저쪽에만 96건"이 화면에 안 떴다.
+    로한은 잃을 게 없다고 보고 덮어쓰기를 눌렀다.
+    🔒 새 컬렉션을 만들면 SYNC_COLS 에 등록하는 것까지가 한 작업이다. */
+ {
+  const W=(id,kana,ko)=>({id,lv:'N4',src:'b1:150',kana,kanji:null,ko,cat:'native',
+    flag:false,seen:0,miss:0,streak:0,lastSeen:null});
+  const st=BASE();
+  st.study.words=[W('w1','あめ','비'),W('w2','あし','발'),W('w3','あす','내일'),W('w4','あせ','땀')];
+  const {b,p,errs}=await boot(st);
+  /* ① study 가 비교 목록에 등록돼 있는가 */
+  const cols=await p.evaluate(()=>SYNC_COLS.map(c=>c.p?c.p.join('.'):c.k));
+  ok('U1 단어가 비교 목록에 있다',cols.indexOf('study.words')>=0,JSON.stringify(cols));
+  ok('U2 문법 예문·과제·오답도 있다',
+     ['study.sents','study.units','study.errors'].every(x=>cols.indexOf(x)>=0),JSON.stringify(cols));
+  /* ② 중첩 경로를 읽는다 */
+  ok('U3 중첩 경로를 꺼낸다',
+     (await p.evaluate(()=>syncGet(DB,{p:['study','words']}).length))===4);
+  /* ③ 서버에만 있는 레코드를 흡수한다 */
+  const absorbed=await p.evaluate(()=>{
+    const srv=JSON.parse(JSON.stringify(DB));
+    srv.study.words.push({id:'w9',lv:'N4',src:'b1:158',kana:'かう',kanji:'飼う',ko:'기르다',
+      cat:'native',flag:false,seen:0,miss:0,streak:0,lastSeen:null});
+    srv.study.words.push({id:'w8',lv:'N4',src:'b1:199',kana:'そこで',kanji:null,ko:'그래서',
+      cat:'native',flag:false,seen:0,miss:0,streak:0,lastSeen:null});
+    return {n:syncAbsorb(srv),after:DB.study.words.length,ids:DB.study.words.map(w=>w.id)};
+  });
+  ok('U4 서버에만 있던 2건을 흡수한다',absorbed.n===2&&absorbed.after===6,JSON.stringify(absorbed));
+  ok('U5 흡수된 id 가 들어왔다',absorbed.ids.indexOf('w9')>=0&&absorbed.ids.indexOf('w8')>=0);
+  /* ④ 흡수 후 손실 0 — 물어볼 이유가 없다 */
+  ok('U6 흡수하면 사라질 게 없다',
+     (await p.evaluate(()=>{
+       const srv=JSON.parse(JSON.stringify(DB));
+       return syncLoss(srv);
+     }))===0);
+  /* ⑤ 앱이 지울 수 있는 배열은 흡수하지 않는다 — 삭제가 되살아나면 안 된다 */
+  ok('U7 오답은 흡수 대상이 아니다',
+     (await p.evaluate(()=>{
+       const C=SYNC_COLS.filter(c=>c.p&&c.p[1]==='errors')[0];
+       return !!(C&&!C.absorb);
+     }))===true);
+  ok('U8 단어·예문·과제는 흡수 대상이다',
+     (await p.evaluate(()=>['words','sents','units'].every(k=>{
+       const C=SYNC_COLS.filter(c=>c.p&&c.p[1]===k)[0]; return C&&C.absorb===true;})))===true);
+  /* ⑥ 진짜 사라질 게 있으면 센다 */
+  const loss=await p.evaluate(()=>{
+    const srv=JSON.parse(JSON.stringify(DB));
+    srv.study.errors.push({id:'e9',kind:'vocab',q:'서버에만',myAns:'',ans:'',note:'',hits:0,lastSeen:null,cleared:false});
+    srv.transactions.push({id:'t9',date:'2026-09-16',amt:1000});
+    return syncLoss(srv);
+  });
+  ok('U9 흡수 못 하는 손실은 센다 (오답1 + 거래1)',loss===2,String(loss));
+  /* ⑦ diff 텍스트에 경고가 들어간다 */
+  const dt=await p.evaluate(()=>{
+    const srv=JSON.parse(JSON.stringify(DB));
+    srv.study.errors.push({id:'e9',kind:'vocab',q:'서버에만있는오답',myAns:'',ans:'',note:'',hits:0,lastSeen:null,cleared:false});
+    return syncDiffText(DB,srv);
+  });
+  ok('U10 diff 에 오답이 뜬다',dt.indexOf('오답')>=0,dt.slice(0,200));
+  ok('U11 사라진다고 경고한다',dt.indexOf('덮어쓰면 사라진다')>=0,dt.slice(0,200));
+  ok('U12 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+ /* ── V. ⚖️ 출제 가중치 v12 — flag 제거 · 미출제 최우선 ──
+    실측: 313건 중 출제된 47건의 91%가 flag:true, 266건이 한 번도 안 나왔다.
+    초기엔 miss 가 전부 0이라 flag 가 유일한 차별 요소가 되어 영구히 박힌다. */
+ {
+  const W=(id,kana,ko,extra)=>Object.assign({id,lv:'N4',src:'b1:150',kana,kanji:null,ko,
+    cat:'native',flag:false,seen:0,miss:0,streak:0,lastSeen:null},extra||{});
+  const ago=(n)=>{const d=new Date(Date.now()-n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const st=BASE();
+  st.study.words=[
+   W('v1','あめ','비',{flag:true,seen:5,lastSeen:ago(0)}),      /* flag 지만 출제됨 → 0 + 0 + 0 = 0 */
+   W('v2','あし','발',{seen:0,lastSeen:null}),                   /* 미출제 → 100 + 0 + 7 = 107 */
+   W('v3','あす','내일',{miss:3,seen:9,lastSeen:ago(0)}),        /* 0 + 30 + 0 = 30 */
+   W('v4','あせ','땀',{seen:2,lastSeen:ago(10)}),                /* 0 + 0 + 7 = 7 */
+   W('v5','あく','열리다',{flag:true,seen:0,lastSeen:null})];     /* 미출제 → 107 (flag 는 0점) */
+  const {b,p,errs}=await boot(st);
+  const today=await p.evaluate(()=>todayStr());
+  const sc=await p.evaluate((d)=>{const f={};stWords().forEach(w=>f[w.id]=stWordScore(w,d));return f;},today);
+  /* 🔒 flag 가 점수에 1점도 관여하지 않는다 */
+  ok('V1 flag 는 점수에 관여하지 않는다',sc.v1===0,JSON.stringify(sc));
+  ok('V2 미출제는 100점 + 경과일 7 = 107',sc.v2===107&&sc.v5===107,JSON.stringify(sc));
+  ok('V3 miss 는 10배',sc.v3===30,JSON.stringify(sc));
+  ok('V4 경과일은 7에서 멈춘다',sc.v4===7,JSON.stringify(sc));
+  /* 🔒 미출제가 miss 3 보다 앞선다 — 커버리지가 먼저다 */
+  const order=await p.evaluate(()=>stDrillPool('r2m').map(w=>w.id));
+  ok('V5 미출제 2건이 맨 앞',['v2','v5'].indexOf(order[0])>=0&&['v2','v5'].indexOf(order[1])>=0,
+     JSON.stringify(order));
+  ok('V6 그 다음이 miss 최다',order[2]==='v3',JSON.stringify(order));
+  ok('V7 오늘 본 flag 단어가 꼴찌',order[4]==='v1',JSON.stringify(order));
+  /* 미출제 동점은 랜덤 — 같은 pool 을 여러 번 부르면 순서가 섞인다 */
+  const shuffled=await p.evaluate(()=>{
+    const runs=[];for(let i=0;i<12;i++)runs.push(stDrillPool('r2m').slice(0,2).map(w=>w.id).join(','));
+    return runs.filter((v,i,a)=>a.indexOf(v)===i).length;
+  });
+  ok('V8 미출제 동점은 랜덤으로 섞인다',shuffled>=2,String(shuffled));
+  /* 화면이 단계를 말해준다 */
+  await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(300);
+  const txt=await p.$eval('#v-study',e=>e.textContent);
+  ok('V9 커버리지 단계라고 알린다',txt.indexOf('커버리지 단계')>=0,txt.slice(0,160));
+  await p.evaluate(()=>{stWords().forEach(w=>{if(!w.seen)w.seen=1;});renderStudy();});
+  await p.waitForTimeout(300);
+  const txt2=await p.$eval('#v-study',e=>e.textContent);
+  ok('V10 다 돌면 약점 집중 단계로 바뀐다',txt2.indexOf('약점 집중 단계')>=0,txt2.slice(0,160));
+  ok('V11 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
  }
 
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));

@@ -49,28 +49,53 @@ let fail=0;const ok=(n,c,x)=>{console.log((c?'  ✓':'  ✗')+' '+n+(x?'  → '+
  ok('배지 저장됨 표시',/저장됨/.test(st.badge),JSON.stringify(st.badge));
  ok('JS 에러 0',errs.length===0,errs[0]||'');}
 
-// B) 충돌: [확인] = 덮어쓰기
+// B) 충돌인데 **잃을 게 없다** → v3.6: 묻지 않고 저장한다
+//    🔒 잃을 것이 없는데 확인창을 띄우면, 정작 잃을 게 있을 때도 같은 창이라 안 읽힌다.
+//       실제로 그래서 words 96건이 두 번 날아갔다.
 {const {p,errs,dlg}=await boot(b,FULL,'2026-08-20T00:00:00.000Z',false,d=>d.accept());
  await p.evaluate(()=>{window.__store.at='2026-08-20T09:00:00.000Z';   /* 다른 기기가 먼저 저장 */
    DB.journal.push({id:'j2',date:'2026-08-20',t:'y'});save();});
  await p.waitForTimeout(1500);
  const st=await p.evaluate(()=>({forced:window.__store.forced,dirty:SAVE_DIRTY,badge:document.getElementById('savebadge').textContent}));
- console.log('B) 충돌 → 덮어쓰기 선택');
- ok('confirm 이 떴다',dlg.some(m=>/다른 기기/.test(m)),dlg.join('|'));
- ok('강제 upsert 로 저장',st.forced===1,'forced='+st.forced);
+ console.log('B) 충돌 · 손실 0 → 안 묻고 저장');
+ ok('확인창을 띄우지 않는다',!dlg.some(m=>/다른 기기/.test(m)),dlg.join('|'));
+ ok('그래도 저장은 된다',st.forced===1,'forced='+st.forced);
  ok('저장 완료 처리',st.dirty===false&&/저장됨/.test(st.badge),st.badge);
  ok('JS 에러 0',errs.length===0,errs[0]||'');}
 
-// C) 충돌: [취소] = 새로고침 (dismiss)
+// C) 충돌 + **서버에만 있는 데이터** → 확인창이 뜨고, [취소] 면 새로고침
 {const {p,errs,dlg}=await boot(b,FULL,'2026-08-20T00:00:00.000Z',false,d=>d.dismiss());
  let reloaded=false;p.on('framenavigated',()=>{reloaded=true;});
+ /* ⚠️ 로드 시점의 서버본은 그대로 내 DB 가 된다 — 손실을 만들려면 **로드 뒤에** 서버를 바꿔야 한다 */
  await p.evaluate(()=>{window.__mark=1;window.__store.at='2026-08-20T09:00:00.000Z';
+   window.__store.v=JSON.parse(JSON.stringify(window.__store.v));
+   window.__store.v.journal=[{id:'j9',date:'2026-08-19',t:'서버에만'}];   /* 덮어쓰면 사라진다 */
    DB.journal.push({id:'j3',date:'2026-08-20',t:'z'});save();});
  await p.waitForTimeout(1800);
- console.log('C) 충돌 → 새로고침 선택');
- ok('confirm 이 떴다',dlg.some(m=>/다른 기기/.test(m)));
+ console.log('C) 충돌 · 손실 있음 → 확인창 → 새로고침');
+ ok('확인창이 뜬다',dlg.length>0,dlg.join('|'));
+ /* 🔒 경고가 **맨 위**에 와야 한다 — 아래에 묻히면 안 읽힌다(실제로 안 읽혀서 96건이 날아갔다) */
+ ok('맨 위에 사라질 건수를 숫자로 경고한다',dlg.some(m=>/^🔴 덮어쓰면 서버에만 있는 \d+건이 사라진다/.test(m)),dlg.join('|'));
  const gone=await p.evaluate(()=>typeof window.__mark==='undefined').catch(()=>true);
  ok('페이지 재로드',reloaded||gone,'nav='+reloaded+' markGone='+gone);
+ ok('JS 에러 0',errs.length===0,errs[0]||'');}
+
+// C-2) 🔴 학습 데이터는 **묻기 전에 흡수한다** — 이게 96건 유실의 수정이다
+{const SRV=JSON.parse(JSON.stringify(FULL));
+ SRV.study={v:1,words:[{id:'w9',lv:'N4',src:'b1:158',kana:'かう',kanji:'飼う',ko:'기르다',
+   cat:'native',flag:false,seen:0,miss:0,streak:0,lastSeen:null}],
+   sents:[],units:[],errors:[],tests:[],drills:[],week:{},month:{},logs:{},phases:[],books:[]};
+ const {p,errs,dlg}=await boot(b,SRV,'2026-08-20T00:00:00.000Z',false,d=>d.accept());
+ await p.evaluate(()=>{window.__store.at='2026-08-20T09:00:00.000Z';
+   DB.journal.push({id:'j4',date:'2026-08-20',t:'w'});save();});
+ await p.waitForTimeout(1600);
+ const got=await p.evaluate(()=>({
+   mine:(DB.study.words||[]).map(w=>w.id),
+   srv:((window.__store.v&&window.__store.v.study&&window.__store.v.study.words)||[]).map(w=>w.id)}));
+ console.log('C-2) 서버에만 있는 단어를 흡수한다');
+ ok('확인창 없이 지나간다 (흡수해서 손실 0)',!dlg.some(m=>/다른 기기/.test(m)),dlg.join('|'));
+ ok('내 쪽으로 흡수됐다',got.mine.indexOf('w9')>=0,JSON.stringify(got.mine));
+ ok('저장된 서버본에도 남아 있다',got.srv.indexOf('w9')>=0,JSON.stringify(got.srv));
  ok('JS 에러 0',errs.length===0,errs[0]||'');}
 
 // D) 신규 계정 (행 없음) → upsert 폴백

@@ -1065,9 +1065,62 @@ var SYNC_COLS=[
   {k:'accounts',    label:'계좌',    lab:function(x){return x.name||'';}},
   {k:'cards',       label:'카드',    lab:function(x){return x.name||'';}},
   {k:'items',       label:'재물',    lab:function(x){return x.name||'';}},
-  {k:'journal',     label:'일지',    lab:function(x){return (x.date||'')+' '+(x.title||'');}}
+  {k:'journal',     label:'일지',    lab:function(x){return (x.date||'')+' '+(x.title||'');}},
+  /* 🔴 v3.6 — study 배열이 여기 **한 건도 등록돼 있지 않았다.**
+     그래서 충돌창이 단어·예문·과제를 아예 비교하지 않았고, 화면에 "저쪽에만 96건"이 안 떴다.
+     로한은 잃을 게 없다고 보고 덮어쓰기를 눌렀고, `words` 96건이 **두 번** 사라졌다.
+     ⚠️ 반복결함 #8(반쪽 작업) — v2.7 에서 study 를 만들 때 이 목록에 넣지 않았다.
+     🔒 새 컬렉션을 만들면 **여기에 등록하는 것까지가 한 작업이다.**
+     `absorb:true` = 로버트(MCP)가 append 하고 앱은 **생성·삭제하지 않는** 배열.
+        서버에만 있는 레코드는 전부 '로버트가 방금 넣은 것'이라 무조건 흡수해도 안전하다.
+        ⚠️ `errors` 는 앱이 지울 수 있어(stErrDel) 흡수 대상이 아니다 — 흡수하면 삭제가 되살아난다. */
+  {k:'st_words', p:['study','words'],  label:'🈶 단어',      absorb:true,
+     lab:function(x){return (x.kanji||x.kana||'')+' '+(x.ko||'');}},
+  {k:'st_sents', p:['study','sents'],  label:'📝 문법 예문',  absorb:true,
+     lab:function(x){return String(x.ja||'').slice(0,18);}},
+  {k:'st_units', p:['study','units'],  label:'🎓 학습 과제',  absorb:true,
+     lab:function(x){return (x.day||'')+' '+(x.title||'');}},
+  {k:'st_errors',p:['study','errors'], label:'❌ 오답',
+     lab:function(x){return String(x.q||'').slice(0,18);}},
+  {k:'st_tests', p:['study','tests'],  label:'📊 학습 테스트',
+     lab:function(x){return (x.date||'')+' '+(x.scope||'');}},
+  {k:'st_drills',p:['study','drills'], label:'🈶 드릴 기록',
+     lab:function(x){return (x.date||'')+' '+(x.mode||'');}}
 ];
+/* 컬렉션 하나를 꺼낸다 — top-level 이면 k, 중첩이면 p 경로 */
+function syncGet(o,C){
+  if(!o)return null;
+  if(C.p){var v=o,i;for(i=0;i<C.p.length;i++){v=v&&v[C.p[i]];}return v;}
+  return o[C.k];
+}
+function syncLen(v){return (v&&v.length!==undefined)?v.length:0;}
 function syncCount(o,k){var v=o&&o[k];return (v&&v.length!==undefined)?v.length:0;}
+/* 🔒 서버에만 있는 레코드를 내 쪽으로 흡수한다. **덮어쓰기로 사라질 것을 미리 구해낸다.**
+   이걸 diff 계산 **전에** 돌려야 한다 — 그래야 충돌창에 "사라진다"고 뜨지 않는다. */
+function syncAbsorb(sdata){
+  var n=0;
+  if(!sdata||!DB)return 0;
+  SYNC_COLS.forEach(function(C){
+    if(!C.absorb)return;
+    var mine=syncGet(DB,C), srv=syncGet(sdata,C);
+    if(!Array.isArray(mine)||!Array.isArray(srv))return;
+    var have={}; mine.forEach(function(x){if(x&&x.id)have[x.id]=1;});
+    srv.forEach(function(x){ if(x&&x.id&&!have[x.id]){ mine.push(x); n++; } });
+  });
+  return n;
+}
+/* 덮어쓰면 **실제로 사라질** 레코드·날짜 수. 0 이면 물어볼 이유가 없다. */
+function syncLoss(sdata){
+  var n=0;
+  if(!sdata||!DB)return 0;
+  SYNC_COLS.forEach(function(C){
+    n+=syncDiffArr(syncGet(DB,C),syncGet(sdata,C),C.lab).del.length;
+  });
+  ['checks','timelog','meals'].forEach(function(k){
+    n+=syncDiffMap(DB[k],sdata[k]).del.length;
+  });
+  return n;
+}
 /* 배열 컬렉션: id 기준 추가·삭제·변경 */
 function syncDiffArr(mine,srv,lab){
   var A={},B={},add=[],del=[],chg=0;
@@ -1088,13 +1141,14 @@ function syncDiffText(mine,srv){
   if(!srv)return '(서버 내용을 못 읽었다 — 비교 불가)';
   var out=[], cut=function(a){return a.slice(0,3).join(' / ')+(a.length>3?' 외 '+(a.length-3)+'건':'');};
   SYNC_COLS.forEach(function(C){
-    var d=syncDiffArr(mine[C.k],srv[C.k],C.lab);
+    var mv=syncGet(mine,C), sv=syncGet(srv,C);
+    var d=syncDiffArr(mv,sv,C.lab);
     if(!d.add.length&&!d.del.length&&!d.chg)return;
     var seg=[];
     if(d.add.length)seg.push('내 쪽에만 '+d.add.length+'건 → '+cut(d.add));
-    if(d.del.length)seg.push('저쪽에만 '+d.del.length+'건 → '+cut(d.del));
+    if(d.del.length)seg.push('🔴 저쪽에만 '+d.del.length+'건 → '+cut(d.del)+'  ← 덮어쓰면 사라진다');
     if(d.chg)seg.push('양쪽 내용 다름 '+d.chg+'건');
-    out.push('· '+C.label+' ('+syncCount(mine,C.k)+' vs '+syncCount(srv,C.k)+')\n    '+seg.join('\n    '));
+    out.push('· '+C.label+' ('+syncLen(mv)+' vs '+syncLen(sv)+')\n    '+seg.join('\n    '));
   });
   [['checks','체크'],['timelog','타임로그'],['meals','식사']].forEach(function(P){
     var d=syncDiffMap(mine[P[0]],srv[P[0]]);
@@ -1113,14 +1167,30 @@ function syncConflict(stamp){
     var row=r&&r.data, srv=row&&row.updated_at, sdata=row&&row.data;
     if(!srv){ forceSave(stamp); return; }                 /* 행 자체가 없다 = 최초 저장 */
     if(srv===LAST_SYNC){ forceSave(stamp); return; }       /* 버전은 같은데 0행 = 다른 이유. 그대로 쓴다 */
+    /* 🔒 ① 먼저 **구해낼 수 있는 것을 구한다.** 로버트가 append 한 레코드를 내 쪽으로 흡수한다.
+       이걸 묻기 전에 해야 한다 — 물어보면 로한은 누른다. 실측으로 96건이 두 번 날아갔다. */
+    var absorbed=0;
+    try{ absorbed=syncAbsorb(sdata); }catch(err){}
+    var loss=0;
+    try{ loss=syncLoss(sdata); }catch(err){ loss=-1; }
+    /* 🔒 ② 흡수하고 나서 **사라질 게 없으면 묻지 않는다.**
+       잃을 것이 없는데 확인창을 띄우면, 정작 잃을 게 있을 때도 같은 창으로 보여서 안 읽힌다. */
+    if(loss===0){
+      saveBadge(absorbed?('⤵ 서버분 '+absorbed+'건 합침'):'● 저장 중…','wait');
+      forceSave(new Date().toISOString());
+      return;
+    }
     saveBadge('⚠ 다른 기기에서 수정됨','bad');
     var diff='';
     try{ diff=syncDiffText(DB,sdata); }catch(err){ diff='(비교 중 오류: '+(err&&err.message)+')'; }
-    var msg='다른 기기(또는 다른 탭)에서 이 데이터가 수정됐다.\n'
+    var msg=(loss>0?('🔴 덮어쓰면 서버에만 있는 '+loss+'건이 사라진다.\n'
+        +'   되돌릴 수 있지만, 모르고 누르면 한참 뒤에 발견한다.\n\n'):'')
+      +'다른 기기(또는 다른 탭)에서 이 데이터가 수정됐다.\n'
+      +(absorbed?('⤵ 단어·예문·과제 '+absorbed+'건은 이미 내 쪽으로 합쳤다 — 그건 안 사라진다.\n'):'')
       +'내가 마지막으로 받아온 시각: '+String(LAST_SYNC||'?').replace('T',' ').slice(0,16)+'\n'
       +'서버 최종수정:              '+String(srv).replace('T',' ').slice(0,16)+'\n\n'
       +'──── 무엇이 다른가 ────\n'+diff+'\n\n'
-      +'[확인] 내 화면으로 덮어쓴다 — 위의 "저쪽에만" 항목이 사라진다\n'
+      +'[확인] 내 화면으로 덮어쓴다 — 위의 🔴 항목이 사라진다\n'
       +'        (덮어쓰기 직전 서버본을 📀 스냅샷으로 남기므로 되돌릴 수 있다)\n'
       +'[취소] 새로고침해서 저쪽 것을 불러온다 — 내 화면의 변경이 사라진다';
     if(confirm(msg)){
@@ -3530,18 +3600,32 @@ function stDrillPool(mode){
     return !!stNorm(w.kana)&&!!stNorm(w.ko);          /* a2m · r2m */
   }).slice().sort(function(a,b){
     var d=stWordScore(b,ds)-stWordScore(a,ds); if(d)return d;
-    return (+a.seen||0)-(+b.seen||0);                 /* 동점이면 덜 본 것 먼저 */
+    var sd=(+a.seen||0)-(+b.seen||0); if(sd)return sd;  /* 동점이면 덜 본 것 먼저 */
+    /* 그래도 동점이면 랜덤. 🚫 출제 **대상 선정**은 여전히 규칙이다 —
+       미출제 358건이 전부 같은 점수라 여기서 고정 순서를 쓰면 매번 같은 20개만 나온다. */
+    return Math.random()-0.5;
   });
 }
-/* 출제 가중치 — 로버트(학습) v9 확정식. 🚫 랜덤 금지. 🔒 저장하지 않는다(매번 파생).
-     score = miss*10 + (flag?3:0) + min(경과일, 7)      // lastSeen 이 null 이면 7
-   ⚠️ **lastSeen 결합이 핵심이다.** miss 만으로 정렬하면 miss=0 단어가 영영 안 나온다.
-      miss 가 내려갈수록 경과일이 정렬을 주도해서 자연스럽게 순환한다 — 아는 단어도 주 1회는 돈다. */
+/* 출제 가중치 — 로버트(학습) v12 확정식. 🔒 저장하지 않는다(매번 파생).
+     score = (seen==0 ? 100 : 0) + miss*10 + min(경과일, 7)   // lastSeen 이 null 이면 7
+   🔴 **v3.5 까지 `flag` 에 3점을 줬다가 콜드스타트 편향이 났다.**
+      실측(9/15): 313건 중 출제된 47건의 **91%(43건)가 `flag:true`**. 266건이 한 번도 안 나왔다.
+      초기에는 모든 `miss` 가 0이라 **`flag` 가 유일한 차별 요소**가 되고, 체크한 단어가 상위에 영구히 박힌다.
+      `flag` 는 "책에서 어렵다고 체크한 것"이라는 **사전 추정**일 뿐이다 —
+      실측 `miss` 가 쌓이기 전까지 사전 추정으로 줄을 세우면 안 된다.
+   🔒 그래서 **`flag` 가중치를 완전히 뺐다.** 필드는 남는다(로버트 분석용, 출제엔 미사용).
+   🔒 `seen==0` 에 100 을 주면 **전 단어 1회 순회가 끝난 뒤에야** miss 정렬이 작동한다.
+      로한: "시험은 무조건 전체를 내되, 오답 지표가 모이면 그때 빈도를 늘려라."
+   ⚠️ 경과일 결합은 유지한다 — 없으면 miss=0 단어가 영영 안 나온다. */
 function stWordScore(w,ds){
   ds=ds||todayStr();
   var gap=w.lastSeen?daysBetween(w.lastSeen,ds):7;
   if(gap<0)gap=0; if(gap>7)gap=7;
-  return (+w.miss||0)*10+(w.flag?3:0)+gap;
+  return ((+w.seen||0)===0?100:0)+(+w.miss||0)*10+gap;
+}
+/* 아직 한 번도 안 나온 단어 — 커버리지 단계인지 약점 집중 단계인지 화면이 말해준다 */
+function stFreshCount(mode){
+  return stDrillPool(mode).filter(function(w){return (+w.seen||0)===0;}).length;
 }
 /* 🔒 세션 상태는 DB 에 저장하지 않는다 — 끝나면 drills 1건만 남는다.
    새로고침하면 진행 중 드릴은 사라진다(의도됨). */
@@ -3876,7 +3960,8 @@ function stPaneWord(){
   if(D)return stDrillRun();
   var ws=stWords(), ds=stDrills();
   var flag=ws.filter(function(w){return w.flag;}).length;
-  var fresh=ws.filter(function(w){return !w.lastSeen;}).length;
+  /* 미출제 = seen 0. lastSeen 이 아니라 seen 으로 센다 — 출제 가중식과 같은 기준이어야 한다 */
+  var fresh=ws.filter(function(w){return (+w.seen||0)===0;}).length;
   var hot=ws.filter(function(w){return (+w.miss||0)>0;}).slice()
     .sort(function(a,b){return (+b.miss||0)-(+a.miss||0);}).slice(0,12);
   var cur=stdMode();
@@ -3929,6 +4014,13 @@ function stPaneWord(){
      +ws.length+'개 · 책 체크 '+flag+' · 미출제 '+fresh
      +(subKeys.length?' · '+subKeys.map(function(k){return mdEsc(k)+' '+subN[k];}).join('·'):'')
      +'</span></span></div>'
+     /* 🔒 커버리지 단계인지 약점 집중 단계인지 숨기지 않는다 —
+        "왜 아는 단어가 계속 나오나"에 대한 답이 이 한 줄이다 */
+     +(fresh?('<div class="mut" style="font-size:10.5px;margin:-4px 0 9px">'
+        +'📖 <b>커버리지 단계</b> — 미출제 '+fresh+'건이 남아 있어 <b>전 단어를 한 바퀴</b> 돌린다. '
+        +'다 돌면 틀린 단어 위주로 바뀐다.</div>')
+       :(ws.length?'<div class="mut" style="font-size:10.5px;margin:-4px 0 9px">'
+        +'🎯 <b>약점 집중 단계</b> — 전 단어를 한 바퀴 돌았다. 이제 <b>틀린 횟수</b>가 순서를 정한다.</div>':''))
      +empty+modes+start+'</div>'
    +(hot.length?('<div class="sec"><div class="bkhd"><span class="subhd2">자주 틀리는 단어</span>'
      +'<span class="mut" style="font-size:10.5px">miss 3회↑ 는 로버트가 오답노트로 승격</span></div>'
@@ -6426,13 +6518,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.5';
+var APP_VERSION='3.6';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'3.6',date:'2026-09-16',note:"<b>🔴 [결함·중대] 충돌창이 학습 데이터를 아예 비교하지 않았다 — 단어 96건이 두 번 유실.</b> · <b>사고</b>: 9/15 로버트가 <code>words</code> 를 371→409건으로 올렸는데 두 번 모두 <b>313건으로 되돌아갔다</b>(p158·p159 단어 + p199·200 접속사 96건). · <b>원인</b>: 낙관적 잠금은 <b>정상 작동했다</b> — 앱은 충돌을 감지해 확인창을 띄웠고 로한이 「내 화면으로 덮어쓰기」를 눌렀다(<code>pre_overwrite</code> 스냅샷 4건이 전부 409건으로 남아 증거가 됐다). 🔴 <b>그런데 그 확인창에 단어가 안 보였다</b> — <code>SYNC_COLS</code>(충돌 비교 목록)에 <b><code>study</code> 가 한 건도 등록돼 있지 않았다.</b> 화면엔 \"저쪽에만 96건\"이 뜨지 않았고, 로한은 잃을 게 없다고 보고 눌렀다. ⚠️ <b>반복결함 #8(반쪽 작업)</b> — v2.7 에서 study 를 만들 때 이 목록에 넣지 않았다. 🔒 <b>새 컬렉션을 만들면 충돌 목록에 등록하는 것까지가 한 작업이다</b> · <b>수정 3단</b>: ① <code>SYNC_COLS</code> 에 단어·문법예문·학습과제·오답·테스트·드릴기록 등록(중첩 경로 지원) ② 🔒 <b>자동 흡수</b> — 묻기 <b>전에</b> 서버에만 있는 레코드를 내 쪽으로 합친다. 로버트가 append 하고 앱이 생성·삭제하지 않는 배열(<code>words</code>·<code>sents</code>·<code>units</code>)만 대상이다. ⚠️ <code>errors</code> 는 앱이 지울 수 있어 제외 — 흡수하면 삭제가 되살아난다 ③ 흡수 후 <b>사라질 게 0이면 묻지 않고 저장</b>한다. 잃을 게 없는데 확인창을 띄우면 <b>정작 잃을 게 있을 때도 같은 창이라 안 읽힌다</b>. 남으면 맨 위에 <b>🔴 \"덮어쓰면 서버에만 있는 N건이 사라진다\"</b> 를 숫자로 박는다 · 유실분 96건은 <code>pre_overwrite</code> 스냅샷에서 <b>409건으로 복구</b>(현재 카운터는 보존, id 중복 0) · ⚖️ <b>[결함] 출제 콜드스타트 편향 — <code>flag</code> 가중치 제거.</b> 실측: 313건 중 출제된 47건의 <b>91%가 <code>flag:true</code></b> 였고 <b>266건이 한 번도 안 나왔다</b>. 초기엔 모든 <code>miss</code> 가 0이라 <b><code>flag</code> 가 유일한 차별 요소</b>가 되어 체크한 단어가 상위에 영구히 박힌다. <code>flag</code> 는 \"책에서 어렵다고 체크한 것\"이라는 <b>사전 추정</b>일 뿐 — 실측 <code>miss</code> 가 쌓이기 전에 사전 추정으로 줄을 세우면 안 된다 · 새 식: <code>score = (seen==0 ? 100 : 0) + miss*10 + min(경과일,7)</code>. <b>미출제에 100점</b>을 줘서 전 단어 1회 순회가 끝난 뒤에야 miss 정렬이 작동한다(로한: \"시험은 무조건 전체를 내되, 오답 지표가 모이면 그때 빈도를 늘려라\"). 동점이면 <code>seen</code> 적은 순 → 랜덤(미출제 358건이 전부 동점이라 고정 순서면 매번 같은 20개만 나온다) · <code>flag</code> 필드는 유지 — 로버트 분석용, 출제엔 미사용 · 단어 탭에 <b>커버리지 단계 / 약점 집중 단계</b>를 한 줄로 표시 — \"왜 아는 단어가 계속 나오나\"의 답이다"},
   {v:'3.5',date:'2026-09-15',note:"<b>🎯 오답 선택지 전면 교체 · 전 모드 4지선다 고정 · 「모르겠다」 버튼.</b> 로버트(학습) v10 반영 · 🔴 <b>[결함] 오답의 74%가 무의미했다.</b> v3.4 까지 오답은 <b>같은 글자수 우선 → 나머지 랜덤</b>이었다. 실데이터 290문항 측정: 정답↔오답 <b>평균 편집거리 3.33</b>, <b>거리 3 이상이 74%</b> — 「いがく(의학)」 문제에 「おちゃ·うりば·おっと」가 떴다. <b>글자가 하나도 안 겹치면 눈감고 맞힌다.</b> 그러면 정답률이 부풀고 <code>miss</code> 가 안 쌓여서 <b>출제 가중식(v9)과 주간 판정이 통째로 죽는다</b> · 🔒 <b>객관식의 난도는 오답이 100% 결정한다</b> — 모드별로 오답을 골라낸다: <code>k2r</code> ① 같은 한자의 다른 읽기(開く: あく↔ひらく) ② <b>청탁·촉음·장음 변형을 생성</b>(うでどけい→うでとけい, こくさい→こくざい — 실제로 틀린 패턴이다) ③ 읽기 편집거리 1~2 / <code>r2k</code> ① 동음 레코드 ② 한자 편집거리 ③ 같은 <code>cat</code> / <code>r2m</code>·<code>a2m</code> ① 읽기 1글자 차이 단어의 뜻(あせ/あめ/あし/あす) ② <b>자·타동사 짝의 반대쪽 뜻</b>(おこる 일어나다 ↔ おこす 일으키다) ③ 같은 <code>sub</code> / <code>k2m</code> 한자 편집거리 · ⚠️ 생성한 변형이 <b>실재 단어와 겹치면 뺀다</b> — 정답이 둘인 문항이 된다 · 🚫 <b>랜덤은 최후 수단</b>(같은 cat → 같은 lv → 나머지) · ⌨ <b>직접입력 토글 삭제 — 전 모드 4지선다.</b> ① JLPT 는 전 영역이 4지선다고 주관식은 시험에 없는 능력을 훈련시킨다 ② 주 사용처가 이동 중이라 20문항 타이핑이 불가능하다 ③ IME 입력 부하는 학습과 무관하다. 옛 <code>ui.stdIn</code> 은 빈 서랍이라 지운다 · ❓ <b>「모르겠다」 버튼 신설</b> — 5번째 선택지가 아니라 별도 버튼이고 <b>처리는 오답과 완전히 같다</b>(<code>miss+1</code>, <code>streak=0</code>). <b>목적은 찍기 제거다</b> — 찍어서 맞히면 miss 가 안 쌓여 약점 탐지가 죽는다. 결과 화면에 몇 개를 모른다고 했는지 따로 보여준다 · 🔒 채점 기록은 <code>stDrillRecord()</code> <b>한 곳</b>에서만 한다 — 「모르겠다」가 따로 세면 두 곳이 같은 일을 다르게 한다(원칙 2) · <b>한 세트 20문항 기본</b>(문항당 5초 목표). 시작 버튼 20·40·10 순, 데일리 진입점도 20 · 🔒 단어가 <b>4개 미만인 모드는 막는다</b> — 보기 4개를 못 만들면 문항이 성립하지 않는다 · <code>drills</code> 에 <code>dunno</code> 집계 추가(0 이면 키를 안 만든다) · 결과 화면에 <b>문항당 소요초</b> 표시 · t42 S 블록 신설"},
   {v:'3.4',date:'2026-09-11',note:"<b>🔊 음성 모드 · 모드 6개 재정의 · 출제 가중치 확정.</b> 로버트(학습) v8·v9 반영 · 🔴 <b><code>w2m</code>(단어→뜻) 폐기.</b> 한자가 보이면 한국어 한자음으로 찍히고 그게 <b>안다는 착각</b>을 만든다. 로한 자가보고: <i>\"한자 보고 뜻은 쉽고 히라가나 보고 뜻이 어렵다.\"</i> <b>청해 60점(과락 19)은 전부 소리라 한자가 안 보인다</b> → <code>r2m</code>(히라가나→뜻)·<code>k2m</code>(한자→뜻)으로 쪼개고 맨 위에 <code>a2m</code>(음성→뜻)을 뒀다. 기본 모드도 k2r → <b>r2m</b> 으로 바꿨다 · 🔊 <b>음성은 브라우저 내장 <code>speechSynthesis</code></b> — 외부 API·음원파일·키 없다. 🔴 <b>읽히는 건 언제나 <code>kana</code> 다</b>: <code>開く</code> 를 넣으면 <code>あく</code> 가 아니라 <code>ひらく</code> 로 읽어 <b>틀린 발음을 외우게 된다</b>(p157 에 실제로 있다). 🔒 일본어 음성이 없는 기기에서는 <b>카드 자체를 그리지 않고</b> 왜 없는지·어떻게 추가하는지 한 줄로 알린다. <code>getVoices()</code> 가 첫 호출에 빈 배열을 주는 문제는 <code>onvoiceschanged</code> 에서 다시 그려 해결. 반복 재생 버튼 필수(청해는 한 번에 안 들린다) · ⚠️ 고저 악센트는 신뢰하지 마라. 단어 발음 ≠ 청해 — 교재 2권 음원이 본체고 이건 보조다 · 🔴 <b>[결함] 소리로 뜻을 묻는 모드에서 동음이의어는 정답이 둘이다.</b> 실데이터 313건에 5쌍 — <code>おる</code>(있다·겸양 / 접다), <code>おこる</code>(일어나다 / 화내다), <code>おりる</code>, <code>は</code>, <code>ちゅうしゃ</code>. 하나만 정답으로 치면 <b>맞는 답이 오답으로 기록되고, miss 가 올라가고, 출제 알고리즘이 그 문제를 계속 낸다</b> — 틀릴 수밖에 없는 문제가 반복된다 → <b>같은 읽기의 모든 뜻을 정답으로 인정</b>하고, <b>4지선다 보기에서는 같은 읽기 단어를 뺀다</b>(보기 두 개가 다 정답이 되므로). 정답 화면에 \"같은 읽기 — ○○ 도 정답\"을 띄운다. ⚠️ k2r·r2k 는 확장하지 않는다 — 한자가 정답을 하나로 고정한다(kanji 중복 0건) · ⚖️ <b>출제 가중치 확정</b>(학습방 v9): <code>score = miss×10 + (flag?3:0) + min(안 본 날수, 7)</code>, 동점이면 <code>seen</code> 적은 순. <b>lastSeen 결합이 핵심</b> — miss 만으로 정렬하면 <code>miss=0</code> 단어가 영영 안 나온다. miss 가 내려갈수록 경과일이 정렬을 주도해 <b>자연히 순환</b>한다 · ✅ <b><code>streak</code> 신설 — 연속 2회 정답이면 <code>miss</code> 를 1 깎는다.</b> v3.3 까지는 miss 가 누적이라 <b>3번 틀린 단어가 10번 맞혀도 1순위에 영구히 박혔다.</b> 리셋이 아니라 점진 하향이라(3번 틀리면 6번 연속 정답에 0) '어려웠던 단어' 이력이 남는다. <code>errors.cleared</code>(2연속) 와 같은 원리 · 🈶 <b><code>sub</code> 필드</b>(존경어·겸양어·자동사·타동사) — 개수를 상단에 세고 정답 화면에 배지로 띄운다. 앱이 만들지 않는다, 학습방이 채운다 · 정답 화면에 <b>읽기·한자·뜻을 전부</b> 보여준다(소리로 맞혔어도 표기를 같이 봐야 남는다) + 🔊 다시 듣기 + 누적/연속 표시 · t42 P~R 블록 신설"},
   {v:'3.3',date:'2026-09-11',note:"<b>🈶 단어 드릴 4모드 완성 — r2k·kata·w2m 신설.</b> 학습방이 p150~156 단어 <b>284건</b>을 올려서 실데이터로 만들었다(v3.2 는 k2r 만) · ⚠️ <b>r2k(히라가나→한자)는 뜻을 같이 보여준다.</b> 실데이터에 동음이의어가 있다 — <code>は</code>→葉·歯, <code>ちゅうしゃ</code>→注射·駐車. 뜻이 없으면 <b>정답이 하나로 안 정해지고 보기 두 개가 다 맞는 문항</b>이 된다. 시험 もんだい2 는 문맥 문장이 그 역할을 하는데 앱엔 문맥이 없으니 뜻이 그 자리를 메운다 · 🔒 <b>가타카나 판정을 <code>cat</code> 필드에서 파생으로 바꿨다.</b> 업로드된 284건은 <code>cat</code> 이 sino·native 뿐이고 katakana 가 <b>0건</b>이었다 — 필드를 믿었으면 kata 모드가 이유도 모르게 빈 화면이었다. 이제 <code>kana</code> 의 문자 범위로 판정한다. 파생 가능한 건 저장에 의존하지 않는다 · ⚠️ <b>뜻 답은 복수 뜻 중 하나만 맞아도 정답.</b> 284건 중 <b>46건</b>이 \"사이, 동안\" 처럼 쉼표로 들어온다 — 전체 문자열 비교로 채점하면 <b>아는 단어를 틀렸다고 한다.</b> 4지선다는 보기 전체 문자열, 직접입력은 쉼표로 쪼개 하나만 맞으면 정답 · 한자 없는 순가나 단어 14건은 k2r·r2k 에서 자동 제외(<code>あいさつ</code> 등) · <b>모드 선택 → 문항 수(10·20·40)</b> 2단계로 바꾸고 <b>고른 모드를 기억한다</b> — 10분 뽀모로 돌리는데 매번 두 번 누르게 하지 않는다. 데일리 진입점도 기억된 모드로 시작한다 · 🔒 <b>pool 0 인 모드는 누를 수 없다</b> — 가타카나는 현재 0건이고, 데이터가 들어오면 저절로 켜진다 · w2m 은 시험에 직접 안 나오니 순위는 여전히 최하위지만 기반 회상용으로 둔다 · t42 N·O 블록 신설"},
