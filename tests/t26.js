@@ -58,7 +58,7 @@ async function boot(b,st,w){
   return {c,p,errs};
 }
 (async()=>{
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 
 console.log('=== 🔑 계좌는 저장이 아니라 파생이다 ===');
 {const {c,p,errs}=await boot(b,ST);

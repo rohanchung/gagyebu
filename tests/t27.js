@@ -35,7 +35,7 @@ async function boot(b,st){
   return {c,p,errs};
 }
 (async()=>{
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 
 console.log('=== 기본은 배달 하나 (v1.51 정정) ===');
 {const {c,p,errs}=await boot(b,ST);

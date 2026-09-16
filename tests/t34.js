@@ -35,7 +35,7 @@ const BASE=()=>({schemaVersion:7,ui:{month:'2026-08'},
 
 async function boot(st,opt){
   opt=opt||{};
-  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+  const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
   const c=await b.newContext({viewport:{width:1440,height:1000}});
   await c.addInitScript(({s,ho,hoErr})=>{
    const store={v:s};window.__store=store;

@@ -5,7 +5,7 @@ const FILE=process.argv[2]||path.join(__dirname,'..','work.html');
 const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCards:{},rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},
  ui:{month:'2026-08'},accounts:[],transactions:[],categories:[{id:'c1',name:'식비',type:'expense'}],cards:[],debts:[],
  health:{weights:[],labs:[],labDates:[],labTypes:[],labMeds:[],labValues:{},events:[]},journal:[],items:[],logs:[]};
-(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+(async()=>{const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 for(const [w,h,label] of [[390,844,'iPhone12'],[412,915,'Android'],[768,1024,'iPad세로'],[1024,768,'iPad가로'],[1440,900,'PC'],[1920,1080,'PC광']]){
 const c=await b.newContext({viewport:{width:w,height:h}});
 await c.addInitScript(({st})=>{const store={v:JSON.parse(JSON.stringify(st))};window.__store=store;

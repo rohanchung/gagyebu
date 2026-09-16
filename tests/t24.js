@@ -56,7 +56,7 @@ const MOVE=(rid,gid,lock,ans)=>`(()=>{window.__dlg=[];window.__ans=${ans};
           ck:JSON.parse(JSON.stringify(DB.checks)),hasLockBox:!!lk};})()`;
 
 (async()=>{
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 
 /* ───────── (가) 루틴 소속 이동 ───────── */
 console.log('=== (가) 루틴 소속 이동 시 체크 기록 이관 ===');

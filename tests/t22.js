@@ -20,7 +20,7 @@ async function walk(b,st,label){
  Object.keys(bad).forEach(k=>console.log('     ✗',k,'→',bad[k].slice(0,110)));
  return {p,errs:errs.length,fail:errs.length||empty.length};
 }
-(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+(async()=>{const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 let F=0;
 console.log('=== 극단 상태에서 15탭 순회 ===');
 for(const [lbl,st] of [

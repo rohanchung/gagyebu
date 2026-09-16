@@ -38,7 +38,7 @@ async function boot(b,st){
   return {c,p,errs};
 }
 (async()=>{
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 
 console.log('=== ① 내장지방 → 제지방량 ===');
 {const {c,p,errs}=await boot(b,ST);

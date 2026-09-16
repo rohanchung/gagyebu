@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');const fs=require('fs');
 const file=process.argv[2];
-const D=JSON.parse(fs.readFileSync('/home/claude/state_rw.json','utf8'));
+const D=JSON.parse(fs.readFileSync(require('path').join(__dirname,'state_rw.json'),'utf8'));
 const FULL={schemaVersion:7,goals:D.goals,routines:[],checks:{},rewards:D.rewards,rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},ui:{month:'2026-08'},
  accounts:[],transactions:[],categories:[{id:'c1',name:'식비',type:'expense'}],cards:[{id:'cd1',name:'현금',type:'check'}],debts:[],fixed:[],events:[],posts:[],
  health:{weights:[],labs:[],labDates:[],labTypes:[],labMeds:[],labValues:{},events:[]},journal:[],items:[],logs:[],budgets:{}};
@@ -33,7 +33,7 @@ async function boot(b,st,at,conflict,onDialog){
   return {p,errs,dlg,c};
 }
 (async()=>{
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 let fail=0;const ok=(n,c,x)=>{console.log((c?'  ✓':'  ✗')+' '+n+(x?'  → '+x:''));if(!c)fail++;};
 
 // A) 정상 저장 경로 + 배지

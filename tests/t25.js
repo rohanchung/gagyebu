@@ -43,7 +43,7 @@ async function boot(b,st,w){
   return {c,p,errs};
 }
 (async()=>{
-const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 
 console.log('=== 청구주기 경계 (마감 10일) ===');
 {const {c,p,errs}=await boot(b,ST);

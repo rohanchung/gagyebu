@@ -47,7 +47,7 @@ async function boot(b,seed,onDialog){
   await p.route('**/*supabase*',r=>r.abort());await p.goto('file://'+file);await p.waitForTimeout(1400);
   return {p,c,errs,dlg};
 }
-(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+(async()=>{const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 let F=0;const ok=(n,c,x)=>{console.log((c?'  ✓':'  ✗')+' '+n+(x?'  → '+x:''));if(!c)F++;};
 
 console.log('A) 접속 시 자동 스냅샷');

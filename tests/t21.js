@@ -12,7 +12,7 @@ const INIT=({fail})=>{
    return q;}
   window.supabase={createClient:()=>({from:()=>mk(),auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};
 };
-(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+(async()=>{const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
 let fail=0;const ok=(n,c,x)=>{console.log((c?'  ✓':'  ✗')+' '+n+(x?'  → '+x:''));if(!c)fail++;};
 // F) 2회 실패 후 성공
 {const c=await b.newContext();await c.addInitScript(INIT,{fail:2});

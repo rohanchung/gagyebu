@@ -25,7 +25,7 @@ const BASE=(st)=>Object.assign({schemaVersion:7,ui:{month:'2026-09'},
  health:{labDates:[],labTypes:[],labMeds:[],metrics:[],labValues:{},catOrder:[],wImport2026:1,weights:[],events:[]}},st||{});
 
 async function boot(st){
-  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+  const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
   const c=await b.newContext({viewport:{width:1440,height:1200}});
   await c.addInitScript(({s})=>{const store={v:s};
    function mk(){let _m=null,_p=null;
@@ -960,8 +960,11 @@ async function boot(st){
   ok('V6 그 다음이 miss 최다',order[2]==='v3',JSON.stringify(order));
   ok('V7 오늘 본 flag 단어가 꼴찌',order[4]==='v1',JSON.stringify(order));
   /* 미출제 동점은 랜덤 — 같은 pool 을 여러 번 부르면 순서가 섞인다 */
+  /* ⚠️ [결함·테스트] 표본이 12회였다. 동점이 2건이면 순서가 2가지뿐이라
+     전부 같게 나올 확률이 2*(1/2)^12 = 약 1/2048 — CI 에서 가짜 빨간불이 뜬다.
+     🔒 **거짓 실패가 한 번 뜨면 그 다음부터 아무도 CI 를 안 본다.** 표본을 40 으로 올렸다(약 2e-12). */
   const shuffled=await p.evaluate(()=>{
-    const runs=[];for(let i=0;i<12;i++)runs.push(stDrillPool('r2m').slice(0,2).map(w=>w.id).join(','));
+    const runs=[];for(let i=0;i<40;i++)runs.push(stDrillPool('r2m').slice(0,2).map(w=>w.id).join(','));
     return runs.filter((v,i,a)=>a.indexOf(v)===i).length;
   });
   ok('V8 미출제 동점은 랜덤으로 섞인다',shuffled>=2,String(shuffled));

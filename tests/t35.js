@@ -24,7 +24,7 @@ const BASE=(snaps)=>({schemaVersion:7,ui:{month:'2026-08'},
  health:{labDates:[],labTypes:[],labMeds:[],metrics:[],labValues:{},catOrder:[],wImport2026:1,weights:[],events:[]}});
 
 async function boot(st){
-  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});
+  const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
   const c=await b.newContext({viewport:{width:1440,height:1000}});
   await c.addInitScript(({s})=>{const store={v:s};window.__saves=0;
    function mk(t){let _m=null,_p=null;

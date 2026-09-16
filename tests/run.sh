@@ -36,6 +36,14 @@ mkdir -p .out
 # ⚠️ 0825: 16개를 한꺼번에 띄웠더니 크로미움이 못 떠서 page.goto 가 30초 타임아웃 났다.
 #    코드가 아니라 컨테이너 자원 문제였다(따로 돌리면 전부 통과).
 #    → 동시 실행에 상한을 둔다. 늘리기 전에 왜 늘리는지 먼저 생각해라.
+# ── 크로미움 위치 ──
+# 🔒 테스트 파일에 경로를 박지 않는다. CHROME 이 있으면 그것, 없으면 각 파일이
+#    /opt/pw-browsers/chromium 을 찾고, 그것도 없으면 playwright 가 제 번들을 쓴다.
+#    (CI 에서 돌리기 위한 조건이다 — GitHub Actions 컨테이너엔 /opt/pw-browsers 가 없다)
+if [ -z "${CHROME:-}" ] && [ -x /opt/pw-browsers/chromium ]; then
+  export CHROME=/opt/pw-browsers/chromium
+fi
+
 JOBS="${JOBS:-5}"
 PIDS=""; N=0
 for t in $T; do
