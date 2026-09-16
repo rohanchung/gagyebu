@@ -129,6 +129,78 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Bl
 .stback{font-size:11.5px;font-weight:700;color:var(--muted);margin:13px 0 6px;cursor:pointer;user-select:none}
 .stback:hover{color:var(--accent)}
 .sterr.cl{opacity:.48}
+/* v3.7 📅 학습 캘린더 — 🔒 base 규칙(.name{)부터. modifier 만 넣어 스타일 없이 렌더된 사고가 2회 있었다 */
+.scbar{display:flex;align-items:center;gap:7px;margin-bottom:10px;flex-wrap:wrap}
+.scal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.scdow{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted);padding:2px 0}
+.scdow.sun{color:var(--neg)}
+.scdow.sat{color:#2f6df6}
+.scday{position:relative;min-height:52px;border:1px solid var(--line);border-radius:8px;
+  padding:4px 5px;cursor:pointer;background:var(--card);overflow:hidden}
+.scday:hover{border-color:var(--accent)}
+.scday.empty{border:0;background:transparent;cursor:default;min-height:0}
+.scday.l0{background:var(--card)}
+.scday.l1{background:#eef4ff}
+.scday.l2{background:#d9e6ff}
+.scday.l3{background:#bcd4ff}
+.scday.l4{background:#9dbfff}
+/* 🔒 지난 날인데 학습도 과제도 없는 칸 — 제로데이. 숨기지 않는다.
+   미달은 전부 '안 한 날'에서 나왔고, 빈칸이 숫자보다 강하게 작동한다 */
+.scday.zero{background:repeating-linear-gradient(45deg,#fff,#fff 5px,#fbeaea 5px,#fbeaea 10px)}
+.scday.far{opacity:.45}
+.scday.today{border-color:var(--gold);border-width:2px;padding:3px 4px}
+.scday.sel{outline:2px solid var(--accent);outline-offset:-2px}
+.scd{font-size:11px;font-weight:700}
+.scm{position:absolute;right:4px;bottom:3px;font-size:9.5px;font-weight:700;color:#2f5fbf}
+.scu{position:absolute;left:5px;bottom:3px;font-size:9px;font-weight:700;color:var(--muted)}
+.scu.ok{color:var(--pos)}
+.scmk{position:absolute;right:3px;top:3px;font-size:8px;font-weight:800;border-radius:4px;padding:0 3px}
+.scmk.exam{background:var(--neg);color:#fff}
+.scmk.mock{background:var(--gold);color:#fff}
+.scmk.vd{background:#e4e8f0;color:#5a6b86}
+.sccoach{margin-top:12px;background:var(--warn-bg);border:1px solid #f0dfae;border-radius:10px;
+  padding:9px 11px;font-size:11.5px;line-height:1.55;color:#6b5412;white-space:pre-wrap}
+.scct{font-size:10px;font-weight:800;color:#8a6d16;margin-bottom:3px}
+/* v3.7 ⏱ 뽀모 전체화면 — 🔒 base 규칙부터 */
+.pomoov{position:fixed;inset:0;background:rgba(246,248,252,.97);z-index:120;display:none;
+  overflow:auto;padding:22px 16px}
+.pomoov.on{display:block}
+.pomobox{max-width:460px;margin:0 auto;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:18px 16px 20px;text-align:center}
+.pomotop{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.pomotop b{font-size:14px}
+.pmph{font-size:12.5px;font-weight:800;color:var(--accent);margin:6px 0 14px}
+.pmph.brk{color:var(--pos)}
+.pmring{width:196px;height:196px;border-radius:50%;margin:0 auto 14px;
+  background:conic-gradient(var(--accent) 0%, #e4e8f0 0%);display:flex;align-items:center;justify-content:center}
+.pmclock{width:166px;height:166px;border-radius:50%;background:var(--card);
+  display:flex;align-items:center;justify-content:center;
+  font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.pmunit{font-size:12.5px;font-weight:700;margin-bottom:14px;line-height:1.4}
+.pmunit.mut{font-weight:400}
+.pmbtns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.pmset{text-align:left;margin-bottom:16px}
+.pmlab{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.pmpres{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+.pmpre{font-size:12px;font-weight:700;padding:7px 11px;border:1px solid var(--line);
+  border-radius:999px;background:var(--card);cursor:pointer}
+.pmpre:hover{border-color:var(--accent)}
+.pmpre.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pmrow{display:flex;gap:10px}
+.pmrow label{flex:1;font-size:11.5px;font-weight:700;color:var(--muted)}
+.pmrow input{width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);
+  border-radius:8px;font-size:15px;font-weight:700;text-align:center}
+.pmsel{width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;font-size:12px;background:var(--card)}
+@media(max-width:480px){
+  .pmring{width:168px;height:168px}
+  .pmclock{width:142px;height:142px;font-size:32px}
+}
+@media(max-width:900px){
+  .scday{min-height:44px}
+  .scm{font-size:9px}
+  /* 🔒 학습 캘린더는 격자부터 — .calwrap 의 column-reverse(가계부 규칙)를 되돌린다 */
+  .calwrap.stw{flex-direction:column}
+}
 .sttest:hover{border-color:var(--accent)}
 /* v3.2 🈶 단어 드릴 — 🔒 base 규칙(.name{)을 먼저 쓴다. modifier 만 넣어서 스타일 없이 렌더된 사고가 2회 있었다 */
 .stdbar{display:flex;gap:3px;margin-bottom:11px}
@@ -930,6 +1002,8 @@ textarea.mla.same{background:#f2f9f4}
   </div>
 </div>
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
+<!-- v3.7 ⏱ 뽀모 — 탭이 아니라 전체화면으로 띄운다(탭 5개는 400px 에서 안 들어간다) -->
+<div class="pomoov" id="pomoOv"><div class="pomobox"><div class="pomotop"><b>⏱ 뽀모도로</b><button class="ghost sm" onclick="stPomoClose()">✕ 닫기</button></div><div id="pomoBody"></div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -1371,7 +1445,17 @@ function numv(id){var el=document.getElementById(id);return el?(parseFloat((el.v
 function latest(h){if(!h||!h.length)return 0;var s=h.slice().sort(function(a,b){return a.date<b.date?-1:1});return s[s.length-1].amount;}
 function monthOf(d){return d.slice(0,7);}
 function mIdx(d){return parseInt(d.slice(5,7),10)-1;}
-function creditCard(name){var c=DB.cards.filter(function(x){return x.name===name})[0];return c&&c.type==='credit';}
+/* ⚠️ [결함·중대 v3.8] 후불을 **카드 종류로** 판정하던 잔재. 쓰는 곳이 없어 남아 있었고,
+     남아 있는 동안 '카드 종류가 후불을 정한다'는 틀린 규칙이 코드 다섯 곳에 복사됐다. → 삭제한다.
+   🔒 후불 여부는 txnIsCredit(t) 하나가 답한다. 카드 종류는 **기본값**일 뿐이다. */
+/* 이 카드에 후불 거래가 한 건이라도 있었나 — 체크카드에도 후불(교통 K-패스)이 붙는다.
+   🔒 '지금 미결제가 있나'와 다른 질문이다. 다 결제해도 이 카드는 여전히 후불 카드다. */
+function cardEverPost(c){
+  if(!c)return false;
+  if(c.type==='credit')return true;
+  return (DB.transactions||[]).filter(function(t){
+    return t.type==='expense'&&t.method===c.name&&txnIsCredit(t);}).length>0;
+}
 /* ══════ v2.10 💳 이 거래가 후불(신용)이었나 ══════
    ⚠️ 로한: "우리 K패스는 교통비만 후불이라 25일에 나간다. 나머지는 즉시 출금이다."
       **한 장의 카드가 두 성격을 갖는다.** card.type 은 카드의 기본값일 뿐이고,
@@ -1517,7 +1601,12 @@ function cardCycles(){
   var out={};   /* {카드명:{결제월:{sum, rows:[{t,k,amt}]}}} */
   (DB.transactions||[]).forEach(function(t){
     if(!t.card||t.type!=='expense')return;
-    var c=cardBy(t.method); if(!c||c.type!=='credit')return;
+    /* ⚠️ [결함·중대 v3.8] 여기서 c.type!=='credit' 로 걸러냈다.
+         cardPendingByCard() 는 txnIsCredit() 로 세는데 이 함수는 카드 종류로 걸러서
+         **총부채엔 있고 현황판·선결제엔 없는 돈**이 생겼다 — 낼 방법이 없는 부채다.
+         실측(9/16): 우리(K패스) 후불 10건 39,500원. 로한 신고로 잡았다.
+         v2.11 의 '두 화면이 다른 숫자를 낸다'가 같은 자리에서 또 났다. */
+    var c=cardBy(t.method); if(!c||!txnIsCredit(t))return;
     var n=instN(t), dn=instDone(t);
     for(var k=dn+1;k<=n;k++){
       var ym=instCycle(t,k), a=instAmt(t,k);
@@ -1559,7 +1648,8 @@ function monthCashPL(m){
     if(t.type==='income'){if(monthOf(t.date)===m)inc+=t.amt;return;}
     if(t.type!=='expense')return;
     var c=cardBy(t.method);
-    if(c&&c.type==='credit'){
+    /* 🔒 카드 종류가 아니라 거래가 후불인지를 본다 — 체크카드 후불도 결제월에 나간다 */
+    if(c&&txnIsCredit(t)){
       var n=instN(t);
       for(var k=1;k<=n;k++)if(instCycle(t,k)===m)exp+=instAmt(t,k);
     }else if(monthOf(t.date)===m)exp+=t.amt;
@@ -1633,7 +1723,9 @@ function renderDash(){
   /* ⚠️ 미결제를 한 줄 합계로 보여주면 서로 다른 결제분이 섞인 채로 보인다.
      실측(8/21): 490,754 는 사실 8월 결제분 + 9월 결제분 두 덩어리였다. */
   var _cy=cardCycles(), _today=todayStr();
-  var cardRows=DB.cards.filter(function(c){return c.type==='credit'}).map(function(c){
+  /* 🔒 '신용카드인가'가 아니라 **'낼 돈이 남았나'**로 고른다.
+     v3.7 까지 종류로 걸러서 체크카드 후불(K-패스 교통)이 이 목록에 영영 안 떴다. */
+  var cardRows=DB.cards.filter(function(c){return !!_cy[c.name]}).map(function(c){
     var cy=_cy[c.name]||{}, yms=Object.keys(cy).sort();
     var tot=yms.reduce(function(s,y){return s+cy[y].sum;},0);
     if(!yms.length)return '';
@@ -1648,7 +1740,8 @@ function renderDash(){
           +(nL?'일시불 '+nL+'건':'')+(nL&&nI?' · ':'')+(nI?'할부 '+nI+'건':'')+'</span></span>'
         +'<span class="cyc-a">'+won(g.sum)+'<span class="cyc-go">선결제 →</span></span></div>';
     }).join('');
-    return '<div class="cycbox"><div class="row" style="border-bottom:0;padding-bottom:2px"><span><b>'+c.name+'</b></span>'
+    return '<div class="cycbox"><div class="row" style="border-bottom:0;padding-bottom:2px"><span><b>'+c.name+'</b>'
+      +(c.type!=='credit'?' <span class="chip check">체크·후불분</span>':'')+'</span>'
       +'<b style="color:var(--warn)">'+won(tot)+'</b></div>'+sub+'</div>';
   }).join('');
   var posts=(DB.posts||[]).slice().sort(function(a,b){return a.date<b.date?1:-1;});
@@ -1876,7 +1969,9 @@ function renderAcct(){
   function accBucket(a){return a.group==='현금성'?'현금성':(a.group==='투자'?'투자':'기타');}
   var accG={'현금성':[],'투자':[],'기타':[]};DB.accounts.forEach(function(a){accG[accBucket(a)].push(a);});
   var accHtml=['현금성','투자','기타'].map(function(gn){var arr=accG[gn];if(!arr.length)return '';var sub=arr.reduce(function(s,a){return s+accVal(a);},0);return '<div class="grp"><div class="ghd"><span>'+gn+' <span class="mut" style="font-weight:400">'+arr.length+'</span></span><span>'+won(sub)+'</span></div>'+arr.map(accRow).join('')+'</div>';}).join('');
-  var cardHtml=DB.cards.map(function(c){var cbc=cardPendingByCard();var p=c.type==='credit'?(cbc[c.name]||0):0;var lk=c.acct?' <span class="chip auto">→'+acctName(c.acct)+'</span>':' <span class="chip check">연결계좌 미설정</span>';return '<div class="row"><span>'+c.name+' <span class="chip '+c.type+'">'+(c.type==='credit'?'신용':'체크')+'</span>'+lk+'</span><span>'+(c.type==='credit'?'미결제 '+won(p):'즉시결제')+' <span class="acts"><span data-editcard="'+c.id+'">수정</span><span data-delcard="'+c.id+'">삭제</span></span></span></div>'}).join('');
+  /* 🔒 미결제는 '종류'가 아니라 '후불 거래가 있었나'를 따른다(v3.8).
+     체크카드로 등록된 우리(K패스)에 후불 교통 39,500원이 쌓여 있었는데 '즉시결제'라고만 적혀 있었다. */
+  var cardHtml=DB.cards.map(function(c){var cbc=cardPendingByCard();var _post=cardEverPost(c);var p=_post?(cbc[c.name]||0):0;var lk=c.acct?' <span class="chip auto">→'+acctName(c.acct)+'</span>':' <span class="chip check">연결계좌 미설정</span>';return '<div class="row"><span>'+c.name+' <span class="chip '+c.type+'">'+(c.type==='credit'?'신용':'체크')+'</span>'+(c.type!=='credit'&&_post?' <span class="chip check">후불분 있음</span>':'')+lk+'</span><span>'+(_post?'미결제 '+won(p):'즉시결제')+' <span class="acts"><span data-editcard="'+c.id+'">수정</span><span data-delcard="'+c.id+'">삭제</span></span></span></div>'}).join('');
   var debtHtml=DB.debts.map(function(d){
     var s=d.schedule,nx=(s&&s.bank)?bankNextPay(d):null,sc=s?('거치 '+s.grace+' · 상환시작 '+s.start+' · '+s.method+(nx?(' · 다음 '+nx.date+' <b>'+won(nx.total)+'</b> (원금 '+comma(nx.principal)+'+이자 '+comma(nx.interest)+')'):(' · 월 '+won(s.monthly)))+' · 잔여 '+s.remain+'회'):'상환일정 없음(수시상환·이자만)';
     return '<div style="border:1px solid var(--line);border-radius:8px;padding:11px;margin-bottom:8px"><div class="row" style="border-bottom:0;padding:2px 0"><b>'+d.name+'</b><span>'+won(d.balance)+'</span></div><div class="mut" style="margin-top:4px">금리 '+(d.rate!=null?d.rate+'%':'-')+' · <b>'+sc+'</b></div><div style="margin-top:6px"><button class="ghost" data-editdebt="'+d.id+'">수정</button> <button class="ghost" data-sched="'+d.id+'">'+(s?'스케줄 수정':'스케줄 추가')+'</button> <button class="ghost" data-deldebt="'+d.id+'">삭제</button></div></div>';
@@ -3012,7 +3107,13 @@ function studyDB(){
   /* ══ v3.2 단어 드릴 ══
      ⚠️ 데이터는 로버트가 채운다 — 앱은 드릴 화면과 채점만 한다.
      🔒 빈 배열 상태에서도 화면이 떠야 한다(지금이 그 상태다). */
-  S.words=S.words||[]; S.drills=S.drills||[];
+  S.words=S.words||[]; S.drills=S.drills||[]; S.sents=S.sents||[];
+  /* v3.7 ⏱ 뽀모 — **분 단위**로 쌓는다.
+     🔒 timelog 는 한 칸이 30분이다. 25분·50분 뽀모를 거기 찍으면 학습시간이 부풀고
+        주간 판정이 거짓말을 한다. 그래서 timelog 를 건드리지 않고 따로 남긴다.
+     🚫 units[].mins 에 실제 소요를 쓰지 않는다 — 시간 기록이 두 곳이면 또 어긋난다(원칙 1).
+        어느 과제에 썼는지는 pomos[].unitId 로 판다. */
+  S.pomos=S.pomos||[];
   S.words.forEach(function(w){
     if(w.cat===undefined)w.cat='';
     if(w.flag===undefined)w.flag=false;
@@ -3143,8 +3244,22 @@ function stMinsOn(ds){
   });
   return n;
 }
+/* ⏱ 그날 뽀모 분. 취소분도 그때까지의 시간을 남기므로 다 센다 */
+function stPomos(){return studyDB().pomos;}
+function stPomoMinsOn(ds){
+  var n=0;
+  stPomos().forEach(function(x){ if(x&&x.date===ds)n+=(+x.mins||0); });
+  return n;
+}
+/* 🔒 **'그날 학습을 몇 분 했나'에 답하는 함수는 이것 하나다.**
+   timelog(손으로 찍은 30분 블록) + 뽀모(분 단위)를 합친다.
+   ⚠️ 겹칠 수 있다 — 뽀모를 돌린 시간대를 timelog 에도 찍으면 이중 계산이 된다.
+      뽀모가 자동 기록하는 이유가 손으로 안 찍게 하는 것이니, 겹치면 로한에게 알린다. */
+function stStudyMins(ds){return stMinsOn(ds)+stPomoMinsOn(ds);}
 function stMinsRange(from,to){var n=0,d=from;
-  while(d<=to){n+=stMinsOn(d);d=addDays(d,1);}return n;}
+  while(d<=to){n+=stStudyMins(d);d=addDays(d,1);}return n;}
+/* 학습방이 그날 남긴 멘트 — 앱은 **읽기 전용**이다. 쓰는 쪽은 로버트(MCP) 하나뿐이다 */
+function stCoach(ds){var L=studyDB().logs[ds];return (L&&L.coach)?String(L.coach):'';}
 
 /* ── ④ 오답 ── */
 function stErrs(){return studyDB().errors;}
@@ -3329,7 +3444,7 @@ function stDailyRow(u,dim){
 }
 function stDailyPane(ds){
   var t=stWeekTally(ds), today=stUnitsOn(ds), od=stOverdue(ds), bk=stBacklog();
-  var mins=stMinsOn(ds);
+  var mins=stStudyMins(ds);
   var head='<div class="stwk"><span><b>이번 주</b> '
     +(t.n?(t.done+'/'+t.n+'건'+(t.mins?' · '+t.mins+'분':'')):'배정 없음')+'</span>'
     +'<span class="mut">'+weekLabel(t.ws)+'</span></div>';
@@ -3366,7 +3481,10 @@ function stDailyPane(ds){
 }
 
 /* ══════ 화면 ══════ */
-function stTab(){var t=(DB.ui&&DB.ui.studyTab);return (t==='err'||t==='rec'||t==='word')?t:'home';}
+/* v3.7 — '오늘' 탭을 **캘린더**가 대체한다(로한 지시). 옛 'home' 값은 'cal' 로 흘린다.
+   🔒 탭은 4개로 유지한다 — 400px 에서 5개는 글자가 잘린다.
+      뽀모는 탭이 아니라 캘린더 안의 버튼에서 전체화면으로 띄운다. */
+function stTab(){var t=(DB.ui&&DB.ui.studyTab);return (t==='err'||t==='rec'||t==='word')?t:'cal';}
 function setStTab(v){DB.ui=DB.ui||{};DB.ui.studyTab=v;save();renderStudy();}
 
 function stHead(){
@@ -3385,50 +3503,12 @@ function stHead(){
       :'<div class="mut" style="font-size:10.5px;margin-top:4px">구간(phase)이 설정되지 않았다</div>')
    +'</div>';
 }
-function stPaneHome(){
-  var ch=stCh(), open=stOpenUnits(ch), other=stOtherUnits(ch);
-  var chTabs='<div class="stchs">'+ST_CH.map(function(c){
-    var n=stOpenUnits(c.k).length;
-    return '<button class="'+(ch===c.k?'on':'')+'" onclick="setStCh(\''+c.k+'\')">'
-      +c.ico+' '+c.label+(n?' <b>'+n+'</b>':'')+'</button>';}).join('')+'</div>';
-  var list=open.length
-    ? open.map(function(u){return stUnitRow(u,false);}).join('')
-    : '<div class="mut" style="font-size:11.5px;padding:8px 0">이 채널에 남은 과제가 없다.</div>';
-  /* ⚠️ 다른 채널 과제를 지우지 않고 흐리게 남긴다 — 있다는 건 알아야 한다 */
-  var dt=stDoneToday();
-  var doneHtml=dt.length
-    ? '<div class="mut" style="font-size:10.5px;margin:12px 0 5px">오늘 끝낸 것 '+dt.length+'개</div>'
-      +dt.map(function(u){return stUnitRow(u,false);}).join('')
-    : '';
-  var otherHtml=other.length
-    ? '<div class="mut" style="font-size:10.5px;margin:12px 0 5px">다른 곳에서 할 것 '+other.length+'개</div>'
-      +other.slice(0,4).map(function(u){return stUnitRow(u,true);}).join('')
-    : '';
-  var c=stErrCount(), openErr=stErrOpen().length;
-  var chips=ST_TYPE.filter(function(x){return c[x.k];})
-    .map(function(x){return x.label+c[x.k];}).join(' · ');
-  var d=todayStr(), ws=weekStart(d);
-  var wk=studyDB().week[ws]||null;
-  var wIds=(wk&&wk.unitIds)||[];
-  var wDone=wIds.filter(function(id){var u=stUnitById(id);return u&&u.status==='done';}).length;
-  var carry=stUnits().filter(function(u){return u.status!=='done'&&(+u.carried||0)>0;}).length;
-  var mins=stMinsOn(d), wMins=stMinsRange(ws,d);
-  return stHead()
-   +'<div class="sec">'+stGauge()+'</div>'
-   +'<div class="sec"><div class="bkhd"><span class="subhd2">오늘 할 일</span>'
-     +'<span class="mut" style="font-size:10.5px">오늘 '+(mins?mins+'분':'0분')+' · 이번 주 '+Math.round(wMins/60*10)/10+'시간</span></div>'
-     +chTabs+list+doneHtml+otherHtml+'</div>'
-   +'<div class="sec"><div class="bkhd"><span class="subhd2">❌ 오답 <span class="mut">미회수 '+openErr+'</span></span>'
-     +'<span><button class="ghost sm" onclick="stErrSheet()">📄 회독 목록</button> '
-     +'<button class="btn sm" onclick="stErrModal(null)">+ 오답</button></span></div>'
-     +(chips?'<div class="mut" style="font-size:11.5px">'+mdEsc(chips)+'</div>'
-            :'<div class="mut" style="font-size:11.5px">미회수 없음</div>')
-     +(openErr?'<div style="margin-top:8px"><button class="ghost sm" onclick="setStTab(\'err\')">오답노트 열기 →</button></div>':'')+'</div>'
-   +'<div class="sec"><div class="bkhd"><span class="subhd2">이번 주 <span class="mut">'+weekLabel(ws)+'</span></span>'
-     +'<span'+(carry?' class="neg" style="font-weight:700"':' class="mut"')+'>'
-     +(wIds.length?wDone+'/'+wIds.length+' 완료':'주간 설정 없음')
-     +(carry?' · 이월 '+carry+'건':'')+'</span></div></div>';
-}
+/* v3.7 — 옛 '오늘' 탭(stPaneHome)은 **캘린더가 대체**했다(로한: "캘린더랑 중복이야").
+   옮긴 것: 오늘 할 일 → 캘린더 우측 패널(날짜별) / 과락 게이지·오답 요약·이번 주 → 우측 하단
+   / D-day·입실·phase → 전 탭 공통 헤더.
+   ⚠️ 채널(이동·학원·집)은 우측 목록의 칩으로 보인다 — 하루 3~4건이라 탭 필터까지는 필요 없었다.
+      장소로 고르는 원칙(v3.0)이 깨지면 다시 필터를 붙인다.
+   stCh·stOpenUnits·stOtherUnits·stDoneToday 는 남겨뒀다(데일리와 테스트가 쓴다). */
 function stPaneErr(){
   var all=stErrs().slice().sort(function(a,b){
     if(!!a.cleared!==!!b.cleared)return a.cleared?1:-1;
@@ -4009,8 +4089,8 @@ function stPaneWord(){
   var subN={};
   ws.forEach(function(w){if(w.sub)subN[w.sub]=(subN[w.sub]||0)+1;});
   var subKeys=Object.keys(subN);
-  return stHead()
-   +'<div class="sec"><div class="bkhd"><span class="subhd2">🈶 단어 <span class="mut">'
+  /* stHead 는 renderStudy 가 공통으로 붙인다 — 여기서 또 부르면 D-day 가 두 번 뜬다 */
+  return '<div class="sec"><div class="bkhd"><span class="subhd2">🈶 단어 <span class="mut">'
      +ws.length+'개 · 책 체크 '+flag+' · 미출제 '+fresh
      +(subKeys.length?' · '+subKeys.map(function(k){return mdEsc(k)+' '+subN[k];}).join('·'):'')
      +'</span></span></div>'
@@ -4036,22 +4116,353 @@ function stPaneWord(){
 }
 /* 데일리에서 학습 화면의 특정 탭으로 건너간다 — 사이드 메뉴를 대신 누른다 */
 function stGoto(tab){
-  DB.ui=DB.ui||{};DB.ui.studyTab=tab||'home';save();
+  DB.ui=DB.ui||{};DB.ui.studyTab=tab||'cal';save();
   var m=document.querySelector('.side .m[data-v="study"]');
   if(m&&m.click)return m.click();
   renderStudy();
 }
+
+/* ══════ v3.7 📅 학습 캘린더 ══════
+   로한: "단순 캘린더보다, 날짜 클릭하면 오른쪽에 할 일이 뜨고 학습방이 멘트를 남길 공간."
+   🔒 **가치는 제로데이 시각화다.** 미달은 전부 '안 한 날'에서 나왔고,
+      월간 격자의 빈칸이 숫자보다 강하게 작동한다.
+   🔒 **계획 편집 도구로 만들지 않는다.** 미래 날짜에 과제를 직접 꽂게 하면
+      3일 롤링 창 원칙(v6)이 깨진다 — 90일치를 미리 깔면 첫 주에 속도가 틀렸을 때 89일이 통째로 틀어진다.
+      과거 = 실적 조회 / 미래 = 3일까지만. 생성은 로버트(학습)가 한다. */
+function stCalYM(){
+  var m=DB.ui&&DB.ui.stCalYM;
+  return (m&&/^\d{4}-\d{2}$/.test(m))?m:todayStr().slice(0,7);
+}
+function setStCalYM(m){DB.ui=DB.ui||{};DB.ui.stCalYM=m;save();renderStudy();}
+function stCalSel(){
+  var d=DB.ui&&DB.ui.stCalSel;
+  return (d&&isDateStr(d))?d:todayStr();
+}
+function setStCalSel(d){DB.ui=DB.ui||{};DB.ui.stCalSel=d;
+  if(d&&d.slice(0,7)!==stCalYM())DB.ui.stCalYM=d.slice(0,7);
+  save();renderStudy();}
+function stCalMove(n){
+  var m=stCalYM(),y=+m.slice(0,4),mo=+m.slice(5,7)+n;
+  while(mo<1){mo+=12;y--;} while(mo>12){mo-=12;y++;}
+  setStCalYM(y+'-'+String(mo).padStart(2,'0'));
+}
+/* 3일 롤링 창의 끝 — 여기까지만 과제가 존재한다 */
+function stWindowEnd(){return addDays(todayStr(),2);}
+/* 모의고사 4회 — 학습방 확정(토 14:00~16:25, 실전과 같은 시간대) */
+var ST_MOCKS={'2026-10-25':'M1 교재1회','2026-11-15':'M2 교재2회',
+  '2026-11-22':'M3 외부기출','2026-11-29':'M4 외부기출'};
+
+function stPaneCal(){
+  var m=stCalYM(), sel=stCalSel(), today=todayStr(), e=stExam();
+  var y=+m.slice(0,4), mo=+m.slice(5,7);
+  var first=new Date(y,mo-1,1).getDay(), dim=new Date(y,mo,0).getDate();
+  /* 색 농도 기준 — 그날 가장 많이 한 만큼을 100% 로 두면 한 날 때문에 나머지가 다 창백해진다.
+     🔒 기준을 고정한다: 60분이면 꽉 찬 칸. 하루 목표가 그 정도다. */
+  var CAP=60;
+  var cells='';
+  ['일','월','화','수','목','금','토'].forEach(function(d,i){
+    cells+='<div class="scdow'+(i===0?' sun':(i===6?' sat':''))+'">'+d+'</div>';});
+  for(var i=0;i<first;i++)cells+='<div class="scday empty"></div>';
+  for(var d=1;d<=dim;d++){
+    var ds=m+'-'+String(d).padStart(2,'0');
+    var mins=stStudyMins(ds);
+    var us=stUnits().filter(function(u){return u.day===ds&&!u.backlog;});
+    var done=us.filter(function(u){return u.status==='done';}).length;
+    var lv=mins<=0?0:(mins>=CAP?4:(mins>=CAP*0.66?3:(mins>=CAP*0.33?2:1)));
+    var future=ds>today, far=ds>stWindowEnd();
+    var mark='';
+    if(ds===e.date)mark='<span class="scmk exam">시험</span>';
+    else if(ST_MOCKS[ds])mark='<span class="scmk mock">모의</span>';
+    else if(new Date(ds+'T00:00:00Z').getUTCDay()===0&&!future)mark='<span class="scmk vd">판정</span>';
+    /* 🔒 제로데이를 숨기지 않는다 — 과거의 빈칸이 이 화면의 존재 이유다 */
+    var zero=(!future&&mins<=0&&!us.length);
+    cells+='<div class="scday l'+lv+(ds===sel?' sel':'')+(ds===today?' today':'')
+      +(zero?' zero':'')+(far?' far':'')+'" onclick="setStCalSel(\''+ds+'\')">'
+      +'<span class="scd">'+d+'</span>'+mark
+      +(mins>0?'<span class="scm">'+(mins>=60?(Math.round(mins/6)/10)+'h':mins+'m')+'</span>':'')
+      +(us.length?'<span class="scu'+(done===us.length?' ok':'')+'">'+done+'/'+us.length+'</span>':'')
+      +'</div>';
+  }
+  /* 월 합계 */
+  var mTot=0,mDays=0,zDays=0;
+  for(var k=1;k<=dim;k++){
+    var kd=m+'-'+String(k).padStart(2,'0'), km=stStudyMins(kd);
+    if(km>0){mTot+=km;mDays++;} else if(kd<=today)zDays++;
+  }
+  var dd=stDday();
+  var head='<div class="scbar">'
+    +'<button class="ghost sm" onclick="stCalMove(-1)">◀</button>'
+    +'<b>'+y+'년 '+mo+'월</b>'
+    +'<button class="ghost sm" onclick="stCalMove(1)">▶</button>'
+    +'<span class="mut" style="margin-left:auto;font-size:10.5px">'
+      +'학습 '+mDays+'일 · '+Math.round(mTot/6)/10+'h'
+      +(zDays?' · <b class="neg">빈 날 '+zDays+'일</b>':'')+'</span>'
+    +'<button class="ghost sm" onclick="setStCalSel(todayStr())">오늘</button></div>';
+  /* 🔒 stw — 가계부 캘린더와 같은 .calwrap 을 쓰지만 **모바일 순서가 반대**다.
+     가계부의 매일 동작은 '거래 입력'이라 조작부가 위로 가야 맞고(column-reverse),
+     학습 캘린더의 존재 이유는 **격자의 빈칸**이라 격자가 먼저다.
+     ⚠️ [결함] 이 클래스 없이 내보냈더니 400px 에서 격자가 화면 맨 아래로 갔다. */
+  return '<div class="calwrap stw">'
+    +'<div class="calmain"><div class="sec">'+head
+      +'<div class="scal">'+cells+'</div>'
+      +'<div class="mut" style="font-size:10px;margin-top:8px">'
+        +'칸 색 = 그날 학습 시간(60분이면 꽉 찬다) · <b>빈칸이 곧 제로데이다</b> · '
+        +'미래는 <b>3일</b>까지만 과제가 있다(3일 롤링 창) — 계획은 학습방이 만든다</div>'
+    +'</div></div>'
+    +'<div class="calside">'+stCalSide(sel)+'</div>'
+  +'</div>';
+}
+/* ── 오른쪽 패널 — 그날 과제 + 학습방 멘트 + 판정 지표 ── */
+function stCalSide(ds){
+  var today=todayStr(), future=ds>today, far=ds>stWindowEnd();
+  var us=stUnits().filter(function(u){return u.day===ds&&!u.backlog;})
+    .sort(function(a,b){return (a.status==='done')-(b.status==='done');});
+  var mins=stStudyMins(ds), pm=stPomoMinsOn(ds), tl=stMinsOn(ds);
+  var coach=stCoach(ds);
+  var wd=['일','월','화','수','목','금','토'][new Date(ds+'T00:00:00Z').getUTCDay()];
+  var dd=stDday(), e=stExam();
+  var dleft=(e.date&&isDateStr(e.date))?daysBetween(ds,e.date):null;
+
+  var list=us.length
+    ? us.map(function(u){return stUnitRow(u,future);}).join('')
+    : '<div class="mut" style="font-size:11.5px;padding:7px 0">'
+      +(far?'아직 계획이 없다 — 과제는 <b>오늘+2일</b>까지만 만든다.'
+        :(future?'이 날 과제가 아직 없다. 학습방이 채운다.'
+          :'이 날은 <b>배정된 과제가 없었다</b>.'))+'</div>';
+
+  /* 🔒 뽀모는 탭이 아니라 **여기서 전체화면으로 띄운다** — 탭 5개는 400px 에서 안 들어간다 */
+  var pomoBtn=(!far)
+    ? '<div style="margin-top:11px"><button class="btn" onclick="stPomoOpen('+JSON.stringify(ds).replace(/"/g,'&quot;')+')">⏱ 뽀모 시작</button>'
+      +(pm?'<span class="mut" style="font-size:10.5px;margin-left:8px">오늘 뽀모 '+pm+'분</span>':'')+'</div>'
+    : '';
+
+  /* 판정 지표 — '오늘' 탭에서 여기로 옮겼다(로한 결정). D-day 는 전 탭 공통 헤더에 있다 */
+  var c=stErrCount(), openErr=stErrOpen().length;
+  var chips=ST_TYPE.filter(function(x){return c[x.k];}).map(function(x){return x.label+c[x.k];}).join(' · ');
+  var ws=weekStart(today), wk=studyDB().week[ws]||null;
+  var wUs=stUnits().filter(function(u){return u.day&&u.day>=ws&&u.day<=addDays(ws,6)&&!u.backlog;});
+  var wDone=wUs.filter(function(u){return u.status==='done';}).length;
+  var carry=stUnits().filter(function(u){return u.status!=='done'&&(+u.carried||0)>0;}).length;
+
+  return '<div class="sec">'
+   +'<div class="bkhd"><span class="subhd2">'+ds.slice(5).replace('-','/')+' ('+wd+')'
+     +(ds===today?' <span class="pill">오늘</span>':'')+'</span>'
+     +'<span class="mut" style="font-size:10.5px">'
+       +(mins?mins+'분':'기록 없음')
+       +(pm&&tl?' <span title="타임로그 '+tl+'분 + 뽀모 '+pm+'분">('+tl+'+'+pm+')</span>':'')
+       +(dleft!=null&&dleft>=0?' · D-'+dleft:'')+'</span></div>'
+   +(ST_MOCKS[ds]?'<div class="stnudge" style="margin-bottom:8px">📊 <b>모의고사 '+mdEsc(ST_MOCKS[ds])+'</b> — 토 14:00~16:25, 실전과 같은 시간대</div>':'')
+   +(ds===e.date?'<div class="stnudge" style="margin-bottom:8px">🎯 <b>시험일</b> — 입실 '+mdEsc(e.enterBy||'')+'</div>':'')
+   +list+pomoBtn
+   /* 학습방 멘트 — 앱은 읽기만 한다 */
+   +(coach?('<div class="sccoach"><div class="scct">💬 학습방</div>'+mdEsc(coach)+'</div>')
+      :'<div class="mut" style="font-size:10.5px;margin-top:12px">💬 학습방 멘트 없음</div>')
+   +'</div>'
+   /* ── 판정 지표 (옛 '오늘' 탭에서 이동) ── */
+   +'<div class="sec">'+stGauge()+'</div>'
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">❌ 오답 <span class="mut">미회수 '+openErr+'</span></span>'
+     +'<span><button class="ghost sm" onclick="stErrSheet()">📄 회독 목록</button> '
+     +'<button class="btn sm" onclick="stErrModal(null)">+ 오답</button></span></div>'
+     +(chips?'<div class="mut" style="font-size:11.5px">'+mdEsc(chips)+'</div>'
+            :'<div class="mut" style="font-size:11.5px">미회수 없음</div>')
+     +(openErr?'<div style="margin-top:8px"><button class="ghost sm" onclick="setStTab(\'err\')">오답노트 열기 →</button></div>':'')+'</div>'
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">이번 주 <span class="mut">'+weekLabel(ws)+'</span></span>'
+     +'<span'+(carry?' class="neg" style="font-weight:700"':' class="mut"')+'>'
+     +(wUs.length?wDone+'/'+wUs.length+' 완료':'배정 없음')
+     +(carry?' · 이월 '+carry+'건':'')+'</span></div>'
+     +'<div class="mut" style="font-size:10.5px">이번 주 '+Math.round(stMinsRange(ws,today)/6)/10+'시간</div></div>';
+}
+
+
+/* ══════ v3.7 ⏱ 뽀모도로 ══════
+   목적은 시간 재기가 아니라 **로그 자동화**다. 최대 데이터 결함이 timelog 누락이었고
+   (9/10·9/11 학습이 안 찍혀 주간 판정이 실제보다 낮게 나왔다) 손으로 찍는 구조가 원인이다.
+   🔒 **길이는 자유다.** 로한: "보통의 뽀모도로는 25-5, 50-10 이런 식으로 자유롭게 설정할 수 있어야 한다."
+      학습방이 "10/3 고정"이라고 단정했지만 로한이 부정했다 — 프리셋 + 직접입력으로 둘 다 만족한다.
+   🔒 **setInterval 로 카운트를 세지 않는다.** 시작 시각을 저장하고 `Date.now()` 차이로 계산한다 —
+      탭을 벗어나거나 화면이 꺼지면 타이머가 throttle 돼 멈춘다. 경과 계산이면 돌아와도 정확하다.
+   🔒 기록은 `study.pomos` 에 **분 단위**. timelog(한 칸 30분)에 25·50분을 찍으면 시간이 부푼다. */
+var ST_POMO_PRESETS=[[25,5],[50,10],[10,3],[15,5],[45,15]];
+var ST_POMO_TICK=null;
+
+function stPomoCfg(){
+  var u=(DB.ui&&DB.ui.pomo)||{};
+  var f=+u.focus||25, b=(u.brk==null?5:+u.brk);
+  if(f<1)f=1; if(f>180)f=180; if(b<0)b=0; if(b>60)b=60;
+  return {focus:f,brk:b,unitId:u.unitId||'',date:u.date||todayStr()};
+}
+function stPomoSet(k,v){
+  DB.ui=DB.ui||{}; DB.ui.pomo=DB.ui.pomo||{};
+  DB.ui.pomo[k]=v; save(); stPomoRender();
+}
+/* 진행 중 세션 — 시작 시각만 들고 있는다 */
+function stPomoRun(){return (DB.ui&&DB.ui.pomoRun)||null;}
+function stPomoElapsedSec(){
+  var r=stPomoRun(); if(!r||!r.at)return 0;
+  var base=+r.acc||0;
+  if(r.paused)return Math.floor(base);
+  return Math.floor(base+(Date.now()-r.at)/1000);
+}
+function stPomoPre(f,b){
+  DB.ui=DB.ui||{}; DB.ui.pomo=DB.ui.pomo||{};
+  DB.ui.pomo.focus=f; DB.ui.pomo.brk=b; save(); stPomoRender();
+}
+function stPomoOpen(ds){
+  DB.ui=DB.ui||{}; DB.ui.pomo=DB.ui.pomo||{};
+  DB.ui.pomo.date=ds||todayStr();
+  save();
+  var ov=document.getElementById('pomoOv');
+  if(ov)ov.classList.add('on');
+  stPomoRender();
+  if(!ST_POMO_TICK)ST_POMO_TICK=setInterval(stPomoTick,250);
+}
+function stPomoClose(){
+  var r=stPomoRun();
+  if(r&&!r.done&&stPomoElapsedSec()>=60){
+    if(!confirm('진행 중인 뽀모가 있다. 닫으면 그때까지의 시간을 기록하고 끝낸다.'))return;
+    stPomoStop();
+  }else if(r){ DB.ui.pomoRun=null; save(); }
+  var ov=document.getElementById('pomoOv');
+  if(ov)ov.classList.remove('on');
+  if(ST_POMO_TICK){clearInterval(ST_POMO_TICK);ST_POMO_TICK=null;}
+  renderStudy();
+}
+function stPomoStart(phase){
+  var c=stPomoCfg();
+  DB.ui.pomoRun={phase:phase||'focus',at:Date.now(),acc:0,paused:false,done:false,
+    focus:c.focus,brk:c.brk,unitId:c.unitId,date:c.date};
+  save(); stPomoRender();
+}
+function stPomoPause(){
+  var r=stPomoRun(); if(!r||r.paused)return;
+  r.acc=stPomoElapsedSec(); r.paused=true; r.at=Date.now(); save(); stPomoRender();
+}
+function stPomoResume(){
+  var r=stPomoRun(); if(!r||!r.paused)return;
+  r.paused=false; r.at=Date.now(); save(); stPomoRender();
+}
+/* 🔒 중단해도 **그때까지의 시간을 버리지 않는다** — 0으로 버리면 기록이 거짓말을 한다 */
+function stPomoStop(){
+  var r=stPomoRun(); if(!r)return;
+  var sec=stPomoElapsedSec(), mins=Math.round(sec/60);
+  if(r.phase==='focus'&&mins>=1){
+    var rec={id:uid(),date:r.date||todayStr(),mins:mins,
+      at:new Date(Date.now()-sec*1000).toISOString(),plan:+r.focus||0};
+    if(r.unitId)rec.unitId=r.unitId;          /* ⚠️ 빈 서랍 금지 — 없으면 키를 안 만든다 */
+    if(mins<(+r.focus||0))rec.cut=true;       /* 계획보다 짧게 끝냈다 */
+    studyDB().pomos.push(rec);
+    logAct('⏱ 뽀모 '+mins+'분'+(r.unitId?' · '+(((stUnitById(r.unitId)||{}).title)||''):''));
+  }
+  DB.ui.pomoRun=null; save(); stPomoRender();
+}
+/* 집중이 끝나면 휴식으로, 휴식이 끝나면 다음 집중 대기 */
+function stPomoTick(){
+  var r=stPomoRun(); if(!r||r.paused)return;
+  var lim=(r.phase==='focus'?(+r.focus||25):(+r.brk||0))*60;
+  if(lim>0&&stPomoElapsedSec()>=lim){
+    if(r.phase==='focus'){
+      stPomoStop();                 /* 기록하고 */
+      var c=stPomoCfg();
+      if(c.brk>0){ stPomoStart('brk'); stPomoBeep(); return; }
+      stPomoBeep(); stPomoRender(); return;
+    }
+    DB.ui.pomoRun=null; save(); stPomoBeep(); stPomoRender(); return;
+  }
+  stPomoFace();
+}
+/* 끝났다는 신호 — 🚫 알림(Notification)은 폐기됐다. 페이지 안에서 나는 소리는 다른 층이다 */
+function stPomoBeep(){
+  try{
+    var A=window.AudioContext||window.webkitAudioContext; if(!A)return;
+    var c=new A(), o=c.createOscillator(), g=c.createGain();
+    o.connect(g); g.connect(c.destination);
+    o.type='sine'; o.frequency.value=880;
+    g.gain.setValueAtTime(0.0001,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25,c.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+0.7);
+    o.start(); o.stop(c.currentTime+0.72);
+  }catch(e){}
+}
+function stPomoMMSS(sec){
+  sec=Math.max(0,Math.floor(sec));
+  return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0');
+}
+/* 숫자만 1초마다 갈아끼운다 — 전체를 다시 그리면 입력칸이 리셋된다 */
+function stPomoFace(){
+  var r=stPomoRun(); if(!r)return;
+  var lim=(r.phase==='focus'?(+r.focus||25):(+r.brk||0))*60;
+  var el=document.getElementById('pomoClock');
+  if(el)el.textContent=stPomoMMSS(lim-stPomoElapsedSec());
+  var ring=document.getElementById('pomoRing');
+  if(ring&&lim>0){
+    var pct=Math.min(100,stPomoElapsedSec()/lim*100);
+    ring.style.background='conic-gradient(var(--accent) '+pct+'%, #e4e8f0 '+pct+'%)';
+  }
+}
+function stPomoRender(){
+  var box=document.getElementById('pomoBody'); if(!box)return;
+  var c=stPomoCfg(), r=stPomoRun(), ds=c.date;
+  var us=stUnits().filter(function(u){return u.day===ds&&!u.backlog;});
+  var todayMin=stPomoMinsOn(ds), n=stPomos().filter(function(x){return x.date===ds;}).length;
+
+  if(r){
+    var lim=(r.phase==='focus'?(+r.focus||25):(+r.brk||0))*60;
+    var u=r.unitId?stUnitById(r.unitId):null;
+    box.innerHTML='<div class="pmph'+(r.phase==='brk'?' brk':'')+'">'
+       +(r.phase==='brk'?'☕ 휴식':'🔥 집중')+' · '+(r.phase==='brk'?r.brk:r.focus)+'분</div>'
+     +'<div class="pmring" id="pomoRing"><div class="pmclock" id="pomoClock">'+stPomoMMSS(lim-stPomoElapsedSec())+'</div></div>'
+     +(u?'<div class="pmunit">'+mdEsc(u.title||'')+'</div>':'<div class="pmunit mut">과제 선택 없음</div>')
+     +'<div class="pmbtns">'
+       +(r.paused?'<button class="btn" onclick="stPomoResume()">▶ 계속</button>'
+                 :'<button class="ghost" onclick="stPomoPause()">⏸ 일시정지</button>')
+       +'<button class="ghost" onclick="stPomoStop()">■ 끝내고 기록</button></div>'
+     +'<div class="mut" style="font-size:10.5px;margin-top:10px">'
+       +(r.paused?'멈춤 상태다. ':'')
+       +'🔒 화면을 벗어나도 시간은 정확하다 — 시작 시각으로 계산한다.</div>';
+    stPomoFace();
+    return;
+  }
+  var presets=ST_POMO_PRESETS.map(function(P){
+    var on=(P[0]===c.focus&&P[1]===c.brk);
+    return '<button class="pmpre'+(on?' on':'')+'" onclick="stPomoPre('+P[0]+','+P[1]+')">'
+      +P[0]+'/'+P[1]+'</button>';}).join('');
+  var opts='<option value="">— 과제 선택 없이 —</option>'+us.map(function(u){
+    return '<option value="'+u.id+'"'+(c.unitId===u.id?' selected':'')+'>'
+      +mdEsc((u.status==='done'?'☑ ':'')+(u.title||''))+'</option>';}).join('');
+  box.innerHTML='<div class="pmset">'
+     +'<div class="pmlab">길이 (분)</div>'
+     +'<div class="pmpres">'+presets+'</div>'
+     +'<div class="pmrow">'
+       +'<label>집중 <input type="number" min="1" max="180" value="'+c.focus+'" id="pmF" '
+         +'onchange="stPomoSet(\'focus\',+this.value)"></label>'
+       +'<label>휴식 <input type="number" min="0" max="60" value="'+c.brk+'" id="pmB" '
+         +'onchange="stPomoSet(\'brk\',+this.value)"></label>'
+     +'</div>'
+     +'<div class="pmlab" style="margin-top:12px">어느 과제에 쓰나 <span class="mut">('+ds.slice(5).replace('-','/')+')</span></div>'
+     +'<select class="pmsel" onchange="stPomoSet(\'unitId\',this.value)">'+opts+'</select>'
+     +(us.length?'':'<div class="mut" style="font-size:10.5px;margin-top:5px">이 날 과제가 없다 — 과제 없이도 시간은 기록된다.</div>')
+   +'</div>'
+   +'<div class="pmbtns"><button class="btn" onclick="stPomoStart(\'focus\')">▶ 시작</button></div>'
+   +'<div class="mut" style="font-size:10.5px;margin-top:12px">'
+     +(n?('이 날 '+n+'회 · '+todayMin+'분 기록됨'):'이 날 기록 없음')
+     +' · 🔒 <b>timelog 에는 안 쓴다</b> — 한 칸이 30분이라 25·50분을 찍으면 학습시간이 부푼다.</div>';
+}
+
 function renderStudy(){
   var t=stTab();
+  /* 🔒 탭은 4개다. 400px 에서 5개는 글자가 잘린다 —
+     뽀모는 탭이 아니라 캘린더 안의 버튼에서 전체화면으로 띄운다(로한 지시). */
   var tabs='<div class="logtabs">'
-    +'<button class="'+(t==='home'?'on':'')+'" onclick="setStTab(\'home\')">🎯 오늘</button>'
+    +'<button class="'+(t==='cal'?'on':'')+'" onclick="setStTab(\'cal\')">📅 캘린더</button>'
     +'<button class="'+(t==='err'?'on':'')+'" onclick="setStTab(\'err\')">❌ 오답'
       +(stErrOpen().length?' <b>'+stErrOpen().length+'</b>':'')+'</button>'
     +'<button class="'+(t==='word'?'on':'')+'" onclick="setStTab(\'word\')">🈶 단어'
       +(stWords().length?' <b>'+stWords().length+'</b>':'')+'</button>'
     +'<button class="'+(t==='rec'?'on':'')+'" onclick="setStTab(\'rec\')">📝 기록</button></div>';
-  document.getElementById('v-study').innerHTML=tabs
-    +(t==='err'?stPaneErr():t==='rec'?stPaneRec():t==='word'?stPaneWord():stPaneHome());
+  /* 🔒 D-day·입실시각·phase 는 **전 탭 공통 헤더**다.
+     2025년 시험장 앞에서 돌아온 이력 때문에 '입실까지'가 목표에 포함된다 — 어느 화면에서도 보여야 한다. */
+  document.getElementById('v-study').innerHTML=tabs+stHead()
+    +(t==='err'?stPaneErr():t==='rec'?stPaneRec():t==='word'?stPaneWord():stPaneCal());
   /* 🔊 음성 문항은 **뜨면 한 번 읽어준다** — 매 문항 버튼을 눌러야 하면 문항이 성립하지 않는다.
      ⚠️ 문항당 1회만. 채점 후 다시 그릴 때 또 읽으면 시끄럽다(다시 듣기는 버튼으로). */
   if(t==='word'&&ST_DRILL&&!ST_DRILL.fin&&!ST_DRILL.show&&ST_DRILL.mode==='a2m'){
@@ -6518,13 +6929,15 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.6';
+var APP_VERSION='3.8';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'3.8',date:'2026-09-16',note:"<b>⚠️ [결함·중대] 체크카드 후불(K-패스 교통)이 카드 미결제에 안 떴다.</b> 로한 신고: <i>\"우리K패스카드 중 후불결제(신용카드) 부분은 현황판에 카드 미결제에 노출이 안 된다.\"</i> · 실측(9/16): <b>우리(K패스) 후불 10건 39,500원</b>(9/1~9/15, <code>credit:true·card:true</code>) — <b>총부채에는 들어가 있는데</b> 현황판 '💳 카드 미결제'와 선결제 화면에는 한 건도 없었다. <b>낼 방법이 없는 부채</b>가 됐고, 결제할 수 없으니 영원히 쌓일 구조였다 · 원인: <code>cardPendingByCard()</code> 는 <b>거래</b>로 후불을 판정(<code>txnIsCredit</code>)하는데 <code>cardCycles()</code> 는 <b>카드 종류</b>로 걸렀다(<code>c.type!=='credit'</code>). <b>같은 질문에 두 함수가 다르게 답했다</b> — v2.11(현황판 vs 선결제 134만 차이)과 <b>같은 자리에서 같은 실수</b>가 다시 났다 · 🔒 <b>후불 여부는 카드 종류가 아니라 거래가 답한다.</b> 카드 종류는 기본값일 뿐이다. 체크카드에도 후불이 붙는다(K-패스 후불교통) · 고친 곳 다섯: <code>cardCycles</code>(결제분 분해) · <code>monthCashPL</code>(현금 기준 월 손익 — 후불은 결제월로 밀어야 한다) · 현황판 목록(종류 대신 <b>결제분 유무</b>로 고른다) · 선결제 화면(같은 기준) · 카드 설정 줄(후불 거래가 있으면 '즉시결제'가 아니라 미결제 금액) · 🗑 <code>creditCard(name)</code> 삭제 — 쓰는 곳은 없는데 <b>'카드 종류가 후불을 정한다'는 틀린 규칙</b>이 거기 박혀 코드 다섯 곳에 복사됐다 · 후불 거래가 있는 체크카드는 <b>마감일·결제일을 고칠 수 있게</b> 했다 — 기본값 10/25 에 묶이면 실제 청구일과 어긋난다 · t40 에 H 블록 신설"},
+  {v:'3.7',date:'2026-09-16',note:"<b>📅 학습 캘린더 탭 신설 · ⏱ 뽀모도로 · '오늘' 탭 폐지.</b> 로한 지시(2026-09-16) · 📅 <b>학습 전용 캘린더를 맨 왼쪽 탭으로.</b> 월간 격자 + 날짜 클릭 시 오른쪽에 그날 과제·<b>학습방 멘트</b>(<code>logs[날짜].coach</code> — 앱은 읽기 전용) · 🔒 <b>가치는 제로데이 시각화다</b> — 미달은 전부 '안 한 날'에서 나왔고, 월간 격자의 빈칸이 숫자보다 강하게 작동한다. 지난 날인데 학습도 과제도 없는 칸은 <b>붉은 사선</b>으로 드러낸다 · 칸 색 농도 = 그날 학습 분(60분이면 가득) · 시험일·모의고사 4회·주간판정일 마커 · 🔒 <b>계획 편집 도구로 만들지 않았다</b> — 먼 미래 날짜에 과제를 직접 심으면 3일 롤링 창 원칙(v6)이 깨진다. 90일치를 미리 깔면 첫 주에 속도가 틀렸을 때 89일이 통째로 틀어진다. 미래는 <b>3일</b>까지만 과제가 있고 그 뒤는 흐리게 표시한다. ⚠️ 흐린 날에 이미 올라온 과제는 <b>숨기지 않는다</b> — 숨기면 거짓말이 된다 · 🗑 <b>'오늘' 탭 폐지</b>(로한: \"캘린더랑 중복이야\"). 오늘 할 일 → 캘린더 우측 패널, 과락 게이지·오답 요약·이번 주 → 우측 하단, <b>D-day·입실시각·phase → 전 탭 공통 헤더</b>(입실 시각에 못 들어간 이력이 있어 '입실까지'는 어느 화면에서나 보여야 한다) · 🔒 <b>탭은 4개로 유지</b>(캘린더·오답·단어·기록) — 400px 에서 5개는 글자가 잘린다. 뽀모는 탭이 아니라 <b>캘린더 안의 버튼에서 전체화면</b>으로 띄운다(로한 제안) · ⏱ <b>뽀모 길이는 자유다</b> — 프리셋 25/5·50/10·10/3·15/5·45/15 + <b>직접 입력</b>(집중 1~180분, 휴식 0~60분). ⚠️ 학습방이 \"10/3 고정\"이라 단정했지만 로한이 부정했다 — 통상 25-5, 50-10 식으로 자유로워야 한다 · 🔒 <b>setInterval 로 카운트를 세지 않는다</b> — 시작 시각을 저장하고 경과로 계산한다. 탭을 벗어나거나 화면이 꺼지면 타이머가 throttle 되지만, 경과 계산이면 돌아와도 정확하다. 새로고침해도 돌던 뽀모가 이어진다 · 🔒 <b>기록은 <code>study.pomos</code> 에 분 단위</b>. timelog 는 안 건드린다 — <b>한 칸이 30분</b>이라 25·50분 뽀모를 거기 찍으면 학습시간이 부풀고 주간 판정이 거짓말을 한다 · 🚫 <code>units[].mins</code> 에 실제 소요를 쓰지 않는다(원칙 1) — 시간 기록이 두 곳이면 또 어긋난다. 어느 과제에 썼는지는 <code>pomos[].unitId</code> 로 판다 · ⚠️ <b>중단해도 그때까지의 시간을 버리지 않는다</b>(1분 미만은 미기록). 계획보다 짧으면 <code>cut:true</code> · 집중이 끝나면 자동으로 휴식으로 넘어가고 소리를 낸다 (🚫 알림은 폐기됐다 — 페이지 안에서 나는 소리는 다른 층이다) · 학습시간 파생을 <code>stStudyMins()</code> <b>한 곳으로 합쳤다</b>(timelog + 뽀모) — 같은 질문에 답하는 함수는 하나여야 한다 · ⚠️ [결함·모바일] <code>.calwrap</code> 이 가계부 규칙(<code>column-reverse</code>)을 물려받아 400px 에서 <b>격자가 화면 맨 아래</b>로 갔다. 캘린더 탭을 눌렀는데 캘린더를 보려면 스크롤을 해야 했다 → 학습 캘린더는 격자부터 · t42 에 W·X 블록 50건 추가(281건)"},
   {v:'3.6',date:'2026-09-16',note:"<b>🔴 [결함·중대] 충돌창이 학습 데이터를 아예 비교하지 않았다 — 단어 96건이 두 번 유실.</b> · <b>사고</b>: 9/15 로버트가 <code>words</code> 를 371→409건으로 올렸는데 두 번 모두 <b>313건으로 되돌아갔다</b>(p158·p159 단어 + p199·200 접속사 96건). · <b>원인</b>: 낙관적 잠금은 <b>정상 작동했다</b> — 앱은 충돌을 감지해 확인창을 띄웠고 로한이 「내 화면으로 덮어쓰기」를 눌렀다(<code>pre_overwrite</code> 스냅샷 4건이 전부 409건으로 남아 증거가 됐다). 🔴 <b>그런데 그 확인창에 단어가 안 보였다</b> — <code>SYNC_COLS</code>(충돌 비교 목록)에 <b><code>study</code> 가 한 건도 등록돼 있지 않았다.</b> 화면엔 \"저쪽에만 96건\"이 뜨지 않았고, 로한은 잃을 게 없다고 보고 눌렀다. ⚠️ <b>반복결함 #8(반쪽 작업)</b> — v2.7 에서 study 를 만들 때 이 목록에 넣지 않았다. 🔒 <b>새 컬렉션을 만들면 충돌 목록에 등록하는 것까지가 한 작업이다</b> · <b>수정 3단</b>: ① <code>SYNC_COLS</code> 에 단어·문법예문·학습과제·오답·테스트·드릴기록 등록(중첩 경로 지원) ② 🔒 <b>자동 흡수</b> — 묻기 <b>전에</b> 서버에만 있는 레코드를 내 쪽으로 합친다. 로버트가 append 하고 앱이 생성·삭제하지 않는 배열(<code>words</code>·<code>sents</code>·<code>units</code>)만 대상이다. ⚠️ <code>errors</code> 는 앱이 지울 수 있어 제외 — 흡수하면 삭제가 되살아난다 ③ 흡수 후 <b>사라질 게 0이면 묻지 않고 저장</b>한다. 잃을 게 없는데 확인창을 띄우면 <b>정작 잃을 게 있을 때도 같은 창이라 안 읽힌다</b>. 남으면 맨 위에 <b>🔴 \"덮어쓰면 서버에만 있는 N건이 사라진다\"</b> 를 숫자로 박는다 · 유실분 96건은 <code>pre_overwrite</code> 스냅샷에서 <b>409건으로 복구</b>(현재 카운터는 보존, id 중복 0) · ⚖️ <b>[결함] 출제 콜드스타트 편향 — <code>flag</code> 가중치 제거.</b> 실측: 313건 중 출제된 47건의 <b>91%가 <code>flag:true</code></b> 였고 <b>266건이 한 번도 안 나왔다</b>. 초기엔 모든 <code>miss</code> 가 0이라 <b><code>flag</code> 가 유일한 차별 요소</b>가 되어 체크한 단어가 상위에 영구히 박힌다. <code>flag</code> 는 \"책에서 어렵다고 체크한 것\"이라는 <b>사전 추정</b>일 뿐 — 실측 <code>miss</code> 가 쌓이기 전에 사전 추정으로 줄을 세우면 안 된다 · 새 식: <code>score = (seen==0 ? 100 : 0) + miss*10 + min(경과일,7)</code>. <b>미출제에 100점</b>을 줘서 전 단어 1회 순회가 끝난 뒤에야 miss 정렬이 작동한다(로한: \"시험은 무조건 전체를 내되, 오답 지표가 모이면 그때 빈도를 늘려라\"). 동점이면 <code>seen</code> 적은 순 → 랜덤(미출제 358건이 전부 동점이라 고정 순서면 매번 같은 20개만 나온다) · <code>flag</code> 필드는 유지 — 로버트 분석용, 출제엔 미사용 · 단어 탭에 <b>커버리지 단계 / 약점 집중 단계</b>를 한 줄로 표시 — \"왜 아는 단어가 계속 나오나\"의 답이다"},
   {v:'3.5',date:'2026-09-15',note:"<b>🎯 오답 선택지 전면 교체 · 전 모드 4지선다 고정 · 「모르겠다」 버튼.</b> 로버트(학습) v10 반영 · 🔴 <b>[결함] 오답의 74%가 무의미했다.</b> v3.4 까지 오답은 <b>같은 글자수 우선 → 나머지 랜덤</b>이었다. 실데이터 290문항 측정: 정답↔오답 <b>평균 편집거리 3.33</b>, <b>거리 3 이상이 74%</b> — 「いがく(의학)」 문제에 「おちゃ·うりば·おっと」가 떴다. <b>글자가 하나도 안 겹치면 눈감고 맞힌다.</b> 그러면 정답률이 부풀고 <code>miss</code> 가 안 쌓여서 <b>출제 가중식(v9)과 주간 판정이 통째로 죽는다</b> · 🔒 <b>객관식의 난도는 오답이 100% 결정한다</b> — 모드별로 오답을 골라낸다: <code>k2r</code> ① 같은 한자의 다른 읽기(開く: あく↔ひらく) ② <b>청탁·촉음·장음 변형을 생성</b>(うでどけい→うでとけい, こくさい→こくざい — 실제로 틀린 패턴이다) ③ 읽기 편집거리 1~2 / <code>r2k</code> ① 동음 레코드 ② 한자 편집거리 ③ 같은 <code>cat</code> / <code>r2m</code>·<code>a2m</code> ① 읽기 1글자 차이 단어의 뜻(あせ/あめ/あし/あす) ② <b>자·타동사 짝의 반대쪽 뜻</b>(おこる 일어나다 ↔ おこす 일으키다) ③ 같은 <code>sub</code> / <code>k2m</code> 한자 편집거리 · ⚠️ 생성한 변형이 <b>실재 단어와 겹치면 뺀다</b> — 정답이 둘인 문항이 된다 · 🚫 <b>랜덤은 최후 수단</b>(같은 cat → 같은 lv → 나머지) · ⌨ <b>직접입력 토글 삭제 — 전 모드 4지선다.</b> ① JLPT 는 전 영역이 4지선다고 주관식은 시험에 없는 능력을 훈련시킨다 ② 주 사용처가 이동 중이라 20문항 타이핑이 불가능하다 ③ IME 입력 부하는 학습과 무관하다. 옛 <code>ui.stdIn</code> 은 빈 서랍이라 지운다 · ❓ <b>「모르겠다」 버튼 신설</b> — 5번째 선택지가 아니라 별도 버튼이고 <b>처리는 오답과 완전히 같다</b>(<code>miss+1</code>, <code>streak=0</code>). <b>목적은 찍기 제거다</b> — 찍어서 맞히면 miss 가 안 쌓여 약점 탐지가 죽는다. 결과 화면에 몇 개를 모른다고 했는지 따로 보여준다 · 🔒 채점 기록은 <code>stDrillRecord()</code> <b>한 곳</b>에서만 한다 — 「모르겠다」가 따로 세면 두 곳이 같은 일을 다르게 한다(원칙 2) · <b>한 세트 20문항 기본</b>(문항당 5초 목표). 시작 버튼 20·40·10 순, 데일리 진입점도 20 · 🔒 단어가 <b>4개 미만인 모드는 막는다</b> — 보기 4개를 못 만들면 문항이 성립하지 않는다 · <code>drills</code> 에 <code>dunno</code> 집계 추가(0 이면 키를 안 만든다) · 결과 화면에 <b>문항당 소요초</b> 표시 · t42 S 블록 신설"},
   {v:'3.4',date:'2026-09-11',note:"<b>🔊 음성 모드 · 모드 6개 재정의 · 출제 가중치 확정.</b> 로버트(학습) v8·v9 반영 · 🔴 <b><code>w2m</code>(단어→뜻) 폐기.</b> 한자가 보이면 한국어 한자음으로 찍히고 그게 <b>안다는 착각</b>을 만든다. 로한 자가보고: <i>\"한자 보고 뜻은 쉽고 히라가나 보고 뜻이 어렵다.\"</i> <b>청해 60점(과락 19)은 전부 소리라 한자가 안 보인다</b> → <code>r2m</code>(히라가나→뜻)·<code>k2m</code>(한자→뜻)으로 쪼개고 맨 위에 <code>a2m</code>(음성→뜻)을 뒀다. 기본 모드도 k2r → <b>r2m</b> 으로 바꿨다 · 🔊 <b>음성은 브라우저 내장 <code>speechSynthesis</code></b> — 외부 API·음원파일·키 없다. 🔴 <b>읽히는 건 언제나 <code>kana</code> 다</b>: <code>開く</code> 를 넣으면 <code>あく</code> 가 아니라 <code>ひらく</code> 로 읽어 <b>틀린 발음을 외우게 된다</b>(p157 에 실제로 있다). 🔒 일본어 음성이 없는 기기에서는 <b>카드 자체를 그리지 않고</b> 왜 없는지·어떻게 추가하는지 한 줄로 알린다. <code>getVoices()</code> 가 첫 호출에 빈 배열을 주는 문제는 <code>onvoiceschanged</code> 에서 다시 그려 해결. 반복 재생 버튼 필수(청해는 한 번에 안 들린다) · ⚠️ 고저 악센트는 신뢰하지 마라. 단어 발음 ≠ 청해 — 교재 2권 음원이 본체고 이건 보조다 · 🔴 <b>[결함] 소리로 뜻을 묻는 모드에서 동음이의어는 정답이 둘이다.</b> 실데이터 313건에 5쌍 — <code>おる</code>(있다·겸양 / 접다), <code>おこる</code>(일어나다 / 화내다), <code>おりる</code>, <code>は</code>, <code>ちゅうしゃ</code>. 하나만 정답으로 치면 <b>맞는 답이 오답으로 기록되고, miss 가 올라가고, 출제 알고리즘이 그 문제를 계속 낸다</b> — 틀릴 수밖에 없는 문제가 반복된다 → <b>같은 읽기의 모든 뜻을 정답으로 인정</b>하고, <b>4지선다 보기에서는 같은 읽기 단어를 뺀다</b>(보기 두 개가 다 정답이 되므로). 정답 화면에 \"같은 읽기 — ○○ 도 정답\"을 띄운다. ⚠️ k2r·r2k 는 확장하지 않는다 — 한자가 정답을 하나로 고정한다(kanji 중복 0건) · ⚖️ <b>출제 가중치 확정</b>(학습방 v9): <code>score = miss×10 + (flag?3:0) + min(안 본 날수, 7)</code>, 동점이면 <code>seen</code> 적은 순. <b>lastSeen 결합이 핵심</b> — miss 만으로 정렬하면 <code>miss=0</code> 단어가 영영 안 나온다. miss 가 내려갈수록 경과일이 정렬을 주도해 <b>자연히 순환</b>한다 · ✅ <b><code>streak</code> 신설 — 연속 2회 정답이면 <code>miss</code> 를 1 깎는다.</b> v3.3 까지는 miss 가 누적이라 <b>3번 틀린 단어가 10번 맞혀도 1순위에 영구히 박혔다.</b> 리셋이 아니라 점진 하향이라(3번 틀리면 6번 연속 정답에 0) '어려웠던 단어' 이력이 남는다. <code>errors.cleared</code>(2연속) 와 같은 원리 · 🈶 <b><code>sub</code> 필드</b>(존경어·겸양어·자동사·타동사) — 개수를 상단에 세고 정답 화면에 배지로 띄운다. 앱이 만들지 않는다, 학습방이 채운다 · 정답 화면에 <b>읽기·한자·뜻을 전부</b> 보여준다(소리로 맞혔어도 표기를 같이 봐야 남는다) + 🔊 다시 듣기 + 누적/연속 표시 · t42 P~R 블록 신설"},
@@ -7325,7 +7738,8 @@ function settleMix(t){
       빼면 앱 숫자와 카드사 청구서가 안 맞고, 그러면 이 화면은 안 보게 된다. */
 function settleModal(pre){
   var cy=cardCycles();
-  var cards=DB.cards.filter(function(c){return c.type==='credit'&&cy[c.name];});
+  /* 🔒 종류가 아니라 결제분 유무로 고른다(v3.8) — 체크카드 후불도 선결제 대상이다 */
+  var cards=DB.cards.filter(function(c){return !!cy[c.name];});
   if(!cards.length){openModal('<div class="mtop"><h3>신용카드 선결제</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut" style="padding:12px 0">미결제 카드 거래가 없습니다.</div>');return;}
   var cid=(pre&&pre.split('|')[0])||'', ym=(pre&&pre.split('|')[1])||'';
   var card=DB.cards.filter(function(c){return c.id===cid;})[0]||cards[0];
@@ -7349,7 +7763,7 @@ function drawSettle(){
   var _defD=(pd<todayStr())?pd:todayStr();
 
   /* 카드 전환 (신용카드가 2장 이상일 때만) */
-  var credit=DB.cards.filter(function(c){return c.type==='credit'&&cy[c.name];});
+  var credit=DB.cards.filter(function(c){return !!cy[c.name];});
   var cardTabs=credit.length>1?('<div class="sttabs">'+credit.map(function(c){
      var tot=Object.keys(cy[c.name]).reduce(function(x,y){return x+cy[c.name][y].sum;},0);
      return '<span class="sttab'+(c.id===card.id?' on':'')+'" data-stcard="'+c.id+'">'+c.name+' <span class="mut">'+shortWon(tot)+'</span></span>';
@@ -7550,12 +7964,15 @@ function saveAcc(id){
 function delAcc(id){if(!confirm('삭제할까요?'))return;var _a=DB.accounts.filter(function(a){return a.id===id})[0];logAct('계좌삭제 · '+(_a?_a.name:id));DB.accounts=DB.accounts.filter(function(a){return a.id!==id});save();renderAcct();renderDash();}
 function cardModal(id){
   var c=id?DB.cards.filter(function(x){return x.id===id})[0]:{name:'',type:'credit'};
+  modal._cardId=id||null;
   var acctOpts='<option value="">— 미연결 —</option>'+cashAccts().map(function(a){return '<option value="'+a.id+'"'+(a.id===c.acct?' selected':'')+'>'+a.name+'</option>';}).join('');
   openModal('<div class="mtop"><h3>'+(id?'카드 수정':'카드 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>카드 이름</label><input id="cd_name" value="'+(c.name||'')+'" placeholder="예: 현대카드 / 국민 체크"></div>'
    +'<div class="field"><label>종류</label><select id="cd_type" onchange="cdTypeChange()"><option value="credit"'+(c.type==='credit'?' selected':'')+'>신용(선결제·미결제 누적)</option><option value="check"'+(c.type==='check'?' selected':'')+'>체크(즉시결제)</option></select></div>'
    +'<div class="field"><label>연결계좌 <span class="mut">(체크=즉시출금 · 신용=선결제 출금계좌)</span></label><select id="cd_acct">'+acctOpts+'</select></div>'
-   +'<div id="cd_cycwrap" style="display:'+(c.type==='credit'?'block':'none')+'">'
+   /* 🔒 체크카드에 후불 거래가 있으면 주기 칸을 준다 — 없으면 마감·결제일이 기본값(10/25)에
+      묶여 실제 청구일과 어긋난다. 후불이 있는데 주기를 못 고치는 게 더 나쁜 상태다(v3.8) */
+   +'<div id="cd_cycwrap" style="display:'+(cardEverPost(c)?'block':'none')+'">'
      +'<div class="field"><label>이용기간 마감일 <span class="mut">— 이 날 다음부터 다음 결제분</span></label>'
        +'<div class="itlife"><input id="cd_close" type="number" min="1" max="28" value="'+cardClose(c)+'"><span class="mut">일 마감</span>'
        +'<span class="mut">→ 결제일</span><input id="cd_pay" type="number" min="1" max="28" value="'+cardPay(c)+'"><span class="mut">일</span></div>'
@@ -7567,7 +7984,10 @@ function cardModal(id){
 }
 function cdTypeChange(){
   var t=document.getElementById('cd_type').value;
-  document.getElementById('cd_cycwrap').style.display=(t==='credit')?'block':'none';
+  /* 체크로 바꿔도 후불 거래가 이미 있으면 주기 칸을 남긴다 */
+  var _c=modal._cardId?DB.cards.filter(function(x){return x.id===modal._cardId})[0]:null;
+  var keep=(t==='credit')||(_c&&_c.type!=='credit'&&cardEverPost(_c));
+  document.getElementById('cd_cycwrap').style.display=keep?'block':'none';
   cdCycHint();
 }
 function cdCycHint(){
@@ -7581,8 +8001,11 @@ function cdCycHint(){
 }
 function saveCard(id){var n=document.getElementById('cd_name').value.trim();if(!n)return alert('이름을 입력하세요');var type=document.getElementById('cd_type').value;var acct=document.getElementById('cd_acct').value||undefined;
   var cl=parseInt((document.getElementById('cd_close')||{}).value,10),pd=parseInt((document.getElementById('cd_pay')||{}).value,10);
-  if(type==='credit'&&(!(cl>=1&&cl<=28)||!(pd>=1&&pd<=28)))return alert('마감일·결제일은 1~28 사이여야 합니다.\n(29~31 은 없는 달이 있어 주기가 깨진다)');
-  var cyc=(type==='credit')?{closeDay:cl,payDay:pd}:{closeDay:undefined,payDay:undefined};
+  var _old=id?DB.cards.filter(function(x){return x.id===id})[0]:null;
+  /* 후불 거래가 이미 있는 체크카드도 주기를 저장한다(v3.8) */
+  var _keep=(type==='credit')||(_old&&cardEverPost(_old));
+  if(_keep&&(!(cl>=1&&cl<=28)||!(pd>=1&&pd<=28)))return alert('마감일·결제일은 1~28 사이여야 합니다.\n(29~31 은 없는 달이 있어 주기가 깨진다)');
+  var cyc=_keep?{closeDay:cl,payDay:pd}:{closeDay:undefined,payDay:undefined};
   if(id){var c=DB.cards.filter(function(x){return x.id===id})[0];c.name=n;c.type=type;c.acct=acct;c.closeDay=cyc.closeDay;c.payDay=cyc.payDay;}else DB.cards.push({id:uid(),name:n,type:type,acct:acct,closeDay:cyc.closeDay,payDay:cyc.payDay});logAct((id?'카드수정':'카드추가')+' · '+n+(acct?' → '+acctName(acct):''));save();closeModal();renderAcct();renderDash();}
 function delCard(id){if(!confirm('삭제할까요?'))return;var _c=DB.cards.filter(function(c){return c.id===id})[0];logAct('카드삭제 · '+(_c?_c.name:id));DB.cards=DB.cards.filter(function(c){return c.id!==id});save();renderAcct();renderDash();}
 function debtModal(id){
@@ -8532,7 +8955,9 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();});}
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
+    /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
+    try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen((DB.ui.pomoRun.date)||todayStr()); } }catch(e){}});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);

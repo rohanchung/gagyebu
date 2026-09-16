@@ -252,6 +252,76 @@ const T=(d,m,amt,cat,extra)=>Object.assign(
   await b.close();
  }
 
+ /* ── J. 💳 체크카드 후불이 '카드 미결제'에 떠야 한다 (v3.8) ──
+    ⚠️ [결함·중대] 로한 신고: "우리K패스카드 중 후불결제(신용카드) 부분은 현황판 카드 미결제에 노출이 안 된다."
+       실측(9/16) 우리(K패스) 후불 10건 39,500원이 **총부채엔 있고 현황판·선결제엔 없었다** — 낼 방법이 없는 부채.
+       원인: cardPendingByCard() 는 거래(txnIsCredit)로 세는데 cardCycles() 는 카드 종류로 걸렀다.
+    🔒 후불 여부는 **카드 종류가 아니라 거래**가 답한다. 같은 질문에 두 함수가 다르게 답하면 안 된다(v2.11 재발). */
+ {
+  const st=BASE([
+    /* K패스(체크)의 후불 교통 — 로한의 실제 형태 */
+    T('2026-09-01','K패스',1500,'교통비',{card:true,credit:true}),
+    T('2026-09-05','K패스',3000,'교통비',{card:true,credit:true}),
+    T('2026-09-15','K패스',35000,'교통비',{card:true,credit:true}),
+    /* 같은 카드의 즉시 결제분 — 미결제에 섞이면 안 된다 */
+    T('2026-09-06','K패스',12000,'식비'),
+    /* 신용카드 쪽은 그대로 */
+    T('2026-09-03','탭탭오',20000,'식비',{card:true})
+  ]);
+  const {b,p,errs}=await boot(st);
+  /* ① 두 함수가 같은 답을 낸다 */
+  const pend=await p.evaluate(()=>cardPendingByCard());
+  ok('J1 체크카드 후불이 미결제로 잡힌다',pend['K패스']===39500,JSON.stringify(pend));
+  const cyc=await p.evaluate(()=>{const cy=cardCycles(),o={};
+    for(const k in cy){o[k]=Object.keys(cy[k]).reduce((s,y)=>s+cy[k][y].sum,0);}return o;});
+  ok('J2 결제분 분해도 같은 금액',cyc['K패스']===39500,JSON.stringify(cyc));
+  ok('J3 신용카드는 그대로',cyc['탭탭오']===20000,JSON.stringify(cyc));
+  ok('J5 총부채에 한 번만 들어간다',(await p.evaluate(()=>totalDebt()))===59500,
+     String(await p.evaluate(()=>totalDebt())));
+  /* ② 화면에 실제로 뜬다 — 여기가 로한이 본 자리다 */
+  await p.evaluate(()=>gotoTab('dash'));await p.waitForTimeout(600);
+  const dash=await p.$eval('#v-dash .cardbox',e=>e.textContent);
+  ok('J6 현황판 카드 미결제에 K패스가 뜬다',dash.indexOf('K패스')>=0,dash.slice(0,240));
+  ok('J7 금액도 뜬다',dash.indexOf('39,500')>=0,dash.slice(0,240));
+  ok('J8 체크카드라고 표시한다',dash.indexOf('체크·후불분')>=0,dash.slice(0,240));
+  ok('J9 신용카드도 같이 뜬다',dash.indexOf('탭탭오')>=0);
+  ok('J10 미결제 없음 문구가 아니다',dash.indexOf('미결제 없음')<0);
+  /* ③ 선결제로 실제로 지울 수 있다 — 못 지우면 영원히 쌓인다 */
+  await p.evaluate(()=>settleModal('c1|2026-09'));await p.waitForTimeout(500);
+  const mod=await p.$eval('#modal',e=>e.textContent);
+  /* ⚠️ 39,500 이 한 덩어리로 뜨지 않는다 — K패스는 closeDay 가 없어 기본값 10일이 먹는다.
+     9/1·9/5 → 9월 결제분 4,500 · 9/15 → 10월 결제분 35,000. **결제분이 갈리는 게 맞다.**
+     (실제 K패스 후불교통 청구 주기가 10일 마감인지는 불확실 — 그래서 체크카드도 마감일을 고칠 수 있게 했다) */
+  ok('J11 선결제 화면이 K패스를 받는다',mod.indexOf('거래가 없습니다')<0&&mod.indexOf('4,500')>=0,
+     mod.slice(0,260));
+  ok('J11b 결제분이 둘로 갈린다',mod.indexOf('9월 결제분')>=0&&mod.indexOf('10월 결제분')>=0,
+     mod.slice(0,200));
+  ok('J12 두 카드 탭이 다 나온다',mod.indexOf('K패스')>=0&&mod.indexOf('탭탭오')>=0,mod.slice(0,200));
+  /* ④ 카드 설정 줄이 '즉시결제'라고 거짓말하지 않는다 */
+  await p.evaluate(()=>{closeModal();gotoTab('acct');});await p.waitForTimeout(600);
+  const av=await p.$eval('#v-acct',e=>e.textContent);
+  ok('J13 설정에 미결제 금액이 뜬다',av.indexOf('후불분 있음')>=0&&av.indexOf('39,500')>=0,
+     av.slice(0,400));
+  /* ⑤ 후불이 있는 체크카드는 마감·결제일을 고칠 수 있다 */
+  await p.evaluate(()=>cardModal('c1'));await p.waitForTimeout(400);
+  ok('J14 주기 칸이 열린다',
+     (await p.$eval('#cd_cycwrap',e=>e.style.display))==='block');
+  ok('J15 후불 없는 체크카드엔 안 준다',(await p.evaluate(()=>{
+     closeModal();DB.cards.push({id:'c3',name:'맹체크',type:'check',acct:'ac1'});
+     cardModal('c3');return document.getElementById('cd_cycwrap').style.display;}))==='none');
+  /* ⑥ 현금 기준 월 손익 — 후불은 **거래일이 아니라 결제월**에 나간다(체크카드 후불도).
+     9월 유출 = 즉시 12,000 + 9월 결제분(K패스 4,500 + 탭탭오 20,000) = 36,500
+     10월 유출 = K패스 10월 결제분 35,000 (9/15 이용분 — 10일 마감 이후라 다음 결제분) */
+  const cash=await p.evaluate(()=>monthCashPL('2026-09').exp);
+  ok('J16 9월 유출 = 즉시분 + 9월 결제분',cash===12000+4500+20000,String(cash));
+  const cash10=await p.evaluate(()=>monthCashPL('2026-10').exp);
+  ok('J17 마감 이후 후불은 10월로 밀린다',cash10===35000,String(cash10));
+  /* 🔒 두 달을 합치면 전액이다 — 어느 달에도 안 걸려 사라지는 돈이 없어야 한다 */
+  ok('J17b 9·10월 합 = 전체 지출',cash+cash10===12000+39500+20000,String(cash+cash10));
+  ok('J18 콘솔 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));
  process.exit(fail?1:0);
 })();

@@ -92,22 +92,29 @@ async function boot(st){
   await b.close();
  }
 
- /* ── D. 채널 — 장소로 고르고, 다른 곳 것은 흐리게 남긴다 ── */
+ /* ── D. 채널 — 장소로 고른다.
+    ⚠️ v3.7 에서 '오늘' 탭이 캘린더로 바뀌었다. 채널 **탭 필터**는 사라지고
+       캘린더 우측 목록의 **칩**으로 장소를 보여준다(하루 3~4건이라 필터까지는 불필요).
+       stCh·stOpenUnits·stOtherUnits 는 데일리와 함수 검증에 계속 쓴다. ── */
  {
   const st=BASE();
+  const TD=new Date();
+  const tds=TD.getFullYear()+'-'+String(TD.getMonth()+1).padStart(2,'0')+'-'+String(TD.getDate()).padStart(2,'0');
   st.study.units=[
-   {id:'u1',ch:'academy',type:'vocab',title:'학원A',mins:10,due:'2026-09-13',status:'todo',carried:0},
-   {id:'u2',ch:'academy',type:'kanji',title:'학원B',mins:10,due:'2026-09-10',status:'todo',carried:2},
-   {id:'u3',ch:'home',type:'listen',title:'집A',mins:20,due:'2026-09-14',status:'todo',carried:0},
-   {id:'u4',ch:'move',type:'vocab',title:'이동A',mins:10,due:'2026-09-13',status:'todo',carried:0}];
+   {id:'u1',ch:'academy',type:'vocab',title:'학원A',mins:10,due:'2026-09-13',day:tds,backlog:false,status:'todo',carried:0},
+   {id:'u2',ch:'academy',type:'kanji',title:'학원B',mins:10,due:'2026-09-10',day:tds,backlog:false,status:'todo',carried:2},
+   {id:'u3',ch:'home',type:'listen',title:'집A',mins:20,due:'2026-09-14',day:tds,backlog:false,status:'todo',carried:0},
+   {id:'u4',ch:'move',type:'vocab',title:'이동A',mins:10,due:'2026-09-13',day:tds,backlog:false,status:'todo',carried:0}];
   const {b,p,errs}=await boot(st);
   await p.evaluate(()=>setStCh('academy'));await p.waitForTimeout(400);
   ok('D1 학원 과제 2건',(await p.evaluate(()=>stOpenUnits('academy').length))===2);
   ok('D2 마감 가까운 것부터',(await p.evaluate(()=>stOpenUnits('academy')[0].id))==='u2');
   /* 🔒 다른 채널 것을 지우지 않는다 — 있다는 건 알아야 한다 */
   ok('D3 다른 채널 2건',(await p.evaluate(()=>stOtherUnits('academy').length))===2);
-  const rows=await p.$$eval('#v-study .stu',es=>es.map(e=>({dim:e.classList.contains('dim'),t:e.textContent})));
-  ok('D4 다른 채널은 흐리게',rows.filter(r=>r.dim).length===2,JSON.stringify(rows.map(r=>r.dim)));
+  /* 🔒 장소는 **칩으로** 보인다 — 필터가 없어도 눈으로 고를 수 있어야 한다 */
+  const sideTxt=await p.$eval('#v-study .calside',e=>e.textContent);
+  ok('D4 우측 목록에 장소 칩이 보인다',
+     ['학원','집','이동'].every(x=>sideTxt.indexOf(x)>=0),sideTxt.slice(0,160));
   ok('D5 이월 뱃지',(await p.$$('#v-study .stcar')).length===1);
   await p.evaluate(()=>setStCh('home'));await p.waitForTimeout(400);
   ok('D6 채널 전환',(await p.evaluate(()=>stOpenUnits('home').length))===1);
@@ -118,7 +125,10 @@ async function boot(st){
  /* ── E. unit 체크 — 켜고 끄기 · 오늘 끝낸 것은 남는다 ── */
  {
   const st=BASE();
-  st.study.units=[{id:'u1',ch:'academy',type:'vocab',title:'학원A',mins:10,due:'2026-09-13',status:'todo',carried:0}];
+  const TD2=new Date();
+  const tds2=TD2.getFullYear()+'-'+String(TD2.getMonth()+1).padStart(2,'0')+'-'+String(TD2.getDate()).padStart(2,'0');
+  st.study.units=[{id:'u1',ch:'academy',type:'vocab',title:'학원A',mins:10,due:'2026-09-13',
+    day:tds2,backlog:false,status:'todo',carried:0}];
   const {b,p,errs}=await boot(st);
   const d=await T(p);
   await p.evaluate(()=>stToggleUnit('u1'));await p.waitForTimeout(500);
@@ -127,7 +137,10 @@ async function boot(st){
   ok('E3 logs 에 남는다',(await p.evaluate(x=>DB.study.logs[x].unitIds[0],d))==='u1');
   /* ⚠️ [결함·스크린샷] 완료하면 목록에서 사라졌다. 오늘 한 것이 안 보이면 되돌릴 수도 없다 */
   ok('E4 오늘 끝낸 것에 남는다',(await p.evaluate(()=>stDoneToday().length))===1);
-  ok('E5 화면에도 보인다',(await p.$eval('#v-study',e=>e.textContent)).indexOf('오늘 끝낸 것')>=0);
+  /* ⚠️ [결함·스크린샷] v3.0 에서 완료하면 목록에서 사라졌다. 오늘 한 것이 안 보이면 되돌릴 수도 없다.
+     v3.7 캘린더에선 같은 날짜 목록에 **완료 표시로 남는다** — 섹션을 따로 두지 않는다 */
+  ok('E5 완료한 것이 목록에 남아 있다',(await p.$$('#v-study .calside .stu.done')).length===1,
+     String((await p.$$('#v-study .calside .stu')).length));
   await p.evaluate(()=>stToggleUnit('u1'));await p.waitForTimeout(500);
   ok('E6 해제도 된다',(await p.evaluate(()=>stUnitById('u1').status))==='todo');
   ok('E7 에러 0',errs.length===0,errs.join('|'));
@@ -961,6 +974,178 @@ async function boot(st){
   const txt2=await p.$eval('#v-study',e=>e.textContent);
   ok('V10 다 돌면 약점 집중 단계로 바뀐다',txt2.indexOf('약점 집중 단계')>=0,txt2.slice(0,160));
   ok('V11 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+
+ /* ── W. 📅 학습 캘린더 (v3.7) — '오늘' 탭을 대체한다 ──
+    🔒 가치는 제로데이 시각화다. 미달은 전부 '안 한 날'에서 나왔고 빈칸이 숫자보다 강하게 작동한다.
+    🔒 계획 편집 도구가 아니다 — 미래는 3일까지만(3일 롤링 창 원칙 v6). */
+ {
+  const ago=(n)=>{const d=new Date(Date.now()-n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const fwd=(n)=>ago(-n);
+  const U=(id,ch,ti,day,stt)=>({id,phase:'P1',ch,type:'vocab',title:ti,mins:10,
+    due:fwd(3),day,backlog:false,status:stt||'todo',carried:0});
+  const st=BASE();
+  st.study.units=[U('c1','academy','오늘것A',ago(0)),U('c2','home','오늘것B',ago(0),'done'),
+    U('c3','move','어제것',ago(1)),U('c4','home','내일것',fwd(1)),U('c5','home','먼미래',fwd(9))];
+  /* 학습 시간: timelog 1칸(30분) + 뽀모 25분 */
+  st.timelog[ago(1)]=[{s:20,e:20,tag:'work',tag2:'study'}];
+  st.study.pomos=[{id:'p1',date:ago(1),mins:25,at:new Date(Date.now()-86400000).toISOString(),plan:25,unitId:'c3'}];
+  st.study.logs[ago(1)]={unitIds:[],coach:'어제 동사 구간 진입했다. 난도 올라가니 하루 1p로 낮춘다.'};
+  const {b,p,errs}=await boot(st);
+  /* ① 탭이 4개고 맨 왼쪽이 캘린더 */
+  const tabs=await p.$$eval('#v-study .logtabs button',es=>es.map(e=>e.textContent.trim()));
+  ok('W1 탭 4개',tabs.length===4,JSON.stringify(tabs));
+  ok('W2 맨 왼쪽이 캘린더',tabs[0].indexOf('캘린더')>=0,JSON.stringify(tabs));
+  ok('W3 오늘 탭이 없다',tabs.every(t=>t.indexOf('오늘')<0),JSON.stringify(tabs));
+  ok('W4 옛 home 값은 캘린더로 흘린다',
+     (await p.evaluate(()=>{DB.ui.studyTab='home';return stTab();}))==='cal');
+  /* ② D-day 는 전 탭 공통 헤더 */
+  for(const t of ['cal','err','word','rec']){
+    await p.evaluate(x=>setStTab(x),t);await p.waitForTimeout(220);
+    const has=await p.$$eval('#v-study .sthead',es=>es.length);
+    ok('W5-'+t+' D-day 헤더가 있다',has===1,String(has));
+  }
+  await p.evaluate(()=>setStTab('cal'));await p.waitForTimeout(300);
+  /* ③ 격자 + 날짜별 학습시간 */
+  ok('W6 월 격자가 그려진다',(await p.$$('#v-study .scal .scday')).length>=28);
+  ok('W7 학습시간 = timelog + 뽀모',
+     (await p.evaluate(x=>stStudyMins(x),ago(1)))===55,
+     String(await p.evaluate(x=>stStudyMins(x),ago(1))));
+  ok('W8 뽀모만 따로도 센다',(await p.evaluate(x=>stPomoMinsOn(x),ago(1)))===25);
+  /* ④ 제로데이 — 지난 날인데 학습도 과제도 없는 칸 */
+  ok('W9 제로데이 칸이 표시된다',(await p.$$('#v-study .scday.zero')).length>=1);
+  /* ⑤ 3일 창 밖은 흐리게 */
+  ok('W10 미래 3일 밖은 흐리다',(await p.$$('#v-study .scday.far')).length>=1);
+  /* ⑥ 날짜 클릭 → 우측 패널이 그날 것으로 */
+  await p.evaluate(x=>setStCalSel(x),ago(1));await p.waitForTimeout(350);
+  let side=await p.$eval('#v-study .calside',e=>e.textContent);
+  ok('W11 그날 과제가 우측에 뜬다',side.indexOf('어제것')>=0,side.slice(0,140));
+  ok('W12 다른 날 과제는 안 뜬다',side.indexOf('오늘것A')<0);
+  /* ⑦ 학습방 멘트 */
+  ok('W13 학습방 멘트가 뜬다',side.indexOf('하루 1p로 낮춘다')>=0,side.slice(0,200));
+  ok('W14 멘트 칸이 있다',(await p.$$('#v-study .sccoach')).length===1);
+  await p.evaluate(x=>setStCalSel(x),ago(0));await p.waitForTimeout(300);
+  side=await p.$eval('#v-study .calside',e=>e.textContent);
+  ok('W15 멘트 없는 날은 없다고 말한다',side.indexOf('학습방 멘트 없음')>=0);
+  /* ⑧ 판정 지표가 우측 하단으로 옮겨졌다 */
+  ok('W16 과락 게이지',side.indexOf('과락')>=0||side.indexOf('미측정')>=0,side.slice(0,200));
+  ok('W17 오답 요약',side.indexOf('오답')>=0);
+  ok('W18 이번 주 요약',side.indexOf('이번 주')>=0);
+  /* ⑨ 3일 창 밖 — 🔒 올라온 과제를 숨기지는 않는다(숨기면 거짓말이다).
+     비었을 때만 '계획을 안 만든다'고 말하고, 창 밖에서는 뽀모를 주지 않는다 */
+  await p.evaluate(x=>setStCalSel(x),fwd(9));await p.waitForTimeout(300);
+  side=await p.$eval('#v-study .calside',e=>e.textContent);
+  ok('W19 창 밖이라도 올라온 과제는 숨기지 않는다',side.indexOf('먼미래')>=0,side.slice(0,180));
+  ok('W19b 창 밖은 뽀모 버튼을 안 준다',side.indexOf('뽀모 시작')<0,side.slice(0,180));
+  await p.evaluate(x=>setStCalSel(x),fwd(11));await p.waitForTimeout(300);
+  side=await p.$eval('#v-study .calside',e=>e.textContent);
+  ok('W19c 과제 없는 창 밖은 계획이 없다고 알린다',side.indexOf('오늘+2일')>=0,side.slice(0,180));
+  ok('W20 그래도 안 죽는다',errs.length===0,errs.join('|'));
+  /* ⑩ 월 이동 */
+  const ym=await p.evaluate(()=>stCalYM());
+  await p.evaluate(()=>stCalMove(-1));await p.waitForTimeout(300);
+  ok('W21 지난달로 이동',(await p.evaluate(()=>stCalYM()))!==ym);
+  await p.evaluate(()=>setStCalSel(todayStr()));await p.waitForTimeout(300);
+  ok('W22 오늘로 돌아온다',(await p.evaluate(()=>stCalYM()))===ym);
+  /* ⑪ 🔒 모바일에서 **격자가 먼저** 온다
+     ⚠️ [결함] .calwrap 이 가계부 규칙(column-reverse)을 물려받아 400px 에서 격자가 화면 맨 아래로
+        갔다. 캘린더 탭을 눌렀는데 캘린더를 보려면 스크롤을 해야 했다 — 이 화면의 존재 이유가 격자다. */
+  await p.setViewportSize({width:400,height:900});await p.waitForTimeout(400);
+  const ord=await p.evaluate(()=>{
+    const w=document.querySelector('#v-study .calwrap');
+    const g=w.querySelector('.calmain').getBoundingClientRect().top;
+    const s=w.querySelector('.calside').getBoundingClientRect().top;
+    return {dir:getComputedStyle(w).flexDirection,gridFirst:g<s};});
+  ok('W23 모바일은 격자가 위',ord.gridFirst===true,JSON.stringify(ord));
+  ok('W24 가계부의 역순 규칙을 물려받지 않는다',ord.dir==='column',JSON.stringify(ord));
+  await p.setViewportSize({width:1440,height:1200});await p.waitForTimeout(300);
+  ok('W25 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+ /* ── X. ⏱ 뽀모도로 (v3.7) ──
+    🔒 길이는 자유다(로한). 프리셋 + 직접입력.
+    🔒 setInterval 카운트가 아니라 **시작 시각 + 경과 계산** — 탭을 벗어나도 정확해야 한다.
+    🔒 기록은 study.pomos 에 분 단위. timelog(한 칸 30분)는 건드리지 않는다. */
+ {
+  const ago=(n)=>{const d=new Date(Date.now()-n*86400000);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const st=BASE();
+  st.study.units=[{id:'k1',phase:'P1',ch:'home',type:'vocab',title:'예상어휘 p160',mins:10,
+    due:ago(-3),day:ago(0),backlog:false,status:'todo',carried:0}];
+  const {b,p,errs,dlg}=await boot(st);
+  /* ① 탭이 아니라 캘린더 안의 버튼에서 뜬다 */
+  ok('X1 캘린더에 뽀모 버튼이 있다',
+     (await p.$eval('#v-study .calside',e=>e.textContent)).indexOf('뽀모 시작')>=0);
+  ok('X2 전체화면 오버레이가 닫혀 있다',
+     (await p.$eval('#pomoOv',e=>e.classList.contains('on')))===false);
+  await p.evaluate(()=>stPomoOpen(todayStr()));await p.waitForTimeout(350);
+  ok('X3 열린다',(await p.$eval('#pomoOv',e=>e.classList.contains('on')))===true);
+  /* ② 프리셋 — 25/5, 50/10 이 있어야 한다(로한: "10/3 고정이면 못 쓴다"의 반대편) */
+  const pres=await p.$$eval('#pomoBody .pmpre',es=>es.map(e=>e.textContent.trim()));
+  ok('X4 프리셋에 25/5 와 50/10 이 있다',
+     pres.indexOf('25/5')>=0&&pres.indexOf('50/10')>=0,JSON.stringify(pres));
+  ok('X5 10/3 도 있다',pres.indexOf('10/3')>=0,JSON.stringify(pres));
+  ok('X6 기본값은 25/5',(await p.evaluate(()=>stPomoCfg().focus))===25);
+  /* ③ 직접입력 — 자유롭게 */
+  await p.evaluate(()=>stPomoSet('focus',37));await p.waitForTimeout(250);
+  ok('X7 임의 길이도 받는다 (37분)',(await p.evaluate(()=>stPomoCfg().focus))===37);
+  ok('X8 범위를 벗어나면 잘린다',
+     (await p.evaluate(()=>{stPomoSet('focus',999);return stPomoCfg().focus;}))===180);
+  await p.evaluate(()=>stPomoPre(50,10));await p.waitForTimeout(250);
+  ok('X9 프리셋을 누르면 둘 다 바뀐다',
+     (await p.evaluate(()=>{const c=stPomoCfg();return c.focus===50&&c.brk===10;}))===true);
+  ok('X10 고른 프리셋이 표시된다',(await p.$$('#pomoBody .pmpre.on')).length===1);
+  /* ④ 과제 선택 */
+  await p.evaluate(()=>stPomoSet('unitId','k1'));await p.waitForTimeout(250);
+  ok('X11 과제를 고를 수 있다',(await p.evaluate(()=>stPomoCfg().unitId))==='k1');
+  /* ⑤ 시작 — 시작 시각만 저장한다 */
+  await p.evaluate(()=>stPomoStart('focus'));await p.waitForTimeout(400);
+  const run=await p.evaluate(()=>DB.ui.pomoRun);
+  ok('X12 시작 시각을 저장한다 (카운터가 아니다)',!!run&&typeof run.at==='number',JSON.stringify(run));
+  ok('X13 남은 시간이 보인다',/^\d{2}:\d{2}$/.test(await p.$eval('#pomoClock',e=>e.textContent.trim())),
+     await p.$eval('#pomoClock',e=>e.textContent.trim()));
+  ok('X14 고른 과제 제목이 보인다',
+     (await p.$eval('#pomoBody',e=>e.textContent)).indexOf('예상어휘 p160')>=0);
+  /* 🔒 경과는 시각 차이로 계산한다 — 시간을 앞으로 돌려도 맞아야 한다 */
+  const el=await p.evaluate(()=>{DB.ui.pomoRun.at=Date.now()-7*60*1000;return stPomoElapsedSec();});
+  ok('X15 경과를 시각 차이로 계산한다 (7분)',el>=418&&el<=422,String(el));
+  /* ⑥ 일시정지 — 멈춘 동안은 안 쌓인다 */
+  await p.evaluate(()=>stPomoPause());await p.waitForTimeout(600);
+  const pa=await p.evaluate(()=>stPomoElapsedSec());
+  await p.waitForTimeout(700);
+  const pb=await p.evaluate(()=>stPomoElapsedSec());
+  ok('X16 멈추면 시간이 안 흐른다',pa===pb,pa+' vs '+pb);
+  await p.evaluate(()=>stPomoResume());await p.waitForTimeout(250);
+  ok('X17 다시 흐른다',(await p.evaluate(()=>!DB.ui.pomoRun.paused))===true);
+  /* ⑦ 중단해도 그때까지 기록 — 0으로 버리지 않는다 */
+  await p.evaluate(()=>{DB.ui.pomoRun.at=Date.now()-12*60*1000;DB.ui.pomoRun.acc=0;stPomoStop();});
+  await p.waitForTimeout(400);
+  const rec=await p.evaluate(()=>DB.study.pomos[0]);
+  ok('X18 중단분이 기록된다 (12분)',!!rec&&rec.mins===12,JSON.stringify(rec));
+  ok('X19 어느 과제였는지 남는다',rec.unitId==='k1');
+  ok('X20 계획보다 짧으면 cut 표시',rec.cut===true,JSON.stringify(rec));
+  ok('X21 날짜가 남는다',rec.date===(await p.evaluate(()=>todayStr())));
+  /* 🔒 timelog 는 건드리지 않는다 — 한 칸이 30분이라 12분을 찍으면 부푼다 */
+  ok('X22 timelog 를 건드리지 않는다',
+     (await p.evaluate(()=>Object.keys(DB.timelog||{}).length))===0);
+  ok('X23 학습시간에는 합산된다',(await p.evaluate(()=>stStudyMins(todayStr())))===12);
+  /* ⑧ 1분 미만은 기록하지 않는다 */
+  await p.evaluate(()=>{stPomoStart('focus');DB.ui.pomoRun.at=Date.now()-20*1000;stPomoStop();});
+  await p.waitForTimeout(300);
+  ok('X24 1분 미만은 안 남긴다',(await p.evaluate(()=>DB.study.pomos.length))===1);
+  /* ⑨ 새로고침해도 이어진다 — 진행 상태를 ui 에 들고 있다 */
+  await p.evaluate(()=>{stPomoStart('focus');DB.ui.pomoRun.at=Date.now()-3*60*1000;});
+  await p.waitForTimeout(250);
+  ok('X25 진행 상태가 ui 에 남는다',(await p.evaluate(()=>!!DB.ui.pomoRun))===true);
+  ok('X26 빈 서랍을 안 만든다 (과제 없으면 unitId 키 없음)',
+     (await p.evaluate(()=>{DB.ui.pomo.unitId='';stPomoStart('focus');
+       DB.ui.pomoRun.at=Date.now()-5*60*1000;stPomoStop();
+       const r=DB.study.pomos[DB.study.pomos.length-1];return !('unitId' in r);}))===true);
+  ok('X27 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
 
