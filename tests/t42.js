@@ -311,7 +311,9 @@ async function boot(st){
   /* 미구현 모드는 누를 수 없다 */
   /* v3.3 — 4모드 전부 구현됐다. 막히는 건 **낼 단어가 없는 모드**뿐이다.
      이 픽스처엔 가타카나가 없으니 kata 하나만 disabled 여야 한다. */
-  ok('K4 kata 만 막혀 있다 (가타카나 0건)',(await p.$$('#v-study .stdmode button[disabled]')).length===1,
+  /* ⚠️ v3.9 — 같은 탭에 문법 칸(.gmode)이 생겼다. **단어 칸만** 세야 한다 */
+  ok('K4 kata 만 막혀 있다 (가타카나 0건)',
+     (await p.$$('#v-study .stdmode:not(.gmode) button[disabled]')).length===1,
      String((await p.$$('#v-study .stdmode button[disabled]')).length));
   await p.evaluate(()=>stDrillStart('k2r',3));await p.waitForTimeout(350);
   ok('K5 3문항 · 첫 문항은 miss 최다',
@@ -524,7 +526,8 @@ async function boot(st){
   /* 🔒 가타카나가 0건이면 그 모드는 disabled — 누르면 빈 화면이 되는 입구는 안 만든다 */
   const dis=await p.evaluate(()=>{setStTab('word');return null;});
   await p.waitForTimeout(300);
-  ok('O2 kata 는 막혀 있다 (0건)',(await p.$$('#v-study .stdmode button[disabled]')).length===1,
+  ok('O2 kata 는 막혀 있다 (0건)',
+     (await p.$$('#v-study .stdmode:not(.gmode) button[disabled]')).length===1,
      String((await p.$$('#v-study .stdmode button[disabled]')).length));
   ok('O3 나머지 4모드는 열려 있다',
      (await p.$$('#v-study .stdmode button:not([disabled])')).length===4,
@@ -1149,6 +1152,202 @@ async function boot(st){
        DB.ui.pomoRun.at=Date.now()-5*60*1000;stPomoStop();
        const r=DB.study.pomos[DB.study.pomos.length-1];return !('unitId' in r);}))===true);
   ok('X27 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+ /* ── Y. 📖 문법 드릴 (v3.9) — 예문에서 자동 출제 ──
+    🔒 콘텐츠는 학습방(sents), 문항 생성·채점은 앱. 실데이터 19건 중 함정이 있는 6건을 픽스처로 썼다.
+    🔒 가리기는 **어절 경계 우선**이어야 한다 — 「では」를 물을 때 같은 문장의 「それでは」 안쪽이 먼저 걸리면
+       엉뚱한 자리가 가려지고 문항이 거짓말을 한다. */
+ {
+  const S=(id,ja,ko,target,opts,why)=>({id,ja,ko,lv:'N4',src:'b1:199',
+    seen:0,miss:0,streak:0,lastSeen:null,
+    slots:[{kind:'conj',target,opts,why:why||'해설'}]});
+  const st=BASE();
+  st.study.sents=[
+    S('s002','旅行は 楽しかったです。 しかし 疲れましたね。','여행은 즐거웠습니다. 그러나 지쳤습니다.',
+      'しかし',['それで','そして','だから'],'앞뒤가 대비되므로 역접'),
+    S('s008','準備が できました。 それでは 出発しましょう。','준비가 되었습니다. 그러면 출발합시다.',
+      'それでは',['それとも','それから','なぜなら']),
+    /* 🔴 함정: 「では」가 「それでは」의 부분문자열이다 */
+    S('s017','それでは 席に 着いて ください。 では、 テストを 始めます。','그럼 자리에 앉아 주세요. 그럼, 시험을 시작하겠습니다.',
+      'では',['だが','たとえば','なぜなら']),
+    S('s019','そこへは バス または 電車で 行けます。','거기에는 버스 또는 전철로 갈 수 있습니다.',
+      'または',['それに','そして','だから']),
+    S('s004','雨が 降って いました。 そこで、 タクシーで 帰りました。','비가 오고 있었습니다. 그래서 택시로 돌아갔습니다.',
+      'そこで',['それで','だから','しかし']),
+    S('s012','もう 子どもじゃ ないんだよ。 だから ひとりで やりなさい。','이제 어린애가 아니야. 그러니까 혼자서 하렴.',
+      'だから',['それで','そこで','けれども'])];
+  /* 🔒 slots 없는 예문 — 어순 문제(gord)는 slots 없이도 돌아야 한다 */
+  st.study.sents.push({id:'s900',ja:'きょうは とても いい 天気です。',ko:'오늘은 매우 좋은 날씨입니다.',
+    lv:'N4',src:'b1:201',seen:0,miss:0,streak:0,lastSeen:null});
+  /* 🔒 3어절 — 어순 문제가 성립하지 않는다. 풀에서 빠져야 한다 */
+  st.study.sents.push({id:'s901',ja:'あめが ふって いる',ko:'비가 오고 있다',
+    lv:'N4',src:'b1:201',seen:0,miss:0,streak:0,lastSeen:null});
+  const {b,p,errs}=await boot(st);
+  await p.evaluate(()=>setStTab('word'));await p.waitForTimeout(350);
+  /* ① 탭은 계속 4개 · 라벨만 '드릴'로 */
+  const tabs=await p.$$eval('#v-study .logtabs button',es=>es.map(e=>e.textContent.trim()));
+  ok('Y1 탭은 여전히 4개',tabs.length===4,JSON.stringify(tabs));
+  ok('Y2 단어 탭이 드릴 탭이 됐다',tabs[2].indexOf('드릴')>=0,JSON.stringify(tabs));
+  ok('Y3 문법 칸이 같은 탭에 있다',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('📖 문법')>=0);
+  /* ② 풀 — 조건별로 갈린다 */
+  ok('Y4 접속사 풀 = slots 갖춘 6건',(await p.evaluate(()=>stGramPool('gconj').length))===6,
+     String(await p.evaluate(()=>stGramPool('gconj').length)));
+  ok('Y5 어순 풀 = 4어절 이상 7건',(await p.evaluate(()=>stGramPool('gord').length))===7,
+     String(await p.evaluate(()=>stGramPool('gord').length)));
+  ok('Y6 3어절은 어순 풀에서 빠진다',
+     (await p.evaluate(()=>stGramPool('gord').some(x=>x.id==='s901')))===false);
+  ok('Y7 slots 없는 예문도 어순은 된다',
+     (await p.evaluate(()=>stGramPool('gord').some(x=>x.id==='s900')))===true);
+  ok('Y8 slots 없는 예문은 접속사에서 빠진다',
+     (await p.evaluate(()=>stGramPool('gconj').some(x=>x.id==='s900')))===false);
+  /* ③ 🔴 어절 경계 가리기 — 부분문자열 함정 */
+  const mask=await p.evaluate(()=>stGMask('それでは 席に 着いて ください。 では、 テストを 始めます。','では'));
+  ok('Y9 어절 경계에서 가린다 (それでは 를 안 건드린다)',
+     mask.indexOf('それでは')===0&&mask.indexOf('（　）、')>0,mask);
+  ok('Y10 가린 자리는 한 곳뿐',(mask.match(/（　）/g)||[]).length===1,mask);
+  /* ④ 접속사 문항 — 정답이 문제에 남아 있으면 안 된다 */
+  await p.evaluate(()=>stDrillStart('gconj',6));await p.waitForTimeout(400);
+  const q=await p.evaluate(()=>{const D=ST_DRILL,x=stGramQ(D,D.i);
+    return {ja:x.ja,ans:x.ans,opts:x.opts,n:D.ids.length};});
+  ok('Y11 6문항이 잡혔다',q.n===6,String(q.n));
+  ok('Y12 문제에 빈칸이 있다',q.ja.indexOf('（　）')>=0,q.ja);
+  ok('Y13 🔴 정답이 문제에 안 남아 있다',q.ja.indexOf(q.ans)<0,q.ja+' / '+q.ans);
+  ok('Y14 보기 4개',q.opts.length===4,JSON.stringify(q.opts));
+  ok('Y15 보기에 정답이 있다',q.opts.indexOf(q.ans)>=0,JSON.stringify(q.opts));
+  ok('Y16 보기에 중복이 없다',new Set(q.opts).size===4,JSON.stringify(q.opts));
+  /* 🔒 답하기 전에 한국어 번역을 보여주지 않는다 — 번역에 정답이 적혀 있다 */
+  const pre=await p.$eval('#v-study',e=>e.textContent);
+  const ko=await p.evaluate(()=>stDrillItem(ST_DRILL,ST_DRILL.i).ko);
+  ok('Y17 🔴 채점 전엔 번역이 안 보인다',pre.indexOf(ko)<0,ko);
+  ok('Y18 채점 전엔 해설도 안 보인다',pre.indexOf('💡')<0);
+  /* ⑤ 채점 — 정답 */
+  await p.evaluate(()=>stDrillGrade(stGramQ(ST_DRILL,ST_DRILL.i).ans));await p.waitForTimeout(350);
+  let post=await p.$eval('#v-study',e=>e.textContent);
+  ok('Y19 맞으면 ○',post.indexOf('○ 맞음')>=0,post.slice(0,120));
+  ok('Y20 채점 후엔 번역이 보인다',post.indexOf(ko)>=0);
+  ok('Y21 🔒 맞히면 해설은 안 띄운다',post.indexOf('💡')<0,post.slice(0,200));
+  const c1=await p.evaluate(()=>{const s=stSentById(ST_DRILL.ids[0]);
+    return {seen:s.seen,miss:s.miss,streak:s.streak,last:s.lastSeen};});
+  ok('Y22 예문 카운터가 단어와 같은 필드로 올라간다',
+     c1.seen===1&&c1.miss===0&&c1.streak===1&&!!c1.last,JSON.stringify(c1));
+  /* ⑥ 채점 — 오답이면 해설이 뜬다 */
+  await p.evaluate(()=>stDrillNext());await p.waitForTimeout(250);
+  await p.evaluate(()=>{const x=stGramQ(ST_DRILL,ST_DRILL.i);
+    stDrillGrade(x.opts.filter(o=>o!==x.ans)[0]);});await p.waitForTimeout(350);
+  post=await p.$eval('#v-study',e=>e.textContent);
+  ok('Y23 틀리면 ✗',post.indexOf('✗ 틀림')>=0);
+  ok('Y24 🔒 틀렸을 때만 해설이 뜬다',post.indexOf('💡')>=0,post.slice(0,220));
+  const c2=await p.evaluate(()=>{const s=stSentById(ST_DRILL.ids[1]);
+    return {seen:s.seen,miss:s.miss,streak:s.streak};});
+  ok('Y25 틀리면 miss+1 · streak 0',c2.seen===1&&c2.miss===1&&c2.streak===0,JSON.stringify(c2));
+  /* ⑦ 모르겠다 — 단어와 같은 처리 */
+  await p.evaluate(()=>stDrillNext());await p.waitForTimeout(250);
+  await p.evaluate(()=>stDrillDunno());await p.waitForTimeout(300);
+  ok('Y26 모르겠다는 오답과 같게 센다',
+     (await p.evaluate(()=>ST_DRILL.res[2].dunno))===true);
+  /* ⑧ 끝까지 — 기록 1건 */
+  for(let i=0;i<6;i++){
+    await p.evaluate(()=>{const D=ST_DRILL;if(!D||D.fin)return;
+      if(D.show){stDrillNext();return;}stDrillGrade(stGramQ(D,D.i).ans);});
+    await p.waitForTimeout(60);
+  }
+  await p.evaluate(()=>{const D=ST_DRILL;if(D&&!D.fin)stDrillQuit();});await p.waitForTimeout(400);
+  const rec=await p.evaluate(()=>DB.study.drills);
+  ok('Y27 드릴 기록 1건',rec.length===1,JSON.stringify(rec));
+  ok('Y28 모드가 gconj 로 남는다',rec[0].mode==='gconj',JSON.stringify(rec[0]));
+  ok('Y29 문항 수가 맞다',rec[0].n===6,JSON.stringify(rec[0]));
+  ok('Y30 모르겠다 수가 남는다',rec[0].dunno===1,JSON.stringify(rec[0]));
+  ok('Y31 결과 화면이 뜬다',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('결과')>=0);
+  /* ⑨ 어순 문항 — 정답은 원래 순서의 ★ 자리 */
+  await p.evaluate(()=>{stDrillClose();stDrillStart('gord',7);});await p.waitForTimeout(400);
+  const g=await p.evaluate(()=>{const D=ST_DRILL;
+    return D.qs.map(x=>({star:x.star,win:x.win,opts:x.opts,ans:x.ans}));});
+  ok('Y32 어순 7문항',g.length===7,String(g.length));
+  ok('Y33 🔒 정답은 원래 순서의 ★ 자리',g.every(x=>x.ans===x.win[x.star]),JSON.stringify(g[0]));
+  ok('Y34 ★는 2~3번째다 (양 끝을 묻지 않는다)',g.every(x=>x.star===1||x.star===2),
+     JSON.stringify(g.map(x=>x.star)));
+  ok('Y35 보기는 창의 4어절 그대로',
+     g.every(x=>x.win.slice().sort().join('|')===x.opts.slice().sort().join('|')),JSON.stringify(g[0]));
+  ok('Y36 보기 4개',g.every(x=>x.opts.length===4));
+  const gtxt=await p.$eval('#v-study',e=>e.textContent);
+  ok('Y37 ★ 자리를 물어본다',gtxt.indexOf('★')>=0);
+  ok('Y38 채점 전엔 번역이 안 보인다',
+     gtxt.indexOf(await p.evaluate(()=>stDrillItem(ST_DRILL,ST_DRILL.i).ko))<0);
+  await p.evaluate(()=>stDrillGrade(stGramQ(ST_DRILL,ST_DRILL.i).ans));await p.waitForTimeout(350);
+  ok('Y39 어순도 정상 채점된다',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('○ 맞음')>=0);
+  /* ⑩ 빈 상태 — 예문 0건이어도 죽지 않는다 */
+  await p.evaluate(()=>{stDrillClose();DB.study.sents=[];renderStudy();});await p.waitForTimeout(350);
+  const emp=await p.$eval('#v-study',e=>e.textContent);
+  ok('Y40 예문 0건이면 학습방이 올린다고 말한다',emp.indexOf('학습방에서 올린다')>=0,emp.slice(0,200));
+  ok('Y41 0건이면 시작 버튼이 막힌다',
+     (await p.$$eval('#v-study .stdmode button.off',es=>es.length))>=2);
+  ok('Y42 빈 상태에서 시작해도 안 죽는다',
+     (await p.evaluate(()=>{stDrillStart('gconj',20);return ST_DRILL===null;}))===true);
+  ok('Y43 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
+ /* ── Z. 🔤 폰트 (v3.9) — 로한: "싹다 프린텐다드로. 볼드는 프리텐다드 볼드로" ──
+    🔒 글꼴은 --sans / --ja / --serif 세 변수로만 정한다. 파일 안에 폰트 이름을 직접 쓰면
+       다음에 바꿀 때 빠지는 자리가 생긴다(이번에 SVG 안에 박힌 한 군데가 실제로 있었다). */
+ {
+  const {b,p,errs}=await boot(BASE());
+  const v=await p.evaluate(()=>{
+    const cs=getComputedStyle(document.documentElement);
+    return {sans:cs.getPropertyValue('--sans').trim(),
+            ja:cs.getPropertyValue('--ja').trim(),
+            serif:cs.getPropertyValue('--serif').trim(),
+            body:getComputedStyle(document.body).fontFamily,
+            syn:getComputedStyle(document.body).fontSynthesis||
+                getComputedStyle(document.body).webkitFontSynthesis||''};
+  });
+  ok('Z1 --sans 가 Pretendard 로 시작한다',/^'Pretendard Variable'/.test(v.sans),v.sans);
+  ok('Z2 body 가 --sans 를 쓴다',v.body.indexOf('Pretendard Variable')>=0,v.body);
+  ok('Z3 Cinzel·고운바탕은 남아 있지 않다',
+     !/Cinzel|Gowun/.test(v.sans+v.ja+v.serif+v.body),v.serif);
+  ok('Z4 --serif 도 Pretendard 다 (로한: 싹다)',v.serif.indexOf('Pretendard')>=0,v.serif);
+  /* 🔒 가짜 볼드 금지 — 브라우저가 굵게 '그리면' Pretendard Bold 가 아니다 */
+  ok('Z5 font-synthesis 를 끈다',/none/.test(v.syn),JSON.stringify(v.syn));
+  /* 🇯🇵 일본어는 일본어로 디자인된 글자체가 먼저 온다 — 한자 자형이 시험지와 달라진다 */
+  ok('Z6 --ja 는 일본어 폰트가 앞에 온다',/^'Pretendard JP Variable'/.test(v.ja),v.ja);
+  ok('Z7 --ja 체인에 OS 일본어 폰트가 있다',/Yu Gothic|Hiragino|Noto Sans JP/.test(v.ja),v.ja);
+  /* 폰트 이름을 직접 쓴 자리가 없어야 한다 (변수만 쓴다) */
+  const hard=await p.evaluate(()=>{
+    let n=0;
+    for(const sh of document.styleSheets){
+      let rs; try{rs=sh.cssRules;}catch(e){continue;}
+      if(!rs)continue;
+      for(const r of rs){
+        const t=r.cssText||'';
+        if(/font-family/.test(t)&&/Malgun|Segoe UI|Pretendard/.test(t)
+           &&!/--sans|--ja|--serif|@font-face/.test(t))n++;
+      }
+    }
+    return n;
+  });
+  ok('Z8 CSS 에 폰트 이름을 직접 박은 규칙이 없다',hard===0,String(hard));
+  /* 일본어가 들어가는 칸이 --ja 를 쓴다 */
+  await p.evaluate(()=>{DB.study.words=[{id:'w1',lv:'N4',src:'b1:1',kana:'あめ',kanji:'雨',ko:'비',
+    cat:'native',flag:false,seen:0,miss:0,streak:0,lastSeen:null}];
+    DB.study.sents=[{id:'s1',ja:'雨が 降って いました。 そこで、 タクシーで 帰りました。',ko:'비가 왔다',
+      lv:'N4',src:'b1:199',seen:0,miss:0,streak:0,lastSeen:null,
+      slots:[{kind:'conj',target:'そこで',opts:['それで','だから','しかし'],why:'해설'}]}];
+    setStTab('word');stDrillStart('gconj',1);});
+  await p.waitForTimeout(450);
+  const jaFont=await p.evaluate(()=>{
+    const e=document.querySelector('#v-study .gja');
+    return e?getComputedStyle(e).fontFamily:'(없음)';});
+  ok('Z9 문법 문제 칸이 --ja 를 쓴다',jaFont.indexOf('Pretendard JP Variable')>=0,jaFont);
+  const optFont=await p.evaluate(()=>{
+    const e=document.querySelector('#v-study .stdopt button');
+    return e?getComputedStyle(e).fontFamily:'(없음)';});
+  ok('Z10 보기 버튼도 --ja 를 쓴다',optFont.indexOf('Pretendard JP Variable')>=0,optFont);
+  ok('Z11 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
 
