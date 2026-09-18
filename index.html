@@ -4958,6 +4958,13 @@ function emrDetailHtml(p){
     +'<button class="ghost sm" onclick="emrSourcesModal()">기록 범위</button></div></div>'
     +(sum?'<details class="emrsum"><summary>경과 요약 <span class="mut">두 AI 가 같이 받는 배경</span></summary><div class="emrtext">'+mdEsc(sum)+'</div></details>'
          :'<div class="mut emrhint">경과 요약이 비어 있다 — 두 AI 가 같이 받는 배경이다. 「요약 편집」에서 채운다.</div>');
+  /* 🔒 짝 없는 답을 조용히 버리지 않는다 — v4.1 에서 방이 질문 없는 턴에 답을 써서 "기록했다는데 안 보인다"가 났다.
+     지금은 DB 트리거(emr_guard)가 막지만, 새면 여기서 드러난다 */
+  var qno={};turns.forEach(function(t){qno[t.no]=1;});
+  var orphan=EMR.msgs.filter(function(m){return m.problem_id===p.id&&m.role==='assistant'&&!qno[m.turn_no];});
+  if(orphan.length)out+='<div class="emrnotice emrbad">⚠ 질문이 없는 턴에 쓰인 답 '+orphan.length+'건('
+    +orphan.map(function(m){return '턴 '+m.turn_no+' · '+(m.provider==='claude'?'로버트':'수연');}).join(', ')
+    +') — 짝이 없어 표시하지 못한다. 로버트에게 알려라.</div>';
   out+='<div class="emrturns">'+(turns.length?turns.map(function(t){return emrTurnHtml(p,t);}).join('')
     :'<div class="emrempty">아직 질문이 없다. 아래에 첫 질문을 남긴다.</div>')+'</div>';
   if(p.status==='closed')return out+'<div class="mut emrhint">종료된 문제다 — 상태를 바꾸면 다시 질문할 수 있다.</div>';
@@ -7570,13 +7577,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.1';
+var APP_VERSION='4.11';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.11',date:'2026-09-18',note:'<b>⚠️ [결함] 로버트가 EMR 에 답을 기록했다는데 앱에 안 보였다.</b> 로한 신고 · 실측: 재활의학과 방이 <code>emr_reply</code> 를 쓰지 않고 <code>health_messages</code> 에 <b>직접 insert</b> 했다 — 질문은 턴 1 인데 답을 <b>턴 2</b> 에, <code>mode</code> 없이 썼다. 화면은 답을 질문 턴에 붙여 보여주므로 짝 없는 턴 2 의 답이 <b>조용히 사라졌다</b> · 원인 둘: ① <code>emr_reply</code> 가 막아 줄 규칙(질문 없는 턴 거부)이 <b>테이블 자체엔 없었다</b> — 방 지침은 규칙이고, 규칙은 어겨진다 ② 화면이 짝 없는 답을 경고 없이 버렸다 · 🔒 <b>DB 트리거 <code>emr_guard</code></b> — 질문 없는 턴·<code>mode</code> 없는 답·문제 주인과 다른 <code>user_id</code>(RLS 로 안 보여 같은 증상)를 테이블이 직접 거부한다. 롤백 검증 7건(잘못된 쓰기 4종 거부, <code>emr_reply</code>·질문 저장·다시 받기는 그대로) · 🔒 화면은 짝 없는 답이 있으면 <b>경고로 드러낸다</b> · 데이터 보정: 그 답을 턴 1 로 옮겼다 · t44 +2건(48건)'},
   {v:'4.1',date:'2026-09-18',note:'<b>🩺 EMR 중계 상담 가동 — 문제 목록 + 두 AI 대화.</b> 로한: <i>"싹다 너가 해."</i> · 질문은 <b>EMR 에만</b> 쓴다 → 그 순간의 로한북 기록이 사실 묶음으로 질문과 함께 저장되고, 로버트 방·수연이 각자 <code>emr_thread</code> 로 <b>자기 몫만</b> 읽어 <code>emr_reply</code> 로 답을 남긴다. API 과금 0원 · 🗄 <b>대화는 app_state 밖</b>(<code>health_problems</code>·<code>health_messages</code>) — 한 덩어리 JSON 에 넣으면 AI 방이 쓸 때마다 앱과 충돌한다(v3.6 유실과 같은 구조) · 🔒 <b>격리는 DB 함수가 한다</b> — <code>emr_thread</code> 는 상대 provider 의 행을 조회 조건에서부터 빼고, 상대 답을 담는 필드 자체가 없다. 적용 전 실제 DB 에서 16개 시나리오를 돌리고 전부 롤백해 검증했다(자기 답만 보인다·중복 답 거부·질문 없는 턴 거부·다시 받기 후 재대기·거절은 답함·종료 문제 제외) · 「다시 받기」는 답을 지우지 않고 <code>error</code> 로 돌려 이력을 남긴다 · 거절(<code>refused</code>)도 답함으로 친다 — 미답으로 치면 대기 목록에서 영원히 안 빠진다 · 📋 칸마다 <b>방에 보낼 한 줄</b> 복사 버튼 — 로한은 질문을 다시 치지 않는다 · 답 대기 칸이 있으면 20초마다 확인하고, 다른 앱에 다녀와 탭이 다시 보이면 바로 새로 읽는다 · 쓰던 질문은 다시 그려도·저장에 실패해도 입력칸에 남긴다 · 모바일은 목록 → 문제 2단계, 두 답은 세로로 · AI 가 쓴 글은 텍스트로만 렌더(외부 입력이다) · 🔧 피검사 기본 범위를 <b>기록 있는 지표 전부</b>로 — 기본이 없음이면 이관한 순환기 문제 첫 질문에 검사값이 하나도 안 간다 · 초기 이관: handoffs 순환기·재활의학과·칼륨식단 3건(방 이름은 handoffs.room 그대로) · t44 신설 46건'},
   {v:'4.01',date:'2026-09-18',note:'<b>🩺 EMR — 사실 묶음을 메인 화면에서 뺐다 · 0단계 검수 완료.</b> 로한: <i>"어차피 수파베이스에 기록돼 있는데 그걸 메인 페이지에 보여줄 필요 있나."</i> — 사실 묶음은 질문마다 저장되고 정확성은 로버트가 실데이터로 검수한다. EMR 메인은 문제 목록 + 대화이고, 그 둘은 1단계부터 열린다 · ✅ <b>로버트 실데이터 재검수</b>: 코덱스의 §15.1 수정 4건(끼니당 한 줄·의료 기록·빈 지표 생략·<code>func</code> 포함)이 실제 기록에서 의도대로 나온다. 9/11~9/13 간식이 한 줄씩, 폐기능 줄에 <code>(L)</code> 단위, 14,390 → 11,068자 · 🔧 생략 지표 구분자를 쉼표에서 <code> / </code> 로 — 지표 이름 자체에 쉼표가 있다(「Epinephrine, Free」). 쉼표로 이으면 하나가 둘로 읽힌다 · t43 화면 검사를 새 결정에 맞춰 교체(사실 원문이 화면에 <b>없어야</b> 통과)'},
   {v:'4.0',date:'2026-09-18',note:'<b>🩺 EMR 0단계 — 건강 기록 사실 미리보기.</b> 건강 메뉴 맨 앞에 EMR 추가. 실제 식사·음식 구매·의료 기록·피검사·복용약·체성분·사고를 한 사실 묶음으로 확인한다. 끼니당 한 줄로 실제 기록에 구매 근거를 붙인다. 의료 지출은 방문으로 단정하지 않고, 빈 검사 지표는 목록으로 축약하며 지표 설명을 함께 보낸다. 식단 제안·거래 금액·건강 외 기록은 포함하지 않는다. 진료일이 비어 있으면 검사일과 같다는 기존 규칙을 반영한다. <b>AI 미연결 · 외부 전송 없음.</b> 사실 내용 확인 후 다음 단계로 진행한다.'},

@@ -188,3 +188,31 @@ from (values (5,'순환기','순환기 — 박성미 교수 추적','active'),
              (6,'칼륨식단','칼륨 제한 식단','watch')) v(hid,slug,title,status)
 join handoffs h on h.id = v.hid
 on conflict (user_id, slug) do nothing;
+
+-- ══════ v4.11 — 답 쓰기 경로 강제 (2026-09-18 적용) ══════
+-- 🔴 사고: 재활의학과 방이 emr_reply 를 쓰지 않고 health_messages 에 직접 insert 했다 — 질문은 턴 1 인데 답을 턴 2 에,
+--    mode 없이 썼다. 화면은 답을 질문 턴에 붙여 보여주므로 짝 없는 턴 2 의 답이 안 보였다("기록했다는데 표시가 안 된다").
+--    emr_reply 가 막아 줄 규칙(질문 없는 턴 거부)이 테이블 자체엔 없었다 → 방 지침은 규칙이고, 규칙은 어겨진다.
+-- 🔒 테이블이 직접 막는다. 잘못된 쓰기 4종은 거부, 정상 경로(emr_reply·질문 저장·다시 받기)는 그대로(롤백 검증 7건).
+--    user_id 불일치도 막는다 — RLS 때문에 행은 들어가도 앱에서 안 보여 같은 증상이 난다.
+create or replace function public.emr_guard() returns trigger language plpgsql set search_path = public as $$
+declare owner uuid;
+begin
+  select user_id into owner from health_problems where id = new.problem_id;
+  if new.user_id is distinct from owner then
+    raise exception 'EMR: user_id 가 문제 주인과 다르다 — 이 행은 앱에서 안 보인다. 답은 emr_reply 로만 쓴다';
+  end if;
+  if new.role = 'assistant' then
+    if new.mode is null then
+      raise exception 'EMR: 답은 emr_reply 로만 쓴다(health_messages 에 직접 insert 금지)';
+    end if;
+    if not exists (select 1 from health_messages where problem_id = new.problem_id and turn_no = new.turn_no and role = 'user') then
+      raise exception 'EMR: 턴 % 에는 질문이 없다 — emr_pending 으로 턴 번호를 확인한다', new.turn_no;
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists health_messages_guard on public.health_messages;
+create trigger health_messages_guard before insert or update of turn_no, problem_id, user_id, role
+  on public.health_messages for each row execute function public.emr_guard();
+-- 데이터 보정(1회): 오십견 턴 2 에 잘못 쓰인 로버트 답 → 턴 1, mode='relay'

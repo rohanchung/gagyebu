@@ -119,6 +119,13 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
    content:'답하지 않겠다',status:'refused',mode:'relay',room:'수연',created_at:'2026-09-18T01:01:00Z'});emrLoad();});await settle();
  ok('거절은 답함으로 친다',(await txt()).includes('이 질문엔 답하지 않았다')&&await p.evaluate(()=>document.querySelector('.emrli.on .emrpend').textContent==='⏳1'));
 
+ /* v4.11 사고 재현 — 방이 질문 없는 턴에 답을 썼다. 조용히 버리지 말고 드러낸다 */
+ await p.evaluate(()=>{__T.health_messages.push({id:'orph',user_id:'u1',problem_id:'p1',turn_no:9,role:'assistant',provider:'claude',
+   content:'고아 답',status:'ok',created_at:'2026-09-18T01:02:00Z'});emrLoad();});await settle();
+ ok('짝 없는 답 경고',(await txt()).includes('질문이 없는 턴에 쓰인 답 1건(턴 9 · 로버트)'));
+ await p.evaluate(()=>{__T.health_messages=__T.health_messages.filter(m=>m.id!=='orph');emrLoad();});await settle();
+ ok('짝 없는 답 없으면 경고 없음',!(await txt()).includes('질문이 없는 턴에'));
+
  /* 기록 범위 — 고른 지표만 */
  await p.click('text=기록 범위');await settle();
  await p.check('input[name="es_mode"][value="pick"]');
