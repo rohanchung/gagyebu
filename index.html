@@ -12,15 +12,27 @@
         모바일 첫 화면이 눈에 보이게 늦는다. 서브셋은 화면에 실제로 쓰인 글자만 받는다.
      🔒 variable 이라 웨이트가 45~920 연속이다 — **볼드가 진짜 Pretendard Bold** 로 나온다
         (아래 font-synthesis:none 이 브라우저의 가짜 볼드를 막는다).
-     ⚠️ CDN 이 막히면 fallback 체인(맑은 고딕 등)으로 조용히 내려간다 — 화면은 깨지지 않는다. -->
-<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+     ⚠️ CDN 이 막히면 fallback 체인(맑은 고딕 등)으로 조용히 내려간다 — 화면은 깨지지 않는다.
+     🔴 [결함·2026-09-17] `rel="stylesheet"` 로 바로 넣으면 이 두 CDN 요청이 끝날 때까지
+        **뒤에 오는 본문 `<script>` 실행이 통째로 멈춘다**(브라우저 스펙 — head 의 stylesheet 가
+        안 끝나면 그 뒤 동기 스크립트를 안 돌린다). 와이파이에선 안 느껴지지만 모바일 회선에서
+        jsDelivr 가 느리거나 막히면 **클릭이 전부 반응 없는 상태로 몇 초~수십 초 멈춘다** —
+        로한이 "학습 페이지에서 클릭해도 반응이 없다"고 신고한 사고의 원인이었다(그날 배포된
+        v3.9 가 이 두 줄을 처음 넣었다). → preload 로 받고 onload 에서 stylesheet 로 전환해
+        **스크립트를 막지 않게** 한다. 폰트가 늦게 와도 화면은 즉시 반응하고, 폰트만 나중에 바뀐다. -->
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'">
 <!-- 🇯🇵 Pretendard **JP** — 일본어 본문 전용.
      🔴 한국 폰트의 한자 글자체로 JLPT 한자를 외우면 **시험지의 자형과 다른 걸 외운다**
         (直·骨·青 처럼 한·일 자형이 갈리는 글자가 실제로 있다).
      🔒 그래서 드릴의 일본어에는 --ja 를 쓴다. UI 한국어는 --sans(Pretendard) 그대로다.
      ⚠️ 불확실: Pretendard JP 의 가나 커버리지를 이 환경에서 실측하지 못했다(CDN 차단).
-        그래서 체인 뒤에 OS 일본어 폰트를 둔다 — 빠지는 글자는 거기서 채운다. -->
+        그래서 체인 뒤에 OS 일본어 폰트를 둔다 — 빠지는 글자는 거기서 채운다.
+     🔒 이것도 위와 같은 이유로 preload — 두 개 다 stylesheet 로 바로 걸면 두 배로 멈춘다. -->
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'">
+<noscript>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-jp-dynamic-subset.min.css" rel="stylesheet">
+</noscript>
 <style>
 :root{--bg:#f4f6fa;--card:#fff;--soft:#f8fafc;--line:#e4e8f0;--ink:#1b2333;--muted:#6b7789;--accent:#2f6df6;--accent-bg:#eaf1ff;--pos:#0f9d58;--neg:#e0483d;--warn:#b26a00;--warn-bg:#fff6e2;--gold:#a67c1a;
   /* 🔤 글꼴은 이 두 변수로만 정한다. 파일 안에 폰트 이름을 직접 쓰지 마라 */
@@ -7188,13 +7200,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='3.9';
+var APP_VERSION='3.91';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'3.91',date:'2026-09-17',note:"<b>🔤 [잠재 결함] 폰트 CDN 이 앱 스크립트 실행을 막고 있었다.</b> · 🔴 <b>[오류 정정]</b> 이 수정을 처음엔 <b>로한이 신고한 \"학습 페이지 클릭 먹통\"의 원인이라고 단정해서 기록에 박았다. 틀렸다.</b> 로한에게 되물으니 <b>\"내용 다 보였고 아무것도 안 눌림\"</b> 이었고, 화면이 그려졌다는 건 그 스크립트가 <b>이미 실행됐다는 뜻</b>이다 — 스크립트가 막혔다면 로그인 박스(정적 HTML)에서 멈추지 학습 페이지가 그려지지 않는다. <b>증상이 진단을 반증한다.</b> 🔒 재현에 성공한 것과 <b>신고된 사고를 재현한 것</b>은 다르다 — 신고 건의 원인은 아직 못 찾았고 STATUS §22 에 미해결로 남겼다 · <b>그래도 이건 진짜 결함이라 고쳤다</b>: v3.9 가 Pretendard 폰트 두 개를 <code>&lt;link rel=\"stylesheet\" href=\"...jsdelivr...\"&gt;</code> 로 head 에 넣었는데, <b>head 의 stylesheet 가 안 끝나면 브라우저는 그 뒤의 동기 스크립트를 실행하지 않는다</b>(스펙 동작). 이 앱은 클릭 핸들러·렌더러가 전부 그 스크립트 한 덩어리 안에 있어서, CDN 이 느리면 <b>로그인 화면에서 멈춘 채 아무것도 안 눌리는</b> 구간이 생긴다. 로컬 정적 서버로 CSS 응답을 30초 지연시켜 재현했다 — 그 구간에 버튼을 누르면 <code>ReferenceError</code>(함수 미정의)만 나고 화면은 그대로였다 · 🔒 <b>수정</b>: 두 폰트 링크를 <code>rel=\"preload\" as=\"style\" onload=\"this.rel='stylesheet'\"</code> 로 바꿨다(+ <code>&lt;noscript&gt;</code> 폴백). 리소스는 그대로 받되 <b>본문 스크립트를 막지 않는다.</b> 로한이 원래 의도한 \"CDN 막히면 조용히 폴백\"이 <b>폰트 렌더링엔 지켜졌지만 스크립트 실행엔 안 지켜지고 있었다</b> · ✅ <b>검증</b>: <code>run.sh all</code> <b>25개 전부 통과</b>(360초 · t42 337건) — 🟢 이번부터 <b>로한 PC 에서 직접</b> 돌렸다(Node 24.19 + Playwright 1.56, 레포 바깥 <code>_testenv</code> 에 설치. STATUS §21)"},
   {v:'3.9',date:'2026-09-16',note:"<b>📖 문법 드릴 신설 · 🔤 폰트를 Pretendard 로 통일.</b> 로한 지시(2026-09-16) · 📖 <b>학습방이 접속사 예문 19건(`sents`)을 올려서 문법 드릴을 열었다.</b> v5 에선 \"문법·독해·청해 문항은 앱이 못 만든다\"고 못 박았는데 <b>문법에 한해 뒤집었다</b> — 근거는 <b>N4 시험 문장에 어절 띄어쓰기가 있다</b>는 것이다(「雨が 降って いました。」). 띄어쓰기가 있으면 어순 문제가 문자열 split 으로 끝난다. 🚫 <b>독해·청해는 여전히 못 만든다</b> — 지문 길이와 음원이 필요하다 · 모드 둘: <b>접속사 채우기</b>(もんだい3형 — `target` 을 어절 경계에서 가리고 `opts` 3개로 4지선다) · <b>문장 만들기</b>(もんだい2형 — 연속 4어절을 골라 섞고 ★ 자리에 오는 것을 묻는다. ★는 2~3번째 — 맨 앞·맨 뒤를 물으면 조사만 보고도 맞힌다) · 🔒 <b>가리기는 어절 경계 우선이다.</b> 단순 첫 등장 치환이면 「では」를 물을 때 같은 문장의 「それでは」 안쪽이 먼저 걸려 <b>엉뚱한 자리가 가려진다</b> · 🔒 <b>답하기 전에 한국어 번역을 보여주지 않는다.</b> 번역에 「그래서」가 박혀 있으면 정답이 번역에 그대로 적혀 있는 셈이다 — 번역·해설(`why`)은 채점 후에만, 해설은 <b>틀렸을 때만</b> 뜬다 · 🔒 <b>문항은 시작할 때 한 번 만들어 세션에 박는다.</b> 채점할 때마다 다시 만들면 보기가 춤추고 어순 문제는 정답 자리까지 바뀐다 · 🔒 <b>카운터를 단어와 같은 필드로 뒀다</b>(`seen`·`miss`·`streak`·`lastSeen`) — 그래서 출제 가중식 `stWordScore()` 와 채점·기록 경로(`stDrillRecord`)를 <b>단어와 그대로 공유한다</b>. 가중식을 두 벌 만들면 두 화면이 다른 순서를 낸다(원칙 2) · 🔒 <b>탭을 새로 만들지 않았다</b> — 400px 에서 탭 5개는 글자가 잘린다(v3.7 확정). 「🈶 단어」 탭을 <b>「🈶 드릴」</b>로 바꾸고 단어 위·문법 아래로 한 탭에 담았다 · 🔤 <b>폰트 통일</b> — 로한: <i>\"폰트를 싹다 프린텐다드로 바꾸자. 볼드 폰트는 프리텐다드 볼드로.\"</i> Google Fonts(Cinzel·고운바탕)를 떼고 <b>Pretendard Variable 동적 서브셋</b>으로 교체했다 · 🔒 <b>동적 서브셋</b>을 쓴다 — 한글 static 폰트는 웨이트마다 수 MB 라 전부 받으면 모바일 첫 화면이 눈에 보이게 늦는다. 서브셋은 화면에 실제로 쓰인 글자만 받는다 · 🔒 <code>font-synthesis:none</code> — 브라우저가 글자를 굵게 '그려서' 흉내내지 못하게 막았다. variable 폰트라 웨이트가 45~920 연속이고, <b>볼드가 진짜 Pretendard Bold</b> 로 나온다 · ⚠️ <b>명리·일지 제목의 세리프가 사라졌다.</b> 원래 Cinzel+고운바탕이었고 의도된 분위기였다 — 로한 지시(\"싹다\")를 따랐다. 되돌리려면 <code>--serif</code> 한 줄이다(쓰는 곳 29군데는 그대로 둔다) · 🔒 글꼴은 <code>--sans</code>·<code>--serif</code> 두 변수로만 정한다. 파일 안에 폰트 이름을 직접 쓰지 마라 — SVG 안에 박혀 있던 한 군데를 이번에 같이 걷어냈다"},
   {v:'3.8',date:'2026-09-16',note:"<b>⚠️ [결함·중대] 체크카드 후불(K-패스 교통)이 카드 미결제에 안 떴다.</b> 로한 신고: <i>\"우리K패스카드 중 후불결제(신용카드) 부분은 현황판에 카드 미결제에 노출이 안 된다.\"</i> · 실측(9/16): <b>우리(K패스) 후불 10건 39,500원</b>(9/1~9/15, <code>credit:true·card:true</code>) — <b>총부채에는 들어가 있는데</b> 현황판 '💳 카드 미결제'와 선결제 화면에는 한 건도 없었다. <b>낼 방법이 없는 부채</b>가 됐고, 결제할 수 없으니 영원히 쌓일 구조였다 · 원인: <code>cardPendingByCard()</code> 는 <b>거래</b>로 후불을 판정(<code>txnIsCredit</code>)하는데 <code>cardCycles()</code> 는 <b>카드 종류</b>로 걸렀다(<code>c.type!=='credit'</code>). <b>같은 질문에 두 함수가 다르게 답했다</b> — v2.11(현황판 vs 선결제 134만 차이)과 <b>같은 자리에서 같은 실수</b>가 다시 났다 · 🔒 <b>후불 여부는 카드 종류가 아니라 거래가 답한다.</b> 카드 종류는 기본값일 뿐이다. 체크카드에도 후불이 붙는다(K-패스 후불교통) · 고친 곳 다섯: <code>cardCycles</code>(결제분 분해) · <code>monthCashPL</code>(현금 기준 월 손익 — 후불은 결제월로 밀어야 한다) · 현황판 목록(종류 대신 <b>결제분 유무</b>로 고른다) · 선결제 화면(같은 기준) · 카드 설정 줄(후불 거래가 있으면 '즉시결제'가 아니라 미결제 금액) · 🗑 <code>creditCard(name)</code> 삭제 — 쓰는 곳은 없는데 <b>'카드 종류가 후불을 정한다'는 틀린 규칙</b>이 거기 박혀 코드 다섯 곳에 복사됐다 · 후불 거래가 있는 체크카드는 <b>마감일·결제일을 고칠 수 있게</b> 했다 — 기본값 10/25 에 묶이면 실제 청구일과 어긋난다 · t40 에 H 블록 신설"},
   {v:'3.7',date:'2026-09-16',note:"<b>📅 학습 캘린더 탭 신설 · ⏱ 뽀모도로 · '오늘' 탭 폐지.</b> 로한 지시(2026-09-16) · 📅 <b>학습 전용 캘린더를 맨 왼쪽 탭으로.</b> 월간 격자 + 날짜 클릭 시 오른쪽에 그날 과제·<b>학습방 멘트</b>(<code>logs[날짜].coach</code> — 앱은 읽기 전용) · 🔒 <b>가치는 제로데이 시각화다</b> — 미달은 전부 '안 한 날'에서 나왔고, 월간 격자의 빈칸이 숫자보다 강하게 작동한다. 지난 날인데 학습도 과제도 없는 칸은 <b>붉은 사선</b>으로 드러낸다 · 칸 색 농도 = 그날 학습 분(60분이면 가득) · 시험일·모의고사 4회·주간판정일 마커 · 🔒 <b>계획 편집 도구로 만들지 않았다</b> — 먼 미래 날짜에 과제를 직접 심으면 3일 롤링 창 원칙(v6)이 깨진다. 90일치를 미리 깔면 첫 주에 속도가 틀렸을 때 89일이 통째로 틀어진다. 미래는 <b>3일</b>까지만 과제가 있고 그 뒤는 흐리게 표시한다. ⚠️ 흐린 날에 이미 올라온 과제는 <b>숨기지 않는다</b> — 숨기면 거짓말이 된다 · 🗑 <b>'오늘' 탭 폐지</b>(로한: \"캘린더랑 중복이야\"). 오늘 할 일 → 캘린더 우측 패널, 과락 게이지·오답 요약·이번 주 → 우측 하단, <b>D-day·입실시각·phase → 전 탭 공통 헤더</b>(입실 시각에 못 들어간 이력이 있어 '입실까지'는 어느 화면에서나 보여야 한다) · 🔒 <b>탭은 4개로 유지</b>(캘린더·오답·단어·기록) — 400px 에서 5개는 글자가 잘린다. 뽀모는 탭이 아니라 <b>캘린더 안의 버튼에서 전체화면</b>으로 띄운다(로한 제안) · ⏱ <b>뽀모 길이는 자유다</b> — 프리셋 25/5·50/10·10/3·15/5·45/15 + <b>직접 입력</b>(집중 1~180분, 휴식 0~60분). ⚠️ 학습방이 \"10/3 고정\"이라 단정했지만 로한이 부정했다 — 통상 25-5, 50-10 식으로 자유로워야 한다 · 🔒 <b>setInterval 로 카운트를 세지 않는다</b> — 시작 시각을 저장하고 경과로 계산한다. 탭을 벗어나거나 화면이 꺼지면 타이머가 throttle 되지만, 경과 계산이면 돌아와도 정확하다. 새로고침해도 돌던 뽀모가 이어진다 · 🔒 <b>기록은 <code>study.pomos</code> 에 분 단위</b>. timelog 는 안 건드린다 — <b>한 칸이 30분</b>이라 25·50분 뽀모를 거기 찍으면 학습시간이 부풀고 주간 판정이 거짓말을 한다 · 🚫 <code>units[].mins</code> 에 실제 소요를 쓰지 않는다(원칙 1) — 시간 기록이 두 곳이면 또 어긋난다. 어느 과제에 썼는지는 <code>pomos[].unitId</code> 로 판다 · ⚠️ <b>중단해도 그때까지의 시간을 버리지 않는다</b>(1분 미만은 미기록). 계획보다 짧으면 <code>cut:true</code> · 집중이 끝나면 자동으로 휴식으로 넘어가고 소리를 낸다 (🚫 알림은 폐기됐다 — 페이지 안에서 나는 소리는 다른 층이다) · 학습시간 파생을 <code>stStudyMins()</code> <b>한 곳으로 합쳤다</b>(timelog + 뽀모) — 같은 질문에 답하는 함수는 하나여야 한다 · ⚠️ [결함·모바일] <code>.calwrap</code> 이 가계부 규칙(<code>column-reverse</code>)을 물려받아 400px 에서 <b>격자가 화면 맨 아래</b>로 갔다. 캘린더 탭을 눌렀는데 캘린더를 보려면 스크롤을 해야 했다 → 학습 캘린더는 격자부터 · t42 에 W·X 블록 50건 추가(281건)"},
