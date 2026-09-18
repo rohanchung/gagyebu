@@ -68,14 +68,17 @@ const file=process.argv[2]||path.join(__dirname,'..','index.html');
    document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');
    gotoTab('emr');
    check('건강 메뉴 첫 항목',document.querySelector('[data-v="emr"]').nextElementSibling.dataset.v==='weight');
-   check('화면 사실 원문 일치',document.getElementById('emrFactsText').textContent===emrFacts(emrWholeProblem()));
-   check('XSS 텍스트로 렌더',!document.querySelector('#emrFactsText img')&&!window.__xss);
+   /* 🔒 로한 2026-09-18 — 사실 묶음은 메인 화면에 띄우지 않는다(저장·검수는 따로 한다) */
+   const v=document.getElementById('v-emr');
+   check('메인에 사실 원문 없음',!document.getElementById('emrFactsText')&&!v.querySelector('pre')&&!v.textContent.includes('[의료 기록'));
+   check('EMR 화면은 뜬다',v.textContent.includes('EMR')&&v.textContent.includes('로그인'));
+   check('식사 기록 속 스크립트 미실행',!window.__xss&&!v.querySelector('img'));
+   /* 이 시점 labDates=[d] 라 BUN([null,…])·빈지표 둘 다 값 없음 → 생략 2건. 이름에 쉼표가 있어도(「Epinephrine, Free」) 안 섞이게 ' / ' */
+   const two=emrFacts({sources:{labs:['BUN','빈지표'],body:false,diet_days:0,visits_days:0,events:false}});
+   check('생략 구분자는 쉼표가 아니다',two.includes('2개 생략: BUN / 빈지표'));
    return results;
  });
  for(const r of result)assert.ok(r.ok,r.name);
- await page.locator('.emrfacts summary').click();assert.equal(await page.locator('.emrfacts').getAttribute('open'),null);
- await page.locator('.emrfacts summary').click();
- await page.getByRole('button',{name:'↻ 현재 기록으로 새로 보기'}).click();
  fs.mkdirSync(path.join(__dirname,'.out'),{recursive:true});
  for(const width of [1440,400]){
    await page.setViewportSize({width,height:1000});
@@ -83,6 +86,6 @@ const file=process.argv[2]||path.join(__dirname,'..','index.html');
    await page.screenshot({path:path.join(__dirname,'.out','emr-'+width+'.png'),fullPage:true});
  }
  assert.deepEqual(errors,[]);
- console.log('전부 통과 ('+(result.length+4)+'건)');
+ console.log('전부 통과 ('+(result.length+3)+'건)');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

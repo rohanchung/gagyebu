@@ -53,16 +53,52 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .emrhead h2{margin:0 0 7px}.emrhead p{margin:0;color:var(--muted,#657181);font-size:13px}
 .emrstage{font-size:12px;border:1px solid #d7e4e1;border-radius:20px;padding:7px 12px;color:#316c61;background:#f0f7f4}
 .emrnotice{padding:13px 16px;background:#f3f6fa;border:1px solid #dce3ed;border-radius:10px;margin-bottom:18px;line-height:1.7;font-size:13px}
-.emrcard{padding:22px;border:1px solid #dce3e5;border-radius:14px;background:#fff;min-width:0}
-.emrcard h3{margin:0 0 8px}.emrcard p{line-height:1.7;font-size:13px}
-.emrrange{display:flex;flex-wrap:wrap;gap:7px;margin:16px 0}.emrrange span{padding:6px 9px;border-radius:6px;background:#f3f6f5;font-size:12px}
-.emrhelp{color:#62716d}.emractions{border-top:1px solid #e5ebe8;padding-top:14px;margin:16px 0}
-.emractions button{cursor:pointer;border:1px solid #aabfb7;background:#fff;border-radius:7px;padding:10px 14px;color:#24574b;font:inherit;font-size:13px}
-.emractions button:hover{background:#eef6f2}.emractions button:active{background:#dcece4}
-.emrfacts{border:1px solid #dce3e5;border-radius:9px;overflow:hidden}.emrfacts summary{cursor:pointer;padding:14px;background:#f7faf8;line-height:1.7;font-size:14px}
-.emrfacts summary:hover{background:#edf5f0}.emrfacts summary:active{background:#dcece4}.emrfacts summary span{display:block;font-size:11px;color:#65736d;margin-left:18px}
-.emrfacts pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;margin:0;padding:18px;font-family:var(--sans);font-size:13px;line-height:1.9;border-top:1px solid #dce3e5}
-@media(max-width:899px){.emrcard{padding:14px}.emrfacts pre{padding:12px}.emrhead{margin-top:8px}}
+.emrnotice.emrbad{background:#fdf0ef;border-color:#f2c9c5;color:#8a2c24}
+/* 🔒 base 규칙부터 — 모바일 규칙만 넣어 스타일 없이 렌더된 사고가 2회 있었다(v3.7) */
+.emrwrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px;align-items:start}
+.emrlist{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.emrgrp{font-size:11.5px;font-weight:800;color:var(--muted);margin:8px 2px 4px}
+.emrli{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 9px;border-radius:8px;cursor:pointer;font-size:13px}
+.emrli:hover{background:var(--soft)}.emrli.on{background:var(--accent-bg);font-weight:700}
+.emrpend{font-size:11px;color:var(--warn);white-space:nowrap}
+.emrclosed summary{cursor:pointer;list-style:none}.emrclosed summary::-webkit-details-marker{display:none}
+.emrlistbtn{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.emrmain{min-width:0}
+.emrempty{padding:22px;text-align:center;color:var(--muted);font-size:13px;background:var(--card);border:1px dashed var(--line);border-radius:12px}
+.emrback{display:none;margin-bottom:8px}
+.emrdhd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.emrdhd h3{margin:0;font-size:16px}
+.emrtools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.emrtools select{font:inherit;font-size:12px;padding:5px 6px;border:1px solid var(--line);border-radius:7px;background:var(--card)}
+.emrsum{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:12px}
+.emrsum summary{cursor:pointer;font-size:12.5px;font-weight:700}
+.emrsum .emrtext{margin-top:8px;max-height:260px;overflow:auto;font-size:12.5px}
+.emrhint{font-size:11.5px;margin:6px 0 10px}
+.emrtext{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:13.5px}
+.emrturn{margin-bottom:16px}
+.emrq{background:#eef3fb;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.emrtn{display:block;font-size:11px;font-weight:800;color:var(--accent);margin-bottom:3px}
+.emrans{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.emrac{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.emrac.wait{background:var(--soft);border-style:dashed}.emrac.refused{border-color:#f0dfae}
+.emrah{font-size:12.5px;margin-bottom:6px}
+.emrwait{font-size:12.5px;color:var(--warn);margin:4px 0 8px}
+.emrfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:9px;font-size:10.5px;color:var(--muted)}
+.emrask{display:flex;gap:8px;align-items:flex-end;margin-top:6px}
+.emrask textarea{flex:1;font:inherit;font-size:13.5px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;resize:vertical;min-width:0}
+.emropt{display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;margin:4px 0}
+.emrlabs{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin-top:6px}
+.emrcat{margin-bottom:6px}.emrcat b{display:block;font-size:11.5px;color:var(--muted);margin:4px 0 2px}
+.emrcat label{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:400;margin:2px 10px 2px 0}
+@media(max-width:899px){
+  .emrhead{margin-top:8px}
+  /* 모바일 — 목록 → 문제 2단계. 두 답은 세로로 쌓는다(400px 에 나란히는 못 읽는다) */
+  .emrwrap{grid-template-columns:minmax(0,1fr)}
+  .emrwrap.sel .emrlist{display:none}.emrwrap:not(.sel) .emrmain{display:none}
+  .emrback{display:inline-block}
+  .emrans{grid-template-columns:minmax(0,1fr)}
+  .emrask{flex-direction:column;align-items:stretch}
+}
 /* login */
 .login{position:fixed;inset:0;background:linear-gradient(160deg,#eef2fb,#f6f8fc);display:flex;align-items:center;justify-content:center;z-index:50}
 .login .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px 26px;width:320px;box-shadow:0 16px 50px rgba(0,0,0,.1);text-align:center}
@@ -4772,7 +4808,10 @@ function emrDateOK(ds){
 function emrSources(problem){
   var s=(problem&&problem.sources)||{};
   function days(k,n){return typeof s[k]==='number'&&isFinite(s[k])?Math.max(0,Math.min(366,Math.floor(s[k]))):n;}
-  return {labs:Array.isArray(s.labs)?s.labs.filter(function(x){return typeof x==='string';}).filter(function(x,i,a){return a.indexOf(x)===i;}).sort():[],
+  /* labs 를 고르지 않았으면(키 없음) 등록 지표 전부 — 6회 내내 빈 지표는 emrFacts 가 이름만 남기고 생략한다.
+     명시적 [] 는 '피검사 안 보냄'이다. 기본이 '없음'이면 이관한 순환기 문제의 첫 질문에 검사값이 하나도 안 간다 */
+  var all=((DB&&DB.health&&DB.health.metrics)||[]).map(function(m){return m.name;});
+  return {labs:(Array.isArray(s.labs)?s.labs:all).filter(function(x){return typeof x==='string';}).filter(function(x,i,a){return a.indexOf(x)===i;}).sort(),
     body:s.body===undefined?true:!!s.body,diet_days:days('diet_days',14),visits_days:days('visits_days',90),events:s.events===undefined?true:!!s.events};
 }
 function emrWholeProblem(){return {title:'전체',status:'active',summary:'',sources:{
@@ -4807,7 +4846,8 @@ function emrFacts(problem){
       var vals=indices.map(function(x){var v=values[x.i];return x.date+' '+(v==null||String(v).trim()===''?'기록 없음':String(v));});
       return name+' — '+(metric.func||'설명 미기록')+' (참고 '+ref+'): '+vals.join(' · ');
     }).filter(function(x){return x!==null;});
-    if(omitted.length)labs.push('최근 6회 값 없는 지표 '+omitted.length+'개 생략: '+omitted.join(', '));
+    /* ' / ' 로 잇는다 — 지표 이름 자체에 쉼표가 있다(「Epinephrine, Free」). 쉼표로 이으면 하나가 둘로 읽힌다 */
+    if(omitted.length)labs.push('최근 6회 값 없는 지표 '+omitted.length+'개 생략: '+omitted.join(' / '));
     section('[피검사 — 최근 6회]',labs);
     var last=indices[indices.length-1],meds=last&&((H.labMeds||[])[last.i]||{});
     lines.push('[현재 복용약 — '+(last?last.date+' 기록 기준':'기록 없음')+']');
@@ -4835,16 +4875,222 @@ function emrFacts(problem){
   }
   return lines.join('\n');
 }
+/* ── 🩺 EMR 화면 — 문제 목록 + 중계 대화 (health-design.md §4·§6·§7) ──
+   🔒 대화는 app_state 밖(health_problems·health_messages)이다. 이 화면이 app_state 에 쓰는 건 DB.ui.emrSel(고른 문제) 하나뿐이다.
+   🔒 AI 답은 각 방이 emr_reply 로만 쓴다. 이 화면은 읽고, 질문을 남기고, 「다시 받기」만 한다.
+   🔒 사실 묶음은 메인에 띄우지 않는다(로한 2026-09-18) — 질문과 함께 저장되고, 정확성은 로버트가 검수한다.
+   이 화면은 로한이 보는 곳이라 두 답을 나란히 보여준다. 격리는 AI 가 읽는 경로(emr_thread)에서 한다. */
+var EMR_AI=[{k:'claude',name:'로버트',ico:'🤖'},{k:'openai',name:'수연',ico:'💬'}];
+var EMR_ST={active:'현재',watch:'경과관찰',closed:'종료'};
+var EMR={problems:null,msgs:[],err:'',busy:false,loading:false,draft:'',poll:null};
+/* 속성값 자리용 — mdEsc 는 따옴표를 막지 않는다 */
+function emrAttr(s){return mdEsc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function emrSel(){var s=(DB&&DB.ui&&DB.ui.emrSel)||'';
+  return (EMR.problems||[]).filter(function(p){return p.slug===s;})[0]||null;}
+function emrFail(what,e){EMR.err=what+' 실패: '+((e&&e.message)||e);}
+function emrLoadMsgs(){
+  /* facts 는 받지 않는다 — 화면에 안 쓰고 크다 */
+  return SB.from('health_messages').select('id,problem_id,turn_no,role,provider,content,status,error,room,created_at')
+    .order('turn_no',{ascending:true}).then(function(r){if(r.error)throw r.error;EMR.msgs=r.data||[];});
+}
+function emrLoad(){
+  if(!USER||!SB.from||EMR.loading)return;
+  EMR.loading=true;
+  SB.from('health_problems').select('*').order('created_at',{ascending:true})
+    .then(function(r){if(r.error)throw r.error;EMR.problems=r.data||[];EMR.err='';return emrLoadMsgs();})
+    .catch(function(e){emrFail('불러오기',e);if(!EMR.problems)EMR.problems=[];})
+    .then(function(){EMR.loading=false;renderEmr();});
+}
+/* 사이드 메뉴로 들어올 때마다 새로 읽는다 — 로한은 다른 앱의 방에 다녀온 뒤 돌아온다 */
+function emrOpen(){renderEmr();if(EMR.problems!==null)emrLoad();}
+/* 턴 = 질문 1 + AI 별 최신 '답함'(ok·refused). error 는 「다시 받기」로 밀려난 이력이라 개수만 센다 */
+function emrTurns(pid){
+  var ms=EMR.msgs.filter(function(m){return m.problem_id===pid;});
+  return ms.filter(function(m){return m.role==='user';}).sort(function(a,b){return a.turn_no-b.turn_no;}).map(function(q){
+    var t={no:q.turn_no,q:q,ans:{},redo:{}};
+    EMR_AI.forEach(function(ai){
+      var rs=ms.filter(function(m){return m.role==='assistant'&&m.provider===ai.k&&m.turn_no===q.turn_no;})
+        .sort(function(a,b){return a.created_at<b.created_at?-1:a.created_at>b.created_at?1:0;});
+      t.ans[ai.k]=rs.filter(function(m){return m.status==='ok'||m.status==='refused';}).slice(-1)[0]||null;
+      t.redo[ai.k]=rs.filter(function(m){return m.status==='error';}).length;
+    });
+    return t;});
+}
+function emrPendingN(p){if(p.status==='closed')return 0;var n=0;
+  emrTurns(p.id).forEach(function(t){EMR_AI.forEach(function(ai){if(!t.ans[ai.k])n++;});});return n;}
+function emrRoom(p,ai){return ((p.rooms||{})[ai.k])||ai.name;}
+/* 방에 붙여넣을 한 줄 — 로한이 문제·턴을 외울 필요가 없게 붙여 준다 */
+function emrRelayLine(p,no){return 'EMR 답할 거 있나 봐 — '+p.slug+' 턴 '+no;}
+
 function renderEmr(){
-  var problem=emrWholeProblem(),s=emrSources(problem),facts=emrFacts(problem);
-  document.getElementById('v-emr').innerHTML='<div class="emrhead"><div><h2>🩺 EMR</h2><p>같은 건강 기록을 바탕으로, 두 개의 독립된 의견.</p></div><span class="emrstage">0단계 · 기록 확인</span></div>'+
-    '<div class="emrnotice">AI 미연결 · 현재는 기록 미리보기입니다. 외부 AI로 전송하지 않습니다.</div>'+
-    '<section class="emrcard"><h3>전체 건강 기록</h3><p>문제별 상담을 만들기 전에 AI에게 제공할 사실이 정확한지 확인합니다.</p>'+
-    '<div class="emrrange"><span>피검사 '+s.labs.length+'개 지표 · 최근 6회</span><span>체성분 최근 8건</span><span>식이 14일</span><span>의료 기록 90일</span><span>사고·증상</span></div>'+
-    '<p class="emrhelp">검사 단위는 기록에 없는 값을 덧붙이지 않습니다. 구매와 실제 식사는 출처를 구분하며, 빈 기록은 안 먹었다는 뜻이 아닙니다.</p>'+
-    '<div class="emractions"><button type="button" onclick="renderEmr()">↻ 현재 기록으로 새로 보기</button></div>'+
-    '<details class="emrfacts" open><summary>📋 AI에게 보낼 사실 보기 <span>'+facts.length.toLocaleString('ko-KR')+'자 · 아직 전송 안 됨</span></summary><pre id="emrFactsText"></pre></details></section>';
-  document.getElementById('emrFactsText').textContent=facts;
+  var box=document.getElementById('v-emr');if(!box)return;
+  var q=document.getElementById('emrQ');if(q)EMR.draft=q.value;   /* 다시 그려도 쓰던 질문은 남긴다 */
+  var head='<div class="emrhead"><div><h2>🩺 EMR</h2><p>같은 건강 기록을 바탕으로, 두 개의 독립된 의견.</p></div>'
+    +'<span class="emrstage">로버트·수연이 각자 방에서 답한다</span></div>';
+  if(!USER||!SB.from){box.innerHTML=head+'<div class="emrnotice">로그인하면 문제 목록이 뜬다.</div>';return;}
+  if(EMR.problems===null){box.innerHTML=head+'<div class="emrnotice">불러오는 중…</div>';emrLoad();return;}
+  var p=emrSel();
+  box.innerHTML=head+(EMR.err?'<div class="emrnotice emrbad">⚠ '+mdEsc(EMR.err)+'</div>':'')
+    +'<div class="emrwrap'+(p?' sel':'')+'">'+emrListHtml(p)
+    +'<div class="emrmain">'+(p?emrDetailHtml(p):'<div class="emrempty">왼쪽에서 문제를 고르거나 새로 만든다.</div>')+'</div></div>';
+  emrPollSync(p);
+}
+function emrListHtml(sel){
+  var html=[['active','●'],['watch','◐'],['closed','○']].map(function(g){
+    var ps=EMR.problems.filter(function(p){return p.status===g[0];});if(!ps.length)return '';
+    var items=ps.map(function(p){var n=emrPendingN(p);
+      return '<div class="emrli'+(sel&&sel.id===p.id?' on':'')+'" data-emrpick="'+emrAttr(p.slug)+'" onclick="emrPick(this.dataset.emrpick)">'
+        +'<span>'+mdEsc(p.title)+'</span>'+(n?'<b class="emrpend" title="답 대기 '+n+'칸">⏳'+n+'</b>':'')+'</div>';}).join('');
+    var h='<div class="emrgrp">'+g[1]+' '+EMR_ST[g[0]]+' <span class="mut">'+ps.length+'</span></div>';
+    return g[0]==='closed'?'<details class="emrclosed"><summary>'+h+'</summary>'+items+'</details>':h+items;
+  }).join('');
+  return '<div class="emrlist">'+(html||'<div class="mut" style="font-size:12px;padding:6px 2px">문제가 아직 없다.</div>')
+    +'<div class="emrlistbtn"><button class="ghost sm" onclick="emrNewModal()">+ 신규 문제</button>'
+    +'<button class="ghost sm" onclick="emrLoad()">↻ 새로고침</button></div></div>';
+}
+function emrDetailHtml(p){
+  var turns=emrTurns(p.id),sum=(p.summary||'').trim();
+  var sopt=Object.keys(EMR_ST).map(function(k){return '<option value="'+k+'"'+(p.status===k?' selected':'')+'>'+EMR_ST[k]+'</option>';}).join('');
+  var out='<button class="ghost sm emrback" onclick="emrPick(\'\')">← 목록</button>'
+    +'<div class="emrdhd"><h3>'+mdEsc(p.title)+'</h3>'
+    +'<div class="emrtools"><select onchange="emrUpdate({status:this.value})">'+sopt+'</select>'
+    +'<button class="ghost sm" onclick="emrSummaryModal()">요약 편집</button>'
+    +'<button class="ghost sm" onclick="emrSourcesModal()">기록 범위</button></div></div>'
+    +(sum?'<details class="emrsum"><summary>경과 요약 <span class="mut">두 AI 가 같이 받는 배경</span></summary><div class="emrtext">'+mdEsc(sum)+'</div></details>'
+         :'<div class="mut emrhint">경과 요약이 비어 있다 — 두 AI 가 같이 받는 배경이다. 「요약 편집」에서 채운다.</div>');
+  out+='<div class="emrturns">'+(turns.length?turns.map(function(t){return emrTurnHtml(p,t);}).join('')
+    :'<div class="emrempty">아직 질문이 없다. 아래에 첫 질문을 남긴다.</div>')+'</div>';
+  if(p.status==='closed')return out+'<div class="mut emrhint">종료된 문제다 — 상태를 바꾸면 다시 질문할 수 있다.</div>';
+  return out+'<div class="emrask"><textarea id="emrQ" rows="3" placeholder="질문 — 두 AI 가 글자 그대로 같이 받는다"'
+    +(EMR.busy?' disabled':'')+'>'+mdEsc(EMR.draft)+'</textarea>'
+    +'<button class="btn" onclick="emrAsk()"'+(EMR.busy?' disabled':'')+'>'+(EMR.busy?'남기는 중…':'남기기')+'</button></div>'
+    +'<div class="mut emrhint">남기면 그 시점의 로한북 기록(식이·체성분·피검사·의료·사고)이 질문과 함께 저장되고, 두 AI 가 같은 글자를 받는다.</div>';
+}
+function emrTurnHtml(p,t){
+  return '<div class="emrturn"><div class="emrq"><span class="emrtn">턴 '+t.no+' · 로한</span><div class="emrtext">'+mdEsc(t.q.content)+'</div></div>'
+    +'<div class="emrans">'+EMR_AI.map(function(ai){return emrAnsHtml(p,t,ai);}).join('')+'</div></div>';
+}
+function emrAnsHtml(p,t,ai){
+  var room=emrRoom(p,ai),a=t.ans[ai.k];
+  var hd='<div class="emrah">'+ai.ico+' <b>'+ai.name+'</b>'+(room!==ai.name?' <span class="mut">· '+mdEsc(room)+'</span>':'')+'</div>';
+  if(!a)return '<div class="emrac wait">'+hd
+    +'<div class="emrwait">⏳ 답 대기'+(t.redo[ai.k]?' <span class="mut">(다시 요청함)</span>':'')+'</div>'
+    +(p.status==='closed'?'':'<button class="ghost sm" data-line="'+emrAttr(emrRelayLine(p,t.no))+'" onclick="emrCopy(this)">📋 '+mdEsc(room)+'에 보낼 한 줄</button>')+'</div>';
+  var refused=a.status==='refused';
+  return '<div class="emrac'+(refused?' refused':'')+'">'+hd
+    +(refused?'<div class="emrwait">이 질문엔 답하지 않았다</div>':'')
+    +'<div class="emrtext">'+mdEsc(a.content)+'</div>'
+    +'<div class="emrfoot"><span>AI 의견 · 진단 아님'+(t.redo[ai.k]?' · 다시 받음 '+t.redo[ai.k]+'회':'')+'</span>'
+    +'<button class="ghost sm" onclick="emrRedo(\''+emrAttr(a.id)+'\')">다시 받기</button></div></div>';
+}
+
+/* ── 동작 ── */
+function emrPick(slug){DB.ui=DB.ui||{};if(slug)DB.ui.emrSel=slug;else delete DB.ui.emrSel;EMR.draft='';save();renderEmr();}
+function emrAsk(){
+  var p=emrSel();if(!p||EMR.busy)return;
+  var el=document.getElementById('emrQ'),q=((el&&el.value)||'').trim();
+  if(!q)return alert('질문을 적어라');
+  var no=emrTurns(p.id).reduce(function(m,t){return Math.max(m,t.no);},0)+1;
+  /* 🔒 사실 묶음은 질문을 남기는 이 순간의 로한북 기록이다. 두 AI 가 이 글자를 그대로 받는다 */
+  var facts=emrFacts({title:p.title,status:p.status,summary:p.summary,sources:p.sources||{}});
+  EMR.busy=true;EMR.draft=q;renderEmr();
+  SB.from('health_messages').insert({user_id:USER.id,problem_id:p.id,turn_no:no,role:'user',content:q,facts:facts})
+    /* 입력칸도 비운다 — renderEmr 은 화면에 남은 값을 draft 로 다시 주워 담는다 */
+    .then(function(r){if(r.error)throw r.error;var el2=document.getElementById('emrQ');if(el2)el2.value='';EMR.draft='';EMR.err='';return emrLoadMsgs();})
+    .catch(function(e){emrFail('질문 저장',e);EMR.err+=' — 쓴 글은 입력칸에 남겨 뒀다';})
+    .then(function(){EMR.busy=false;renderEmr();});
+}
+function emrRedo(id){
+  if(!confirm('이 답을 다시 받을까?\n\n기존 답은 지우지 않고 이력으로 남긴다.\n그 방에 「📋 한 줄」을 다시 보내면 새로 답한다.'))return;
+  SB.from('health_messages').update({status:'error',error:'로한이 다시 요청'}).eq('id',id)
+    .then(function(r){if(r.error)throw r.error;return emrLoadMsgs();})
+    .catch(function(e){emrFail('다시 받기',e);}).then(renderEmr);
+}
+function emrUpdate(patch){
+  var p=emrSel();if(!p)return;
+  SB.from('health_problems').update(patch).eq('id',p.id)
+    .then(function(r){if(r.error)throw r.error;Object.assign(p,patch);EMR.err='';})
+    .catch(function(e){emrFail('저장',e);}).then(function(){closeModal();renderEmr();});
+}
+function emrCopy(btn){
+  var t=btn.dataset.line;
+  function done(){btn.textContent='✓ 복사했다 — 방에 붙여넣기';}
+  function fb(){window.prompt('복사해서 방에 붙여넣기',t);}
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,fb);else fb();}catch(e){fb();}
+}
+/* 새 답 확인 — 답 대기 칸이 있을 때만 20초마다. 보이지 않으면(다른 메뉴·앱 전환) 건너뛴다.
+   바뀐 게 있을 때만 다시 그린다 — 매번 그리면 쓰던 질문칸 커서가 튄다 */
+function emrSig(){return EMR.msgs.map(function(m){return m.id+m.status;}).join('|');}
+function emrPollSync(p){
+  var need=!!(p&&emrPendingN(p));
+  if(need&&!EMR.poll)EMR.poll=setInterval(function(){
+    var v=document.getElementById('v-emr');
+    if(!v||!v.classList.contains('on')||document.hidden||EMR.busy)return;
+    var before=emrSig();emrLoadMsgs().then(function(){if(emrSig()!==before)renderEmr();},function(){});
+  },20000);
+  if(!need&&EMR.poll){clearInterval(EMR.poll);EMR.poll=null;}
+}
+/* 다른 앱(방)에 다녀와 탭이 다시 보이면 바로 새로 읽는다 — 모바일의 기본 동선이다 */
+document.addEventListener('visibilitychange',function(){
+  var v=document.getElementById('v-emr');
+  if(!document.hidden&&v&&v.classList.contains('on')&&EMR.problems!==null)emrLoad();
+});
+
+/* ── 모달 ── */
+function emrNewModal(){
+  openModal('<div class="mtop"><h3>신규 문제</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>제목</label><input id="en_title" placeholder="예: 오른쪽 어깨 오십견 재활"></div>'
+   +'<div class="field"><label>짧은 이름 <span class="mut">(방에서 부르는 이름 · 겹치면 안 된다)</span></label><input id="en_slug" placeholder="예: 오십견"></div>'
+   +'<div style="display:flex;gap:8px">'
+     +'<div class="field" style="flex:1"><label>🤖 로버트 방</label><input id="en_claude" placeholder="예: 재활의학과"></div>'
+     +'<div class="field" style="flex:1"><label>💬 수연 방</label><input id="en_openai" value="수연"></div></div>'
+   +'<button class="btn" onclick="emrCreate()">만들기</button>');
+}
+function emrCreate(){
+  function v(id){return ((document.getElementById(id)||{}).value||'').trim();}
+  var title=v('en_title'),slug=v('en_slug'),rooms={};
+  if(!title||!slug)return alert('제목과 짧은 이름을 적어라');
+  if(EMR.problems.some(function(p){return p.slug===slug;}))return alert('「'+slug+'」은 이미 있다');
+  if(v('en_claude'))rooms.claude=v('en_claude');
+  if(v('en_openai'))rooms.openai=v('en_openai');
+  SB.from('health_problems').insert({user_id:USER.id,slug:slug,title:title,rooms:rooms})
+    .then(function(r){if(r.error)throw r.error;closeModal();DB.ui=DB.ui||{};DB.ui.emrSel=slug;save();EMR.problems=null;renderEmr();})
+    .catch(function(e){alert('만들기 실패: '+((e&&e.message)||e));});
+}
+function emrSummaryModal(){
+  var p=emrSel();if(!p)return;
+  openModal('<div class="mtop"><h3>경과 요약</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11.5px;margin-bottom:8px">두 AI 가 <b>똑같이</b> 받는 배경이다. 진단명·경과·치료·다음 진료를 적는다. 다음 질문부터 반영된다.</div>'
+   +'<div class="field"><textarea id="es_sum" rows="14" style="width:100%">'+mdEsc(p.summary||'')+'</textarea></div>'
+   +'<button class="btn" onclick="emrUpdate({summary:document.getElementById(\'es_sum\').value})">저장</button>');
+}
+function emrSourcesModal(){
+  var p=emrSel();if(!p)return;
+  var raw=p.sources||{},s=emrSources(p),auto=!Array.isArray(raw.labs);
+  var groups={};((DB.health||{}).metrics||[]).forEach(function(m){(groups[m.cat||'기타']=groups[m.cat||'기타']||[]).push(m.name);});
+  var checks=Object.keys(groups).map(function(c){
+    return '<div class="emrcat"><b>'+mdEsc(c)+'</b>'+groups[c].map(function(n){
+      return '<label><input type="checkbox" class="es_lab" value="'+emrAttr(n)+'"'+(!auto&&s.labs.indexOf(n)>=0?' checked':'')+'> '+mdEsc(n)+'</label>';}).join('')+'</div>';}).join('');
+  openModal('<div class="mtop"><h3>기록 범위 — AI 에게 보낼 것</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>🧪 피검사</label>'
+     +'<label class="emropt"><input type="radio" name="es_mode" value="auto"'+(auto?' checked':'')+'> 기록 있는 지표 전부 <span class="mut">(기본 · 빈 지표는 이름만)</span></label>'
+     +'<label class="emropt"><input type="radio" name="es_mode" value="pick"'+(auto?'':' checked')+'> 고른 지표만</label>'
+     +'<div class="emrlabs">'+checks+'</div></div>'
+   +'<div class="field"><label class="emropt"><input type="checkbox" id="es_body"'+(s.body?' checked':'')+'> 🩹 체성분 최근 8건</label>'
+     +'<label class="emropt"><input type="checkbox" id="es_events"'+(s.events?' checked':'')+'> 사고·증상</label></div>'
+   +'<div style="display:flex;gap:8px">'
+     +'<div class="field" style="flex:1"><label>🍚 식이 최근 N일 <span class="mut">(0=안 보냄)</span></label><input id="es_diet" type="number" min="0" max="366" value="'+s.diet_days+'"></div>'
+     +'<div class="field" style="flex:1"><label>🏥 의료 기록 최근 N일</label><input id="es_visits" type="number" min="0" max="366" value="'+s.visits_days+'"></div></div>'
+   +'<button class="btn" onclick="emrSaveSources()">저장</button>');
+}
+function emrSaveSources(){
+  var mode=(document.querySelector('input[name="es_mode"]:checked')||{}).value;
+  var src={body:!!document.getElementById('es_body').checked,events:!!document.getElementById('es_events').checked,
+    diet_days:Math.max(0,Math.min(366,parseInt(document.getElementById('es_diet').value,10)||0)),
+    visits_days:Math.max(0,Math.min(366,parseInt(document.getElementById('es_visits').value,10)||0))};
+  /* ⚠️ 빈 서랍 금지 — '전부'는 labs 키를 두지 않는 것으로 표현한다 */
+  if(mode==='pick')src.labs=[].map.call(document.querySelectorAll('.es_lab:checked'),function(x){return x.value;});
+  emrUpdate({sources:src});
 }
 
 /* ====== 건강: 피검사 ====== */
@@ -7324,13 +7570,15 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.0';
+var APP_VERSION='4.1';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.1',date:'2026-09-18',note:'<b>🩺 EMR 중계 상담 가동 — 문제 목록 + 두 AI 대화.</b> 로한: <i>"싹다 너가 해."</i> · 질문은 <b>EMR 에만</b> 쓴다 → 그 순간의 로한북 기록이 사실 묶음으로 질문과 함께 저장되고, 로버트 방·수연이 각자 <code>emr_thread</code> 로 <b>자기 몫만</b> 읽어 <code>emr_reply</code> 로 답을 남긴다. API 과금 0원 · 🗄 <b>대화는 app_state 밖</b>(<code>health_problems</code>·<code>health_messages</code>) — 한 덩어리 JSON 에 넣으면 AI 방이 쓸 때마다 앱과 충돌한다(v3.6 유실과 같은 구조) · 🔒 <b>격리는 DB 함수가 한다</b> — <code>emr_thread</code> 는 상대 provider 의 행을 조회 조건에서부터 빼고, 상대 답을 담는 필드 자체가 없다. 적용 전 실제 DB 에서 16개 시나리오를 돌리고 전부 롤백해 검증했다(자기 답만 보인다·중복 답 거부·질문 없는 턴 거부·다시 받기 후 재대기·거절은 답함·종료 문제 제외) · 「다시 받기」는 답을 지우지 않고 <code>error</code> 로 돌려 이력을 남긴다 · 거절(<code>refused</code>)도 답함으로 친다 — 미답으로 치면 대기 목록에서 영원히 안 빠진다 · 📋 칸마다 <b>방에 보낼 한 줄</b> 복사 버튼 — 로한은 질문을 다시 치지 않는다 · 답 대기 칸이 있으면 20초마다 확인하고, 다른 앱에 다녀와 탭이 다시 보이면 바로 새로 읽는다 · 쓰던 질문은 다시 그려도·저장에 실패해도 입력칸에 남긴다 · 모바일은 목록 → 문제 2단계, 두 답은 세로로 · AI 가 쓴 글은 텍스트로만 렌더(외부 입력이다) · 🔧 피검사 기본 범위를 <b>기록 있는 지표 전부</b>로 — 기본이 없음이면 이관한 순환기 문제 첫 질문에 검사값이 하나도 안 간다 · 초기 이관: handoffs 순환기·재활의학과·칼륨식단 3건(방 이름은 handoffs.room 그대로) · t44 신설 46건'},
+  {v:'4.01',date:'2026-09-18',note:'<b>🩺 EMR — 사실 묶음을 메인 화면에서 뺐다 · 0단계 검수 완료.</b> 로한: <i>"어차피 수파베이스에 기록돼 있는데 그걸 메인 페이지에 보여줄 필요 있나."</i> — 사실 묶음은 질문마다 저장되고 정확성은 로버트가 실데이터로 검수한다. EMR 메인은 문제 목록 + 대화이고, 그 둘은 1단계부터 열린다 · ✅ <b>로버트 실데이터 재검수</b>: 코덱스의 §15.1 수정 4건(끼니당 한 줄·의료 기록·빈 지표 생략·<code>func</code> 포함)이 실제 기록에서 의도대로 나온다. 9/11~9/13 간식이 한 줄씩, 폐기능 줄에 <code>(L)</code> 단위, 14,390 → 11,068자 · 🔧 생략 지표 구분자를 쉼표에서 <code> / </code> 로 — 지표 이름 자체에 쉼표가 있다(「Epinephrine, Free」). 쉼표로 이으면 하나가 둘로 읽힌다 · t43 화면 검사를 새 결정에 맞춰 교체(사실 원문이 화면에 <b>없어야</b> 통과)'},
   {v:'4.0',date:'2026-09-18',note:'<b>🩺 EMR 0단계 — 건강 기록 사실 미리보기.</b> 건강 메뉴 맨 앞에 EMR 추가. 실제 식사·음식 구매·의료 기록·피검사·복용약·체성분·사고를 한 사실 묶음으로 확인한다. 끼니당 한 줄로 실제 기록에 구매 근거를 붙인다. 의료 지출은 방문으로 단정하지 않고, 빈 검사 지표는 목록으로 축약하며 지표 설명을 함께 보낸다. 식단 제안·거래 금액·건강 외 기록은 포함하지 않는다. 진료일이 비어 있으면 검사일과 같다는 기존 규칙을 반영한다. <b>AI 미연결 · 외부 전송 없음.</b> 사실 내용 확인 후 다음 단계로 진행한다.'},
   {v:'3.91',date:'2026-09-17',note:"<b>🔤 [잠재 결함] 폰트 CDN 이 앱 스크립트 실행을 막고 있었다.</b> · 🔴 <b>[오류 정정]</b> 이 수정을 처음엔 <b>로한이 신고한 \"학습 페이지 클릭 먹통\"의 원인이라고 단정해서 기록에 박았다. 틀렸다.</b> 로한에게 되물으니 <b>\"내용 다 보였고 아무것도 안 눌림\"</b> 이었고, 화면이 그려졌다는 건 그 스크립트가 <b>이미 실행됐다는 뜻</b>이다 — 스크립트가 막혔다면 로그인 박스(정적 HTML)에서 멈추지 학습 페이지가 그려지지 않는다. <b>증상이 진단을 반증한다.</b> 🔒 재현에 성공한 것과 <b>신고된 사고를 재현한 것</b>은 다르다 — 신고 건의 원인은 아직 못 찾았고 STATUS §22 에 미해결로 남겼다 · <b>그래도 이건 진짜 결함이라 고쳤다</b>: v3.9 가 Pretendard 폰트 두 개를 <code>&lt;link rel=\"stylesheet\" href=\"...jsdelivr...\"&gt;</code> 로 head 에 넣었는데, <b>head 의 stylesheet 가 안 끝나면 브라우저는 그 뒤의 동기 스크립트를 실행하지 않는다</b>(스펙 동작). 이 앱은 클릭 핸들러·렌더러가 전부 그 스크립트 한 덩어리 안에 있어서, CDN 이 느리면 <b>로그인 화면에서 멈춘 채 아무것도 안 눌리는</b> 구간이 생긴다. 로컬 정적 서버로 CSS 응답을 30초 지연시켜 재현했다 — 그 구간에 버튼을 누르면 <code>ReferenceError</code>(함수 미정의)만 나고 화면은 그대로였다 · 🔒 <b>수정</b>: 두 폰트 링크를 <code>rel=\"preload\" as=\"style\" onload=\"this.rel='stylesheet'\"</code> 로 바꿨다(+ <code>&lt;noscript&gt;</code> 폴백). 리소스는 그대로 받되 <b>본문 스크립트를 막지 않는다.</b> 로한이 원래 의도한 \"CDN 막히면 조용히 폴백\"이 <b>폰트 렌더링엔 지켜졌지만 스크립트 실행엔 안 지켜지고 있었다</b> · ✅ <b>검증</b>: <code>run.sh all</code> <b>25개 전부 통과</b>(360초 · t42 337건) — 🟢 이번부터 <b>로한 PC 에서 직접</b> 돌렸다(Node 24.19 + Playwright 1.56, 레포 바깥 <code>_testenv</code> 에 설치. STATUS §21)"},
   {v:'3.9',date:'2026-09-16',note:"<b>📖 문법 드릴 신설 · 🔤 폰트를 Pretendard 로 통일.</b> 로한 지시(2026-09-16) · 📖 <b>학습방이 접속사 예문 19건(`sents`)을 올려서 문법 드릴을 열었다.</b> v5 에선 \"문법·독해·청해 문항은 앱이 못 만든다\"고 못 박았는데 <b>문법에 한해 뒤집었다</b> — 근거는 <b>N4 시험 문장에 어절 띄어쓰기가 있다</b>는 것이다(「雨が 降って いました。」). 띄어쓰기가 있으면 어순 문제가 문자열 split 으로 끝난다. 🚫 <b>독해·청해는 여전히 못 만든다</b> — 지문 길이와 음원이 필요하다 · 모드 둘: <b>접속사 채우기</b>(もんだい3형 — `target` 을 어절 경계에서 가리고 `opts` 3개로 4지선다) · <b>문장 만들기</b>(もんだい2형 — 연속 4어절을 골라 섞고 ★ 자리에 오는 것을 묻는다. ★는 2~3번째 — 맨 앞·맨 뒤를 물으면 조사만 보고도 맞힌다) · 🔒 <b>가리기는 어절 경계 우선이다.</b> 단순 첫 등장 치환이면 「では」를 물을 때 같은 문장의 「それでは」 안쪽이 먼저 걸려 <b>엉뚱한 자리가 가려진다</b> · 🔒 <b>답하기 전에 한국어 번역을 보여주지 않는다.</b> 번역에 「그래서」가 박혀 있으면 정답이 번역에 그대로 적혀 있는 셈이다 — 번역·해설(`why`)은 채점 후에만, 해설은 <b>틀렸을 때만</b> 뜬다 · 🔒 <b>문항은 시작할 때 한 번 만들어 세션에 박는다.</b> 채점할 때마다 다시 만들면 보기가 춤추고 어순 문제는 정답 자리까지 바뀐다 · 🔒 <b>카운터를 단어와 같은 필드로 뒀다</b>(`seen`·`miss`·`streak`·`lastSeen`) — 그래서 출제 가중식 `stWordScore()` 와 채점·기록 경로(`stDrillRecord`)를 <b>단어와 그대로 공유한다</b>. 가중식을 두 벌 만들면 두 화면이 다른 순서를 낸다(원칙 2) · 🔒 <b>탭을 새로 만들지 않았다</b> — 400px 에서 탭 5개는 글자가 잘린다(v3.7 확정). 「🈶 단어」 탭을 <b>「🈶 드릴」</b>로 바꾸고 단어 위·문법 아래로 한 탭에 담았다 · 🔤 <b>폰트 통일</b> — 로한: <i>\"폰트를 싹다 프린텐다드로 바꾸자. 볼드 폰트는 프리텐다드 볼드로.\"</i> Google Fonts(Cinzel·고운바탕)를 떼고 <b>Pretendard Variable 동적 서브셋</b>으로 교체했다 · 🔒 <b>동적 서브셋</b>을 쓴다 — 한글 static 폰트는 웨이트마다 수 MB 라 전부 받으면 모바일 첫 화면이 눈에 보이게 늦는다. 서브셋은 화면에 실제로 쓰인 글자만 받는다 · 🔒 <code>font-synthesis:none</code> — 브라우저가 글자를 굵게 '그려서' 흉내내지 못하게 막았다. variable 폰트라 웨이트가 45~920 연속이고, <b>볼드가 진짜 Pretendard Bold</b> 로 나온다 · ⚠️ <b>명리·일지 제목의 세리프가 사라졌다.</b> 원래 Cinzel+고운바탕이었고 의도된 분위기였다 — 로한 지시(\"싹다\")를 따랐다. 되돌리려면 <code>--serif</code> 한 줄이다(쓰는 곳 29군데는 그대로 둔다) · 🔒 글꼴은 <code>--sans</code>·<code>--serif</code> 두 변수로만 정한다. 파일 안에 폰트 이름을 직접 쓰지 마라 — SVG 안에 박혀 있던 한 군데를 이번에 같이 걷어냈다"},
@@ -9159,7 +9407,7 @@ function delTxn(id){
 
 /* 탭 → 렌더러 매핑. 사이드바에 탭을 추가하면 여기에도 반드시 등록할 것.
    (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
-var VIEW_RENDER={emr:renderEmr,daily:renderDaily,goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
+var VIEW_RENDER={emr:emrOpen,daily:renderDaily,goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
   acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,insu:renderInsu,
   saju:renderSaju,journal:renderJournal,items:renderItems,log:renderLog,study:renderStudy};
 
