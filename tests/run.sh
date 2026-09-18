@@ -13,12 +13,17 @@
 # ⚠️ 규칙: 작업 중엔 영역만, **배포 직전엔 반드시 `all`**.
 #    영역 태그는 '보통 이것만 깨진다'는 경험칙이지 보증이 아니다.
 set -u
-cd "$(dirname "$0")"
+# Missing tools must never turn an unexecuted test run into a success.
+for tool in dirname wc basename date mkdir timeout node grep head sed; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "Missing test tool: $tool (check PATH)"; exit 2; }
+done
+cd "$(dirname "$0")" || exit 2
 HTML="${HTML:-$(cd .. && pwd)/work.html}"
 
 # ── 영역 → 테스트 (t22·t23 은 데이터층이라 어디서든 잘 깨진다) ──
 case "${1:-all}" in
-  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t14 t18 t19 t20 t21" ;;
+  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t43 t14 t18 t19 t20 t21" ;;
+  emr)   T="t43 t14 t22 t_reg" ;;
   money) T="t_reg t20 t21 t25 t26 t27 t28 t31 t32 t37 t40 t41 t22" ;;
   goal)  T="t_reg t24 t30 t36 t42 t22" ;;
   time)  T="t_reg t18 t19 t28 t22" ;;
