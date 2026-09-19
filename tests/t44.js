@@ -87,6 +87,7 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('기본 범위 = 기록 있는 지표 전부',q1[0].facts.includes('BUN — 요소질소'));
  ok('사실 묶음은 화면에 안 띄움',!(await txt()).includes('[문제]'));
  ok('입력칸 비워짐',await p.evaluate(()=>document.getElementById('emrQ').value===''));
+ ok('방금 남긴 턴은 펼쳐 둔다(복사해야 하므로)',await p.evaluate(()=>document.querySelector('details.emrturn[data-k="p1:1"]').open));
  ok('두 칸 답 대기',await p.evaluate(()=>document.querySelectorAll('.emrac.wait').length===2));
  ok('방에 보낼 한 줄',await p.evaluate(()=>[...document.querySelectorAll('.emrac.wait button')].every(b=>b.dataset.line==='EMR 답할 거 있나 봐 — 순환기 턴 1')));
  ok('목록 대기 개수 2',await p.evaluate(()=>document.querySelector('.emrli.on .emrpend').textContent==='⏳2'));
@@ -177,6 +178,16 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  await p.setViewportSize({width:1440,height:1000});await p.evaluate(()=>emrPick('순환기'));await settle();
  ok('PC 가로 넘침 없음',await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await p.screenshot({path:path.join(__dirname,'.out','emr44-1440.png'),fullPage:true});
+
+ /* v4.12 턴 접기 — 기본은 접힘, 제목줄에 상태, 펼친 건 다시 그려도 유지 */
+ await p.evaluate(()=>{EMR.open={};renderEmr();});
+ ok('접기 — 기존 턴은 기본 접힘',await p.evaluate(()=>[...document.querySelectorAll('details.emrturn')].every(d=>!d.open)&&document.querySelectorAll('details.emrturn').length===2));
+ ok('접기 — 제목줄에 질문 앞부분',await p.evaluate(()=>document.querySelector('details.emrturn[data-k="p1:2"] .emrpv').textContent==='두 번째 질문'));
+ ok('접기 — 제목줄에 두 AI 상태',await p.evaluate(()=>{const c=[...document.querySelectorAll('details.emrturn[data-k="p1:1"] .emrchip')].map(x=>x.textContent.trim());return c.length===2&&c[0].includes('⏳')&&c[1].includes('거절');}));
+ await p.click('details.emrturn[data-k="p1:2"] summary');await settle();
+ await p.evaluate(()=>renderEmr());
+ ok('접기 — 펼친 턴은 다시 그려도 유지',await p.evaluate(()=>document.querySelector('details.emrturn[data-k="p1:2"]').open&&!document.querySelector('details.emrturn[data-k="p1:1"]').open));
+ ok('접기 — app_state 에 안 남긴다',await p.evaluate(()=>!('emrOpen' in DB.ui)&&!JSON.stringify(DB.ui).includes('p1:2')));
 
  /* 종료 — 질문칸·복사 버튼이 사라진다 */
  await p.selectOption('.emrtools select','closed');await settle();

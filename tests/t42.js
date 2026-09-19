@@ -998,7 +998,8 @@ async function boot(st){
     U('c3','move','어제것',ago(1)),U('c4','home','내일것',fwd(1)),U('c5','home','먼미래',fwd(9))];
   /* 학습 시간: timelog 1칸(30분) + 뽀모 25분 */
   st.timelog[ago(1)]=[{s:20,e:20,tag:'work',tag2:'study'}];
-  st.study.pomos=[{id:'p1',date:ago(1),mins:25,at:new Date(Date.now()-86400000).toISOString(),plan:25,unitId:'c3'}];
+  /* 시작 시각 고정(15:00) — 칸 단위 계산(v4.12)이라 '지금-24h' 면 실행 시각에 따라 timelog 칸과 겹친다 */
+  st.study.pomos=[{id:'p1',date:ago(1),mins:25,at:new Date(ago(1)+'T15:00:00').toISOString(),plan:25,unitId:'c3'}];
   st.study.logs[ago(1)]={unitIds:[],coach:'어제 동사 구간 진입했다. 난도 올라가니 하루 1p로 낮춘다.'};
   const {b,p,errs}=await boot(st);
   /* ① 탭이 4개고 맨 왼쪽이 캘린더 */
@@ -1135,9 +1136,9 @@ async function boot(st){
   ok('X19 어느 과제였는지 남는다',rec.unitId==='k1');
   ok('X20 계획보다 짧으면 cut 표시',rec.cut===true,JSON.stringify(rec));
   ok('X21 날짜가 남는다',rec.date===(await p.evaluate(()=>todayStr())));
-  /* 🔒 timelog 는 건드리지 않는다 — 한 칸이 30분이라 12분을 찍으면 부푼다 */
-  ok('X22 timelog 를 건드리지 않는다',
-     (await p.evaluate(()=>Object.keys(DB.timelog||{}).length))===0);
+  /* v4.12 — 뽀모는 timelog 에 남긴다(로한: 미리 채운 로그에 반영이 안 된다). 세기는 뽀모 분이라 부풀지 않는다 */
+  ok('X22 timelog 에 뽀모 study 블록이 남는다',
+     (await p.evaluate(()=>Object.values(DB.timelog||{}).some(a=>a.some(b=>b.tag==='study'&&/^뽀모/.test(b.title))))));
   ok('X23 학습시간에는 합산된다',(await p.evaluate(()=>stStudyMins(todayStr())))===12);
   /* ⑧ 1분 미만은 기록하지 않는다 */
   await p.evaluate(()=>{stPomoStart('focus');DB.ui.pomoRun.at=Date.now()-20*1000;stPomoStop();});

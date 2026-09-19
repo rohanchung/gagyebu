@@ -75,7 +75,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .emrsum .emrtext{margin-top:8px;max-height:260px;overflow:auto;font-size:12.5px}
 .emrhint{font-size:11.5px;margin:6px 0 10px}
 .emrtext{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:13.5px}
-.emrturn{margin-bottom:16px}
+.emrturn{margin-bottom:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 10px}
+.emrturn[open]{padding-bottom:10px}
+.emrts{display:flex;align-items:center;gap:8px;padding:10px 2px;cursor:pointer;list-style:none;min-width:0}
+.emrts::-webkit-details-marker{display:none}
+.emrts::before{content:'▸';color:var(--muted);font-size:11px}.emrturn[open] .emrts::before{content:'▾'}
+.emrts .emrtn{margin:0;white-space:nowrap}
+.emrpv{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.emrchips{display:flex;gap:4px;flex-shrink:0}
+.emrchip{font-size:11px;padding:2px 6px;border-radius:10px;background:var(--soft);white-space:nowrap}
+.emrchip.ok{background:#e8f6ee;color:#1b7a45}.emrchip.wait{background:var(--warn-bg);color:var(--warn)}.emrchip.ref{background:#fdf0ef;color:#8a2c24}
 .emrq{background:#eef3fb;border-radius:10px;padding:10px 12px;margin-bottom:8px}
 .emrtn{display:block;font-size:11px;font-weight:800;color:var(--accent);margin-bottom:3px}
 .emrans{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -3364,11 +3373,41 @@ function stPomoMinsOn(ds){
   stPomos().forEach(function(x){ if(x&&x.date===ds)n+=(+x.mins||0); });
   return n;
 }
+/* 뽀모 1건이 실제로 걸친 30분 칸들. 시작 시각(at)은 브라우저 현지 시각(KST)으로 읽는다.
+   rest = 그날 24:00 을 넘긴 분(칸 없이 분만 센다) */
+function stPomoSpan(x){
+  var mins=+(x&&x.mins)||0, t=new Date(x&&x.at);
+  if(!x||!x.at||isNaN(t.getTime())||mins<=0)return {date:null,slots:[],rest:mins};
+  var ds=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+  var a=t.getHours()*60+t.getMinutes()+t.getSeconds()/60, z=Math.min(a+mins,1440), slots=[], got=0;
+  for(var i=Math.floor(a/30);i<48&&i*30<z;i++){
+    var m=Math.min(z,(i+1)*30)-Math.max(a,i*30); if(m>0){slots.push({i:i,m:m});got+=m;}
+  }
+  return {date:ds,slots:slots,rest:Math.max(0,mins-got)};
+}
 /* 🔒 **'그날 학습을 몇 분 했나'에 답하는 함수는 이것 하나다.**
-   timelog(손으로 찍은 30분 블록) + 뽀모(분 단위)를 합친다.
-   ⚠️ 겹칠 수 있다 — 뽀모를 돌린 시간대를 timelog 에도 찍으면 이중 계산이 된다.
-      뽀모가 자동 기록하는 이유가 손으로 안 찍게 하는 것이니, 겹치면 로한에게 알린다. */
-function stStudyMins(ds){return stMinsOn(ds)+stPomoMinsOn(ds);}
+   30분 칸마다 — 그 칸에 뽀모가 걸쳐 있으면 **뽀모의 실제 분**, 없으면 timelog 가 study(tag 또는 tag2)일 때 30분.
+   🔴 v4.12 로 바꿨다. 이전엔 timelog + 뽀모를 **그냥 더했다.** 뽀모가 timelog 에 study 를 찍기 시작하면(stPomoLog)
+      같은 25분이 30×2 + 25 = 85분으로 부푼다. 칸 단위로 '뽀모가 있으면 뽀모만'이면
+      표시(timelog)와 세기(분)가 분리되어, 로한이 칸을 고치거나 블록이 쪼개져도 두 번 세지 않는다. */
+function stStudyMins(ds){
+  var per={},extra=0,tl={};
+  stPomos().forEach(function(x){
+    if(!x||x.date!==ds)return;
+    var sp=stPomoSpan(x);
+    if(sp.date!==ds){extra+=(+x.mins||0);return;}   /* 다른 날에서 연 뽀모 — 칸 없이 분만 */
+    sp.slots.forEach(function(s){per[s.i]=Math.min(30,(per[s.i]||0)+s.m);});
+    extra+=sp.rest;
+  });
+  ((DB.timelog||{})[ds]||[]).forEach(function(x){
+    if(x.tag!=='study'&&x.tag2!=='study')return;
+    var s=+x.s,e=(x.e==null?s:+x.e);
+    for(var k=Math.min(s,e);k<=Math.max(s,e);k++)tl[k]=1;
+  });
+  var n=extra;
+  for(var i=0;i<48;i++)n+=per[i]?per[i]:(tl[i]?30:0);
+  return Math.round(n);
+}
 function stMinsRange(from,to){var n=0,d=from;
   while(d<=to){n+=stStudyMins(d);d=addDays(d,1);}return n;}
 /* 학습방이 그날 남긴 멘트 — 앱은 **읽기 전용**이다. 쓰는 쪽은 로버트(MCP) 하나뿐이다 */
@@ -4540,7 +4579,7 @@ function stCalSide(ds){
   var today=todayStr(), future=ds>today, far=ds>stWindowEnd();
   var us=stUnits().filter(function(u){return u.day===ds&&!u.backlog;})
     .sort(function(a,b){return (a.status==='done')-(b.status==='done');});
-  var mins=stStudyMins(ds), pm=stPomoMinsOn(ds), tl=stMinsOn(ds);
+  var mins=stStudyMins(ds), pm=stPomoMinsOn(ds);
   var coach=stCoach(ds);
   var wd=['일','월','화','수','목','금','토'][new Date(ds+'T00:00:00Z').getUTCDay()];
   var dd=stDday(), e=stExam();
@@ -4572,7 +4611,8 @@ function stCalSide(ds){
      +(ds===today?' <span class="pill">오늘</span>':'')+'</span>'
      +'<span class="mut" style="font-size:10.5px">'
        +(mins?mins+'분':'기록 없음')
-       +(pm&&tl?' <span title="타임로그 '+tl+'분 + 뽀모 '+pm+'분">('+tl+'+'+pm+')</span>':'')
+       /* v4.12 — 합계는 덧셈이 아니다(칸마다 뽀모 우선, stStudyMins). '타임로그+뽀모' 로 쓰면 숫자가 안 맞는다 */
+       +(pm?' <span title="뽀모가 걸친 칸은 뽀모 실제 분으로 센다">(뽀모 '+pm+'분 포함)</span>':'')
        +(dleft!=null&&dleft>=0?' · D-'+dleft:'')+'</span></div>'
    +(ST_MOCKS[ds]?'<div class="stnudge" style="margin-bottom:8px">📊 <b>모의고사 '+mdEsc(ST_MOCKS[ds])+'</b> — 토 14:00~16:25, 실전과 같은 시간대</div>':'')
    +(ds===e.date?'<div class="stnudge" style="margin-bottom:8px">🎯 <b>시험일</b> — 입실 '+mdEsc(e.enterBy||'')+'</div>':'')
@@ -4674,9 +4714,38 @@ function stPomoStop(){
     if(r.unitId)rec.unitId=r.unitId;          /* ⚠️ 빈 서랍 금지 — 없으면 키를 안 만든다 */
     if(mins<(+r.focus||0))rec.cut=true;       /* 계획보다 짧게 끝냈다 */
     studyDB().pomos.push(rec);
+    stPomoLog(rec);
     logAct('⏱ 뽀모 '+mins+'분'+(r.unitId?' · '+(((stUnitById(r.unitId)||{}).title)||''):''));
   }
   DB.ui.pomoRun=null; save(); stPomoRender();
+}
+/* ⏱ 뽀모를 타임로그에 남긴다 (v4.12)
+   로한 2026-09-19: "미리 로그를 채워놓으면 반영이 안 된다. 이미 채워진 로그에 뽀모를 하면 서브 활동으로 넣어주면 된다."
+   실측: 9/18 10:00~20:00 이 통째로 work 블록이었고 19:17 뽀모 25분이 로그 어디에도 안 보였다.
+   🔒 뽀모가 걸친 **그 칸만** 바꾼다 — 10시간 블록 전체에 study 를 붙이면 10시간 공부한 게 된다.
+      채워진 칸 → tag2:'study'(서브) · 빈 칸 → study 블록 · 이미 study / 이미 서브 활동이 있는 칸 → 그대로
+      (서브는 하나뿐이라 세 번째를 못 넣는다. 시간은 stStudyMins 가 뽀모 분으로 세므로 빠지지 않는다).
+   🔒 여기서 찍는 건 **보이게 하는 표시**다. 세기는 stStudyMins 가 칸 단위 '뽀모 우선'으로 하므로 두 번 세지 않는다.
+   rec.tl = 남겼다는 표시 — 옛 뽀모 소급(stPomoBackfill)이 같은 건을 두 번 찍지 않게 한다. */
+function stPomoLog(rec){
+  var sp=stPomoSpan(rec); rec.tl=true;
+  if(!sp.date||!sp.slots.length)return;
+  var ds=sp.date, u=rec.unitId?stUnitById(rec.unitId):null;
+  var title='뽀모'+((u&&u.title)?' · '+u.title:''), runs=[];
+  sp.slots.forEach(function(s){
+    var b=tlAt(ds,s.i), act=!b?'new':((b.tag==='study'||b.tag2==='study'||b.tag2)?'keep':'sub');
+    var last=runs[runs.length-1];
+    if(last&&last.act===act&&last.b===b&&last.e===s.i-1)last.e=s.i;
+    else runs.push({s:s.i,e:s.i,act:act,b:b});
+  });
+  runs.forEach(function(r){
+    if(r.act==='new')tlPut(ds,{s:r.s,e:r.e,tag:'study',title:title,code:null});
+    else if(r.act==='sub')tlPut(ds,{s:r.s,e:r.e,tag:r.b.tag,tag2:'study',title:r.b.title,code:r.b.code});
+  });
+}
+/* v4.12 이전 뽀모 소급 — 한 번만(rec.tl). 반환: 새로 남긴 건수 */
+function stPomoBackfill(){
+  var n=0; stPomos().forEach(function(x){if(x&&!x.tl){stPomoLog(x);n++;}}); return n;
 }
 /* 집중이 끝나면 휴식으로, 휴식이 끝나면 다음 집중 대기 */
 function stPomoTick(){
@@ -4882,7 +4951,7 @@ function emrFacts(problem){
    이 화면은 로한이 보는 곳이라 두 답을 나란히 보여준다. 격리는 AI 가 읽는 경로(emr_thread)에서 한다. */
 var EMR_AI=[{k:'claude',name:'로버트',ico:'🤖'},{k:'openai',name:'수연',ico:'💬'}];
 var EMR_ST={active:'현재',watch:'경과관찰',closed:'종료'};
-var EMR={problems:null,msgs:[],err:'',busy:false,loading:false,draft:'',poll:null};
+var EMR={problems:null,msgs:[],err:'',busy:false,loading:false,draft:'',poll:null,open:{}};
 /* 속성값 자리용 — mdEsc 는 따옴표를 막지 않는다 */
 function emrAttr(s){return mdEsc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function emrSel(){var s=(DB&&DB.ui&&DB.ui.emrSel)||'';
@@ -4973,9 +5042,22 @@ function emrDetailHtml(p){
     +'<button class="btn" onclick="emrAsk()"'+(EMR.busy?' disabled':'')+'>'+(EMR.busy?'남기는 중…':'남기기')+'</button></div>'
     +'<div class="mut emrhint">남기면 그 시점의 로한북 기록(식이·체성분·피검사·의료·사고)이 질문과 함께 저장되고, 두 AI 가 같은 글자를 받는다.</div>';
 }
+/* v4.12 — 턴마다 접는다. 로한: "질문별로 접을 수 있었으면. 디폴트는 접혀 있는 것."
+   🔒 기본은 접힘. 단 **방금 남긴 질문은 펼쳐 둔다** — 거기서 📋 한 줄을 복사해 방에 보내는 게 다음 동작이다.
+   🔒 접혀 있어도 제목줄에 두 AI 상태(✓·⏳·거절)가 보인다 — 펼치지 않고도 어디가 비었는지 안다.
+   펼침 상태는 EMR.open 에 둔다 — 20초 확인으로 다시 그려도 펼친 턴이 닫히지 않게. app_state 에는 안 남긴다 */
+function emrTurnKey(p,t){return p.id+':'+t.no;}
+function emrTog(el){EMR.open[el.dataset.k]=el.open;}
 function emrTurnHtml(p,t){
-  return '<div class="emrturn"><div class="emrq"><span class="emrtn">턴 '+t.no+' · 로한</span><div class="emrtext">'+mdEsc(t.q.content)+'</div></div>'
-    +'<div class="emrans">'+EMR_AI.map(function(ai){return emrAnsHtml(p,t,ai);}).join('')+'</div></div>';
+  var k=emrTurnKey(p,t),first=String(t.q.content||'').split('\n')[0];
+  var chips=EMR_AI.map(function(ai){var a=t.ans[ai.k];
+    return '<span class="emrchip'+(a?(a.status==='refused'?' ref':' ok'):' wait')+'">'+ai.ico+' '
+      +(a?(a.status==='refused'?'거절':'✓'):'⏳')+'</span>';}).join('');
+  return '<details class="emrturn" data-k="'+emrAttr(k)+'" ontoggle="emrTog(this)"'+(EMR.open[k]?' open':'')+'>'
+    +'<summary class="emrts"><span class="emrtn">턴 '+t.no+'</span><span class="emrpv">'+mdEsc(first.length>60?first.slice(0,60)+'…':first)+'</span>'
+    +'<span class="emrchips">'+chips+'</span></summary>'
+    +'<div class="emrq"><span class="emrtn">로한</span><div class="emrtext">'+mdEsc(t.q.content)+'</div></div>'
+    +'<div class="emrans">'+EMR_AI.map(function(ai){return emrAnsHtml(p,t,ai);}).join('')+'</div></details>';
 }
 function emrAnsHtml(p,t,ai){
   var room=emrRoom(p,ai),a=t.ans[ai.k];
@@ -5003,7 +5085,9 @@ function emrAsk(){
   EMR.busy=true;EMR.draft=q;renderEmr();
   SB.from('health_messages').insert({user_id:USER.id,problem_id:p.id,turn_no:no,role:'user',content:q,facts:facts})
     /* 입력칸도 비운다 — renderEmr 은 화면에 남은 값을 draft 로 다시 주워 담는다 */
-    .then(function(r){if(r.error)throw r.error;var el2=document.getElementById('emrQ');if(el2)el2.value='';EMR.draft='';EMR.err='';return emrLoadMsgs();})
+    .then(function(r){if(r.error)throw r.error;var el2=document.getElementById('emrQ');if(el2)el2.value='';EMR.draft='';EMR.err='';
+      EMR.open[p.id+':'+no]=true;   /* 방금 남긴 턴은 펼쳐 둔다 — 📋 한 줄을 바로 복사해야 한다 */
+      return emrLoadMsgs();})
     .catch(function(e){emrFail('질문 저장',e);EMR.err+=' — 쓴 글은 입력칸에 남겨 뒀다';})
     .then(function(){EMR.busy=false;renderEmr();});
 }
@@ -7577,13 +7661,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.11';
+var APP_VERSION='4.12';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.12',date:'2026-09-19',note:'<b>⏱ 뽀모가 타임로그에 남는다 · 🩺 EMR 턴 접기.</b> · ⏱ 로한: <i>"미리 로그를 채워놓으면 반영이 안 된다. 이미 채워진 로그에 뽀모를 하면 서브 활동으로 넣어주면 된다."</i> 실측: 9/18 10:00~20:00 이 통째로 work 블록이었고 19:17 뽀모 25분이 로그 어디에도 안 보였다(v3.7 은 뽀모가 timelog 를 안 건드렸다) · 🔒 <b>뽀모가 걸친 그 칸만</b> 바꾼다 — 채워진 칸은 <code>tag2:study</code>(서브), 빈 칸은 study 블록(제목 「뽀모 · 과제」), 이미 서브 활동이 있는 칸(식사+휴식)은 그대로. 10시간 블록 전체에 붙이면 10시간 공부한 게 된다 · 🔴 <b>학습 시간 세는 법을 바꿨다</b> — 이전엔 timelog + 뽀모를 그냥 더했다. 뽀모가 timelog 에 찍기 시작하면 25분이 30×2+25=85분으로 부푼다. 이제 <b>30분 칸마다 뽀모가 있으면 뽀모 실제 분, 없으면 timelog study 30분</b>(<code>stStudyMins</code> 한 곳). 표시(timelog)와 세기(분)가 분리돼서 로한이 칸을 고쳐도 두 번 세지 않는다 · 옛 뽀모 소급: 접속할 때 한 번(9/18 뽀모 → 19:00~20:00 work+study) · 캘린더 패널의 「(타임로그+뽀모)」 덧셈 표기를 「뽀모 N분 포함」으로 — 합계가 더 이상 덧셈이 아니다 · 🩺 EMR — 로한: <i>"질문별로 접을 수 있었으면. 디폴트는 접혀 있는 것."</i> 턴마다 접히고, 제목줄에 질문 앞부분과 두 AI 상태(✓·⏳·거절)가 보인다. 🔒 <b>방금 남긴 질문만 펼쳐 둔다</b> — 거기서 📋 한 줄을 복사하는 게 다음 동작이라서. 펼친 턴은 20초 확인으로 다시 그려도 유지 · t45 신설(26건 · KST 고정) · t44 +6건(54건) · t42 W7·X22 를 바뀐 동작에 맞춤'},
   {v:'4.11',date:'2026-09-18',note:'<b>⚠️ [결함] 로버트가 EMR 에 답을 기록했다는데 앱에 안 보였다.</b> 로한 신고 · 실측: 재활의학과 방이 <code>emr_reply</code> 를 쓰지 않고 <code>health_messages</code> 에 <b>직접 insert</b> 했다 — 질문은 턴 1 인데 답을 <b>턴 2</b> 에, <code>mode</code> 없이 썼다. 화면은 답을 질문 턴에 붙여 보여주므로 짝 없는 턴 2 의 답이 <b>조용히 사라졌다</b> · 원인 둘: ① <code>emr_reply</code> 가 막아 줄 규칙(질문 없는 턴 거부)이 <b>테이블 자체엔 없었다</b> — 방 지침은 규칙이고, 규칙은 어겨진다 ② 화면이 짝 없는 답을 경고 없이 버렸다 · 🔒 <b>DB 트리거 <code>emr_guard</code></b> — 질문 없는 턴·<code>mode</code> 없는 답·문제 주인과 다른 <code>user_id</code>(RLS 로 안 보여 같은 증상)를 테이블이 직접 거부한다. 롤백 검증 7건(잘못된 쓰기 4종 거부, <code>emr_reply</code>·질문 저장·다시 받기는 그대로) · 🔒 화면은 짝 없는 답이 있으면 <b>경고로 드러낸다</b> · 데이터 보정: 그 답을 턴 1 로 옮겼다 · t44 +2건(48건)'},
   {v:'4.1',date:'2026-09-18',note:'<b>🩺 EMR 중계 상담 가동 — 문제 목록 + 두 AI 대화.</b> 로한: <i>"싹다 너가 해."</i> · 질문은 <b>EMR 에만</b> 쓴다 → 그 순간의 로한북 기록이 사실 묶음으로 질문과 함께 저장되고, 로버트 방·수연이 각자 <code>emr_thread</code> 로 <b>자기 몫만</b> 읽어 <code>emr_reply</code> 로 답을 남긴다. API 과금 0원 · 🗄 <b>대화는 app_state 밖</b>(<code>health_problems</code>·<code>health_messages</code>) — 한 덩어리 JSON 에 넣으면 AI 방이 쓸 때마다 앱과 충돌한다(v3.6 유실과 같은 구조) · 🔒 <b>격리는 DB 함수가 한다</b> — <code>emr_thread</code> 는 상대 provider 의 행을 조회 조건에서부터 빼고, 상대 답을 담는 필드 자체가 없다. 적용 전 실제 DB 에서 16개 시나리오를 돌리고 전부 롤백해 검증했다(자기 답만 보인다·중복 답 거부·질문 없는 턴 거부·다시 받기 후 재대기·거절은 답함·종료 문제 제외) · 「다시 받기」는 답을 지우지 않고 <code>error</code> 로 돌려 이력을 남긴다 · 거절(<code>refused</code>)도 답함으로 친다 — 미답으로 치면 대기 목록에서 영원히 안 빠진다 · 📋 칸마다 <b>방에 보낼 한 줄</b> 복사 버튼 — 로한은 질문을 다시 치지 않는다 · 답 대기 칸이 있으면 20초마다 확인하고, 다른 앱에 다녀와 탭이 다시 보이면 바로 새로 읽는다 · 쓰던 질문은 다시 그려도·저장에 실패해도 입력칸에 남긴다 · 모바일은 목록 → 문제 2단계, 두 답은 세로로 · AI 가 쓴 글은 텍스트로만 렌더(외부 입력이다) · 🔧 피검사 기본 범위를 <b>기록 있는 지표 전부</b>로 — 기본이 없음이면 이관한 순환기 문제 첫 질문에 검사값이 하나도 안 간다 · 초기 이관: handoffs 순환기·재활의학과·칼륨식단 3건(방 이름은 handoffs.room 그대로) · t44 신설 46건'},
   {v:'4.01',date:'2026-09-18',note:'<b>🩺 EMR — 사실 묶음을 메인 화면에서 뺐다 · 0단계 검수 완료.</b> 로한: <i>"어차피 수파베이스에 기록돼 있는데 그걸 메인 페이지에 보여줄 필요 있나."</i> — 사실 묶음은 질문마다 저장되고 정확성은 로버트가 실데이터로 검수한다. EMR 메인은 문제 목록 + 대화이고, 그 둘은 1단계부터 열린다 · ✅ <b>로버트 실데이터 재검수</b>: 코덱스의 §15.1 수정 4건(끼니당 한 줄·의료 기록·빈 지표 생략·<code>func</code> 포함)이 실제 기록에서 의도대로 나온다. 9/11~9/13 간식이 한 줄씩, 폐기능 줄에 <code>(L)</code> 단위, 14,390 → 11,068자 · 🔧 생략 지표 구분자를 쉼표에서 <code> / </code> 로 — 지표 이름 자체에 쉼표가 있다(「Epinephrine, Free」). 쉼표로 이으면 하나가 둘로 읽힌다 · t43 화면 검사를 새 결정에 맞춰 교체(사실 원문이 화면에 <b>없어야</b> 통과)'},
@@ -9609,7 +9694,10 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);
+    /* v4.12 — 타임로그에 안 남은 옛 뽀모를 한 번 남긴다. 남긴 게 있을 때만 저장한다(아무것도 안 했는데 쓰면 다른 탭과 헛된 충돌이 난다) */
+    try{ if(stPomoBackfill())save(); }catch(e){}
+    localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
     /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
     try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen((DB.ui.pomoRun.date)||todayStr()); } }catch(e){}});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
