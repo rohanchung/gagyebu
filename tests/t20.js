@@ -56,28 +56,32 @@ let fail=0;const ok=(n,c,x)=>{console.log((c?'  ✓':'  ✗')+' '+n+(x?'  → '+
  await p.evaluate(()=>{window.__store.at='2026-08-20T09:00:00.000Z';   /* 다른 기기가 먼저 저장 */
    DB.journal.push({id:'j2',date:'2026-08-20',t:'y'});save();});
  await p.waitForTimeout(1500);
- const st=await p.evaluate(()=>({forced:window.__store.forced,dirty:SAVE_DIRTY,badge:document.getElementById('savebadge').textContent}));
+ const st=await p.evaluate(()=>({forced:window.__store.forced,wrote:window.__store.wrote,dirty:SAVE_DIRTY,badge:document.getElementById('savebadge').textContent,
+   j:(window.__store.v.journal||[]).map(x=>x.id)}));
  console.log('B) 충돌 · 손실 0 → 안 묻고 저장');
  ok('확인창을 띄우지 않는다',!dlg.some(m=>/다른 기기/.test(m)),dlg.join('|'));
- ok('그래도 저장은 된다',st.forced===1,'forced='+st.forced);
+ /* v4.13 — 병합 후 저장도 잠금을 건 update 다. 잠금 없는 upsert 는 '다시 읽은 순간~저장' 사이 쓰기를 날렸다 */
+ ok('그래도 저장은 된다 — 잠금 건 update 로',st.wrote>=1&&st.forced===0&&st.j.includes('j2'),'wrote='+st.wrote+' forced='+st.forced);
  ok('저장 완료 처리',st.dirty===false&&/저장됨/.test(st.badge),st.badge);
  ok('JS 에러 0',errs.length===0,errs[0]||'');}
 
-// C) 충돌 + **서버에만 있는 데이터** → 확인창이 뜨고, [취소] 면 새로고침
+// C) 충돌 + **서버에만 있는 데이터** → v4.13: 묻지 않고 3자 병합. 서버 것도 내 것도 산다
+//    (v4.12 까지는 확인창 → [확인]이면 서버분이 사라졌다. 사고 4회가 전부 그 경로였다)
 {const {p,errs,dlg}=await boot(b,FULL,'2026-08-20T00:00:00.000Z',false,d=>d.dismiss());
  let reloaded=false;p.on('framenavigated',()=>{reloaded=true;});
- /* ⚠️ 로드 시점의 서버본은 그대로 내 DB 가 된다 — 손실을 만들려면 **로드 뒤에** 서버를 바꿔야 한다 */
+ /* ⚠️ 로드 시점의 서버본은 그대로 내 DB 가 된다 — 충돌을 만들려면 **로드 뒤에** 서버를 바꿔야 한다 */
  await p.evaluate(()=>{window.__mark=1;window.__store.at='2026-08-20T09:00:00.000Z';
    window.__store.v=JSON.parse(JSON.stringify(window.__store.v));
-   window.__store.v.journal=[{id:'j9',date:'2026-08-19',t:'서버에만'}];   /* 덮어쓰면 사라진다 */
+   window.__store.v.journal=[{id:'j9',date:'2026-08-19',t:'서버에만'}];   /* 옛날이면 덮어써서 사라졌다 */
    DB.journal.push({id:'j3',date:'2026-08-20',t:'z'});save();});
  await p.waitForTimeout(1800);
- console.log('C) 충돌 · 손실 있음 → 확인창 → 새로고침');
- ok('확인창이 뜬다',dlg.length>0,dlg.join('|'));
- /* 🔒 경고가 **맨 위**에 와야 한다 — 아래에 묻히면 안 읽힌다(실제로 안 읽혀서 96건이 날아갔다) */
- ok('맨 위에 사라질 건수를 숫자로 경고한다',dlg.some(m=>/^🔴 덮어쓰면 서버에만 있는 \d+건이 사라진다/.test(m)),dlg.join('|'));
- const gone=await p.evaluate(()=>typeof window.__mark==='undefined').catch(()=>true);
- ok('페이지 재로드',reloaded||gone,'nav='+reloaded+' markGone='+gone);
+ const r=await p.evaluate(()=>({srv:(window.__store.v.journal||[]).map(x=>x.id),mine:DB.journal.map(x=>x.id),mark:window.__mark}));
+ console.log('C) 충돌 · 서버에만 있는 데이터 → 병합');
+ ok('확인창이 안 뜬다',!dlg.some(m=>/다른 기기|사라진다/.test(m)),dlg.join('|'));
+ ok('서버에만 있던 j9 가 산다',r.srv.includes('j9'),JSON.stringify(r.srv));
+ ok('내가 쓴 j3 도 산다',r.srv.includes('j3'),JSON.stringify(r.srv));
+ ok('내 화면에도 j9 가 들어온다',r.mine.includes('j9'),JSON.stringify(r.mine));
+ ok('새로고침하지 않는다',!reloaded&&r.mark===1,'nav='+reloaded);
  ok('JS 에러 0',errs.length===0,errs[0]||'');}
 
 // C-2) 🔴 학습 데이터는 **묻기 전에 흡수한다** — 이게 96건 유실의 수정이다

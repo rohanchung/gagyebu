@@ -1220,12 +1220,12 @@ function save(){ if(!USER||!DB)return; netSnapTouch(); SAVE_DIRTY=true; saveBadg
   clearTimeout(saveTimer); saveTimer=setTimeout(doSave,400); }
 function doSave(){
   if(!USER||!DB)return;
-  var stamp=new Date().toISOString();
+  var stamp=new Date().toISOString(), payload=JSON.stringify(DB);   /* 저장에 성공하면 이게 다음 병합의 기준본이다 */
   var q=SB.from('app_state').update({data:DB,updated_at:stamp}).eq('user_id',USER.id);
   if(LAST_SYNC)q=q.eq('updated_at',LAST_SYNC);
   q.select('updated_at').then(function(r){
     var rows=(r&&r.data)||[];
-    if(rows.length){ syncOK(stamp); return; }
+    if(rows.length){ syncSetBase(JSON.parse(payload)); syncOK(stamp); return; }
     syncConflict(stamp);
   },function(e){ saveFail(e); });
 }
@@ -1274,6 +1274,58 @@ var SYNC_COLS=[
   {k:'st_drills',p:['study','drills'], label:'🈶 드릴 기록',
      lab:function(x){return (x.date||'')+' '+(x.mode||'');}}
 ];
+/* ══════ v4.13 🔒 3자 병합 — 덮어쓰기를 없앤다 ══════
+   🔴 사고 4회차(9/15·9/16 words 96건씩, 9/16·9/18 sents 19·10건). 실측 원인(pg_stat_statements):
+      학습방·생활방이 MCP 로 `update app_state set data=jsonb_set(…)` 를 쓰면서 **updated_at 을 안 바꿨다.**
+      앱의 낙관적 잠금(eq updated_at)은 통과했고, 열려 있던 앱이 **옛 데이터로 통째로 덮었다.**
+      v3.6 흡수(syncAbsorb)는 **충돌이 감지돼야만** 돌았다 — 감지 자체가 안 됐다. words 가 요즘 안 날아간 건 운이다.
+   🔒 두 겹으로 막는다.
+      ① DB 트리거 app_state_bump — data 가 바뀌었는데 updated_at 이 그대로면 DB 가 올린다(쓰는 쪽이 기억할 필요 없음)
+      ② 충돌 시 **기준본(마지막으로 서버와 맞춘 상태)** 과 비교하는 3자 병합 —
+         필드마다 '내가 바꿨으면 내 것, 아니면 서버 것'. 한쪽이 지운 레코드는 지운 쪽을 따르고, 새로 생긴 건 살린다.
+         → 앱은 **자기가 바꾼 필드만** 쓴다(학습방 v18 요구 1). 학습방이 고친 오타·지운 중복·새로 넣은 예문이 다 산다.
+   ⚠️ 양쪽이 **같은 칸을 서로 다르게** 고친 경우만 내 것을 따른다 — 그때는 서버본을 📀 스냅샷으로 먼저 남긴다.
+   ⚠️ 비교는 키 정렬 문자열로 한다 — DB(jsonb)와 브라우저의 키 순서가 달라서, 그냥 JSON 으로 비교하면 안 바뀐 것도 바뀐 걸로 본다 */
+var SYNC_BASE=null, MRG={conflict:0};
+function syncSetBase(d){try{SYNC_BASE=JSON.parse(JSON.stringify(d));}catch(e){SYNC_BASE=null;}}
+function stableStr(v){
+  if(v===null||typeof v!=='object')return v===undefined?'undefined':JSON.stringify(v);
+  if(Array.isArray(v))return '['+v.map(stableStr).join(',')+']';
+  return '{'+Object.keys(v).filter(function(k){return v[k]!==undefined;}).sort()
+    .map(function(k){return JSON.stringify(k)+':'+stableStr(v[k]);}).join(',')+'}';
+}
+function mrgSame(a,b){return stableStr(a)===stableStr(b);}
+function mrgIsObj(v){return v!==null&&typeof v==='object'&&!Array.isArray(v);}
+function mrgIdArr(a){return Array.isArray(a)&&a.every(function(x){return mrgIsObj(x)&&x.id!=null;});}
+function mrg3(b,l,s){
+  if(mrgSame(l,b))return s;                       /* 내가 안 바꿨다 → 서버 것 */
+  if(mrgSame(s,b)||mrgSame(s,l))return l;         /* 서버가 안 바꿨다(또는 같게 바꿨다) → 내 것 */
+  if(mrgIdArr(l)&&mrgIdArr(s)&&(b===undefined||mrgIdArr(b)))return mrgArr(b||[],l,s);
+  if(mrgIsObj(l)&&mrgIsObj(s))return mrgObj(mrgIsObj(b)?b:{},l,s);
+  MRG.conflict++;return l;                        /* 같은 칸을 양쪽이 다르게 — 내 것 */
+}
+function mrgObj(b,l,s){
+  var out={},keys={},k;
+  [b,l,s].forEach(function(o){for(k in o)keys[k]=1;});
+  for(k in keys){var v=mrg3(b[k],l[k],s[k]);if(v!==undefined)out[k]=v;}
+  return out;
+}
+/* id 배열 — 레코드 단위. 순서는 서버 순서 + 내 쪽 새 레코드 */
+function mrgArr(b,l,s){
+  var bi={},li={},si={},out=[];
+  b.forEach(function(x){bi[x.id]=x;});l.forEach(function(x){li[x.id]=x;});s.forEach(function(x){si[x.id]=x;});
+  s.forEach(function(x){
+    if(li[x.id])out.push(mrg3(bi[x.id],li[x.id],x));
+    else if(bi[x.id]){if(!mrgSame(bi[x.id],x))MRG.conflict++;}   /* 내가 지웠다 — 그 사이 서버가 고쳤으면 충돌로 센다 */
+    else out.push(x);                                            /* 서버에 새로 생겼다 → 살린다 */
+  });
+  l.forEach(function(x){
+    if(si[x.id])return;
+    if(bi[x.id]){if(!mrgSame(bi[x.id],x))MRG.conflict++;return;} /* 서버가 지웠다 → 되살리지 않는다(units 중복 재발의 원인) */
+    out.push(x);                                                 /* 내 쪽에 새로 생겼다 → 살린다 */
+  });
+  return out;
+}
 /* 컬렉션 하나를 꺼낸다 — top-level 이면 k, 중첩이면 p 경로 */
 function syncGet(o,C){
   if(!o)return null;
@@ -1349,11 +1401,42 @@ function syncDiffText(mine,srv){
   if(!out.length)return '(내용은 같다 — 저장 시각만 어긋났다. 덮어써도 잃는 것이 없다.)';
   return out.join('\n');
 }
-function syncConflict(stamp){
+/* v4.13 — 충돌이면 묻지 않고 3자 병합한 뒤 **잠금을 걸고** 저장한다.
+   🔒 병합 후 저장도 eq(updated_at) 로 건다 — 옛 forceSave(upsert)는 '서버를 다시 읽은 순간 ~ 저장' 사이에 방이 쓴 걸 날렸다.
+      그 사이 또 바뀌었으면 다시 읽어 다시 병합한다(최대 3회). */
+function syncConflict(stamp,tries){
+  tries=tries||0;
   SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
     var row=r&&r.data, srv=row&&row.updated_at, sdata=row&&row.data;
     if(!srv){ forceSave(stamp); return; }                 /* 행 자체가 없다 = 최초 저장 */
     if(srv===LAST_SYNC){ forceSave(stamp); return; }       /* 버전은 같은데 0행 = 다른 이유. 그대로 쓴다 */
+    var merged=null; MRG.conflict=0;
+    try{ merged=mrg3(SYNC_BASE,DB,sdata); }catch(err){ merged=null; }
+    if(!mrgIsObj(merged)){ syncConflictAsk(stamp); return; }   /* 병합이 깨지면 옛 확인창으로 — 조용히 덮지 않는다 */
+    var apply=function(){
+      /* DB 를 갈아끼우지 않고 그 안을 바꾼다 — 다른 곳이 들고 있는 DB 참조가 끊기지 않게 */
+      Object.keys(DB).forEach(function(k){ if(!(k in merged))delete DB[k]; });
+      Object.keys(merged).forEach(function(k){ DB[k]=merged[k]; });
+      saveBadge('⤵ 다른 곳의 변경을 합쳤다'+(MRG.conflict?(' · 같은 칸 '+MRG.conflict+'건은 내 것으로(서버본 스냅샷 남김)'):''),'wait');
+      syncLockedSave(srv,tries);
+    };
+    if(MRG.conflict)syncSnapBefore(sdata,srv,apply); else apply();
+  },function(e){ saveFail(e); });
+}
+function syncLockedSave(srv,tries){
+  var stamp=new Date().toISOString(), payload=JSON.stringify(DB);
+  SB.from('app_state').update({data:DB,updated_at:stamp}).eq('user_id',USER.id).eq('updated_at',srv).select('updated_at').then(function(r){
+    if(((r&&r.data)||[]).length){ syncSetBase(JSON.parse(payload)); syncOK(stamp); return; }
+    if(tries>=3){ saveFail({message:'다른 곳에서 계속 쓰고 있다 — 곧 다시 저장한다'}); return; }
+    syncConflict(stamp,tries+1);
+  },function(e){ saveFail(e); });
+}
+/* 옛 흐름(흡수 + 확인창) — 병합이 예외로 실패했을 때만 쓴다 */
+function syncConflictAsk(stamp){
+  SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
+    var row=r&&r.data, srv=row&&row.updated_at, sdata=row&&row.data;
+    if(!srv){ forceSave(stamp); return; }
+    if(srv===LAST_SYNC){ forceSave(stamp); return; }
     /* 🔒 ① 먼저 **구해낼 수 있는 것을 구한다.** 로버트가 append 한 레코드를 내 쪽으로 흡수한다.
        이걸 묻기 전에 해야 한다 — 물어보면 로한은 누른다. 실측으로 96건이 두 번 날아갔다. */
     var absorbed=0;
@@ -1397,7 +1480,8 @@ function syncSnapBefore(sdata,srv,done){
   }catch(e){ done(); }
 }
 function forceSave(stamp){
-  SB.from('app_state').upsert({user_id:USER.id,data:DB,updated_at:stamp}).then(function(){ syncOK(stamp); },function(e){ saveFail(e); });
+  var payload=JSON.stringify(DB);
+  SB.from('app_state').upsert({user_id:USER.id,data:DB,updated_at:stamp}).then(function(){ syncSetBase(JSON.parse(payload)); syncOK(stamp); },function(e){ saveFail(e); });
 }
 function loadState(){ return SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
   var row=r&&r.data; LAST_SYNC=(row&&row.updated_at)||null;
@@ -4228,9 +4312,15 @@ function stDrillResult(){
    🔒 콘텐츠는 학습방이 올린다(`sents`). 제작방은 **문항 생성·채점·기록**만 한다.
    🔒 카운터(seen·miss·streak·lastSeen)는 단어와 **같은 필드·같은 식**을 쓴다 —
       출제 가중치 함수를 두 벌 만들면 두 화면이 다른 순서를 낸다(원칙 2). */
+/* v4.13 — 학습방 v18: 부사(gadv)·조사(gpart) 모드.
+   ⚠️ 사실관계: 부사 슬롯은 '출제 경로가 없어 죽어 있던' 게 아니라 **접속사 채우기에 섞여** 나가고 있었다(stGSlot 이 conj·adv 를 같이 받았다).
+      부사만 따로 연습할 수 없던 것이 정확한 문제다 → 둘로 가른다 */
 var ST_GMODES=[
+  {k:'gpart',label:'조사 채우기',  hint:'もんだい1 · 조사'},
   {k:'gconj',label:'접속사 채우기',hint:'もんだい3 · 문장 흐름'},
+  {k:'gadv', label:'부사 채우기',  hint:'もんだい1·3 · 부사'},
   {k:'gord', label:'문장 만들기',  hint:'もんだい2 · 어순'}];
+var ST_GKIND={gconj:'conj',gadv:'adv'};
 function stGModeOK(k){return ST_GMODES.some(function(m){return m.k===k;});}
 /* 🔒 이 드릴이 문법인지 단어인지 묻는 함수는 **이것 하나다.** 곳곳에서 mode 문자열을 비교하면
    모드를 하나 추가할 때 빼먹는 자리가 반드시 생긴다. */
@@ -4241,16 +4331,68 @@ function stSentById(id){
   for(var i=0;i<a.length;i++)if(a[i].id===id)return a[i];
   return null;
 }
-/* 문항으로 쓸 수 있는 slot — 접속사·부사이고 오답이 3개 갖춰진 것.
-   ⚠️ `particle`(조사)·`form`(문형)은 데이터가 오면 여기에 추가한다. 지금은 `conj` 19건만 있다. */
-function stGSlot(s){
+/* 문항으로 쓸 수 있는 slot — 그 종류(kind)이고 오답이 3개 갖춰진 것.
+   ⚠️ `form`(문형)은 오답 자동 생성이 불가능하다 — 데이터가 오면 opts 가 채워진 것만 여기로 받는다 */
+function stGSlot(s,kind){
   var sl=(s&&s.slots)||[];
   for(var i=0;i<sl.length;i++){
     var x=sl[i], k=String(x.kind||'');
-    if((k==='conj'||k==='adv')&&stNorm(x.target)
-       &&Array.isArray(x.opts)&&x.opts.length>=3)return x;
+    if(k===kind&&stNorm(x.target)&&Array.isArray(x.opts)&&x.opts.length>=3)return x;
   }
   return null;
+}
+/* ── v4.13 🎯 조사 — 수동 슬롯 우선 + 자동 후보(보수 규칙) ──
+   학습방 v17: "문장 안의 모든 조사를 자동으로". 🔴 실측(예문 39개): '어절이 조사로 끝나면' 규칙은 후보 120개 중
+   **39개가 틀린 문항**이었다 — この·その·いつも·とても·でも·それから·だから·では·やっと·姉妹かも…
+   🔒 조사 앞 말(stem)이 **한자·가타카나를 품거나, 단어장에 있거나, 대명사**일 때만 후보. か·の·で 로 끝나는 stem 은 뺀다
+      (かも·のに·ので·では). 접속사·연체사는 금지 목록으로 한 번 더 막는다. 틀린 문항은 없느니만 못하다(v3.5) */
+var ST_PART=['から','まで','を','が','に','で','と','へ','の','も','は'];
+var ST_PART_PRON=['わたし','あなた','みんな','みなさん','だれ','なに','ここ','どこ','あそこ','こと','もの','ほう','ひとり','ふたり','あした','きょう'];
+var ST_PART_STOP=['そこで','それで','それから','それに','それでは','では','でも','だから','ですから','だが','または','すると',
+  'やっと','とても','いつも','けれども','この','その','あの','どの','しかし','それとも','それなら','なぜなら'];
+/* 🔒 정답이 둘 되는 오답을 뺀다 — は·が·も 는 서로 바꿔도 맞는 문장이 많고, に·へ 도 그렇다(v3.4 동음이의어와 같은 구조) */
+var ST_PART_TWIN={'は':['が','も'],'が':['は','も'],'も':['は','が'],'に':['へ'],'へ':['に']};
+function stGPunct(t){var m=String(t).match(/[、。，．,.!?！？]+$/);return m?m[0]:'';}
+/* 한 예문의 조사 후보 — [{i:어절번호, p:조사, why}] · 수동 슬롯이 먼저 */
+function stGParticles(s){
+  var toks=stGTokens(s), out=[], used={}, kana={};
+  (studyDB().words||[]).forEach(function(w){if(w&&w.kana)kana[w.kana]=1;});
+  function find(p,from){
+    for(var i=from||0;i<toks.length;i++){
+      var t=toks[i].slice(0,toks[i].length-stGPunct(toks[i]).length);
+      if(t.length>p.length&&t.slice(-p.length)===p&&!used[i])return i;
+    }
+    return -1;
+  }
+  ((s&&s.slots)||[]).forEach(function(x){
+    if(String(x.kind||'')!=='particle'||!stNorm(x.target))return;
+    var i=find(x.target); if(i<0)return;
+    used[i]=1; out.push({i:i,p:x.target,why:String(x.why||''),manual:true,opts:x.opts});
+  });
+  toks.forEach(function(t0,i){
+    if(used[i])return;
+    var t=t0.slice(0,t0.length-stGPunct(t0).length);
+    if(ST_PART_STOP.indexOf(t)>=0)return;
+    var p=ST_PART.filter(function(x){return t.length>x.length&&t.slice(-x.length)===x;})[0]; if(!p)return;
+    var stem=t.slice(0,-p.length);
+    if(/[かので]$/.test(stem))return;
+    if(!(/[一-鿿゠-ヿ]/.test(stem)||ST_PART_PRON.indexOf(stem)>=0||kana[stem]))return;
+    out.push({i:i,p:p,why:''});
+  });
+  return out;
+}
+function stGPartQ(s){
+  var cs=stGParticles(s); if(!cs.length)return null;
+  var man=cs.filter(function(c){return c.manual;});
+  var c=(man.length?man:cs)[Math.floor(Math.random()*(man.length||cs.length))];
+  var toks=stGTokens(s), t0=toks[c.i], pu=stGPunct(t0), t=t0.slice(0,t0.length-pu.length);
+  var parts=String(s.ja).split(/(\s+)/), k=-1;
+  for(var j=0;j<parts.length;j++){ if(/^\s+$/.test(parts[j])||!parts[j])continue; k++;
+    if(k===c.i){parts[j]=t.slice(0,-c.p.length)+'（　）'+pu;break;} }
+  var bad=[c.p].concat(ST_PART_TWIN[c.p]||[]);
+  var opts=(c.manual&&Array.isArray(c.opts)&&c.opts.length>=3)?c.opts.slice(0,3)
+    :stGShuffle(ST_PART.filter(function(x){return bad.indexOf(x)<0;})).slice(0,3);
+  return {ans:c.p, ja:parts.join(''), why:c.why, opts:stGShuffle([c.p].concat(opts))};
 }
 /* 어절 — 교재의 띄어쓰기가 그대로 살아 있어야 어순 문제가 성립한다 */
 function stGTokens(s){
@@ -4276,7 +4418,8 @@ function stGramPool(mode){
   var ds=todayStr();
   return stSents().filter(function(s){
     if(!stNorm(s.ja))return false;
-    if(mode==='gconj'){var sl=stGSlot(s);return !!sl&&String(s.ja).indexOf(sl.target)>=0;}
+    if(ST_GKIND[mode]){var sl=stGSlot(s,ST_GKIND[mode]);return !!sl&&String(s.ja).indexOf(sl.target)>=0;}
+    if(mode==='gpart')return stGParticles(s).length>0;
     return stGTokens(s).length>=4;          /* gord — 4어절이 안 되면 어순 문제가 안 된다 */
   }).slice().sort(function(a,b){
     var d=stWordScore(b,ds)-stWordScore(a,ds); if(d)return d;
@@ -4287,11 +4430,12 @@ function stGramPool(mode){
 /* 🔒 문항은 **시작할 때 한 번** 만들어 세션에 박는다.
    채점할 때마다 다시 만들면 보기가 춤추고, 어순 문제는 정답 자리까지 바뀐다. */
 function stGMkQ(s,mode){
-  if(mode==='gconj'){
-    var sl=stGSlot(s);
+  if(ST_GKIND[mode]){
+    var sl=stGSlot(s,ST_GKIND[mode]);
     return {ans:sl.target, ja:stGMask(s.ja,sl.target), why:String(sl.why||''),
             opts:stGShuffle([sl.target].concat(sl.opts.slice(0,3)))};
   }
+  if(mode==='gpart')return stGPartQ(s);
   var t=stGTokens(s), max=t.length-4;
   var st=Math.floor(Math.random()*(max+1));
   var win=t.slice(st,st+4);
@@ -4305,10 +4449,10 @@ function stGramQ(D,i){return (D.qs&&D.qs[i])||null;}
 function stGramWhyBlocked(mode){
   var n=stGramPool(mode).length;
   if(!stSents().length)return '예문이 없다 — 학습방에서 올린다.';
-  if(!n)return mode==='gconj'
-    ? '접속사·부사 문항이 없다. 예문에 slots(kind:conj) 와 오답 3개가 필요하다.'
-    : '4어절 이상인 예문이 없다.';
-  if(n<4&&mode==='gconj')return '예문이 '+n+'개뿐이다 — 4지선다는 되지만 세트가 너무 짧다.';
+  if(!n)return ST_GKIND[mode]
+    ? (mode==='gadv'?'부사':'접속사')+' 문항이 없다. 예문에 slots(kind:'+ST_GKIND[mode]+') 와 오답 3개가 필요하다.'
+    : mode==='gpart'?'조사를 가릴 수 있는 예문이 없다.':'4어절 이상인 예문이 없다.';
+  if(n<4&&mode!=='gord')return '예문이 '+n+'개뿐이다 — 4지선다는 되지만 세트가 너무 짧다.';
   return '';
 }
 
@@ -4324,7 +4468,8 @@ function stGramRun(){
   var last=D.show?D.res[D.res.length-1]:null;
   /* 문제 본문 */
   var qhtml;
-  if(D.mode==='gconj'){
+  /* 🔒 '빈칸 채우기냐 어순이냐'로 가른다 — mode 문자열 하나와 비교하면 모드를 늘릴 때 새 모드가 어순 화면으로 빠져 멈춘다 */
+  if(D.mode!=='gord'){
     qhtml='<div class="gja">'+mdEsc(q.ja).replace('（　）','<span class="gbl">（　）</span>')+'</div>';
   }else{
     var slots=q.win.map(function(_,k){
@@ -4334,7 +4479,7 @@ function stGramRun(){
   }
   var body;
   if(D.show){
-    var full=(D.mode==='gconj')?String(s.ja):String(s.ja);
+    var full=String(s.ja);
     body='<div class="stdmark '+(last.ok?'ok':'no')+'">'+(last.ok?'○ 맞음':'✗ 틀림')+'</div>'
       +'<div style="margin-top:8px;font-size:20px;font-weight:800">'+mdEsc(q.ans)+'</div>'
       +(last.ok?'':'<div class="mut" style="font-size:11.5px;margin-top:4px">내 답 <b>'
@@ -4362,7 +4507,10 @@ function stGramRun(){
    +bar
    +'<div class="stdq">'+qhtml+body+'</div>'
    +'<div class="mut" style="font-size:10.5px">'
-   +(D.mode==='gconj'
+   +(D.mode==='gpart'
+     ? '조사 앞 말이 명사로 확인된 자리만 가린다 — この·それから 같은 건 조사가 아니다. '
+        +'🔒 は·が·も, に·へ 는 서로 오답에 넣지 않는다(바꿔도 맞는 문장이 많다).'
+     : D.mode!=='gord'
      ? '오답은 <b>같은 의미군</b>에서 나온다 — 「그래서」군에 「예를 들어」를 섞으면 눈감고 맞힌다.'
         +' 🔒 번역은 <b>채점 후에</b> 뜬다. 먼저 보여주면 번역에 정답이 적혀 있다.'
      : '어절을 문자열로 쪼개 만든 문항이다 — <b>교재의 띄어쓰기가 그대로 살아 있어야</b> 성립한다.')
@@ -4466,7 +4614,7 @@ function stGramBox(){
       +'<b>'+m.label+'</b><span class="mut">'+m.hint+' · '+n+'문항</span></button>';}).join('');
   return '<div class="sec"><div class="bkhd"><span class="subhd2">📖 문법 '
       +'<span class="mut">예문 '+ss.length+'개</span></span>'
-      +'<span class="mut" style="font-size:10.5px">もんだい2·3</span></div>'
+      +'<span class="mut" style="font-size:10.5px">もんだい1·2·3</span></div>'
     +(ss.length?'':'<div class="mut" style="font-size:11.5px;padding:6px 0">'
        +'예문이 없다. <b>학습방에서 올린다</b> — 조사·접속사·문형이 예문 단위로 들어온다.</div>')
     /* 🔒 단어 모드 칸(.stdmode)과 같은 스타일을 쓰지만 **구분 가능해야 한다** —
@@ -7661,13 +7809,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.12';
+var APP_VERSION='4.13';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.13',date:'2026-09-19',note:'<b>🔴 [결함·P0] 학습방이 올린 데이터가 사라졌다(통산 4회) — 덮어쓰기를 없앴다 · 📖 조사·부사 드릴.</b> 로한: <i>"학습방에서 올린 데이터 지우지 좀 마라."</i> 학습방 v18: 9/15·9/16 words 96건씩, 9/16 sents 19건, 9/18 sents 10건(r011~r020) · 🔎 <b>실측 원인</b>(pg_stat_statements): 방들이 MCP 로 <code>update app_state set data=jsonb_set(…)</code> 를 쓰면서 <b>updated_at 을 안 바꿨다</b>(39회+3회+1회). 앱의 낙관적 잠금은 통과했고, 열려 있던 앱이 옛 데이터로 통째로 덮었다. v3.6 흡수 장치는 <b>충돌이 감지돼야</b> 돌았는데 감지 자체가 안 됐다 — words 가 요즘 안 날아간 건 운이다. ⚠️ 학습방 추정("부분 갱신이 words 에만")은 틀렸다 — 앱은 words·sents 를 똑같이 다뤘다 · 🔒 <b>① DB 트리거 app_state_bump</b> — data 가 바뀌면 DB 가 updated_at 을 올린다. 쓰는 쪽이 기억할 필요가 없다 · 🔒 <b>② 3자 병합</b> — 마지막으로 서버와 맞춘 기준본과 비교해 필드마다 "내가 바꿨으면 내 것, 아니면 서버 것". 한쪽이 지운 레코드는 지운 쪽을 따르고, 새로 생긴 건 살린다. → 앱은 <b>자기가 바꾼 필드(채점 카운터 등)만</b> 쓴다(v18 요구 1). 학습방이 고친 오타·단 slots·지운 중복(units 중복 재발의 원인)·새 예문이 다 산다. study 만이 아니라 <b>전체</b>에 건다 — 생활방의 식단 제안(meals.p)도 같은 구조였다 · 양쪽이 같은 칸을 다르게 고친 때만 내 것 + 서버본 스냅샷 · 병합 후 저장도 <b>잠금을 건다</b> — 옛 upsert 는 "다시 읽은 순간~저장" 사이 쓰기를 날렸다. 또 바뀌었으면 다시 병합(최대 3회) · 확인창("덮어쓰면 N건이 사라진다")은 없어졌다 — 잃을 것이 없게 병합하므로 물을 게 없다. 병합이 예외로 깨질 때만 옛 확인창 · ⚠️ r011~r020 은 어느 스냅샷에도 없다 — 학습방 재업로드 필요 · 📖 <b>조사 채우기(gpart)</b> — 수동 슬롯 우선 + 자동 후보. 실측: "어절이 조사로 끝나면" 규칙은 후보 120개 중 <b>39개가 틀린 문항</b>(この·それに·そこで·姉妹かも…) → 조사 앞 말이 한자·가타카나·단어장·대명사일 때만. は·が·も, に·へ 는 서로 오답에서 뺀다(정답이 둘이 된다) · <b>부사 채우기(gadv)</b> — 부사 슬롯은 죽어 있던 게 아니라 <b>접속사 채우기에 섞여</b> 나가고 있었다. 가른다 · 진행 화면이 mode===\'gconj\' 로만 빈칸 화면을 그려서 새 모드가 어순 화면으로 빠져 멈출 뻔했다 — "어순이냐 아니냐"로 바꿨다 · t46 신설(병합 34건) · t47 신설(문법 23건 · 실제 예문 39개) · t20 B·C 를 새 동작에 맞춤'},
   {v:'4.12',date:'2026-09-19',note:'<b>⏱ 뽀모가 타임로그에 남는다 · 🩺 EMR 턴 접기.</b> · ⏱ 로한: <i>"미리 로그를 채워놓으면 반영이 안 된다. 이미 채워진 로그에 뽀모를 하면 서브 활동으로 넣어주면 된다."</i> 실측: 9/18 10:00~20:00 이 통째로 work 블록이었고 19:17 뽀모 25분이 로그 어디에도 안 보였다(v3.7 은 뽀모가 timelog 를 안 건드렸다) · 🔒 <b>뽀모가 걸친 그 칸만</b> 바꾼다 — 채워진 칸은 <code>tag2:study</code>(서브), 빈 칸은 study 블록(제목 「뽀모 · 과제」), 이미 서브 활동이 있는 칸(식사+휴식)은 그대로. 10시간 블록 전체에 붙이면 10시간 공부한 게 된다 · 🔴 <b>학습 시간 세는 법을 바꿨다</b> — 이전엔 timelog + 뽀모를 그냥 더했다. 뽀모가 timelog 에 찍기 시작하면 25분이 30×2+25=85분으로 부푼다. 이제 <b>30분 칸마다 뽀모가 있으면 뽀모 실제 분, 없으면 timelog study 30분</b>(<code>stStudyMins</code> 한 곳). 표시(timelog)와 세기(분)가 분리돼서 로한이 칸을 고쳐도 두 번 세지 않는다 · 옛 뽀모 소급: 접속할 때 한 번(9/18 뽀모 → 19:00~20:00 work+study) · 캘린더 패널의 「(타임로그+뽀모)」 덧셈 표기를 「뽀모 N분 포함」으로 — 합계가 더 이상 덧셈이 아니다 · 🩺 EMR — 로한: <i>"질문별로 접을 수 있었으면. 디폴트는 접혀 있는 것."</i> 턴마다 접히고, 제목줄에 질문 앞부분과 두 AI 상태(✓·⏳·거절)가 보인다. 🔒 <b>방금 남긴 질문만 펼쳐 둔다</b> — 거기서 📋 한 줄을 복사하는 게 다음 동작이라서. 펼친 턴은 20초 확인으로 다시 그려도 유지 · t45 신설(26건 · KST 고정) · t44 +6건(54건) · t42 W7·X22 를 바뀐 동작에 맞춤'},
   {v:'4.11',date:'2026-09-18',note:'<b>⚠️ [결함] 로버트가 EMR 에 답을 기록했다는데 앱에 안 보였다.</b> 로한 신고 · 실측: 재활의학과 방이 <code>emr_reply</code> 를 쓰지 않고 <code>health_messages</code> 에 <b>직접 insert</b> 했다 — 질문은 턴 1 인데 답을 <b>턴 2</b> 에, <code>mode</code> 없이 썼다. 화면은 답을 질문 턴에 붙여 보여주므로 짝 없는 턴 2 의 답이 <b>조용히 사라졌다</b> · 원인 둘: ① <code>emr_reply</code> 가 막아 줄 규칙(질문 없는 턴 거부)이 <b>테이블 자체엔 없었다</b> — 방 지침은 규칙이고, 규칙은 어겨진다 ② 화면이 짝 없는 답을 경고 없이 버렸다 · 🔒 <b>DB 트리거 <code>emr_guard</code></b> — 질문 없는 턴·<code>mode</code> 없는 답·문제 주인과 다른 <code>user_id</code>(RLS 로 안 보여 같은 증상)를 테이블이 직접 거부한다. 롤백 검증 7건(잘못된 쓰기 4종 거부, <code>emr_reply</code>·질문 저장·다시 받기는 그대로) · 🔒 화면은 짝 없는 답이 있으면 <b>경고로 드러낸다</b> · 데이터 보정: 그 답을 턴 1 로 옮겼다 · t44 +2건(48건)'},
   {v:'4.1',date:'2026-09-18',note:'<b>🩺 EMR 중계 상담 가동 — 문제 목록 + 두 AI 대화.</b> 로한: <i>"싹다 너가 해."</i> · 질문은 <b>EMR 에만</b> 쓴다 → 그 순간의 로한북 기록이 사실 묶음으로 질문과 함께 저장되고, 로버트 방·수연이 각자 <code>emr_thread</code> 로 <b>자기 몫만</b> 읽어 <code>emr_reply</code> 로 답을 남긴다. API 과금 0원 · 🗄 <b>대화는 app_state 밖</b>(<code>health_problems</code>·<code>health_messages</code>) — 한 덩어리 JSON 에 넣으면 AI 방이 쓸 때마다 앱과 충돌한다(v3.6 유실과 같은 구조) · 🔒 <b>격리는 DB 함수가 한다</b> — <code>emr_thread</code> 는 상대 provider 의 행을 조회 조건에서부터 빼고, 상대 답을 담는 필드 자체가 없다. 적용 전 실제 DB 에서 16개 시나리오를 돌리고 전부 롤백해 검증했다(자기 답만 보인다·중복 답 거부·질문 없는 턴 거부·다시 받기 후 재대기·거절은 답함·종료 문제 제외) · 「다시 받기」는 답을 지우지 않고 <code>error</code> 로 돌려 이력을 남긴다 · 거절(<code>refused</code>)도 답함으로 친다 — 미답으로 치면 대기 목록에서 영원히 안 빠진다 · 📋 칸마다 <b>방에 보낼 한 줄</b> 복사 버튼 — 로한은 질문을 다시 치지 않는다 · 답 대기 칸이 있으면 20초마다 확인하고, 다른 앱에 다녀와 탭이 다시 보이면 바로 새로 읽는다 · 쓰던 질문은 다시 그려도·저장에 실패해도 입력칸에 남긴다 · 모바일은 목록 → 문제 2단계, 두 답은 세로로 · AI 가 쓴 글은 텍스트로만 렌더(외부 입력이다) · 🔧 피검사 기본 범위를 <b>기록 있는 지표 전부</b>로 — 기본이 없음이면 이관한 순환기 문제 첫 질문에 검사값이 하나도 안 간다 · 초기 이관: handoffs 순환기·재활의학과·칼륨식단 3건(방 이름은 handoffs.room 그대로) · t44 신설 46건'},
@@ -9694,7 +9843,10 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){DB=migrateDB(d);
+function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){
+    /* 🔒 v4.13 병합 기준본 = 서버에서 받은 **원본**(마이그레이션 전). 마이그레이션도 '내가 바꾼 것'으로 쳐야 병합 때 살아남는다 */
+    syncSetBase(d);
+    DB=migrateDB(d);
     /* v4.12 — 타임로그에 안 남은 옛 뽀모를 한 번 남긴다. 남긴 게 있을 때만 저장한다(아무것도 안 했는데 쓰면 다른 탭과 헛된 충돌이 난다) */
     try{ if(stPomoBackfill())save(); }catch(e){}
     localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
