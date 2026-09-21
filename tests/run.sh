@@ -35,6 +35,14 @@ esac
 [ $# -ge 2 ] && [ -f "${2:-}" ] && { HTML="$2"; T="$1"; }
 
 [ -f "$HTML" ] || { echo "✗ HTML 없음: $HTML   (HTML=/경로/work.html ./run.sh $1)"; exit 2; }
+# 🔒 문법 선검사 — 총붕괴는 1초에 잡혀야 한다.
+#    2026-09-21: CHANGELOG 문자열 안에 작은따옴표를 그대로 넣어 문자열이 끊겼고,
+#    앱이 아예 안 떠서 **32개가 222초를 태우고 전부 실패**했다.
+#    파싱도 안 되는 파일을 크로미움 32번 띄워 확인할 이유가 없다.
+if ! node syntax.js "$HTML"; then
+  echo "── 문법부터 깨졌다. 나머지는 돌리지 않는다."
+  exit 1
+fi
 echo "▶ $(echo $T | wc -w)개 · $(basename "$HTML") · $(date +%H:%M:%S)"
 S=$(date +%s)
 mkdir -p .out

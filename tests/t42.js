@@ -1022,6 +1022,39 @@ async function boot(st){
      (await p.evaluate(x=>stStudyMins(x),ago(1)))===55,
      String(await p.evaluate(x=>stStudyMins(x),ago(1))));
   ok('W8 뽀모만 따로도 센다',(await p.evaluate(x=>stPomoMinsOn(x),ago(1)))===25);
+  /* ③-2 v4.16 — 🔒 칸 안에서 **클릭 없이** 그날 과제의 수행여부를 읽는다.
+     로한: "과거에 뭘 했는지를 일일이 클릭해서 봐야 하는 게 불편해."
+     ⚠️ 달이 넘어가도 깨지지 않게, 볼 날짜의 달로 먼저 옮긴다(t42 는 매일 돈다). */
+  const cellOf=async(ds)=>{
+    await p.evaluate(x=>setStCalYM(x.slice(0,7)),ds);await p.waitForTimeout(250);
+    return p.$eval('#v-study .scday[onclick*="'+ds+'"]',e=>({
+      txt:e.textContent,
+      marks:[...e.querySelectorAll('.scui')].map(x=>(x.className.replace('scui','').trim()||'-')+':'+x.querySelector('b').textContent),
+      titles:[...e.querySelectorAll('.scui span')].map(x=>x.textContent)}));
+  };
+  {
+    const c0=await cellOf(ago(0));
+    ok('W8b 오늘 칸에 그날 과제가 다 적힌다',
+       c0.titles.indexOf('오늘것A')>=0&&c0.titles.indexOf('오늘것B')>=0,JSON.stringify(c0.titles));
+    ok('W8c 끝낸 것은 ✓',c0.marks.indexOf('ok:✓')>=0,JSON.stringify(c0.marks));
+    /* 🔒 오늘 아직 안 한 것은 ✗ 가 아니다 — 오전 9시의 미완을 실패로 칠하면 화면이 거짓말을 한다 */
+    ok('W8d 오늘 미완은 ✗ 가 아니라 ·',
+       c0.marks.indexOf('-:·')>=0&&c0.marks.every(m=>m.indexOf('✗')<0),JSON.stringify(c0.marks));
+    const c1=await cellOf(ago(1));
+    ok('W8e 지난 날 미완은 ✗ 로 드러난다',c1.marks.indexOf('no:✗')>=0,JSON.stringify(c1.marks));
+    const c2=await cellOf(fwd(1));
+    ok('W8f 미래 미완은 ·',c2.marks.length===1&&c2.marks[0]==='-:·',JSON.stringify(c2.marks));
+    /* 🔒 다 못 넣으면 몇 개가 남았는지 적는다 — 그냥 잘라내면 화면이 거짓말을 한다 */
+    await p.evaluate(x=>{for(let i=0;i<5;i++)DB.study.units.push({id:'z'+i,phase:'P1',ch:'home',
+      type:'vocab',title:'넘침'+i,mins:5,day:x,backlog:false,status:'todo',carried:0});
+      renderStudy();},ago(1));
+    await p.waitForTimeout(300);
+    const cm=await cellOf(ago(1));
+    ok('W8g 칸이 넘치면 +N 을 적는다',/\+\d/.test(cm.txt)&&cm.marks.length<=4,JSON.stringify(cm.marks));
+    await p.evaluate(()=>{DB.study.units=DB.study.units.filter(u=>String(u.id).indexOf('z')!==0);renderStudy();});
+    await p.waitForTimeout(250);
+  }
+  await p.evaluate(()=>setStCalYM(todayStr().slice(0,7)));await p.waitForTimeout(250);
   /* ④ 제로데이 — 지난 날인데 학습도 과제도 없는 칸 */
   ok('W9 제로데이 칸이 표시된다',(await p.$$('#v-study .scday.zero')).length>=1);
   /* ⑤ 3일 창 밖은 흐리게 */
