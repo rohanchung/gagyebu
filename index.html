@@ -1274,6 +1274,55 @@ var SYNC_COLS=[
   {k:'st_drills',p:['study','drills'], label:'🈶 드릴 기록',
      lab:function(x){return (x.date||'')+' '+(x.mode||'');}}
 ];
+/* ══════ v4.15 🔴 중복 id — 병합이 레코드를 삼킨다 ══════
+   로한 신고(9/21): 「くるま」를 물는데 보기가 특히·언젠가·특별히·잘하다. **정답이 없다.**
+   🔎 실측: `words` 에 **id 가 겹친 레코드가 17쌍**(w0508~w0524). 부사 묶음과 v20 신규단어 묶음이
+      같은 번호대를 썼다. `units` 도 2쌍(u042·u043). 문항은 한쪽(とくべつに)으로 만들고,
+      화면은 id 로 다시 찾은 **뒤엣것**(くるま)을 그렸다 — 그래서 정답이 보기에 없다.
+   🔴 더 큰 문제는 저장이다. v4.13 의 3자 병합과 흔수는 **id 로 묶는다**(mrgArr·syncAbsorb).
+      이대로 병합이 한 번 도면 겹친 17건이 하나로 접혀 **사라진다.**
+      유실을 막으려고 만든 장치가 유실을 낸다 — 반복결함 #8(반쪽 작업)과 같은 구조다.
+   🔒 로드 때 **앞엣것의 id 를 두고 뒤엣것에 새 id 를 준다.**
+      참조(errors·drills.wrongIds)는 앞엣것을 가리키게 된다 — 지금도 '둘 중 하나'라 모호했다. 고정된 쪽이 낫다.
+   🚫 레코드를 지우지 않는다 — id 가 겹치는 건 **번호가 틀렸다**는 뜻이지 내용이 중복이라는 뜻이 아니다.
+   🔒 id 로 묶는 배열은 전부 본다 — SYNC_COLS 에 없는 것도 병합이 id 로 묶는 건 마찬가지다. */
+var DUP_FIX={n:0,where:[]};
+var DUP_PATHS=[['transactions','거래'],['routines','루틴'],['goals','목표'],['rewards','보상'],
+  ['accounts','계좌'],['cards','카드'],['items','재물'],['journal','일지'],['debts','부채'],
+  ['fixed','고정지출'],['events','일정'],['posts','글'],['categories','분류'],
+  ['study.words','🈶 단어'],['study.sents','📝 예문'],['study.units','🎓 과제'],
+  ['study.errors','❌ 오답'],['study.tests','📊 테스트'],['study.drills','드릴 기록'],
+  ['study.pomos','뽀모'],['study.books','교재'],['study.phases','단계']];
+/* ⚠️ 집계(DUP_FIX)는 **내 DB 를 고칠 때만** 쌓는다 — 기준본·서버본 정규화는 화면에 보일 일이 아니다.
+   안 가르면 syncSetBase 가 돌 때마다 집계가 0 으로 리셋돼 화면이 아무 말도 안 하게 된다 */
+function fixDupIds(d,quiet){
+  var acc={n:0,where:[]};
+  if(!d){if(!quiet)DUP_FIX=acc;return d;}
+  DUP_PATHS.forEach(function(P){
+    var a=d,ks=P[0].split('.'),i;
+    for(i=0;i<ks.length;i++){a=a&&a[ks[i]];}
+    if(!Array.isArray(a))return;
+    /* 🔒 새 번호는 **결정적**이어야 한다 — uid() 를 쓰면 기준본·서버본·내 것이 **각각 다른 번호**를
+       받아 병합이 같은 레코드를 서로 모르는 것으로 보고 복사본을 늘린다.
+       w0524#2 처럼 순서로 붙이면 세 쪽이 같은 결과로 간다. ⚠️ 맨 객체 키(toString 등)를 피하려고 접두사를 둔다 */
+    var seen={},k=0;
+    a.forEach(function(x){ if(x&&x.id!=null)seen['k'+x.id]=(seen['k'+x.id]||0)+1; });
+    var used={},n2;
+    a.forEach(function(x){
+      if(!x||x.id==null)return;
+      var key='k'+x.id;
+      if(!used[key]){used[key]=1;return;}          /* 첫 번째는 번호를 지킨다 */
+      used[key]++; n2=used[key];
+      var nid=x.id+'#'+n2;
+      while(seen['k'+nid]){n2++;nid=x.id+'#'+n2;}   /* 이미 그 번호가 있으면 비키준다 */
+      seen['k'+nid]=1; x.id=nid; k++;
+    });
+    if(k){acc.n+=k;acc.where.push(P[1]+' '+k);}
+  });
+  if(!quiet)DUP_FIX=acc;
+  return d;
+}
+
 /* ══════ v4.13 🔒 3자 병합 — 덮어쓰기를 없앤다 ══════
    🔴 사고 4회차(9/15·9/16 words 96건씩, 9/16·9/18 sents 19·10건). 실측 원인(pg_stat_statements):
       학습방·생활방이 MCP 로 `update app_state set data=jsonb_set(…)` 를 쓰면서 **updated_at 을 안 바꿨다.**
@@ -1287,7 +1336,9 @@ var SYNC_COLS=[
    ⚠️ 양쪽이 **같은 칸을 서로 다르게** 고친 경우만 내 것을 따른다 — 그때는 서버본을 📀 스냅샷으로 먼저 남긴다.
    ⚠️ 비교는 키 정렬 문자열로 한다 — DB(jsonb)와 브라우저의 키 순서가 달라서, 그냥 JSON 으로 비교하면 안 바뀐 것도 바뀐 걸로 본다 */
 var SYNC_BASE=null, MRG={conflict:0};
-function syncSetBase(d){try{SYNC_BASE=JSON.parse(JSON.stringify(d));}catch(e){SYNC_BASE=null;}}
+/* 🔒 v4.15 — 기준본도 **같은 규칙으로 정규화**해서 둔다.
+   내 쪽만 번호를 갈라두면 병합이 '기준본에 없던 새 레코드'로 보고 복사본을 만든다 */
+function syncSetBase(d){try{SYNC_BASE=fixDupIds(JSON.parse(JSON.stringify(d)),true);}catch(e){SYNC_BASE=null;}}
 function stableStr(v){
   if(v===null||typeof v!=='object')return v===undefined?'undefined':JSON.stringify(v);
   if(Array.isArray(v))return '['+v.map(stableStr).join(',')+']';
@@ -1339,6 +1390,8 @@ function syncCount(o,k){var v=o&&o[k];return (v&&v.length!==undefined)?v.length:
 function syncAbsorb(sdata){
   var n=0;
   if(!sdata||!DB)return 0;
+  /* v4.15 — 겹친 번호를 그대로 두면 have[id] 에 걸려 한 건만 흔수된다 */
+  try{ fixDupIds(sdata,true); }catch(e){}
   SYNC_COLS.forEach(function(C){
     if(!C.absorb)return;
     var mine=syncGet(DB,C), srv=syncGet(sdata,C);
@@ -1410,10 +1463,15 @@ function syncConflict(stamp,tries){
     var row=r&&r.data, srv=row&&row.updated_at, sdata=row&&row.data;
     if(!srv){ forceSave(stamp); return; }                 /* 행 자체가 없다 = 최초 저장 */
     if(srv===LAST_SYNC){ forceSave(stamp); return; }       /* 버전은 같은데 0행 = 다른 이유. 그대로 쓴다 */
+    /* 🔒 서버본도 먼저 정규화한다 — 올리는 쪽이 겹친 번호를 다시 올렸을 수 있다 */
+    try{ fixDupIds(sdata,true); }catch(e){}
     var merged=null; MRG.conflict=0;
     try{ merged=mrg3(SYNC_BASE,DB,sdata); }catch(err){ merged=null; }
     if(!mrgIsObj(merged)){ syncConflictAsk(stamp); return; }   /* 병합이 깨지면 옛 확인창으로 — 조용히 덮지 않는다 */
     var apply=function(){
+      /* 🔒 v4.15 — 병합본에도 중복 id 교정을 돌린다. 학습방이 겹친 번호를 다시 올리면
+         로드 때 고쳐둔 것이 서버쪽 중복과 만나 또 접힌다 */
+      try{ fixDupIds(merged,true); }catch(e){}
       /* DB 를 갈아끼우지 않고 그 안을 바꾼다 — 다른 곳이 들고 있는 DB 참조가 끊기지 않게 */
       Object.keys(DB).forEach(function(k){ if(!(k in merged))delete DB[k]; });
       Object.keys(merged).forEach(function(k){ DB[k]=merged[k]; });
@@ -3848,7 +3906,10 @@ try{
 
 function stWords(){return studyDB().words;}
 function stDrills(){return studyDB().drills;}
-function stWordById(id){var r=null;stWords().forEach(function(w){if(w.id===id)r=w;});return r;}
+/* 🔒 v4.15 — **첫 번째**를 돌려준다. 예전엔 forEach 로 돌아 마지막 것이 남았고,
+   id 가 겹치면 문항을 만든 레코드와 화면에 그린 레코드가 달라졌다(9/21 「くるま」 사건).
+   fixDupIds 가 겹침을 없애지만, 같은 질문에 두 번 다르게 답할 여지를 남기지 않는다 */
+function stWordById(id){var a=stWords();for(var i=0;i<a.length;i++)if(a[i].id===id)return a[i];return null;}
 /* 채점 정규화 — 공백·구두점만 지운다.
    🚫 히라가나↔가타카나 변환은 하지 않는다: k2r 정답은 히라가나이고 가타카나로 적었으면 틀린 것이다.
    🚫 장음(ー)·촉음도 지우지 않는다 — ラーメン 과 ラメン 은 다른 단어다. */
@@ -4772,7 +4833,12 @@ function stPaneWord(){
   ws.forEach(function(w){if(w.sub)subN[w.sub]=(subN[w.sub]||0)+1;});
   var subKeys=Object.keys(subN);
   /* stHead 는 renderStudy 가 공통으로 붙인다 — 여기서 또 부르면 D-day 가 두 번 뜬다 */
-  return '<div class="sec"><div class="bkhd"><span class="subhd2">🈶 단어 <span class="mut">'
+  /* ⚠️ v4.15 — 겹친 번호를 갈랐으면 말해준다. 조용히 고치면 올리는 쪽이 계속 겹쳐 쓴다 */
+  var dup=DUP_FIX.n?('<div class="mut" style="font-size:10.5px;margin:-4px 0 9px">'
+    +'⚠️ 번호(id)가 겹친 레코드 <b>'+DUP_FIX.n+'건</b>을 새 번호로 갈랐다 — '+mdEsc(DUP_FIX.where.join(' · '))+'. '
+    +'그대로 두면 문항과 화면이 다른 단어를 가리키고(정답 없는 보기), 다음 병합에서 <b>그만큼 사라진다</b>. '
+    +'<b>올리는 쪽이 번호를 겹쳐 쓰지 말아야 한다.</b></div>'):'';
+  return '<div class="sec">'+dup+'<div class="bkhd"><span class="subhd2">🈶 단어 <span class="mut">'
      +ws.length+'개 · 책 체크 '+flag+' · 미출제 '+fresh
      +(subKeys.length?' · '+subKeys.map(function(k){return mdEsc(k)+' '+subN[k];}).join('·'):'')
      +'</span></span></div>'
@@ -8036,13 +8102,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.14';
+var APP_VERSION='4.15';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.15',date:'2026-09-21',note:'<b>🔴 [결함·P0] 보기에 정답이 없는 문항 — 번호(id)가 겹쳐 있었다.</b> 로한 신고: <i>"보기가 답이 없는게 2개나 나오더라."</i> 「くるま」를 물는데 보기는 특히·언젠가·특별히·잘하다 · 🔎 <b>실측</b>: <code>words</code> 에 id 가 겹친 레코드가 <b>17쌍</b>(w0508~w0524), <code>units</code> 2쌍(u042·u043). 부사 묶음과 v20 신규단어 묶음이 같은 번호대를 썼다. 문항은 한쪽(とくべつに)으로 만들고, 화면은 id 로 다시 찾은 <b>뒤엣것</b>(くるま)을 그렸다 · 🔴 <b>더 큰 문제는 저장이었다</b> — v4.13 3자 병합과 흔수는 id 로 묶는다. 겹치면 맵에 <b>마지막 것만</b> 남아, 앞엣것에 쌓은 채점(seen·miss)을 뒤엣것 기준으로 비교하고 "내가 안 바꿨다"고 판정해 <b>서버 것으로 되돌렸다</b>. 유실을 막으려고 만든 장치가 유실을 낸다 — 반쪽 작업(반복결함 #8)과 같은 구조다 · 🔒 <b>로드·병합·흔수 세 길목에서 번호를 가른다</b> — 앞엣것이 번호를 지키고 뒤엣것은 <code>w0524#2</code> 를 받는다 · 🔒 새 번호는 <b>결정적</b>이다 — 처음엔 <code>uid()</code> 를 썼는데, 그러면 기준본·서버본·내 것이 각각 다른 번호를 받아 병합이 같은 레코드를 서로 모르는 것으로 보고 복사본을 늘린다 · 🚫 레코드를 지우지 않는다 — 번호가 겹치는 건 번호가 틀렸다는 뜻이지 내용이 중복이라는 뜻이 아니다 · <code>stWordById</code> 가 forEach 로 돌아 <b>마지막 것</b>을 돌려주던 것도 첫 번째로 바꿨다 · 몇 건을 갈랐는지 <b>화면과 활동로그에 내보낸다</b> — 조용히 고치면 올리는 쪽이 번호를 계속 겹쳐 쓴다 · t49 신설 19건'},
   {v:'4.14',date:'2026-09-21',note:'<b>🔤 동사 활용 드릴 신설 · 📖 예문 한 개가 문항 여러 개가 된다.</b> 학습방 v19·v20 처리 · 🔤 <b>활용 드릴(vconj)</b> — 로한: <i>"て형은 안다. 아는지 모르는지 어떻게 아느냐는 거지. 드릴로 만들던가 해야지."</i> units 의 "て형 정리" 과제는 <b>측정할 수 없는 과제</b>였다 → 드릴로 바꿈. 동사 원형을 보여주고 て·ない·た·ます 중 하나를 물는다 · 🔒 <b>활용형을 저장하지 않는다</b> — <code>vgroup</code>(1·2·3) 하나만 받고 앱이 규칙으로 만든다. 107개 × 4형 = 428개를 손으로 넣으면 오타가 난다. 규칙은 결정적이라 그룹만 맞으면 앱이 틀릴 수 없다 · 🔒 <b>오답은 틀린 그룹 규칙을 적용한 형태</b>다 — 買う 의 오답은 かいて·かんで·かして. 실제로 학습자가 그렇게 틀리는 형태라 난도가 정확하다. 랜덤 오답 금지 · 불규칙 2종을 박았다 — 경어 5동사는 ます형만 불규칙(いらっしゃります ✗ → いらっしゃいます) · 行く 는 いって(아직 단어장에 없지만 들어오는 날 조용히 틀리면 안 된다) · 채점 후 <b>네 형을 다 보여준다</b> — 하나만 보여주면 규칙이 아니라 답을 외운다. 그룹은 문제에서 안 보여준다(그룹 판별이 이 드릴의 절반이다) · ⚠️ <b>검산에 3건이 걸렸다</b> — 訳·忘れ物·割合(명사)에 vgroup:1 이 달려 있다. 그대로 두면 「わけって」가 출제된다 → 사전형 어미로 검산해 빼고, <b>조용히 빼지 않고 화면에 이름을 낸다</b> — 숨기면 학습방이 고칠 수 없다 · 📖 <b>예문은 공용 문항 풀이다</b> — 로한: <i>"조사 부분에 나온 문장이라고 거기서만 쓰지 말고 접속사나 여러 문법 부분에서도 쓸 수 있게."</i> 출처(src)로 거르지 않는 건 v4.13 부터 그러했고, 이번에 바뀐 건 <b>한 문장의 슬롯을 전부 출제한다</b>는 것이다 — 지금까지는 <b>첫 슬롯 하나만</b> 나가고 나머지는 죽어 있었다 · 🔒 라운드로빈 — 슬롯 3개짜리 문장이 세트 앞을 다 먹지 않는다. 한 바퀴 돌고 두 번째 슬롯으로 간다 · 화면 숫자를 <b>문장 수 → 문항 수</b>로 바꿈 · ✅ 학습방 v20 이 요청한 미구현 3종(부사·조사·활용)이 <b>전부 끝났다</b> — 부사·조사는 v4.13, 활용은 이번. 추석 연휴 드릴에 돌릴 수 있다 · t48 신설 28건'},
   {v:'4.13',date:'2026-09-19',note:'<b>🔴 [결함·P0] 학습방이 올린 데이터가 사라졌다(통산 4회) — 덮어쓰기를 없앴다 · 📖 조사·부사 드릴.</b> 로한: <i>"학습방에서 올린 데이터 지우지 좀 마라."</i> 학습방 v18: 9/15·9/16 words 96건씩, 9/16 sents 19건, 9/18 sents 10건(r011~r020) · 🔎 <b>실측 원인</b>(pg_stat_statements): 방들이 MCP 로 <code>update app_state set data=jsonb_set(…)</code> 를 쓰면서 <b>updated_at 을 안 바꿨다</b>(39회+3회+1회). 앱의 낙관적 잠금은 통과했고, 열려 있던 앱이 옛 데이터로 통째로 덮었다. v3.6 흡수 장치는 <b>충돌이 감지돼야</b> 돌았는데 감지 자체가 안 됐다 — words 가 요즘 안 날아간 건 운이다. ⚠️ 학습방 추정("부분 갱신이 words 에만")은 틀렸다 — 앱은 words·sents 를 똑같이 다뤘다 · 🔒 <b>① DB 트리거 app_state_bump</b> — data 가 바뀌면 DB 가 updated_at 을 올린다. 쓰는 쪽이 기억할 필요가 없다 · 🔒 <b>② 3자 병합</b> — 마지막으로 서버와 맞춘 기준본과 비교해 필드마다 "내가 바꿨으면 내 것, 아니면 서버 것". 한쪽이 지운 레코드는 지운 쪽을 따르고, 새로 생긴 건 살린다. → 앱은 <b>자기가 바꾼 필드(채점 카운터 등)만</b> 쓴다(v18 요구 1). 학습방이 고친 오타·단 slots·지운 중복(units 중복 재발의 원인)·새 예문이 다 산다. study 만이 아니라 <b>전체</b>에 건다 — 생활방의 식단 제안(meals.p)도 같은 구조였다 · 양쪽이 같은 칸을 다르게 고친 때만 내 것 + 서버본 스냅샷 · 병합 후 저장도 <b>잠금을 건다</b> — 옛 upsert 는 "다시 읽은 순간~저장" 사이 쓰기를 날렸다. 또 바뀌었으면 다시 병합(최대 3회) · 확인창("덮어쓰면 N건이 사라진다")은 없어졌다 — 잃을 것이 없게 병합하므로 물을 게 없다. 병합이 예외로 깨질 때만 옛 확인창 · ⚠️ r011~r020 은 어느 스냅샷에도 없다 — 학습방 재업로드 필요 · 📖 <b>조사 채우기(gpart)</b> — 수동 슬롯 우선 + 자동 후보. 실측: "어절이 조사로 끝나면" 규칙은 후보 120개 중 <b>39개가 틀린 문항</b>(この·それに·そこで·姉妹かも…) → 조사 앞 말이 한자·가타카나·단어장·대명사일 때만. は·が·も, に·へ 는 서로 오답에서 뺀다(정답이 둘이 된다) · <b>부사 채우기(gadv)</b> — 부사 슬롯은 죽어 있던 게 아니라 <b>접속사 채우기에 섞여</b> 나가고 있었다. 가른다 · 진행 화면이 mode===\'gconj\' 로만 빈칸 화면을 그려서 새 모드가 어순 화면으로 빠져 멈출 뻔했다 — "어순이냐 아니냐"로 바꿨다 · t46 신설(병합 34건) · t47 신설(문법 23건 · 실제 예문 39개) · t20 B·C 를 새 동작에 맞춤'},
   {v:'4.12',date:'2026-09-19',note:'<b>⏱ 뽀모가 타임로그에 남는다 · 🩺 EMR 턴 접기.</b> · ⏱ 로한: <i>"미리 로그를 채워놓으면 반영이 안 된다. 이미 채워진 로그에 뽀모를 하면 서브 활동으로 넣어주면 된다."</i> 실측: 9/18 10:00~20:00 이 통째로 work 블록이었고 19:17 뽀모 25분이 로그 어디에도 안 보였다(v3.7 은 뽀모가 timelog 를 안 건드렸다) · 🔒 <b>뽀모가 걸친 그 칸만</b> 바꾼다 — 채워진 칸은 <code>tag2:study</code>(서브), 빈 칸은 study 블록(제목 「뽀모 · 과제」), 이미 서브 활동이 있는 칸(식사+휴식)은 그대로. 10시간 블록 전체에 붙이면 10시간 공부한 게 된다 · 🔴 <b>학습 시간 세는 법을 바꿨다</b> — 이전엔 timelog + 뽀모를 그냥 더했다. 뽀모가 timelog 에 찍기 시작하면 25분이 30×2+25=85분으로 부푼다. 이제 <b>30분 칸마다 뽀모가 있으면 뽀모 실제 분, 없으면 timelog study 30분</b>(<code>stStudyMins</code> 한 곳). 표시(timelog)와 세기(분)가 분리돼서 로한이 칸을 고쳐도 두 번 세지 않는다 · 옛 뽀모 소급: 접속할 때 한 번(9/18 뽀모 → 19:00~20:00 work+study) · 캘린더 패널의 「(타임로그+뽀모)」 덧셈 표기를 「뽀모 N분 포함」으로 — 합계가 더 이상 덧셈이 아니다 · 🩺 EMR — 로한: <i>"질문별로 접을 수 있었으면. 디폴트는 접혀 있는 것."</i> 턴마다 접히고, 제목줄에 질문 앞부분과 두 AI 상태(✓·⏳·거절)가 보인다. 🔒 <b>방금 남긴 질문만 펼쳐 둔다</b> — 거기서 📋 한 줄을 복사하는 게 다음 동작이라서. 펼친 턴은 20초 확인으로 다시 그려도 유지 · t45 신설(26건 · KST 고정) · t44 +6건(54건) · t42 W7·X22 를 바뀐 동작에 맞춤'},
@@ -9169,7 +9236,7 @@ function healthMergeSeed(H){
   });
 }
 function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health)healthMergeSeed(d.health);
- if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=[]; if(d&&!d.routines)d.routines=[]; if(d&&!d.checks)d.checks={}; if(d)d=migrateV6(d); return d; }
+ if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=[]; if(d&&!d.routines)d.routines=[]; if(d&&!d.checks)d.checks={}; if(d)d=migrateV6(d); if(d)d=fixDupIds(d); return d; }
 
 /* ====== 마이그레이션 ======
    ⚠️ 구조 규칙 (v7.5에서 사고 겪고 확정)
@@ -10077,6 +10144,8 @@ function enter(){document.getElementById('login').style.display='none';document.
     DB=migrateDB(d);
     /* v4.12 — 타임로그에 안 남은 옛 뽀모를 한 번 남긴다. 남긴 게 있을 때만 저장한다(아무것도 안 했는데 쓰면 다른 탭과 헛된 충돌이 난다) */
     try{ if(stPomoBackfill())save(); }catch(e){}
+    /* v4.15 — 겹친 id 를 갈랍으면 바로 쓴다. 안 쓰면 다음 병합에서 그만큼 사라진다 */
+    try{ if(DUP_FIX.n){logAct('⚠️ 중복 id '+DUP_FIX.n+'건을 새 번호로 갈랐다 · '+DUP_FIX.where.join(' · '));save();} }catch(e){}
     localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
     /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
     try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen((DB.ui.pomoRun.date)||todayStr()); } }catch(e){}});}
