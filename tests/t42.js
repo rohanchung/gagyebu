@@ -1051,8 +1051,14 @@ async function boot(st){
   side=await p.$eval('#v-study .calside',e=>e.textContent);
   ok('W19c 과제 없는 창 밖은 계획이 없다고 알린다',side.indexOf('오늘+2일')>=0,side.slice(0,180));
   ok('W20 그래도 안 죽는다',errs.length===0,errs.join('|'));
-  /* ⑩ 월 이동 */
-  const ym=await p.evaluate(()=>stCalYM());
+  /* ⑩ 월 이동 — 🔒 기준은 **오늘의 달**이다.
+     ⚠️ [테스트 결함 · 2026-09-21 발견] 앞 단계가 오늘+11일을 고르고 끝난다.
+        setStCalSel 은 다른 달을 고르면 월까지 옮기므로, 그 달을 기준으로 잡으면
+        **매달 20일 이후에만 깨지는 테스트**가 된다. 9/19 엔 통과하고 9/21 에 깨졌다.
+        앱은 멀지다 — 테스트가 자기 전제를 틀리게 잡았다. */
+  await p.evaluate(()=>setStCalSel(todayStr()));await p.waitForTimeout(300);
+  const ym=await p.evaluate(()=>todayStr().slice(0,7));
+  ok('W20b 오늘 달에서 시작한다',(await p.evaluate(()=>stCalYM()))===ym);
   await p.evaluate(()=>stCalMove(-1));await p.waitForTimeout(300);
   ok('W21 지난달로 이동',(await p.evaluate(()=>stCalYM()))!==ym);
   await p.evaluate(()=>setStCalSel(todayStr()));await p.waitForTimeout(300);
