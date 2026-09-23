@@ -638,10 +638,13 @@ textarea.mla.same{background:#f2f9f4}
 .cell .cl .sc{display:inline-block;font-size:8px;font-weight:800;padding:0 3px;border-radius:3px;margin-right:3px;vertical-align:middle;line-height:1.5}
 .cell .cl .sc.b{background:var(--accent-bg);color:var(--accent)}.cell .cl .sc.p{background:#eef0f4;color:#8a94a6}
 /* 6칸이 폭 계산에 따라 5+1 로 깨졌다 — 고정 6열 그리드로 한 줄에 못박는다 */
-.statbar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;flex:1;max-width:820px;justify-self:end}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px 11px;min-width:92px;text-align:right}
-.stat .sl{font-size:10px;color:var(--muted);margin-bottom:3px}
-.stat .sv{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums}
+/* 🔴 v4.19 — 금액이 길어지면 숫자가 두 줄로 쪼개졌다(로한: "극혐").
+   돈은 절대 줄바꿈하지 않는다 — nowrap 을 박고, 대신 칸이 넓어지고 글자가 조금 작아진다.
+   ⚠️ ellipsis 로 자르는 것도 금지다. 숫자를 자르면 화면이 거짓말을 한다. */
+.statbar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;flex:1;max-width:1100px;justify-self:end}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px 8px;min-width:0;text-align:right}
+.stat .sl{font-size:10px;color:var(--muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .sv{font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.2px}
 .stat.watch{background:var(--soft)}
 .stat.watch select{font-size:10px;color:var(--muted);border:0;background:transparent;padding:0;margin-bottom:3px;cursor:pointer;font-family:inherit;max-width:96px;text-align:right;direction:rtl}
 .stat.watch select:hover{color:var(--accent)}
@@ -675,6 +678,25 @@ textarea.mla.same{background:#f2f9f4}
 .autoNote{background:#e7f6ee;color:#0b6b3a;font-size:11.5px;padding:9px 11px;border-radius:8px;margin-top:10px}
 .taxrow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .taxrow.big{font-weight:800;font-size:14px;border-bottom:0;background:var(--warn-bg);padding:10px;border-radius:8px;margin-top:6px}
+/* ══ v4.19 🧾 거래 모달의 「기타」 — 가끔 쓰는 것은 접는다 ══
+   🔒 접어도 **요약은 보인다**. 안 보이면 잘못 들어간 값을 영영 모른다. */
+.mx{border:1px solid var(--line);border-radius:9px;background:var(--soft);margin:2px 0 12px}
+/* ⚠️ summary 에 display 를 직접 주면 마커(▸) 처리가 브라우저마다 갈린다 —
+   레이아웃은 안쪽 래퍼(.mxs)가 맡고 summary 는 기본 display 를 지킨다. */
+.mx>summary{list-style:none;cursor:pointer;padding:8px 11px;user-select:none}
+.mx>summary::-webkit-details-marker{display:none}
+.mxs{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700}
+.mxs::before{content:"▸";color:var(--muted);font-weight:800}
+.mx[open] .mxs::before{content:"▾"}
+.mxs>span:first-of-type{margin-right:auto}
+.mxs .mut{font-weight:600;font-size:10.5px;text-align:right;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mxin{padding:2px 11px 4px;border-top:1px solid var(--line)}
+.mxin .field:first-child{margin-top:9px}
+/* 🔒 금액은 이 모달에서 마지막으로 하는 일이다(로한: "계정과목 바꾸고, 결제수단, 금액 쓰고 끝").
+   다른 칸과 같은 크기면 오타가 안 보인다 — 크게, 오른쪽 정렬, 자릿수 고정폭 */
+#fAmt{font-size:18px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:.3px}
+#txnSave{width:100%;padding:11px;font-size:13.5px}
 .taxin{width:130px;text-align:right;padding:5px 7px;border:1px solid var(--accent);border-radius:6px;font-size:12px;background:#f7faff}
 /* ══ v4.17 🗝️ 예산 — 스크롤 없이 한 화면에 ══
    로한: "한 줄로 쭉 만들지 말고 최소 2,3줄로 컴팩트하게 스크롤 내리지 않고 현황이 보이게."
@@ -991,6 +1013,22 @@ textarea.mla.same{background:#f2f9f4}
 .dchip{display:inline-block;font-size:11px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;cursor:pointer;margin:2px 3px 0 0;user-select:none;background:var(--soft);color:var(--muted)}
 .dchip.on{background:var(--gold);color:#fff;border-color:var(--gold)}
 .foot{padding:14px 8px;color:#9aa6b6;font-size:10.5px;text-align:center}.foot a{color:var(--accent);cursor:pointer}
+/* 🔴 v4.19 — 1,000만 원대에서 6칸이 안 들어간다(실측: 1180px 에서 6칸 전부 넘침).
+   로한: "금액 단위가 높아지면 줄바꿈 되는 거 극혐". 숫자를 쪼개지도 자르지도 않는다 —
+   **자리가 없으면 칸을 3열 2줄로 눕힌다.** 월 네비도 같이 위로 뺀다. */
+/* ① 1520px 미만 — 월 네비를 위로 빼고 **통계칸이 전폭을 쓴다.**
+      6칸을 지키면서 폭을 버는 쪽이 3열 2줄보다 헤더가 낮다(스크롤을 아낀다). */
+@media(max-width:1520px){
+  .mhead{flex-direction:column;align-items:stretch;gap:9px}
+  .mhead .mnav{justify-content:flex-start}
+  .statbar{max-width:none;flex:none;justify-self:auto}
+  .stat .sv{font-size:12px}
+}
+/* ② 1300px 미만 — 전폭으로도 6칸이 안 들어간다(실측 1180px 에서 초과). 그때 3열 2줄로 눕힌다 */
+@media(max-width:1300px){
+  .statbar{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .stat .sv{font-size:13.5px}
+}
 @media(max-width:900px){
   .calwrap{flex-direction:column}
   .calside{width:100%;position:static;max-height:none}
@@ -2890,7 +2928,11 @@ function taxTxnField(t){
   var segs=TAX_KINDS.map(function(x){
     return '<button class="'+(x.k===k?'on':'')+'" title="'+taxEsc(x.hint)+'" onclick="setTaxKind(this,\''+x.k+'\')">'+x.label+'</button>';}).join('');
   return '<div class="field" id="taxKindField"><label>세무 구분 <span class="mut">종합소득세 연동</span></label>'
-   +'<div class="seg" id="tkSeg">'+segs+'</div>'
+   /* 🔒 자동으로 정해진 값을 한 줄로 보여주고, 예외일 때만 4지선다를 연다 */
+   +'<div style="display:flex;align-items:center;gap:8px;font-size:12.5px">'
+     +'<span id="tkAutoLab"></span>'
+     +'<button type="button" class="ghost sm" id="tkAutoBtn" onclick="taxKindManual()">바꾸기</button></div>'
+   +'<div class="seg" id="tkSeg" style="display:none;margin-top:6px">'+segs+'</div>'
    +'<div class="hint" id="tkHint"></div></div>'
    +'<div class="field" id="whtField" style="display:none">'
    +'<label style="display:flex;align-items:center;gap:8px">'
@@ -2902,6 +2944,30 @@ function taxTxnField(t){
    +'<div class="field" style="margin-bottom:6px"><label>지방소득세</label><input id="fWhtL" value="'+((w&&w.l)||'')+'" oninput="whtCalc()"></div>'
    +'</div><div class="hint" id="whtHint"></div></div></div>';
 }
+/* ══ v4.19 🧾 세무 구분은 **계정과목에서 거의 정해진다** ══
+   로한: "세무 구분 종소세 연동도 사실상 계정과목에서 거의 정해지니까 맞춰서 뜨면 되고."
+   맞다. 실측 1,052건 중 세무 구분을 손으로 바꾼 건 **3건**(대납·정산 / 세금환급)뿐이다.
+   나머지 1,049건은 계정과목·대분류만 보면 답이 나온다 → **자동으로 정하고, 예외일 때만 손댄다.**
+   🔒 자동값은 카테고리의 `deductible`(사업경비 여부)·`incType`(소득구분)에서 파생한다 —
+      저장된 값이 아니라 **파생**이라 카테고리를 고치면 다음 입력부터 따라온다. */
+function txAutoTk(type,scope,catName){
+  var c=catByName(catName)||{};
+  if(type==='income')return (c.incType&&c.incType!=='사업소득')?'priv':'biz';
+  return (scope==='business'||c.deductible)?'biz':'priv';
+}
+/* 자동값을 다시 계산해 넣는다 — 사용자가 직접 고른 뒤에는(_tkAuto=false) 건드리지 않는다 */
+function taxKindAuto(){
+  if(!modal||!modal._tkAuto)return;
+  var cat=(document.getElementById('fCat')||{}).value||'';
+  modal._tk=txAutoTk(modal._type,modal._scope,cat);
+  taxKindSync();
+}
+function taxKindManual(){
+  modal._tkAuto=false;
+  var f=document.getElementById('tkSeg'); if(f)f.style.display='flex';
+  var b=document.getElementById('tkAutoBtn'); if(b)b.style.display='none';
+  taxKindSync();
+}
 function setTaxKind(b,k){
   modal._tk=k;
   var bs=b.parentNode.querySelectorAll('button');
@@ -2912,6 +2978,14 @@ function taxKindSync(){
   var h=document.getElementById('tkHint'); if(!h)return;
   var k=modal._tk||'priv', x=TAX_KINDS.filter(function(y){return y.k===k;})[0];
   h.textContent=x?x.hint:'';
+  /* 🔒 자동으로 정해졌으면 **무엇으로 정해졌는지 한 줄로 말한다** — 숨기면 잘못 들어가도 모른다 */
+  var lab=document.getElementById('tkAutoLab');
+  if(lab)lab.innerHTML='<b>'+(x?x.label:k)+'</b>'+(modal._tkAuto?' <span class="mut">— 계정과목에서 자동</span>':'');
+  var seg=document.getElementById('tkSeg');
+  if(seg)seg.style.display=modal._tkAuto?'none':'flex';
+  var ab=document.getElementById('tkAutoBtn');
+  if(ab)ab.style.display=modal._tkAuto?'inline-block':'none';
+  var sm=document.getElementById('mxSum'); if(sm)mxSumSync();
   var wf=document.getElementById('whtField');
   if(wf)wf.style.display=(modal._type==='income'&&k==='biz')?'block':'none';
   whtSync();
@@ -8371,13 +8445,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.18';
+var APP_VERSION='4.19';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.19',date:'2026-09-23',note:'<b>🧾 거래 모달을 동선대로 · 💴 금액은 절대 줄바꿈하지 않는다.</b> 로한: <i>"계정과목 바꾸고, 결제수단, 금액 쓰고 끝이라 사실 이게 기타부분(세무·세부계정과목·메모)보다 더 위에 와야 되는 거 아니냐."</i> · 🔎 <b>실측이 그렇다</b>(거래 1,052건): 메모 94건(9%) · 세부계정과목 <b>7건(0.7%)</b> · 세무 수동 <b>3건(0.3%)</b>. 매번 쓰는 것이 위, 가끔 쓰는 것이 아래 · 순서: 유형 → 대분류 → <b>계정과목 → 결제수단 → 금액 → 날짜</b> → 「기타」(접힘) · 🧾 <b>세무 구분은 계정과목에서 자동</b>으로 정해진다 — 카테고리의 <code>deductible</code>·<code>incType</code> 에서 파생한다. 4지선다는 「바꾸기」를 눌러야 나온다. 한번 직접 고르면 계정과목을 바꿔도 <b>자동이 덤지 않는다</b> · 📁 <b>세부계정과목은 재물로 등록할 때만 뜨다</b> — 그게 그 칸의 유일한 용도다(재물관리 카테고리). 식비·카페 같은 일회성 소비에선 매번 넘겨야 하는 빈 칸이었다 · 🔒 접어도 <b>요약은 보인다</b>(「사업 · 재물 등록 · 메모」) — 안 보이면 잘못 들어간 것을 영영 모른다. 수정하러 들어왔는데 기타에 값이 있으면 <b>펼쳐서</b> 열린다 · 금액칸을 18px 로 키우고 저장을 전폭으로 — 마지막으로 하는 일이다 · ⚠️ <b>[결함] 지출에서 카드를 고른 뒤 수입·이체로 바꾸면 결제 성격·할부 칸이 켜진 채 남았다</b> — methodChange 가 income 에서 early return 이라 끄지 않았다. 수입에 카드값·할부는 없다 · 💴 <b>[결함] 금액이 길어지면 통계칸에서 숫자가 두 줄로 쪼개졌다</b>(로한: 「극혐」). nowrap 을 박았더니 이번엔 가로로 잘렸다(1180px 에서 57px 넘침) — 잘라내는 건 더 나쁘다. → 폭이 모자라면 <b>월 네비를 위로 빼 전폭을 쓰고</b>(1520px↓), 그래도 모자라면 <b>3열 2줄</b>로 눠힌다(1300px↓). 360~1920px 전 구간에서 줄바꿈·잘림 0 으로 잠갔다(t51-G) · t51 신설 44건'},
   {v:'4.18',date:'2026-09-23',note:'<b>🗓️ 월별 예산 이력 · 0원 예산은 「예산 없음」이 아니다.</b> 생활방 v2 핸드오프 반영 · 생활방: <i>"budgets 는 월 구분 없는 평면 객체다. <b>예산을 바꾸면 과거 기준이 사라진다.</b>"</i> · 🔎 실제로 그러됐다 — 9/23 생활방이 예산을 전면 개정(식비 300,000→170,000 · 교통비 30,000→20,000 등)하자 <b>9월 실적이 10월용 예산으로 재단돼 거의 전부 초과로 보인다</b> · 🗝️ <b>budgetsM[YYYY-MM]</b> — 그 달 확정 예산. 있으면 그것, 없으면 기준값을 쓴다 · 🔒 <b>budgets 를 월별로 쪼개지 않았다</b>(생활방 제안은 budgets:{「2026-10」:{…}}) — 기준값을 남겨야 새 달이 그걸 이어받고, 옛 백업 복원도 그대로 돌아간다 · 🔒 <b>기준을 바꾸면 지난 달들을 옛 값으로 자동으로 굳힌다</b> — 버튼을 누르게 만들면 안 누른다. 그럼 과거가 또 사라진다. 이번 달과 미래는 안 굳힌다(진행 중이라 기준을 따라가는 게 맞다) · 상단에 <b>「이 달로 고정」/「고정 해제」</b> 버튼과 「이 달 확정 예산/기준 예산」 배지 · 고정된 달을 보며 고치면 <b>그 달만</b> 바뀜다 — 지난 달 숨자를 고치다가 앞으로 쓸 기준까지 바꾸면 안 된다 · 🔴 <b>[결함·v4.17] 0원 예산을 「예산 없음」으로 봤다.</b> 생활방이 선물을 <b>일부러 0</b> 으로 둔다(「경조사 시 조정」) — 그건 <b>쓰지 말라는 선언</b>인데 화면에서 사라졌다. → <b>빈칸 = 예산 없음 · 0 = 0원 예산</b>. 0원인데 쓰면 초과로 뜨고 「쓰면 안 된다」고 적는다 · t50 34건 → <b>49건</b>(월별 이력 9 · 0원 예산 6)'},
   {v:'4.17',date:'2026-09-23',note:'<b>🗝️ 예산 현실화 — 월 전환 · 생활방 한마디 · 2·3열 컴팩트.</b> 로한: <i>"예산 영역을 현실화하는 거다. 그 방은 로버트(생활)이 담당하고 <b>그도 조정 권한을 갖고 있다.</b> 상단에 월을 바꿀 수 있게 하고, 로버트가 한마디 남길 공간을 만들고, 한 줄로 쫑 만들지 말고 2,3줄로 컴팩트하게 스크롤 없이 현황이 보이게."</i> · 🔎 <b>실측이 문제를 바꿨다</b> — 지출 분류 32개 중 예산이 잡힌 건 <b>11개뿐</b>인데, 예산 밖에서 1,465,905원이 나갔다 — 예산 합계(1,373,000)보다 많다. 예산을 안 지트 게 아니라 <b>예산이 현실을 안 덩고 있었다</b> · 🔴 <b>옛 화면은 그걸 볼 수 없게 독해했다</b> — ’예산 합계 − <b>총지출</b>’을 ’예산 잔여’라 불렀다. 예산 밖 지출까지 뺀 값이라 <b>예산을 다 지켜도 ’초과’로 뜨는다</b>. 숫자는 맞지만 이름이 거짓이었다 → 안/밖을 갈랐다 · 상단 ◀ ▶ 월 전환 + 통계 6칸(예산합계·예산안·잔여·예산밖·총지출·예산안 비중) · 🔒 월은 재정 탭 전체가 공유한다(<code>ui.month</code>) — 따로 두면 ’예산은 8월인데 가계부는 9월’인 화면이 생긴다 · 🔒 <b>예산값은 달마다 다르지 않다 — 기준값 하나다.</b> 월을 바꾸면 ’지금 예산을 그 달 실적에 대본 것’이다 — 새 예산안을 지난 달로 검산하라고 그렇게 둔다. 화면에 그렇게 적어둔다 · 💬 <b>로버트(생활) 한마디</b> — <code>budgetNote["YYYY-MM"]</code>. 앱은 <b>읽기만</b> 한다(학습 캘린더의 학습방 멘트와 같은 규칙) · 분류를 <b>예산 안 / 예산 밖 / 조용한 것</b> 으로 갈랐다. 예산 밖 칸에 예산을 넣으면 위로 올라간다 — <b>거기가 현실화의 작업대다</b> · 정렬은 <b>초과가 큰 순</b> · 조용한 분류는 숨기지 않고 개수를 적어 <b>접어둔다</b> · 예산칸에 0 을 넣으면 <b>키를 지운다</b> — ’0원 예산’과 ’예산 없음’은 다른 말이다(빈 서랍 금지) · ⚠️ <b>[결함] 모바일 CSS 규칙을 기본 정의 앞에 둔 탓에 400px 에서 3열이 그대로 나와 입력칸이 잘렸다</b> — 미디어쿼리는 구체성을 안 올린다. 같으면 뒤가 이긴다 → 기본 정의 바로 뒤로 옮겼고, t50-C2·C3 으로 잠금 · t50 신설 34건(실데이터 32분류 그대로)'},
   {v:'4.16',date:'2026-09-21',note:'<b>📅 학습 캘린더 — 칸 안에서 한 달치 수행여부를 읽는다.</b> 로한: <i>"오른쪽 해야할 일들을 아주 작은 글씨라도 상관없으니 수행여부를 다 확인할 수 있었으면. 과거에 뭔 했는지를 일일이 클릭해서 봐야 하는 게 불편해."</i> · 칸마다 그날 과제를 <b>한 줄씩</b> 적는다 — <b style=\'color:#1f9d61\'>✓</b> 했다 · <b style=\'color:#c0554f\'>✗</b> 지난 날인데 안 했다 · <b>·</b> 앞으로 할 것 · 🔒 <b>✗ 는 지난 날에만 쓴다</b> — 오늘 오전 9시에 아직 안 한 과제를 빨간 ✗ 로 칠하면 화면이 거짓말을 한다. 오늘·미래의 미완은 「앞으로 할 것」이다 · 🔒 칸에 다 못 넣으면 <b>+N 건 더</b>라고 적는다 — 그냥 잘라내면 화면이 거짓말을 한다(v3.7 「숨기면 거짓말」) · 미완을 위로 올린다 — 오른쪽 패널과 <b>같은 정렬</b>이다. 두 곳이 다르게 줄 세우면 같은 날이 다르게 보인다 · ⚠️ 모바일(칸 폭 ~50px)은 <b>표시만</b> 남긴다 — 두세 글자 뒤로 잘린 제목보다 ✓✗ 가 수행여부를 더 잘 전한다 · 오른쪽 패널은 그대로 — 거기가 체크하고 뽀모 돌리는 자리고, 칸은 훑어보는 자리다 · t42 에 검사 6건 추가(344건)'},
@@ -9850,30 +9925,37 @@ function txnModal(id){
   var allOpts=function(sel){return DB.accounts.map(function(a){return '<option value="'+a.id+'"'+(a.id===sel?' selected':'')+'>'+a.name+(isCashAcct(a)?'':' ('+a.group+')')+'</option>';}).join('');};
   var isInc=t.type==='income',isTr=t.type==='transfer';
   var defAcct=t.acct||(cashAccts()[0]?cashAccts()[0].id:'');
+  /* 🔒 수정하러 들어왔는데 **기타 안에 값이 들어 있으면 펼쳐서 연다** — 접어서 안 보이면
+     이미 들어간 메모·세부계정과목·수동 세무구분을 못 보고 지나친다. 새 거래는 접혀 있다. */
+  var _hasItemCat=!!(t.itemCat&&t.itemCat!=='해당없음');
+  var _tkManual=!!(t.tk&&t.tk!==txAutoTk(t.type,t.scope,t.cat));
+  var _regAsset=_hasItemCat;
+  var _openMx=!!(id&&(stNorm(t.memo||'')||_hasItemCat||_tkManual||t.rewardKey));
   openModal('<div class="mtop"><h3>'+(id?'거래 수정':'거래 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>유형</label><div class="seg"><button class="'+(t.type==='expense'?'on':'')+'" onclick="setType(this,\'expense\')">지출</button><button class="'+(isInc?'on':'')+'" onclick="setType(this,\'income\')">수입</button><button class="'+(isTr?'on':'')+'" onclick="setType(this,\'transfer\')">이체</button></div></div>'
    +'<div id="txnBody" style="display:'+(isTr?'none':'block')+'">'
    +'<div class="field"><label>대분류</label><div class="seg"><button class="'+(t.scope==='personal'?'on':'')+'" onclick="setScope(this,\'personal\')">개인</button><button class="'+(t.scope==='business'?'on':'')+'" onclick="setScope(this,\'business\')">사업</button></div></div>'
-   +'<div class="field"><label>계정과목</label><select id="fCat" onchange="updIncInfo();foodFieldSync()">'+catOpts+'</select></div>'
-   /* ⚠️ 계정과목에서 멀리 떨어뜨리면 '왜 떴는지'가 안 읽힌다 — 바로 아래에 붙인다 */
+   /* ══ v4.19 🧾 순서를 동선대로 바꿨다 ══
+      로한: "계정과목 바꾸고, 결제수단, 금액 쓰고 끝이라 사실 이게 기타부분(세무·세부계정과목·메모)보다
+             더 위에 와야 되는 거 아니냐."  맞다. 실측 1,052건 중 메모를 쓴 건 94건(9%),
+             세부계정과목을 고른 건 **7건**(0.7%), 세무 구분을 손으로 바꾼 건 3건(0.3%) 뿐이다.
+      🔒 **매번 쓰는 것이 위, 가끔 쓰는 것이 아래.** 가끔 쓰는 건 접어두되 **요약은 접힌 채로 보인다** —
+         접어서 안 보이면 잘못 들어간 걸 영영 모른다. */
+   +'<div class="field"><label>계정과목</label><select id="fCat" onchange="updIncInfo();foodFieldSync();taxKindAuto()">'+catOpts+'</select></div>'
+   /* ⚠️ 계정과목에서 멀리 떨어뜨리면 왜 떴는지가 안 읽힌다 — 바로 아래에 붙인다 */
    +'<div class="field" id="foodField" style="display:none"><label id="foodLabel">🍽 무엇을 먹었나</label>'
      +'<input id="fFood" list="foodList" value="'+sajuEsc(t.food||'')+'" placeholder="예: 교촌 허니콤보" autocomplete="off">'
      +'<datalist id="foodList">'+recentFoods(40).map(function(f){return '<option value="'+sajuEsc(f)+'">';}).join('')+'</datalist>'
-     /* v2.6 — 어느 끼니인지 고르면 데일리 식사 기록으로 넘어간다.
-        ⚠️ 식재료를 산 경우는 끼니가 아니다 — 기본은 '해당없음' 이고 안 골라도 저장된다. */
      +'<div class="mlchips" id="fSlotWrap">'
        +'<span class="dchip'+(!t.slot?' on':'')+'" data-slot="">해당없음</span>'
        +MEAL_SLOTS.map(function(sl){return '<span class="dchip'+(t.slot===sl.k?' on':'')+'" data-slot="'+sl.k+'">'+sl.ico+' '+sl.label+'</span>';}).join('')
      +'</div>'
      +'<div class="mut" style="font-size:10.5px;margin-top:4px">끼니를 고르면 <b>데일리 식사 기록</b>에 같이 들어간다. 식재료·장보기면 해당없음.</div></div>'
    +'<div class="field" id="incomeOnly" style="display:'+(isInc?'block':'none')+'"><label>소득구분 <span class="mut">(종합소득세 연동)</span></label><div id="fIncInfo" class="autoNote" style="margin-top:0"></div></div>'
-   +taxTxnField(t)
-   +'<div id="expenseOnly" style="display:'+(isInc?'none':'block')+'"><div class="field"><label>세부계정과목 <span class="mut">(재물관리 카테고리 연동)</span></label><select id="fItemCat">'+itemCatOpts+'</select></div></div>'
-
+   /* ── 결제수단 · 계좌 ── */
    +'<div class="field" id="methodField" style="display:'+(isInc?'none':'block')+'"><label>결제수단</label><select id="fMethod" onchange="methodChange()">'+methOpts+'</select></div>'
    +'<div class="field" id="acctField"><label id="acctLabel">'+(isInc?'입금계좌':'출금계좌')+'</label><select id="fAcct">'+cashOpts(defAcct)+'</select></div>'
    +'<div id="acctNote" class="autoNote" style="margin-top:0;display:none"></div>'
-   /* v2.10 — 한 카드가 두 성격을 갖는다. 카드 기본값을 보여주고, 다르면 여기서 바꾼다. */
    +'<div class="field" id="payKindField" style="display:none"><label>결제 성격 <span class="mut">이 건은 언제 통장에서 빠지나</span></label>'
      +'<div class="seg" id="payKindSeg">'
        +'<button onclick="setPayKind(this,0)">즉시출금</button>'
@@ -9884,27 +9966,67 @@ function txnModal(id){
    +'<div class="field"><label>출발계좌</label><select id="fFrom">'+cashOpts(t.from)+'</select></div>'
    +'<div class="field"><label>도착계좌 <span class="mut">(저축·투자 포함)</span></label><select id="fTo">'+allOpts(t.to)+'</select></div>'
    +'</div>'
-   +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900" oninput="instPreview();walletSync()"></div>'
+   /* ── 금액 · 날짜 — 여기까지가 "끝"이다 ── */
+   +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900" inputmode="numeric" oninput="instPreview();walletSync()"></div>'
    +'<div id="walletBox" class="autoNote" style="display:none;margin:-4px 0 10px"></div>'
    +'<div class="field" id="instField" style="display:none"><label>결제 방식</label><div class="seg" id="instSeg">'
      +[1,2,3,6,12,24].map(function(n){return '<button class="'+((parseInt(t.inst||1,10)===n)?'on':'')+'" onclick="setInst(this,'+n+')">'+(n===1?'일시불':n+'개월')+'</button>';}).join('')
      +'</div><div class="hint" id="instHint"></div></div>'
-   +rwCardField(t)
    +'<div class="field"><label>날짜</label><input id="fDate" value="'+t.date+'" onchange="instPreview()"></div>'
-   +'<div class="field"><label>메모</label><textarea id="fMemo" rows="2">'+(t.memo||'')+'</textarea></div>'
-   +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 10px"><input type="checkbox" id="fAsset" style="width:auto"> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
-   +'<button class="btn" onclick="saveTxn('+(id?"'"+id+"'":'null')+')">저장</button>');
+   /* ── 아래부터는 **가끔 쓰는 것** — 접어두되 요약은 접힌 채로 보인다 ── */
+   +'<details class="mx" id="mxBox"'+(_openMx?' open':'')+' ontoggle="mxSumSync()">'
+     +'<summary><span class="mxs"><span>기타</span><span class="mut" id="mxSum"></span></span></summary>'
+     +'<div class="mxin">'
+     +taxTxnField(t)
+     +rwCardField(t)
+     +'<div class="field"><label>메모</label><textarea id="fMemo" rows="2" oninput="mxSumSync()">'+(t.memo||'')+'</textarea></div>'
+     +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 8px">'
+       +'<input type="checkbox" id="fAsset" style="width:auto" onchange="itemCatSync()"'+(_regAsset?' checked':'')+'> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
+     /* 🔒 세부계정과목은 **재물관리 카테고리**다 — 재물로 등록할 때만 쓸모가 있다.
+        식비·카페 같은 일회성 소비에 띄우면 매번 넘겨야 하는 빈 칸이 된다(실측: 1,052건 중 7건만 채워졌다). */
+     +'<div id="expenseOnly" style="display:'+(isInc?'none':'block')+'">'
+       +'<div class="field" id="itemCatField" style="display:none"><label>세부계정과목 <span class="mut">(재물관리 카테고리)</span></label>'
+       +'<select id="fItemCat" onchange="mxSumSync()">'+itemCatOpts+'</select></div></div>'
+     +'</div></details>'
+   +'<button class="btn" id="txnSave" onclick="saveTxn('+(id?"'"+id+"'":'null')+')">저장</button>');
   modal._type=t.type;modal._scope=t.scope;modal._inst=parseInt(t.inst||1,10);
   /* v2.6 🔒 수정 중에는 자동 기본값이 끼어들지 않는다 — 이미 고른 값을 조용히 바꾸면 안 된다 */
   modal._editing=!!id;
-  modal._tk=t.id?txTaxKind(t):(t.scope==='business'?'biz':'priv');
+  /* 🔒 저장된 tk 가 자동값과 같으면 **자동으로 본다** — 그래야 계정과목을 바꿀 때 따라온다.
+     다르면 사람이 일부러 고른 것이므로 수동으로 두고 4지선다를 펼쳐 놓는다. */
+  modal._tk=t.id?txTaxKind(t):txAutoTk(t.type,t.scope,t.cat);
+  modal._tkAuto=!_tkManual;
   modal._slot=t.slot||'';
   setTimeout(taxKindSync,0);
+  setTimeout(itemCatSync,0);
   setTimeout(foodFieldSync,0);
   modal._instDone=parseInt(t.instDone||0,10);
   modal._credit=(t.credit==null)?null:!!t.credit;
   modal._id=id||null; modal._wallet=null; modal._topup=0;
   updIncInfo();methodChange();
+}
+/* 🔒 세부계정과목은 재물로 등록할 때만 연다 — 안 그러면 매번 넘겨야 하는 빈 칸이 된다 */
+function itemCatSync(){
+  var f=document.getElementById('itemCatField'); if(!f)return;
+  var on=document.getElementById('fAsset');
+  var cur=(document.getElementById('fItemCat')||{}).value||'해당없음';
+  f.style.display=((on&&on.checked)||cur!=='해당없음')?'block':'none';
+  mxSumSync();
+}
+/* 접힌 채로도 **무엇이 들어 있는지** 한 줄로 말한다. 숨기면 잘못 들어가도 모른다 */
+function mxSumSync(){
+  var e=document.getElementById('mxSum'); if(!e||!modal)return;
+  var k=modal._tk||'priv', x=TAX_KINDS.filter(function(y){return y.k===k;})[0];
+  var bits=[(x?x.label:k)+(modal._tkAuto?'':'(직접)')];
+  var it=(document.getElementById('fItemCat')||{}).value||'해당없음';
+  var as=document.getElementById('fAsset');
+  if(as&&as.checked)bits.push('재물 등록'+(it!=='해당없음'?' · '+it:''));
+  else if(it!=='해당없음')bits.push(it);
+  var mm=(document.getElementById('fMemo')||{}).value||'';
+  if(stNorm(mm))bits.push('메모');
+  var rw=document.getElementById('fRwCard');
+  if(rw&&rw.value)bits.push('🎁 보상');
+  e.textContent=bits.join(' · ');
 }
 function setInst(b,n){
   if(modal._instDone>0&&n!==modal._inst)
@@ -9957,8 +10079,14 @@ function foodFieldSync(){
 function updIncInfo(){var el=document.getElementById('fIncInfo');if(!el||modal._type!=='income')return;var name=document.getElementById('fCat').value;var c=DB.categories.filter(function(x){return x.name===name&&x.type==='income'})[0];el.innerHTML=c?('소득구분: <b>'+(c.incType||'미분류')+'</b>'+(c.taxCode?' · 코드 '+c.taxCode:'')+' → 세무 페이지 자동 집계'):'카테고리 없음 (계좌·부채 탭에서 추가)';}
 function methodChange(){var af=document.getElementById('acctField'),nt=document.getElementById('acctNote');if(!af)return;
   function hideNote(){if(nt){nt.style.display='none';}}
-  if(modal._type==='income'){af.style.display='block';hideNote();return;}
-  if(modal._type==='transfer'){af.style.display='none';hideNote();return;}
+  /* ⚠️ [결함] 지출에서 카드를 고른 뒤 수입·이체로 바꾸면 <b>결제 성격·할부 칸이 켜진 채 남았다</b>.
+     early return 이라 payKindField 를 끄지 않았다. 수입에 카드값·할부는 존재하지 않는다. */
+  var _pk0=document.getElementById('payKindField'), _if0=document.getElementById('instField');
+  if(modal._type==='income'||modal._type==='transfer'){
+    if(_pk0)_pk0.style.display='none';
+    if(_if0)_if0.style.display='none';
+    af.style.display=(modal._type==='income')?'block':'none'; hideNote(); return;
+  }
   var m=(document.getElementById('fMethod')||{}).value;
   var card=DB.cards.filter(function(c){return c.name===m;})[0];
   var pk=document.getElementById('payKindField');
@@ -10044,7 +10172,9 @@ function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button
       if(_a&&_m)selOpt(_a,_m.id);}
     updIncInfo();}
   foodFieldSync();
-  methodChange();}
+  methodChange();
+  taxKindAuto();
+  itemCatSync();}
 /* v2.6 — 로한의 사업 지출은 사실상 하나의 모양이다: 카페 + 카카오 개인사업자 체크카드.
    ⚠️ 기본값일 뿐 잠그지 않는다. 그리고 **이미 값을 골라둔 경우엔 덮지 않는다** —
       수정하러 들어온 거래를 조용히 바꿔버리면 그게 가장 나쁜 종류의 버그다. */
@@ -10052,6 +10182,7 @@ var BIZ_DEF={cat:'카페', method:'카카오-사업자체크카드'};
 function setScope(b,v){
   modal._scope=v;
   var bs=b.parentNode.querySelectorAll('button');for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');
+  taxKindAuto();   /* 개인↔사업을 바꾸면 세무 구분도 따라온다 */
   if(v!=='business'||modal._type!=='expense'||modal._editing)return;
   var c=document.getElementById('fCat'), m=document.getElementById('fMethod');
   if(c&&catByName(BIZ_DEF.cat))selOpt(c,BIZ_DEF.cat);
