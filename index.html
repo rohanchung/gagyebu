@@ -676,6 +676,41 @@ textarea.mla.same{background:#f2f9f4}
 .taxrow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
 .taxrow.big{font-weight:800;font-size:14px;border-bottom:0;background:var(--warn-bg);padding:10px;border-radius:8px;margin-top:6px}
 .taxin{width:130px;text-align:right;padding:5px 7px;border:1px solid var(--accent);border-radius:6px;font-size:12px;background:#f7faff}
+/* ══ v4.17 🗝️ 예산 — 스크롤 없이 한 화면에 ══
+   로한: "한 줄로 쭉 만들지 말고 최소 2,3줄로 컴팩트하게 스크롤 내리지 않고 현황이 보이게."
+   지출 분류가 32개다. 한 줄에 하나씩 쌓으면 화면 세 개 분량이 된다. */
+.bgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.bcard{border:1px solid var(--line);border-radius:9px;padding:7px 9px;background:var(--card)}
+.bcard.over{border-color:#f0c9c6;background:#fff7f6}
+.bcard.out{border-style:dashed;background:#fbfbfd}
+.bcard .bt{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.bcard .bn{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bcard .bp{font-size:10px;font-weight:800;flex-shrink:0;color:var(--muted)}
+.bcard .bp.over{color:var(--neg)}.bcard .bp.warn{color:var(--warn)}
+.bcard .ba{display:flex;justify-content:space-between;align-items:center;gap:5px;
+  margin-top:4px;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.bcard .ba b{color:var(--ink);font-size:12px}
+.bin{width:78px;text-align:right;padding:2px 5px;border:1px solid var(--line);border-radius:5px;
+  font-size:11px;background:#f7faff;font-variant-numeric:tabular-nums}
+.bin:focus{border-color:var(--accent);outline:none}
+.bbar{height:5px;background:#eef2f7;border-radius:3px;margin-top:5px;overflow:hidden}
+.bbar i{display:block;height:100%;background:var(--accent)}
+.bbar i.warn{background:var(--warn)}.bbar i.over{background:var(--neg)}
+/* 🔒 모바일 규칙은 **기본 정의 바로 뒤**에 둔다 — 미디어쿼리는 구체성을 안 올린다.
+   앞에 썼더니 400px 에서 3열이 그대로 나와 입력칸이 잘렸다(2026-09-23 실측). */
+@media(max-width:900px){
+  /* 1열로 떨구면 한 줄짜리 옛 화면으로 되돌아간다 — 2열은 지킨다 */
+  .bgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .bcard{padding:6px 7px}
+  /* 금액과 입력칸을 한 줄에 몰면 둘 다 잘린다 — 좋으면 나란히, 안 되면 줄을 바꿈다 */
+  .bcard .ba{flex-wrap:wrap;gap:3px}
+  /* 들어가면 같은 줄에 남고, 안 되면 내려간다 — 100% 로 박으면 늘 한 줄을 통째로 먹는다 */
+  .bin{flex:1 1 58px;width:auto;min-width:0}
+}
+/* 생활방 한마디 — 🔒 앱은 읽기만 한다(학습 캘린더의 학습방 멘트와 같은 규칙) */
+.bnote{background:var(--warn-bg);border:1px solid #f0dfae;border-radius:10px;padding:9px 11px;
+  font-size:11.5px;line-height:1.55;color:#6b5412;white-space:pre-wrap}
+.bnt{font-size:10px;font-weight:800;color:#8a6d16;margin-bottom:3px}
 .settle-row{display:flex;align-items:center;gap:9px;padding:9px 10px;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer}
 .settle-row:last-child{border-bottom:0}
 .settle-row input{width:auto;flex-shrink:0}
@@ -2954,27 +2989,150 @@ function itemRestore(id){var it=DB.items.filter(function(x){return x.id===id})[0
 function itemFilterChange(){DB.ui.itemYear=document.getElementById('itYear').value;DB.ui.itemMonth=document.getElementById('itMonth').value;save();renderItems();}
 
 /* ====== 예산 ====== */
-function renderBudget(){
-  var m=DB.ui.month, pl=monthPL(m), actual={};
-  monthTxns(m).forEach(function(t){if(t.type==='expense')actual[t.cat]=(actual[t.cat]||0)+t.amt;});
-  var _bu=usageBy('cat');
-  var expCats=DB.categories.filter(function(c){return c.type==='expense'}).sort(function(a,b){return (_bu[b.name]||0)-(_bu[a.name]||0);});
-  var rows=expCats.map(function(c){
-    var bud=DB.budgets[c.name]||0, act=actual[c.name]||0, pct=bud>0?Math.min(act/bud*100,100):(act>0?100:0), over=bud>0&&act>bud;
-    var col=over?'var(--neg)':(pct>80?'var(--warn)':'var(--accent)');
-    return '<div style="padding:9px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px"><span>'+c.name+'</span><span>'+won(act)+' / <input class="taxin" style="width:96px" value="'+bud+'" data-budcat="'+c.name+'"></span></div>'
-      +'<div style="height:6px;background:#eef2f7;border-radius:4px;margin-top:5px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+col+'"></div></div>'
-      +(over?'<div style="color:var(--neg);font-size:10.5px;margin-top:3px">예산 초과 '+won(act-bud)+'</div>':'')+'</div>';
-  }).join('');
-  var totBud=expCats.reduce(function(s,c){return s+(DB.budgets[c.name]||0)},0);
-  document.getElementById('v-budget').innerHTML=''
-   +'<div class="sec"><h4>예산 대비 실적 <span class="mut">'+m+'</span></h4>'
-   +'<div class="taxrow"><span>월 지출 실적</span><span class="neg">'+won(pl.exp)+'</span></div>'
-   +'<div class="taxrow"><span>월 예산 합계</span><span>'+won(totBud)+'</span></div>'
-   +'<div class="taxrow big"><span>'+(pl.exp>totBud?'예산 초과':'예산 잔여')+'</span><span class="'+(pl.exp>totBud?'neg':'pos')+'">'+signWon(totBud-pl.exp)+'</span></div></div>'
-   +'<div class="sec"><h4>카테고리별 (예산칸 수정)</h4>'+rows+'</div>';
+/* ══════ v4.17 🗝️ 예산 ══════
+   로한: "예산 영역을 현실화한다. 그 방은 로버트(생활)가 담당하고 **그도 조정 권한이 있다.**
+          상단에서 월을 바꾸고, 로버트가 한마디 남길 공간을 만들고,
+          한 줄로 쭉 만들지 말고 2·3열로 컴팩트하게 스크롤 없이 현황이 보이게."
+   🔎 실측(2026-09): 지출 분류 32개 중 **예산이 잡힌 건 11개뿐**인데,
+      예산 밖에서 1,465,905원이 나갔다 — 예산 합계(1,373,000)보다 많다.
+      옛 화면은 '예산 합계 − 총지출' 하나만 보여줘서 **왜 초과했는지가 안 보였다.**
+      예산이 안 지켜진 게 아니라 **예산이 현실을 안 덮고 있었다.** 그래서 안/밖을 갈라 보여준다.
+   🔒 예산값(`DB.budgets`)은 **달마다 다르지 않다 — 기준값 하나다.**
+      월을 바꾸면 '지금 예산을 그 달 실적에 대본 것'이다. 현실화 작업에는 이게 맞다
+      (새 예산안을 지난 달에 대보는 게 목적이다). 화면에 그렇게 적는다.
+      ⚠️ 달마다 다른 예산이 필요해지면 `budgetsM[YYYY-MM]` 을 덧붙여라 — 지금은 필요가 없다.
+   🔒 생활방 한마디(`DB.budgetNote[YYYY-MM]`)는 **앱이 읽기만 한다.**
+      학습 캘린더의 학습방 멘트와 같은 규칙이다 — 파생·중계는 만드는 쪽이 쓴다. */
+function budMonth(){
+  var m=DB.ui&&DB.ui.month;
+  return (m&&/^\d{4}-\d{2}$/.test(m))?m:todayStr().slice(0,7);
 }
-function budgetChange(cat,val){DB.budgets[cat]=parseFloat((val+'').replace(/[^0-9.]/g,''))||0;save();renderBudget();}
+/* 🔒 월은 재정 탭 전체가 공유한다(`DB.ui.month`) — 예산에서 8월로 옮기면 가계부도 8월이다.
+   두 벌로 나누면 "예산은 8월인데 가계부는 9월"인 화면이 생긴다. */
+function budMove(n){
+  var d=new Date(budMonth()+'-01T00:00:00');
+  d.setMonth(d.getMonth()+n);
+  DB.ui=DB.ui||{}; DB.ui.month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  save(); renderBudget();
+}
+function budThisMonth(){DB.ui=DB.ui||{};DB.ui.month=todayStr().slice(0,7);save();renderBudget();}
+function budNote(m){
+  var n=DB.budgetNote&&DB.budgetNote[m];
+  return (typeof n==='string')?n:(n&&n.msg?String(n.msg):'');
+}
+function budToggleIdle(){DB.ui=DB.ui||{};DB.ui.budIdle=!DB.ui.budIdle;save();renderBudget();}
+
+function renderBudget(){
+  var m=budMonth(), actual={}, cnt={};
+  monthTxns(m).forEach(function(t){
+    if(t.type!=='expense')return;
+    actual[t.cat]=(actual[t.cat]||0)+t.amt; cnt[t.cat]=(cnt[t.cat]||0)+1;});
+  var _bu=usageBy('cat');
+  var rowOf=function(c){
+    var bud=+DB.budgets[c.name]||0, act=+actual[c.name]||0;
+    return {name:c.name,bud:bud,act:act,n:cnt[c.name]||0,
+            over:bud>0&&act>bud, pct:bud>0?act/bud*100:0};
+  };
+  var all=DB.categories.filter(function(c){return c.type==='expense';}).map(rowOf);
+  /* 🔒 줄 세우는 기준은 **얼마나 어긋났나**다 — 현실화하려고 보는 화면이라 초과분이 먼저 와야 한다 */
+  var inB=all.filter(function(r){return r.bud>0;}).sort(function(a,b){
+    var d=(b.act-b.bud)-(a.act-a.bud); if(d)return d;
+    return b.pct-a.pct;});
+  var outB=all.filter(function(r){return r.bud<=0&&r.act>0;}).sort(function(a,b){return b.act-a.act;});
+  var idle=all.filter(function(r){return r.bud<=0&&r.act<=0;})
+    .sort(function(a,b){return (_bu[b.name]||0)-(_bu[a.name]||0);});
+
+  var totBud=inB.reduce(function(s,r){return s+r.bud;},0);
+  var inAct =inB.reduce(function(s,r){return s+r.act;},0);
+  var outAct=outB.reduce(function(s,r){return s+r.act;},0);
+  var pl=monthPL(m), tot=pl.exp;
+  var left=totBud-inAct;                       /* 🔒 '예산 잔여'는 예산 **안** 실적으로만 잰다 */
+  /* ⚠️ 옛 화면은 예산 밖 지출까지 빼고 '예산 잔여'라고 불렀다 — 숫자는 맞지만 이름이 거짓이었다.
+     예산을 다 지켜도 예산 밖 지출 때문에 '초과'로 뜬다. 그래서 둘을 갈라 놓는다. */
+  var card=function(r,cls){
+    var pct=r.bud>0?Math.min(r.act/r.bud*100,100):0;
+    var lvl=r.over?'over':(r.pct>80?'warn':'');
+    return '<div class="bcard'+(cls?' '+cls:'')+(r.over?' over':'')+'">'
+      +'<div class="bt"><span class="bn" title="'+mdEsc(r.name)+'">'+mdEsc(r.name)+'</span>'
+        +'<span class="bp'+(lvl?' '+lvl:'')+'">'
+          +(r.bud>0?Math.round(r.pct)+'%':(r.n?r.n+'건':''))+'</span></div>'
+      +'<div class="ba"><b>'+won(r.act)+'</b>'
+        /* ⚠️ 예산이 없으면 **빈칸**이다 — 0 을 박아두면 고칠 때마다 지우고 써야 한다 */
+        +'<input class="bin" value="'+(r.bud>0?r.bud:'')+'" placeholder="예산" '
+        +'data-budcat="'+mdEsc(r.name)+'" title="예산 — 고치면 바로 저장된다"></div>'
+      +(r.bud>0?'<div class="bbar"><i class="'+lvl+'" style="width:'+pct+'%"></i></div>':'')
+      +(r.over?'<div class="mut" style="font-size:9.5px;margin-top:3px;color:var(--neg)">+'
+        +won(r.act-r.bud)+' 초과</div>':'')
+      +'</div>';
+  };
+  var note=budNote(m);
+  var isThis=(m===todayStr().slice(0,7));
+  var d=new Date(m+'-01T00:00:00'), dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+  var gone=isThis?(+todayStr().slice(8,10)):dim;
+
+  document.getElementById('v-budget').innerHTML=''
+   /* ── 상단: 월 전환 + 한눈 요약 ── */
+   +'<div class="sec">'
+     +'<div class="row" style="padding:0 0 9px">'
+       +'<span class="mnav"><span onclick="budMove(-1)">◀</span>'
+         +'<b>'+m.slice(0,4)+'년 '+(+m.slice(5,7))+'월</b>'
+         +'<span onclick="budMove(1)">▶</span></span>'
+       +'<span>'+(isThis?'<span class="mut" style="font-size:10.5px">'+gone+'/'+dim+'일 지남</span>'
+                       :'<button class="ghost sm" onclick="budThisMonth()">이번 달</button>')+'</span>'
+     +'</div>'
+     +'<div class="statbar" style="max-width:none;justify-self:auto">'
+       +'<div class="stat"><div class="sl">예산 합계</div><div class="sv">'+won(totBud)+'</div></div>'
+       +'<div class="stat"><div class="sl">예산 안 지출</div><div class="sv'+(inAct>totBud?' neg':'')+'">'+won(inAct)+'</div></div>'
+       +'<div class="stat"><div class="sl">예산 잔여</div><div class="sv '+(left<0?'neg':'pos')+'">'+signWon(left)+'</div></div>'
+       +'<div class="stat"><div class="sl">예산 밖 지출</div><div class="sv'+(outAct>0?' neg':'')+'">'+won(outAct)+'</div></div>'
+       +'<div class="stat"><div class="sl">이 달 총지출</div><div class="sv neg">'+won(tot)+'</div></div>'
+       +'<div class="stat"><div class="sl">총지출 중 예산 안</div><div class="sv">'+(tot>0?Math.round(inAct/tot*100):0)+'%</div></div>'
+     +'</div>'
+     /* 🔒 "왜 초과했나"를 한 줄로 말해준다 — 옛 화면엔 이 줄이 없어서 예산 탓처럼 보였다 */
+     +(outAct>0?('<div class="mut" style="font-size:10.5px;margin-top:9px">'
+        +'⚠️ <b>예산이 안 잡힌 '+outB.length+'개 분류에서 '+won(outAct)+'</b>이 나갔다'
+        +(totBud>0?' — 예산 합계의 <b>'+Math.round(outAct/totBud*100)+'%</b>':'')
+        +'. 예산을 지키고 못 지키고의 문제가 아니라 <b>예산이 현실을 안 덮고 있다.</b></div>'):'')
+     +'<div class="mut" style="font-size:10.5px;margin-top:6px">'
+       +'🔒 예산은 달마다 다르지 않다 — <b>기준값 하나</b>다. 월을 바꾸면 '
+       +'<b>지금 예산을 그 달 실적에 대본 것</b>이다(새 예산안을 지난 달로 검산하라고 그렇게 뒀다).</div>'
+   +'</div>'
+   /* ── 생활방 한마디 ── */
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">💬 로버트(생활)</span>'
+     +'<span class="mut" style="font-size:10.5px">'+m+' · 앱은 읽기만 한다</span></div>'
+     +(note?('<div class="bnote"><div class="bnt">생활방 메모</div>'+mdEsc(note)+'</div>')
+        :'<div class="mut" style="font-size:11.5px;padding:6px 0">'
+          +'이 달 메모가 없다. 생활방이 <code>budgetNote["'+m+'"]</code> 에 남긴다.</div>')
+   +'</div>'
+   /* ── 예산 잡힌 것 ── */
+   +'<div class="sec"><div class="bkhd"><span class="subhd2">예산 잡힌 분류 '
+     +'<span class="mut">'+inB.length+'개</span></span>'
+     +'<span class="mut" style="font-size:10.5px">칸을 고치면 바로 저장된다 · 초과가 큰 순</span></div>'
+     +(inB.length?'<div class="bgrid">'+inB.map(function(r){return card(r);}).join('')+'</div>'
+        :'<div class="mut" style="font-size:11.5px;padding:6px 0">예산이 하나도 안 잡혔다.</div>')
+   +'</div>'
+   /* ── 예산 밖 — 🔒 여기가 현실화의 작업대다 ── */
+   +(outB.length?('<div class="sec"><div class="bkhd"><span class="subhd2">예산 밖 지출 '
+     +'<span class="mut">'+outB.length+'개 · '+won(outAct)+'</span></span>'
+     +'<span class="mut" style="font-size:10.5px">여기에 예산을 넣으면 위 칸으로 올라간다</span></div>'
+     +'<div class="bgrid">'+outB.map(function(r){return card(r,'out');}).join('')+'</div></div>'):'')
+   /* ── 조용한 것 — 🔒 숨기지 않고 **접는다.** 개수를 적으면 거짓말이 아니다 ── */
+   +(idle.length?('<div class="sec"><div class="bkhd"><span class="subhd2">조용한 분류 '
+     +'<span class="mut">'+idle.length+'개</span></span>'
+     +'<button class="ghost sm" onclick="budToggleIdle()">'
+       +((DB.ui&&DB.ui.budIdle)?'접기':'펼치기')+'</button></div>'
+     +'<div class="mut" style="font-size:10.5px">이 달 지출도 없고 예산도 없다.</div>'
+     +((DB.ui&&DB.ui.budIdle)
+        ?'<div class="bgrid" style="margin-top:7px">'+idle.map(function(r){return card(r,'out');}).join('')+'</div>'
+        :'')+'</div>'):'');
+}
+/* 🔒 예산 저장은 여기 하나다(전역 change 핸들러의 data-budcat 이 부른다).
+   ⚠️ 0 을 넣으면 **키를 지운다** — 빈 서랍 금지(v2.x). 0원 예산과 '예산 없음'은 다른 말이다. */
+function budgetChange(cat,val){
+  var v=parseFloat((val+'').replace(/[^0-9.]/g,''))||0;
+  if(v>0)DB.budgets[cat]=v; else delete DB.budgets[cat];
+  save(); renderBudget();
+}
 
 /* ====== 현금흐름 (P3+P5) ====== */
 /* ══════ 현금흐름 정합 (v1.41) ══════
@@ -8138,13 +8296,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.16';
+var APP_VERSION='4.17';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.17',date:'2026-09-23',note:'<b>🗝️ 예산 현실화 — 월 전환 · 생활방 한마디 · 2·3열 컴팩트.</b> 로한: <i>"예산 영역을 현실화하는 거다. 그 방은 로버트(생활)이 담당하고 <b>그도 조정 권한을 갖고 있다.</b> 상단에 월을 바꿀 수 있게 하고, 로버트가 한마디 남길 공간을 만들고, 한 줄로 쫑 만들지 말고 2,3줄로 컴팩트하게 스크롤 없이 현황이 보이게."</i> · 🔎 <b>실측이 문제를 바꿨다</b> — 지출 분류 32개 중 예산이 잡힌 건 <b>11개뿐</b>인데, 예산 밖에서 1,465,905원이 나갔다 — 예산 합계(1,373,000)보다 많다. 예산을 안 지트 게 아니라 <b>예산이 현실을 안 덩고 있었다</b> · 🔴 <b>옛 화면은 그걸 볼 수 없게 독해했다</b> — ’예산 합계 − <b>총지출</b>’을 ’예산 잔여’라 불렀다. 예산 밖 지출까지 뺀 값이라 <b>예산을 다 지켜도 ’초과’로 뜨는다</b>. 숫자는 맞지만 이름이 거짓이었다 → 안/밖을 갈랐다 · 상단 ◀ ▶ 월 전환 + 통계 6칸(예산합계·예산안·잔여·예산밖·총지출·예산안 비중) · 🔒 월은 재정 탭 전체가 공유한다(<code>ui.month</code>) — 따로 두면 ’예산은 8월인데 가계부는 9월’인 화면이 생긴다 · 🔒 <b>예산값은 달마다 다르지 않다 — 기준값 하나다.</b> 월을 바꾸면 ’지금 예산을 그 달 실적에 대본 것’이다 — 새 예산안을 지난 달로 검산하라고 그렇게 둔다. 화면에 그렇게 적어둔다 · 💬 <b>로버트(생활) 한마디</b> — <code>budgetNote["YYYY-MM"]</code>. 앱은 <b>읽기만</b> 한다(학습 캘린더의 학습방 멘트와 같은 규칙) · 분류를 <b>예산 안 / 예산 밖 / 조용한 것</b> 으로 갈랐다. 예산 밖 칸에 예산을 넣으면 위로 올라간다 — <b>거기가 현실화의 작업대다</b> · 정렬은 <b>초과가 큰 순</b> · 조용한 분류는 숨기지 않고 개수를 적어 <b>접어둔다</b> · 예산칸에 0 을 넣으면 <b>키를 지운다</b> — ’0원 예산’과 ’예산 없음’은 다른 말이다(빈 서랍 금지) · ⚠️ <b>[결함] 모바일 CSS 규칙을 기본 정의 앞에 둔 탓에 400px 에서 3열이 그대로 나와 입력칸이 잘렸다</b> — 미디어쿼리는 구체성을 안 올린다. 같으면 뒤가 이긴다 → 기본 정의 바로 뒤로 옮겼고, t50-C2·C3 으로 잠금 · t50 신설 34건(실데이터 32분류 그대로)'},
   {v:'4.16',date:'2026-09-21',note:'<b>📅 학습 캘린더 — 칸 안에서 한 달치 수행여부를 읽는다.</b> 로한: <i>"오른쪽 해야할 일들을 아주 작은 글씨라도 상관없으니 수행여부를 다 확인할 수 있었으면. 과거에 뭔 했는지를 일일이 클릭해서 봐야 하는 게 불편해."</i> · 칸마다 그날 과제를 <b>한 줄씩</b> 적는다 — <b style=\'color:#1f9d61\'>✓</b> 했다 · <b style=\'color:#c0554f\'>✗</b> 지난 날인데 안 했다 · <b>·</b> 앞으로 할 것 · 🔒 <b>✗ 는 지난 날에만 쓴다</b> — 오늘 오전 9시에 아직 안 한 과제를 빨간 ✗ 로 칠하면 화면이 거짓말을 한다. 오늘·미래의 미완은 「앞으로 할 것」이다 · 🔒 칸에 다 못 넣으면 <b>+N 건 더</b>라고 적는다 — 그냥 잘라내면 화면이 거짓말을 한다(v3.7 「숨기면 거짓말」) · 미완을 위로 올린다 — 오른쪽 패널과 <b>같은 정렬</b>이다. 두 곳이 다르게 줄 세우면 같은 날이 다르게 보인다 · ⚠️ 모바일(칸 폭 ~50px)은 <b>표시만</b> 남긴다 — 두세 글자 뒤로 잘린 제목보다 ✓✗ 가 수행여부를 더 잘 전한다 · 오른쪽 패널은 그대로 — 거기가 체크하고 뽀모 돌리는 자리고, 칸은 훑어보는 자리다 · t42 에 검사 6건 추가(344건)'},
   {v:'4.15',date:'2026-09-21',note:'<b>🔴 [결함·P0] 보기에 정답이 없는 문항 — 번호(id)가 겹쳐 있었다.</b> 로한 신고: <i>"보기가 답이 없는게 2개나 나오더라."</i> 「くるま」를 물는데 보기는 특히·언젠가·특별히·잘하다 · 🔎 <b>실측</b>: <code>words</code> 에 id 가 겹친 레코드가 <b>17쌍</b>(w0508~w0524), <code>units</code> 2쌍(u042·u043). 부사 묶음과 v20 신규단어 묶음이 같은 번호대를 썼다. 문항은 한쪽(とくべつに)으로 만들고, 화면은 id 로 다시 찾은 <b>뒤엣것</b>(くるま)을 그렸다 · 🔴 <b>더 큰 문제는 저장이었다</b> — v4.13 3자 병합과 흔수는 id 로 묶는다. 겹치면 맵에 <b>마지막 것만</b> 남아, 앞엣것에 쌓은 채점(seen·miss)을 뒤엣것 기준으로 비교하고 "내가 안 바꿨다"고 판정해 <b>서버 것으로 되돌렸다</b>. 유실을 막으려고 만든 장치가 유실을 낸다 — 반쪽 작업(반복결함 #8)과 같은 구조다 · 🔒 <b>로드·병합·흔수 세 길목에서 번호를 가른다</b> — 앞엣것이 번호를 지키고 뒤엣것은 <code>w0524#2</code> 를 받는다 · 🔒 새 번호는 <b>결정적</b>이다 — 처음엔 <code>uid()</code> 를 썼는데, 그러면 기준본·서버본·내 것이 각각 다른 번호를 받아 병합이 같은 레코드를 서로 모르는 것으로 보고 복사본을 늘린다 · 🚫 레코드를 지우지 않는다 — 번호가 겹치는 건 번호가 틀렸다는 뜻이지 내용이 중복이라는 뜻이 아니다 · <code>stWordById</code> 가 forEach 로 돌아 <b>마지막 것</b>을 돌려주던 것도 첫 번째로 바꿨다 · 몇 건을 갈랐는지 <b>화면과 활동로그에 내보낸다</b> — 조용히 고치면 올리는 쪽이 번호를 계속 겹쳐 쓴다 · t49 신설 19건'},
   {v:'4.14',date:'2026-09-21',note:'<b>🔤 동사 활용 드릴 신설 · 📖 예문 한 개가 문항 여러 개가 된다.</b> 학습방 v19·v20 처리 · 🔤 <b>활용 드릴(vconj)</b> — 로한: <i>"て형은 안다. 아는지 모르는지 어떻게 아느냐는 거지. 드릴로 만들던가 해야지."</i> units 의 "て형 정리" 과제는 <b>측정할 수 없는 과제</b>였다 → 드릴로 바꿈. 동사 원형을 보여주고 て·ない·た·ます 중 하나를 물는다 · 🔒 <b>활용형을 저장하지 않는다</b> — <code>vgroup</code>(1·2·3) 하나만 받고 앱이 규칙으로 만든다. 107개 × 4형 = 428개를 손으로 넣으면 오타가 난다. 규칙은 결정적이라 그룹만 맞으면 앱이 틀릴 수 없다 · 🔒 <b>오답은 틀린 그룹 규칙을 적용한 형태</b>다 — 買う 의 오답은 かいて·かんで·かして. 실제로 학습자가 그렇게 틀리는 형태라 난도가 정확하다. 랜덤 오답 금지 · 불규칙 2종을 박았다 — 경어 5동사는 ます형만 불규칙(いらっしゃります ✗ → いらっしゃいます) · 行く 는 いって(아직 단어장에 없지만 들어오는 날 조용히 틀리면 안 된다) · 채점 후 <b>네 형을 다 보여준다</b> — 하나만 보여주면 규칙이 아니라 답을 외운다. 그룹은 문제에서 안 보여준다(그룹 판별이 이 드릴의 절반이다) · ⚠️ <b>검산에 3건이 걸렸다</b> — 訳·忘れ物·割合(명사)에 vgroup:1 이 달려 있다. 그대로 두면 「わけって」가 출제된다 → 사전형 어미로 검산해 빼고, <b>조용히 빼지 않고 화면에 이름을 낸다</b> — 숨기면 학습방이 고칠 수 없다 · 📖 <b>예문은 공용 문항 풀이다</b> — 로한: <i>"조사 부분에 나온 문장이라고 거기서만 쓰지 말고 접속사나 여러 문법 부분에서도 쓸 수 있게."</i> 출처(src)로 거르지 않는 건 v4.13 부터 그러했고, 이번에 바뀐 건 <b>한 문장의 슬롯을 전부 출제한다</b>는 것이다 — 지금까지는 <b>첫 슬롯 하나만</b> 나가고 나머지는 죽어 있었다 · 🔒 라운드로빈 — 슬롯 3개짜리 문장이 세트 앞을 다 먹지 않는다. 한 바퀴 돌고 두 번째 슬롯으로 간다 · 화면 숫자를 <b>문장 수 → 문항 수</b>로 바꿈 · ✅ 학습방 v20 이 요청한 미구현 3종(부사·조사·활용)이 <b>전부 끝났다</b> — 부사·조사는 v4.13, 활용은 이번. 추석 연휴 드릴에 돌릴 수 있다 · t48 신설 28건'},
