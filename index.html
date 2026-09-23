@@ -2997,10 +2997,10 @@ function itemFilterChange(){DB.ui.itemYear=document.getElementById('itYear').val
       예산 밖에서 1,465,905원이 나갔다 — 예산 합계(1,373,000)보다 많다.
       옛 화면은 '예산 합계 − 총지출' 하나만 보여줘서 **왜 초과했는지가 안 보였다.**
       예산이 안 지켜진 게 아니라 **예산이 현실을 안 덮고 있었다.** 그래서 안/밖을 갈라 보여준다.
-   🔒 예산값(`DB.budgets`)은 **달마다 다르지 않다 — 기준값 하나다.**
+   🔒 예산값(`DB.budgets`)은 **기준값**이고, 달을 확정하면 `budgetsM[YYYY-MM]` 이 그 달을 덮는다(v4.18).
       월을 바꾸면 '지금 예산을 그 달 실적에 대본 것'이다. 현실화 작업에는 이게 맞다
       (새 예산안을 지난 달에 대보는 게 목적이다). 화면에 그렇게 적는다.
-      ⚠️ 달마다 다른 예산이 필요해지면 `budgetsM[YYYY-MM]` 을 덧붙여라 — 지금은 필요가 없다.
+      생활방 v2 가 예산을 전면 개정하자 9월 실적이 10월 예산으로 재단됐다 — 그래서 붙였다.
    🔒 생활방 한마디(`DB.budgetNote[YYYY-MM]`)는 **앱이 읽기만 한다.**
       학습 캘린더의 학습방 멘트와 같은 규칙이다 — 파생·중계는 만드는 쪽이 쓴다. */
 function budMonth(){
@@ -3022,27 +3022,77 @@ function budNote(m){
 }
 function budToggleIdle(){DB.ui=DB.ui||{};DB.ui.budIdle=!DB.ui.budIdle;save();renderBudget();}
 
+/* ══ v4.18 🗓️ 월별 예산 이력 — 생활방 v2 요청 ══
+   생활방: *"`budgets` 는 월 구분 없는 평면 객체다. **예산을 바꾸면 과거 기준이 사라진다.**"*
+   🔎 실제로 그러됐다 — 9/23 생활방이 예산을 전면 개정(식비 300,000→170,000 등)하자
+      9월 실적이 **10월용 예산으로 재단돼 거의 전부 초과**로 보인다. 과거가 거짓이 됐다.
+   🔒 `budgets` 를 월별로 쪼개지 **않는다** — 기준값은 남기고 `budgetsM[YYYY-MM]` 을 덧붙인다.
+      새 달은 따로 안 넣어도 기준을 이어받고, 옛 백업 복원도 그대로 돌아간다.
+   🔒 **기준을 바꾸면 지난 달들을 옛 값으로 자동으로 굳힌다**(budFreezePast).
+      버튼을 누르게 만들면 안 누른다 — 그럼 과거가 또 사라진다. */
+function budM(){DB.budgetsM=DB.budgetsM||{};return DB.budgetsM;}
+function budFixed(m){var x=DB.budgetsM&&DB.budgetsM[m];return (x&&typeof x==='object')?x:null;}
+/* 그 달에 적용되는 예산표 — 확정본이 있으면 그것, 없으면 기준값 */
+function budgetsOf(m){return budFixed(m)||DB.budgets||{};}
+/* 🔒 **키가 있느냐**로 예산 유무를 가른다 — `0` 은 유효한 예산이다.
+   생활방은 선물을 일부러 0 으로 둥다("경조사 시 조정") — '쓰지 마라'는 선언이다.
+   '0원 예산'과 '예산 없음'을 같게 보면 그 선언이 화면에서 사라진다. */
+function budHas(m,cat){return Object.prototype.hasOwnProperty.call(budgetsOf(m),cat);}
+function budVal(m,cat){return +budgetsOf(m)[cat]||0;}
+/* 거래가 있는 달 목록 — 어느 달까지 굳혀놓을지 정하려고 쓴다 */
+function budMonthsSeen(){
+  var seen={};
+  (DB.transactions||[]).forEach(function(t){
+    if(t&&t.date&&/^\d{4}-\d{2}/.test(t.date))seen[t.date.slice(0,7)]=1;});
+  return Object.keys(seen).sort();
+}
+/* 🔒 기준을 고치기 **직전**에 부른다 — 아직 굳지 않은 지난 달을 옛 값으로 박는다.
+   이번 달과 미래는 굳히지 않는다 — 아직 진행 중이라 기준을 따라가는 게 맞다. */
+function budFreezePast(){
+  var now=todayStr().slice(0,7), base=DB.budgets||{}, n=0;
+  var have=DB.budgetsM||{};
+  /* ⚠️ 굳힐 게 없으면 budgetsM 을 만들지 않는다 — 빈 서랍 금지 */
+  budMonthsSeen().forEach(function(m){
+    if(m>=now||have[m])return;
+    budM()[m]=JSON.parse(JSON.stringify(base)); n++;
+  });
+  return n;
+}
+/* 이 달 예산을 달에 박아둔다 / 다시 기준을 따르게 한다 */
+function budFreeze(){
+  var m=budMonth();
+  budM()[m]=JSON.parse(JSON.stringify(budgetsOf(m)));
+  logAct('🗝️ 예산 고정 · '+m); save(); renderBudget();
+}
+function budUnfreeze(){
+  var m=budMonth();
+  if(DB.budgetsM)delete DB.budgetsM[m];
+  logAct('🗝️ 예산 고정 해제 · '+m); save(); renderBudget();
+}
+
 function renderBudget(){
   var m=budMonth(), actual={}, cnt={};
   monthTxns(m).forEach(function(t){
     if(t.type!=='expense')return;
     actual[t.cat]=(actual[t.cat]||0)+t.amt; cnt[t.cat]=(cnt[t.cat]||0)+1;});
   var _bu=usageBy('cat');
+  var fixed=budFixed(m);
   var rowOf=function(c){
-    var bud=+DB.budgets[c.name]||0, act=+actual[c.name]||0;
-    return {name:c.name,bud:bud,act:act,n:cnt[c.name]||0,
-            over:bud>0&&act>bud, pct:bud>0?act/bud*100:0};
+    /* 🔒 has 가 기준이다 — 예산 0 원도 '예산 있음'이고, 쓰면 초과다 */
+    var has=budHas(m,c.name), bud=budVal(m,c.name), act=+actual[c.name]||0;
+    return {name:c.name,has:has,bud:bud,act:act,n:cnt[c.name]||0,
+            over:has&&act>bud, pct:bud>0?act/bud*100:(has&&act>0?Infinity:0)};
   };
   var all=DB.categories.filter(function(c){return c.type==='expense';}).map(rowOf);
   /* 🔒 줄 세우는 기준은 **얼마나 어긋났나**다 — 현실화하려고 보는 화면이라 초과분이 먼저 와야 한다 */
-  var inB=all.filter(function(r){return r.bud>0;}).sort(function(a,b){
+  var inB=all.filter(function(r){return r.has;}).sort(function(a,b){
     var d=(b.act-b.bud)-(a.act-a.bud); if(d)return d;
-    return b.pct-a.pct;});
-  var outB=all.filter(function(r){return r.bud<=0&&r.act>0;}).sort(function(a,b){return b.act-a.act;});
-  var idle=all.filter(function(r){return r.bud<=0&&r.act<=0;})
+    return (b.pct===Infinity?1e9:b.pct)-(a.pct===Infinity?1e9:a.pct);});
+  var outB=all.filter(function(r){return !r.has&&r.act>0;}).sort(function(a,b){return b.act-a.act;});
+  var idle=all.filter(function(r){return !r.has&&r.act<=0;})
     .sort(function(a,b){return (_bu[b.name]||0)-(_bu[a.name]||0);});
 
-  var totBud=inB.reduce(function(s,r){return s+r.bud;},0);
+  var totBud=inB.reduce(function(s,r){return s+r.bud;},0);   /* 0원 예산은 더해도 0 — 해도 맞는다 */
   var inAct =inB.reduce(function(s,r){return s+r.act;},0);
   var outAct=outB.reduce(function(s,r){return s+r.act;},0);
   var pl=monthPL(m), tot=pl.exp;
@@ -3050,17 +3100,18 @@ function renderBudget(){
   /* ⚠️ 옛 화면은 예산 밖 지출까지 빼고 '예산 잔여'라고 불렀다 — 숫자는 맞지만 이름이 거짓이었다.
      예산을 다 지켜도 예산 밖 지출 때문에 '초과'로 뜬다. 그래서 둘을 갈라 놓는다. */
   var card=function(r,cls){
-    var pct=r.bud>0?Math.min(r.act/r.bud*100,100):0;
+    var pct=r.bud>0?Math.min(r.act/r.bud*100,100):(r.over?100:0);
     var lvl=r.over?'over':(r.pct>80?'warn':'');
     return '<div class="bcard'+(cls?' '+cls:'')+(r.over?' over':'')+'">'
       +'<div class="bt"><span class="bn" title="'+mdEsc(r.name)+'">'+mdEsc(r.name)+'</span>'
         +'<span class="bp'+(lvl?' '+lvl:'')+'">'
-          +(r.bud>0?Math.round(r.pct)+'%':(r.n?r.n+'건':''))+'</span></div>'
+          +(r.bud>0?Math.round(r.pct)+'%':(r.has?(r.act>0?'쓰면 안 된다':'0원'):(r.n?r.n+'건':'')))+'</span></div>'
       +'<div class="ba"><b>'+won(r.act)+'</b>'
         /* ⚠️ 예산이 없으면 **빈칸**이다 — 0 을 박아두면 고칠 때마다 지우고 써야 한다 */
-        +'<input class="bin" value="'+(r.bud>0?r.bud:'')+'" placeholder="예산" '
+        /* ⚠️ 빈칸 = 예산 없음 · 0 = 0원 예산. 둘은 다른 말이다 */
+        +'<input class="bin" value="'+(r.has?r.bud:'')+'" placeholder="예산" '
         +'data-budcat="'+mdEsc(r.name)+'" title="예산 — 고치면 바로 저장된다"></div>'
-      +(r.bud>0?'<div class="bbar"><i class="'+lvl+'" style="width:'+pct+'%"></i></div>':'')
+      +(r.has?'<div class="bbar"><i class="'+lvl+'" style="width:'+pct+'%"></i></div>':'')
       +(r.over?'<div class="mut" style="font-size:9.5px;margin-top:3px;color:var(--neg)">+'
         +won(r.act-r.bud)+' 초과</div>':'')
       +'</div>';
@@ -3077,8 +3128,15 @@ function renderBudget(){
        +'<span class="mnav"><span onclick="budMove(-1)">◀</span>'
          +'<b>'+m.slice(0,4)+'년 '+(+m.slice(5,7))+'월</b>'
          +'<span onclick="budMove(1)">▶</span></span>'
-       +'<span>'+(isThis?'<span class="mut" style="font-size:10.5px">'+gone+'/'+dim+'일 지남</span>'
-                       :'<button class="ghost sm" onclick="budThisMonth()">이번 달</button>')+'</span>'
+       +'<span style="display:flex;gap:7px;align-items:center">'
+         +(isThis?'<span class="mut" style="font-size:10.5px">'+gone+'/'+dim+'일 지남</span>'
+                 :'<button class="ghost sm" onclick="budThisMonth()">이번 달</button>')
+         /* 🔒 이 달이 확정본인지 기준값인지 **화면이 말한다** — 안 말하면 과거를 잘못 읽는다 */
+         +'<span class="pill"'+(fixed?'':' style="background:#eef2f7;color:var(--muted)"')+'>'
+           +(fixed?'이 달 확정 예산':'기준 예산')+'</span>'
+         +(fixed?'<button class="ghost sm" onclick="budUnfreeze()">고정 해제</button>'
+                :'<button class="ghost sm" onclick="budFreeze()">이 달로 고정</button>')
+       +'</span>'
      +'</div>'
      +'<div class="statbar" style="max-width:none;justify-self:auto">'
        +'<div class="stat"><div class="sl">예산 합계</div><div class="sv">'+won(totBud)+'</div></div>'
@@ -3094,8 +3152,12 @@ function renderBudget(){
         +(totBud>0?' — 예산 합계의 <b>'+Math.round(outAct/totBud*100)+'%</b>':'')
         +'. 예산을 지키고 못 지키고의 문제가 아니라 <b>예산이 현실을 안 덮고 있다.</b></div>'):'')
      +'<div class="mut" style="font-size:10.5px;margin-top:6px">'
-       +'🔒 예산은 달마다 다르지 않다 — <b>기준값 하나</b>다. 월을 바꾸면 '
-       +'<b>지금 예산을 그 달 실적에 대본 것</b>이다(새 예산안을 지난 달로 검산하라고 그렇게 뒀다).</div>'
+       +(fixed
+         ?'🔒 이 달은 <b>그때 예산으로 고정</b>돼 있다. 기준 예산을 바꿔도 이 달 숫자는 안 흔들린다.'
+         :'⚠️ 이 달은 확정 예산이 없어 <b>지금 기준 예산을 대본 것</b>이다. '
+          +(isThis?'진행 중인 달이라 기준을 따라가는 게 맞다.'
+                  :'그때 예산과 다를 수 있다 — <b>이 달로 고정</b>을 누르면 이 값으로 굳는다.'))
+       +' 기준을 바꾸면 <b>지난 달들은 옛 값으로 자동으로 굳는다.</b></div>'
    +'</div>'
    /* ── 생활방 한마디 ── */
    +'<div class="sec"><div class="bkhd"><span class="subhd2">💬 로버트(생활)</span>'
@@ -3127,10 +3189,23 @@ function renderBudget(){
         :'')+'</div>'):'');
 }
 /* 🔒 예산 저장은 여기 하나다(전역 change 핸들러의 data-budcat 이 부른다).
-   ⚠️ 0 을 넣으면 **키를 지운다** — 빈 서랍 금지(v2.x). 0원 예산과 '예산 없음'은 다른 말이다. */
+   ⚠️ **빈칸 = 예산 없음(키 삭제) · 0 = 0원 예산(키 유지).** 둘은 다른 말이다 —
+      생활방이 선물을 일부러 0 으로 둔다("경조사 시 조정"). 그건 '쓰지 마라'는 선언이라 남아야 한다.
+      v4.17 은 0 도 지워서 그 선언이 화면에서 사라졌다.
+   🔒 **고정된 달을 보고 있으면 그 달만 고친다** — 기준은 안 건드린다.
+      안 그러면 지난 달 숫자를 손보다가 앞으로 쓸 기준까지 바꿔버린다. */
 function budgetChange(cat,val){
-  var v=parseFloat((val+'').replace(/[^0-9.]/g,''))||0;
-  if(v>0)DB.budgets[cat]=v; else delete DB.budgets[cat];
+  var raw=String(val==null?'':val).trim();
+  var m=budMonth(), fixed=budFixed(m);
+  var tgt=fixed||DB.budgets;
+  if(!raw){ delete tgt[cat]; }
+  else{
+    var v=parseFloat(raw.replace(/[^0-9.]/g,''));
+    if(!isFinite(v)||v<0)v=0;
+    /* 기준을 바꾸기 **직전**에 지난 달을 굳힌다 — 바꾼 뒤엔 옛 값을 못 되살린다 */
+    if(!fixed){var n=budFreezePast(); if(n)logAct('🗝️ 기준 예산 변경 — 지난 '+n+'개월을 옛 값으로 고정');}
+    tgt[cat]=v;
+  }
   save(); renderBudget();
 }
 
@@ -8296,13 +8371,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.17';
+var APP_VERSION='4.18';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.18',date:'2026-09-23',note:'<b>🗓️ 월별 예산 이력 · 0원 예산은 「예산 없음」이 아니다.</b> 생활방 v2 핸드오프 반영 · 생활방: <i>"budgets 는 월 구분 없는 평면 객체다. <b>예산을 바꾸면 과거 기준이 사라진다.</b>"</i> · 🔎 실제로 그러됐다 — 9/23 생활방이 예산을 전면 개정(식비 300,000→170,000 · 교통비 30,000→20,000 등)하자 <b>9월 실적이 10월용 예산으로 재단돼 거의 전부 초과로 보인다</b> · 🗝️ <b>budgetsM[YYYY-MM]</b> — 그 달 확정 예산. 있으면 그것, 없으면 기준값을 쓴다 · 🔒 <b>budgets 를 월별로 쪼개지 않았다</b>(생활방 제안은 budgets:{「2026-10」:{…}}) — 기준값을 남겨야 새 달이 그걸 이어받고, 옛 백업 복원도 그대로 돌아간다 · 🔒 <b>기준을 바꾸면 지난 달들을 옛 값으로 자동으로 굳힌다</b> — 버튼을 누르게 만들면 안 누른다. 그럼 과거가 또 사라진다. 이번 달과 미래는 안 굳힌다(진행 중이라 기준을 따라가는 게 맞다) · 상단에 <b>「이 달로 고정」/「고정 해제」</b> 버튼과 「이 달 확정 예산/기준 예산」 배지 · 고정된 달을 보며 고치면 <b>그 달만</b> 바뀜다 — 지난 달 숨자를 고치다가 앞으로 쓸 기준까지 바꾸면 안 된다 · 🔴 <b>[결함·v4.17] 0원 예산을 「예산 없음」으로 봤다.</b> 생활방이 선물을 <b>일부러 0</b> 으로 둔다(「경조사 시 조정」) — 그건 <b>쓰지 말라는 선언</b>인데 화면에서 사라졌다. → <b>빈칸 = 예산 없음 · 0 = 0원 예산</b>. 0원인데 쓰면 초과로 뜨고 「쓰면 안 된다」고 적는다 · t50 34건 → <b>49건</b>(월별 이력 9 · 0원 예산 6)'},
   {v:'4.17',date:'2026-09-23',note:'<b>🗝️ 예산 현실화 — 월 전환 · 생활방 한마디 · 2·3열 컴팩트.</b> 로한: <i>"예산 영역을 현실화하는 거다. 그 방은 로버트(생활)이 담당하고 <b>그도 조정 권한을 갖고 있다.</b> 상단에 월을 바꿀 수 있게 하고, 로버트가 한마디 남길 공간을 만들고, 한 줄로 쫑 만들지 말고 2,3줄로 컴팩트하게 스크롤 없이 현황이 보이게."</i> · 🔎 <b>실측이 문제를 바꿨다</b> — 지출 분류 32개 중 예산이 잡힌 건 <b>11개뿐</b>인데, 예산 밖에서 1,465,905원이 나갔다 — 예산 합계(1,373,000)보다 많다. 예산을 안 지트 게 아니라 <b>예산이 현실을 안 덩고 있었다</b> · 🔴 <b>옛 화면은 그걸 볼 수 없게 독해했다</b> — ’예산 합계 − <b>총지출</b>’을 ’예산 잔여’라 불렀다. 예산 밖 지출까지 뺀 값이라 <b>예산을 다 지켜도 ’초과’로 뜨는다</b>. 숫자는 맞지만 이름이 거짓이었다 → 안/밖을 갈랐다 · 상단 ◀ ▶ 월 전환 + 통계 6칸(예산합계·예산안·잔여·예산밖·총지출·예산안 비중) · 🔒 월은 재정 탭 전체가 공유한다(<code>ui.month</code>) — 따로 두면 ’예산은 8월인데 가계부는 9월’인 화면이 생긴다 · 🔒 <b>예산값은 달마다 다르지 않다 — 기준값 하나다.</b> 월을 바꾸면 ’지금 예산을 그 달 실적에 대본 것’이다 — 새 예산안을 지난 달로 검산하라고 그렇게 둔다. 화면에 그렇게 적어둔다 · 💬 <b>로버트(생활) 한마디</b> — <code>budgetNote["YYYY-MM"]</code>. 앱은 <b>읽기만</b> 한다(학습 캘린더의 학습방 멘트와 같은 규칙) · 분류를 <b>예산 안 / 예산 밖 / 조용한 것</b> 으로 갈랐다. 예산 밖 칸에 예산을 넣으면 위로 올라간다 — <b>거기가 현실화의 작업대다</b> · 정렬은 <b>초과가 큰 순</b> · 조용한 분류는 숨기지 않고 개수를 적어 <b>접어둔다</b> · 예산칸에 0 을 넣으면 <b>키를 지운다</b> — ’0원 예산’과 ’예산 없음’은 다른 말이다(빈 서랍 금지) · ⚠️ <b>[결함] 모바일 CSS 규칙을 기본 정의 앞에 둔 탓에 400px 에서 3열이 그대로 나와 입력칸이 잘렸다</b> — 미디어쿼리는 구체성을 안 올린다. 같으면 뒤가 이긴다 → 기본 정의 바로 뒤로 옮겼고, t50-C2·C3 으로 잠금 · t50 신설 34건(실데이터 32분류 그대로)'},
   {v:'4.16',date:'2026-09-21',note:'<b>📅 학습 캘린더 — 칸 안에서 한 달치 수행여부를 읽는다.</b> 로한: <i>"오른쪽 해야할 일들을 아주 작은 글씨라도 상관없으니 수행여부를 다 확인할 수 있었으면. 과거에 뭔 했는지를 일일이 클릭해서 봐야 하는 게 불편해."</i> · 칸마다 그날 과제를 <b>한 줄씩</b> 적는다 — <b style=\'color:#1f9d61\'>✓</b> 했다 · <b style=\'color:#c0554f\'>✗</b> 지난 날인데 안 했다 · <b>·</b> 앞으로 할 것 · 🔒 <b>✗ 는 지난 날에만 쓴다</b> — 오늘 오전 9시에 아직 안 한 과제를 빨간 ✗ 로 칠하면 화면이 거짓말을 한다. 오늘·미래의 미완은 「앞으로 할 것」이다 · 🔒 칸에 다 못 넣으면 <b>+N 건 더</b>라고 적는다 — 그냥 잘라내면 화면이 거짓말을 한다(v3.7 「숨기면 거짓말」) · 미완을 위로 올린다 — 오른쪽 패널과 <b>같은 정렬</b>이다. 두 곳이 다르게 줄 세우면 같은 날이 다르게 보인다 · ⚠️ 모바일(칸 폭 ~50px)은 <b>표시만</b> 남긴다 — 두세 글자 뒤로 잘린 제목보다 ✓✗ 가 수행여부를 더 잘 전한다 · 오른쪽 패널은 그대로 — 거기가 체크하고 뽀모 돌리는 자리고, 칸은 훑어보는 자리다 · t42 에 검사 6건 추가(344건)'},
   {v:'4.15',date:'2026-09-21',note:'<b>🔴 [결함·P0] 보기에 정답이 없는 문항 — 번호(id)가 겹쳐 있었다.</b> 로한 신고: <i>"보기가 답이 없는게 2개나 나오더라."</i> 「くるま」를 물는데 보기는 특히·언젠가·특별히·잘하다 · 🔎 <b>실측</b>: <code>words</code> 에 id 가 겹친 레코드가 <b>17쌍</b>(w0508~w0524), <code>units</code> 2쌍(u042·u043). 부사 묶음과 v20 신규단어 묶음이 같은 번호대를 썼다. 문항은 한쪽(とくべつに)으로 만들고, 화면은 id 로 다시 찾은 <b>뒤엣것</b>(くるま)을 그렸다 · 🔴 <b>더 큰 문제는 저장이었다</b> — v4.13 3자 병합과 흔수는 id 로 묶는다. 겹치면 맵에 <b>마지막 것만</b> 남아, 앞엣것에 쌓은 채점(seen·miss)을 뒤엣것 기준으로 비교하고 "내가 안 바꿨다"고 판정해 <b>서버 것으로 되돌렸다</b>. 유실을 막으려고 만든 장치가 유실을 낸다 — 반쪽 작업(반복결함 #8)과 같은 구조다 · 🔒 <b>로드·병합·흔수 세 길목에서 번호를 가른다</b> — 앞엣것이 번호를 지키고 뒤엣것은 <code>w0524#2</code> 를 받는다 · 🔒 새 번호는 <b>결정적</b>이다 — 처음엔 <code>uid()</code> 를 썼는데, 그러면 기준본·서버본·내 것이 각각 다른 번호를 받아 병합이 같은 레코드를 서로 모르는 것으로 보고 복사본을 늘린다 · 🚫 레코드를 지우지 않는다 — 번호가 겹치는 건 번호가 틀렸다는 뜻이지 내용이 중복이라는 뜻이 아니다 · <code>stWordById</code> 가 forEach 로 돌아 <b>마지막 것</b>을 돌려주던 것도 첫 번째로 바꿨다 · 몇 건을 갈랐는지 <b>화면과 활동로그에 내보낸다</b> — 조용히 고치면 올리는 쪽이 번호를 계속 겹쳐 쓴다 · t49 신설 19건'},

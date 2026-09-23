@@ -25,6 +25,8 @@ const budgets={}; R.forEach(r=>{if(r[1]>0)budgets[r[0]]=r[1];});
 const transactions=[]; let k=0;
 const push=(date,cat,amt)=>{if(amt>0)transactions.push({id:'t'+(k++),date,type:'expense',cat,amt,method:'현금',acc:'a1'});};
 R.forEach(r=>{push('2026-09-10',r[0],r[2]);push('2026-08-10',r[0],r[3]);});
+/* 🔒 7월도 있어야 한다 — 실데이터엔 7·8·9월이 있고, '지난 달 자동 고정'은 거래가 있는 달만 굳힌다 */
+push('2026-07-10','식비',180000); push('2026-07-10','카페',61000);
 const NOTE='9월 긴축 중간 점검. 선물 604,000 은 추석 지출이라 일회성으로 본다.\n이자비용·의료·국민연금·건강보험은 예산 밖인데 매달 나간다.';
 
 const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCards:{},
@@ -71,7 +73,8 @@ const OUTACT=502944+308400+212890+140220+122020+60000+42652+40649+22000+14130;  
  const augFood=aug.find(x=>x.name==='식비');
  ok('A3 숫자도 그 달로 바뀐다(8월 식비 211,010)',augFood&&/211,010/.test(augFood.act),JSON.stringify(augFood));
  ok('A4 예산은 그대로다 — 기준값 하나다',augFood&&augFood.bud==='300000',JSON.stringify(augFood));
- ok('A5 그렇게 적혀 있다',/기준값 하나/.test(await txt()));
+ /* 🔒 확정 예산이 없는 지난 달은 "지금 기준을 대본 것"이라고 화면이 말해야 한다 */
+ ok('A5 그렇게 적혀 있다',/지금 기준 예산을 대본 것/.test(await txt()),(await txt()).slice(0,60));
  await p.evaluate(()=>budMove(1));await p.waitForTimeout(300);
  ok('A6 ▶ 로 되돌아온다',(await p.evaluate(()=>DB.ui.month))==='2026-09');
  /* 🔒 월은 재정 탭이 공유한다 — 예산에서 옮기면 가계부도 옮겨져야 한다 */
@@ -148,16 +151,73 @@ const OUTACT=502944+308400+212890+140220+122020+60000+42652+40649+22000+14130;  
  const after=await cards();
  ok('F2 예산 밖에서 위 칸으로 올라간다',
     after.filter(x=>!x.out).some(x=>x.name==='의료')&&!after.filter(x=>x.out).some(x=>x.name==='의료'));
- /* 🔒 0 은 키를 지운다 — 빈 서랍 금지. '0원 예산'과 '예산 없음'은 다른 말이다 */
+ /* 🔒 v4.18 — **빈칸이 '예산 없음'이고, 0 은 '0원 예산'이다.** 둘은 다른 말이다(H 블록에서 더 본다) */
  await p.evaluate(()=>{const i=[...document.querySelectorAll('#v-budget .bin')]
-   .find(x=>x.dataset.budcat==='의료'); i.value='0';
+   .find(x=>x.dataset.budcat==='의료'); i.value='';
    i.dispatchEvent(new Event('change',{bubbles:true}));});
  await p.waitForTimeout(350);
- ok('F3 0 을 넣으면 키를 지운다(빈 서랍 금지)',
+ ok('F3 빈칸을 넣으면 키를 지운다(빈 서랍 금지)',
     (await p.evaluate(()=>Object.prototype.hasOwnProperty.call(DB.budgets,'의료')))===false);
  ok('F4 예산 없는 칸은 빈칸이다 (0 이 박혀 있지 않다)',
     (await cards()).filter(x=>x.out).every(x=>x.bud===''),
     JSON.stringify((await cards()).filter(x=>x.out).slice(0,3)));
+
+ /* ── G) v4.18 🗝️ 월별 예산 이력 — 생활방 v2 요청 ──
+    생활방: "budgets 는 월 구분 없는 평면 객체다. **예산을 바꾸면 과거 기준이 사라진다.**"
+    실제로 9/23 예산 전면 개정으로 9월 실적이 10월 예산에 재단됐다. */
+ await p.evaluate(()=>{DB.ui.month='2026-09';DB.budgetsM=undefined;delete DB.budgetsM;save();renderBudget();});
+ await p.waitForTimeout(300);
+ ok('G1 기본은 기준 예산이라고 말한다',/기준 예산/.test(await txt()));
+ /* 🔒 지난 달을 고정하면 기준을 바꿔도 안 흔들린다 */
+ await p.evaluate(()=>{DB.ui.month='2026-08';save();renderBudget();budFreeze();});
+ await p.waitForTimeout(350);
+ ok('G2 이 달로 고정하면 그 달 예산이 박힌다',
+    (await p.evaluate(()=>DB.budgetsM&&DB.budgetsM['2026-08']&&DB.budgetsM['2026-08']['식비']))===300000);
+ ok('G3 화면이 확정본이라고 말한다',/이 달 확정 예산/.test(await txt()));
+ /* 기준을 바꿔도 고정된 8월은 그대로 */
+ await p.evaluate(()=>{DB.ui.month='2026-09';save();renderBudget();
+   const i=[...document.querySelectorAll('#v-budget .bin')].find(x=>x.dataset.budcat==='식비');
+   i.value='170000'; i.dispatchEvent(new Event('change',{bubbles:true}));});
+ await p.waitForTimeout(400);
+ ok('G4 기준은 바뀐다',(await p.evaluate(()=>DB.budgets['식비']))===170000);
+ ok('G5 고정된 8월은 안 흔들린다',
+    (await p.evaluate(()=>DB.budgetsM['2026-08']['식비']))===300000);
+ /* 🔒 기준을 바꾸면 **굳지 않은 지난 달**은 옛 값으로 자동으로 굳는다 —
+    버튼을 누르게 만들면 안 누르고, 그럼 과거가 또 사라진다 */
+ ok('G6 굳지 않았던 지난 달(7월)이 옛 값으로 자동 고정된다',
+    (await p.evaluate(()=>DB.budgetsM['2026-07']&&DB.budgetsM['2026-07']['식비']))===300000,
+    JSON.stringify(await p.evaluate(()=>Object.keys(DB.budgetsM||{}))));
+ ok('G7 이번 달은 안 굳힌다 — 진행 중이라 기준을 따라가야 한다',
+    (await p.evaluate(()=>!!(DB.budgetsM&&DB.budgetsM['2026-09'])))===false);
+ /* 고정된 달에서 고치면 그 달만 바뀐다 */
+ await p.evaluate(()=>{DB.ui.month='2026-08';save();renderBudget();
+   const i=[...document.querySelectorAll('#v-budget .bin')].find(x=>x.dataset.budcat==='식비');
+   i.value='999000'; i.dispatchEvent(new Event('change',{bubbles:true}));});
+ await p.waitForTimeout(400);
+ ok('G8 고정된 달을 고치면 그 달만 바뀐다',
+    (await p.evaluate(()=>DB.budgetsM['2026-08']['식비']))===999000
+    &&(await p.evaluate(()=>DB.budgets['식비']))===170000);
+ await p.evaluate(()=>budUnfreeze());await p.waitForTimeout(350);
+ ok('G9 고정 해제하면 기준으로 돌아온다',
+    (await p.evaluate(()=>!!(DB.budgetsM&&DB.budgetsM['2026-08'])))===false
+    &&/기준 예산/.test(await txt()));
+
+ /* ── H) 🔒 0원 예산은 '예산 없음'이 아니다 (생활방: 선물 0 = "경조사 시 조정") ── */
+ await p.evaluate(()=>{DB.ui.month='2026-09';DB.budgets['선물']=0;save();renderBudget();});
+ await p.waitForTimeout(350);
+ const gift=(await cards()).find(x=>x.name==='선물');
+ ok('H1 0원 예산은 예산 밖이 아니다',gift&&!gift.out,JSON.stringify(gift));
+ ok('H2 칸에 0 이 적힌다 (빈칸이 아니다)',gift&&gift.bud==='0',JSON.stringify(gift));
+ ok('H3 0원인데 썼으면 초과다',gift&&gift.over,JSON.stringify(gift));
+ ok('H4 0원 예산이라고 말해준다',/쓰면 안 된다/.test(await txt()));
+ /* 빈칸은 여전히 키를 지운다 */
+ await p.evaluate(()=>{const i=[...document.querySelectorAll('#v-budget .bin')]
+   .find(x=>x.dataset.budcat==='선물'); i.value='';
+   i.dispatchEvent(new Event('change',{bubbles:true}));});
+ await p.waitForTimeout(350);
+ ok('H5 빈칸은 키를 지운다 (예산 없음)',
+    (await p.evaluate(()=>Object.prototype.hasOwnProperty.call(DB.budgets,'선물')))===false);
+ ok('H6 그러면 예산 밖으로 내려간다',(await cards()).find(x=>x.name==='선물').out);
 
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R2)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
