@@ -63,6 +63,7 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 #tabs button{min-height:2.6rem;border-radius:.6rem .6rem 0 0;border-bottom-width:4px}
 #tabs button.on{border-bottom-color:var(--focus)}
 .sp{flex:1}
+.stepgrp .lbl{font-weight:700;margin-right:.2rem}
 .bbar{display:flex;align-items:center;gap:.5rem;padding:.35rem .8rem;flex-wrap:wrap}
 .bname{font-size:1.25rem;font-weight:800;margin-right:.5rem}
 .save{font-weight:700;color:var(--green)}
@@ -193,6 +194,13 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
     <button id="bMore"><span class="ic">📂</span> 판 목록</button>
     <button id="bNew" class="primary"><span class="ic">＋</span> 새 판</button>
     <div class="sp"></div>
+    <!-- v1.2 쿠션 눈금 간격 — 1 단위(0~80 정수) 또는 0.5 단위(32.5) -->
+    <span class="grp stepgrp" id="stepGrp">
+      <span class="lbl">눈금 간격</span>
+      <button data-st="1">1 단위</button>
+      <button data-st="0.5">0.5 단위</button>
+    </span>
+    <div class="sp"></div>
     <button id="bLog"><span class="ic">📋</span> 기록</button>
     <button id="bTrash"><span class="ic">🗑</span> 휴지통</button>
     <button id="bSet"><span class="ic">⚙</span> 설정</button>
@@ -318,6 +326,7 @@ var BALL_NAME={w:'흰 공',y:'노란 공',r:'빨간 공'};
 var USER=null, BOARDS=[], CUR=null, ST=null;
 var MODE='ball', LAYER='predict', UNDO=[], REDO=[], SEL=null, HOVER=null, DRAG=null;
 var GUIDE=pref('guide')||'cross';
+var STEP=pref('step')==='0.5'?0.5:1;   /* 쿠션 눈금 간격(수치 단위) */
 var saveTimer=null, saveBusy=false, saveAgain=false, lastSaved=null;
 var LOGVIEW='att', LOGBOARD='', ATTS=[], EVTS=[];
 
@@ -538,22 +547,26 @@ function resolve(p){
   return p;
 }
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
-/* 🧲 자석 — 공 근처면 공 중심, 쿠션 근처면 쿠션 위 0.5칸 눈금, 나머지는 0.05칸 */
+/* 🧲 자석 — 공 근처면 공 중심, 쿠션 근처면 쿠션 **위로만** 붙이고 위치는 자유(수치 1 단위 = 0.1칸), 나머지는 완전 자유.
+   🔒 v1.2 로한: "당구가 5 단위로 움직이는 게 아니다. 0~80 아무 곳이나 찍혀야지" — 처음엔 0.5칸(=5) 눈금에 붙였다.
+      1 단위 = 대대 약 2.8cm · 32인치 화면 약 17px 라 계단처럼 안 느껴지고, 숫자는 32·33 처럼 깔끔하게 읽힌다 */
 function snapPt(p){
   var k=pxK()/S, ballR=Math.max(0.22,22*k), band=Math.max(0.4,30*k);
   var best=null;['w','y','r'].forEach(function(n){var d=dist(p,ST.balls[n]);if(d<ballR&&(!best||d<best.d))best={n:n,d:d};});
   if(best){var b=ST.balls[best.n];return {x:b.x,y:b.y,ref:best.n===ST.balls.cue?'cue':best.n};}
   var nx=p.x<band?0:(p.x>W-band?W:null), ny=p.y<band?0:(p.y>H-band?H:null);
   if(nx!==null||ny!==null){
-    return {x:nx!==null?nx:clamp(Math.round(p.x*2)/2,0,W), y:ny!==null?ny:clamp(Math.round(p.y*2)/2,0,H), rail:true};
+    var q=STEP/10;                               /* 1 단위 = 0.1칸 · 0.5 단위 = 0.05칸 */
+    return {x:nx!==null?nx:clamp(r2(Math.round(p.x/q)*q),0,W), y:ny!==null?ny:clamp(r2(Math.round(p.y/q)*q),0,H), rail:true};
   }
-  return {x:clamp(Math.round(p.x*20)/20,0,W),y:clamp(Math.round(p.y*20)/20,0,H)};
+  return {x:clamp(r2(p.x),0,W),y:clamp(r2(p.y),0,H)};
 }
 /* 쿠션 지점의 다이아 수치 — 장쿠션은 가로 ×10, 단쿠션은 세로 ×10 */
 function railVal(p){
   if(!p.rail)return null;
-  if(p.y===0||p.y===H)return Math.round(p.x*10);
-  if(p.x===0||p.x===W)return Math.round(p.y*10);
+  /* 0.5 단위까지 읽는다 — 1 단위로 찍은 점은 32, 0.5 단위로 찍은 점은 32.5 */
+  if(p.y===0||p.y===H)return Math.round(p.x*20)/2;
+  if(p.x===0||p.x===W)return Math.round(p.y*20)/2;
   return null;
 }
 function railSeq(path){return path.map(railVal).filter(function(v){return v!==null;});}
@@ -660,6 +673,7 @@ function renderTabs(){
   var rest=n-show.length;
   $('bMore').innerHTML='<span class="ic">📂</span> 판 목록'+(rest>0?' (외 '+rest+'개)':'');
   var b=curBoard();$('bName').textContent=b?b.name:'';
+  document.querySelectorAll('#stepGrp button').forEach(function(x){x.classList.toggle('on',+x.dataset.st===STEP);});
 }
 function renderSide(){
   var d=ST.draft;
@@ -1013,6 +1027,8 @@ function bind(){
   $('tabs').addEventListener('click',function(e){var b=e.target.closest('button');if(b&&b.dataset.id&&b.dataset.id!==CUR)switchBoard(b.dataset.id);});
   $('bMore').addEventListener('click',boardList);
   $('bNew').addEventListener('click',newBoard);
+  $('stepGrp').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;STEP=+b.dataset.st;pref('step',String(STEP));renderTabs();
+    toast('쿠션 눈금을 '+(STEP===1?'1 단위(예: 32)':'0.5 단위(예: 32.5)')+'로 찍습니다');});
   $('bRename').addEventListener('click',renameBoard);
   $('bCopy').addEventListener('click',copyBoard);
   $('bDel').addEventListener('click',deleteBoard);

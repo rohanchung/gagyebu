@@ -90,18 +90,37 @@ function init({session,users}){
  /* ── B) 선 긋기 ── */
  await p.click('#mDraw');
  ok('B1 모드 글자',/예측선 긋는 중/.test(await p.textContent('#hint')));
- await p.mouse.move(...(await cl(3.1,0.15)));await wait(60);
+ await p.mouse.move(...(await cl(3,0.15)));await wait(60);
  ok('B2 미리보기 숫자 말풍선(30)',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='30')));
- await click(3.1,0.15);          /* 윗쿠션 3칸 → 30 */
- await click(7.85,1.6);          /* 오른쪽 쿠션 1.5 → 15 */
- await click(4.4,3.9);           /* 아랫쿠션 4.5 → 45 */
+ await click(3,0.15);            /* 윗쿠션 3칸 → 30 */
+ await click(7.85,1.5);          /* 오른쪽 쿠션 1.5 → 15 */
+ await click(4.5,3.9);           /* 아랫쿠션 4.5 → 45 */
  await click(6,2);               /* 빨간 공 */
  let s=await st();
  ok('B3 점 5개(내 공 + 4)',s.draft.predict.length===5,s.draft.predict);
  ok('B4 첫 점 = 내 공',s.draft.predict[0].ref==='cue');
- ok('B5 쿠션 자석 30→15→45',JSON.stringify(await seq())==='[30,15,45]',await seq());
+ ok('B5 쿠션 위로 붙음 30→15→45',JSON.stringify(await seq())==='[30,15,45]',await seq());
  ok('B6 공 자석',s.draft.predict[4].ref==='r');
  ok('B7 아래 쿠션 지점 글자',/30 → 15 → 45/.test(await p.textContent('#seq')));
+ /* 🔒 v1.2 5 단위 눈금이 아니라 0~80 아무 수치나 */
+ ok('B7b 자유 위치 — 윗쿠션 23·68, 옆쿠션 27, 아랫쿠션 7',await p.evaluate(()=>[snapPt({x:2.31,y:0.12}),snapPt({x:6.83,y:0.2}),snapPt({x:7.9,y:2.66}),snapPt({x:0.72,y:3.95})].map(railVal).join()==='23,68,27,7'),
+   await p.evaluate(()=>[snapPt({x:2.31,y:0.12}),snapPt({x:6.83,y:0.2}),snapPt({x:7.9,y:2.66}),snapPt({x:0.72,y:3.95})].map(railVal)));
+ ok('B7c 쿠션 점은 쿠션 위에(가운데로 안 들어감)',await p.evaluate(()=>{const q=snapPt({x:2.31,y:0.12});return q.y===0&&q.rail;}));
+ ok('B7d 안쪽 점은 완전 자유',await p.evaluate(()=>{const q=snapPt({x:3.137,y:1.284});return q.x===3.14&&q.y===1.28&&!q.rail;}));
+ await p.mouse.move(...(await cl(2.7,0.1)));await wait(60);
+ ok('B7e 마우스 미리보기도 27',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='27')));
+ /* 🔒 v1.2 눈금 간격 선택 — 1 단위 / 0.5 단위 (상단 메뉴바) */
+ ok('B7f 기본 = 1 단위',await p.$eval('#stepGrp [data-st="1"]',e=>e.classList.contains('on')));
+ await p.click('#stepGrp [data-st="0.5"]');await wait(60);
+ ok('B7g 0.5 단위 → 23.5 · 24 · 5.5',await p.evaluate(()=>[snapPt({x:2.33,y:0.1}),snapPt({x:2.38,y:0.1}),snapPt({x:0.53,y:3.96})].map(railVal).join()==='23.5,24,5.5'),
+   await p.evaluate(()=>[snapPt({x:2.33,y:0.1}),snapPt({x:2.38,y:0.1}),snapPt({x:0.53,y:3.96})].map(railVal)));
+ await p.mouse.move(...(await cl(2.35,0.1)));await wait(60);
+ ok('B7h 미리보기 말풍선 23.5',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='23.5')));
+ ok('B7i 선택이 기억됨',await p.evaluate(()=>localStorage.getItem('bb.step'))==='0.5');
+ ok('B7j 버튼 표시',await p.$eval('#stepGrp [data-st="0.5"]',e=>e.classList.contains('on')));
+ await p.click('#stepGrp [data-st="1"]');await wait(60);
+ ok('B7k 1 단위로 되돌림 → 23',await p.evaluate(()=>railVal(snapPt({x:2.33,y:0.1})))===23);
+ ok('B7l 이미 찍은 점은 그대로',JSON.stringify(await seq())==='[30,15,45]',await seq());
  await click(6,2);
  ok('B8 같은 곳 두 번은 무시',(await st()).draft.predict.length===5);
  await p.click('#bDone');
@@ -109,8 +128,8 @@ function init({session,users}){
  ok('B10 손잡이 4개',(await p.$$('#gDyn .hd')).length===4);
 
  /* ── C) 고치기 ── */
- await drag(3,0,3.55,0.1);
- ok('C1 끌어서 옮기기 + 자석(35)',JSON.stringify(await seq())==='[35,15,45]',await seq());
+ await drag(3,0,3.5,0.1);
+ ok('C1 끌어서 옮기기 → 쿠션 위(35)',JSON.stringify(await seq())==='[35,15,45]',await seq());
  await click(7.97,1.5);          /* 손잡이 클릭(움직임 없음) */
  ok('C2 클릭 → 지우기 버튼',await p.isVisible('#ptPop'));
  await p.click('#ptDel');await wait(60);
@@ -162,7 +181,7 @@ function init({session,users}){
  /* ── F) 실제 간 길 ── */
  await p.click('#lAct');
  ok('F1 실제 선 → 긋기 모드',(await p.evaluate(()=>MODE))==='draw'&&/실제선 긋는 중/.test(await p.textContent('#hint')));
- await click(4,0.1);await click(8,2.1);
+ await click(4,0.1);await click(8,2);
  ok('F2 실제 선 40→20',JSON.stringify(await seq())==='[40,20]',await seq());
  ok('F3 아래 글자에 실제도',/실제:.*40 → 20/.test(await p.textContent('#seq')));
  await p.click('#bDone');
