@@ -85,11 +85,11 @@ function init({session,users}){
  const st=()=>p.evaluate(()=>JSON.parse(JSON.stringify(ST)));
  const seq=()=>p.evaluate(()=>railSeq(ST.draft[LAYER]));
  ok('B0 첫 판',(await p.textContent('#bName'))==='판 1');
- ok('B0b 기본 모드 = 공 옮기기',/공 옮기기/.test(await p.textContent('#hint')));
+ ok('B0b 기본 모드 = 공 옮기기',/공을 잡아 끌어서/.test(await p.textContent('#hint')));
 
  /* ── B) 선 긋기 ── */
  await p.click('#mDraw');
- ok('B1 모드 글자',/예측 선 긋는 중/.test(await p.textContent('#hint')));
+ ok('B1 모드 글자',/예측선 긋는 중/.test(await p.textContent('#hint')));
  await p.mouse.move(...(await cl(3.1,0.15)));await wait(60);
  ok('B2 미리보기 숫자 말풍선(30)',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='30')));
  await click(3.1,0.15);          /* 윗쿠션 3칸 → 30 */
@@ -161,7 +161,7 @@ function init({session,users}){
 
  /* ── F) 실제 간 길 ── */
  await p.click('#lAct');
- ok('F1 실제 선 → 긋기 모드',(await p.evaluate(()=>MODE))==='draw'&&/실제 간 길/.test(await p.textContent('#hint')));
+ ok('F1 실제 선 → 긋기 모드',(await p.evaluate(()=>MODE))==='draw'&&/실제선 긋는 중/.test(await p.textContent('#hint')));
  await click(4,0.1);await click(8,2.1);
  ok('F2 실제 선 40→20',JSON.stringify(await seq())==='[40,20]',await seq());
  ok('F3 아래 글자에 실제도',/실제:.*40 → 20/.test(await p.textContent('#seq')));
@@ -239,41 +239,37 @@ function init({session,users}){
  ok('J7 변경 이력',/새 판 ‘옆돌리기’/.test(ev)&&/이름을 ‘옆돌리기’ → ‘옆돌리기 연습’/.test(ev)&&/휴지통에서 살렸습니다/.test(ev),ev.slice(0,300));
  await p.click('#bBack');
 
- /* ── K) 실버 UX 치수 ── */
+ /* ── K) 한 화면 · 실버 UX 치수 ──
+    🔒 v1.1: 화면 전체(2560×1440)로 쟀더니 통과했지만, 실제 브라우저 창은 탭·주소창을 빼면 ~1300 이라
+       로한 화면에서 오른쪽 패널에 스크롤이 생겼다. → **실제 브라우저 창 크기**로 잰다.
+       2560×1300 = 32인치(아버지) · 1920×950 = 보통 모니터 · 1536×730 = 125% 배율 노트북 */
  const meas=()=>p.evaluate(()=>{
    const vis=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0;};
    const btn=[...document.querySelectorAll('#app button')].filter(vis).map(e=>({t:e.textContent.trim().slice(0,12),h:e.getBoundingClientRect().height}));
-   /* 🔒 v1 첫 판 결함: 32인치에서 [긋기 끝]·[기록하기]가 화면 밖으로 잘렸다(당구대만 쟀더니 못 잡았다).
-      → 보이는 버튼은 전부 화면 안 · 오른쪽 패널은 스크롤 없이 */
-   const out=[...document.querySelectorAll('#workv button, header button')].filter(vis).filter(e=>{const r=e.getBoundingClientRect();return r.bottom>innerHeight+0.5||r.right>innerWidth+0.5;}).map(e=>e.textContent.trim());
+   const out=[...document.querySelectorAll('#workv button, header button, #workv input')].filter(vis).filter(e=>{const r=e.getBoundingClientRect();return r.bottom>innerHeight+0.5||r.right>innerWidth+0.5;}).map(e=>e.textContent.trim()||e.id);
    const side=document.querySelector('.side');
-   return {root:parseFloat(getComputedStyle(document.documentElement).fontSize),small:btn.filter(x=>x.h<55.5),
-     over:document.documentElement.scrollWidth-window.innerWidth,out,sideScroll:side.scrollHeight-side.clientHeight,
-     pageScroll:document.documentElement.scrollHeight-innerHeight,
-     tbl:document.getElementById('tbl').getBoundingClientRect(),
-     cloth:(()=>{const r=document.querySelector('#gStatic rect:nth-child(3)').getBoundingClientRect();return r;})()};
+   const tops=[...document.querySelectorAll('.stage .tools button')].filter(vis).map(e=>Math.round(e.getBoundingClientRect().top));
+   const wrap=document.querySelector('.tblwrap').getBoundingClientRect(),frame=document.querySelector('#gStatic rect').getBoundingClientRect();
+   return {root:parseFloat(getComputedStyle(document.documentElement).fontSize),minBtn:Math.min(...btn.map(x=>x.h)),
+     over:document.documentElement.scrollWidth-innerWidth,out,sideScroll:side.scrollHeight-side.clientHeight,
+     pageScroll:document.documentElement.scrollHeight-innerHeight,rows:new Set(tops).size,
+     fillW:frame.width/wrap.width,fillH:frame.height/wrap.height,frameW:frame.width};
  });
  let m;
- for(const md of ["ball","draw","edit"]){await p.evaluate(m=>setMode(m),md);await wait(80);
-  m=await meas();
- ok('Ka '+md+' 2560 · 기본 글자 ≥23px',m.root>=23,m.root);
- ok('Kb '+md+' 2560 · 버튼 모두 ≥56px',!m.small.length,m.small);
- ok('Kc '+md+' 2560 · 가로 넘침 없음',m.over<=0,m.over);
- ok('Kd '+md+' 2560 · 버튼이 화면 밖으로 안 나감',!m.out.length,m.out);
- ok('Ke '+md+' 2560 · 오른쪽 패널 스크롤 없음',m.sideScroll<=1,m.sideScroll);
- ok('Kf '+md+' 2560 · 페이지 세로 스크롤 없음',m.pageScroll<=1,m.pageScroll);
- ok('Kg '+md+' 2560 · 당구 천 폭 ≥1000px',m.cloth.width>=1000,m.cloth.width);
- }
- await p.setViewportSize({width:1920,height:1080});await wait(200);
- for(const md of ["ball","draw","edit"]){await p.evaluate(m=>setMode(m),md);await wait(80);
-  m=await meas();
- ok('La '+md+' 1920 · 기본 글자 ≥20px',m.root>=20,m.root);
- ok('Lb '+md+' 1920 · 버튼 모두 ≥56px',!m.small.length,m.small);
- ok('Lc '+md+' 1920 · 가로 넘침 없음',m.over<=0,m.over);
- ok('Ld '+md+' 1920 · 버튼이 화면 밖으로 안 나감',!m.out.length,m.out);
- ok('Le '+md+' 1920 · 오른쪽 패널 스크롤 없음',m.sideScroll<=1,m.sideScroll);
- ok('Lf '+md+' 1920 · 페이지 세로 스크롤 없음',m.pageScroll<=1,m.pageScroll);
- ok('Lg '+md+' 1920 · 당구 천 폭 ≥700px',m.cloth.width>=700,m.cloth.width);
+ for(const [W,H,font,btnH] of [[2560,1300,23,56],[1920,950,15,38],[1536,730,15,38]]){
+  await p.setViewportSize({width:W,height:H});await wait(200);
+  for(const md of ['ball','draw','edit']){await p.evaluate(m=>setMode(m),md);await wait(80);
+   m=await meas();const t=W+'×'+H+' '+md+' · ';
+   ok('K '+t+'글자 ≥'+font+'px',m.root>=font,m.root);
+   ok('K '+t+'버튼 ≥'+btnH+'px',m.minBtn>=btnH-0.5,m.minBtn);
+   ok('K '+t+'가로 넘침 없음',m.over<=0,m.over);
+   ok('K '+t+'버튼·칸이 화면 밖으로 안 나감',!m.out.length,m.out);
+   ok('K '+t+'오른쪽 패널 스크롤 없음',m.sideScroll<=1,m.sideScroll);
+   ok('K '+t+'페이지 스크롤 없음',m.pageScroll<=1,m.pageScroll);
+   ok('K '+t+'도구가 한 줄',m.rows===1,m.rows);
+   /* 당구대가 칸을 꽉 채운다 — 가로든 세로든 한쪽은 97% 이상, 가로 여백은 25% 이하 */
+   ok('K '+t+'당구대 꽉 참',Math.max(m.fillW,m.fillH)>=0.97&&m.fillW>=(W>=1900?0.75:0.7),[m.fillW,m.fillH]);
+  }
  }
  ok('Z 에러 없음',!errs.length,errs);
  await c.close();

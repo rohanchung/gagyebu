@@ -25,11 +25,13 @@
   --blue:#1650d8; --red:#d0231a; --warn:#b3261e; --focus:#ff9f1a; --pick:#fff3cf;
 }
 *{box-sizing:border-box}
-/* 32인치(2560) 에서 ≈24px, 4K 100% 배율에서도 30px 까지 커진다. 1920 이하에선 20px 아래로 안 내려간다 */
-html{font-size:clamp(20px,0.95vw,30px)}
+/* 글자 크기 = 화면 폭·높이 중 작은 쪽에 맞춘다(스크롤이 안 생기게).
+   32인치 브라우저 창(2560×1300) ≈ 24px · 4K 100% 배율이면 30px 까지.
+   🔒 v1.1: 폭만 보고 키웠더니 실제 브라우저 창(주소창·탭 빼면 높이 ~1300)에서 오른쪽 패널에 스크롤이 생겼다 */
+html{font-size:clamp(15px,min(0.95vw,1.85vh),30px)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:1rem;line-height:1.45}
 button,input,select{font:inherit;color:inherit}
-button{min-height:2.8rem;padding:.3rem .95rem;border:2px solid #857d6c;border-radius:.6rem;background:#fff;cursor:pointer;
+button{min-height:2.6rem;padding:.25rem .8rem;border:2px solid #857d6c;border-radius:.6rem;background:#fff;cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font-weight:700;white-space:nowrap}
 button:hover{background:var(--pick);border-color:#4d4637}
 button:disabled{opacity:.4;cursor:not-allowed;background:#fff}
@@ -55,14 +57,14 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 #loginErr{margin-top:1rem;color:var(--warn);font-weight:700;min-height:1.5em}
 
 /* ── 앱 머리 ── */
-.top{display:flex;align-items:center;gap:.5rem;padding:.5rem 1rem;background:#fff;border-bottom:2px solid var(--line);flex-wrap:wrap}
+.top{display:flex;align-items:center;gap:.5rem;padding:.35rem .8rem;background:#fff;border-bottom:2px solid var(--line);flex-wrap:wrap}
 .brand{font-weight:800;font-size:1.2rem;margin-right:.5rem}
 #tabs{display:flex;gap:.35rem;flex-wrap:wrap}
-#tabs button{min-height:3rem;border-radius:.6rem .6rem 0 0;border-bottom-width:4px}
+#tabs button{min-height:2.6rem;border-radius:.6rem .6rem 0 0;border-bottom-width:4px}
 #tabs button.on{border-bottom-color:var(--focus)}
 .sp{flex:1}
-.bbar{display:flex;align-items:center;gap:.5rem;padding:.5rem 1rem;flex-wrap:wrap}
-.bname{font-size:1.35rem;font-weight:800;margin-right:.5rem}
+.bbar{display:flex;align-items:center;gap:.5rem;padding:.35rem .8rem;flex-wrap:wrap}
+.bname{font-size:1.25rem;font-weight:800;margin-right:.5rem}
 .save{font-weight:700;color:var(--green)}
 .save.bad{color:var(--warn)}
 
@@ -73,41 +75,42 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 #app{height:100vh;display:flex;flex-direction:column}
 #workv{flex:1;min-height:0;display:flex;flex-direction:column}
 #logv{flex:1;min-height:0;overflow:auto}
-.work{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 22rem;gap:1rem;padding:0 1rem .7rem}
+.work{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 19rem;gap:.7rem;padding:0 .8rem .6rem}
 .stage,.box{background:var(--card);border:2px solid var(--line);border-radius:.9rem}
-.stage{padding:.5rem .9rem .6rem;display:flex;flex-direction:column;min-height:0}
-.hint{flex:1;min-width:18rem;font-size:1.05rem;font-weight:700;padding:.35rem .7rem;border-radius:.5rem;background:#eef6f0;border:2px solid #b9d9c4}
-.tblwrap{flex:1;min-height:12rem;position:relative;margin-top:.3rem}
+.stage{padding:.4rem .5rem .4rem;display:flex;flex-direction:column;min-height:0}
+.hint{flex:1;min-width:14rem;min-height:2.6rem;display:flex;align-items:center;font-size:1rem;line-height:1.25;font-weight:700;padding:.15rem .7rem;margin-left:.4rem;border-radius:.5rem;background:#eef6f0;border:2px solid #b9d9c4}
+.tblwrap{flex:1;min-height:10rem;position:relative;margin-top:.35rem}
 #tbl{position:absolute;inset:0;display:block;width:100%;height:100%;user-select:none;touch-action:none}
 #tbl.m-ball{cursor:default}
 #tbl.m-draw{cursor:crosshair}
-.seq{font-size:1.05rem;min-height:1.5em;margin:.3rem 0 0}
-.seq b{font-size:1.15rem}
-.tools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.35rem}
-.tools .lbl{font-weight:700;margin-left:.6rem}
-.grp{display:inline-flex;gap:.35rem}
-.side{display:flex;flex-direction:column;gap:.5rem;min-height:0;overflow:auto}
-.box{padding:.45rem .9rem .6rem}
-.box h3{margin:.1rem 0 .4rem;font-size:1.15rem}
+.seq{font-size:1.05rem;margin:0 .6rem;white-space:nowrap}
+.seq b{font-size:1.1rem}
+.tools{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+.tools .lbl{font-weight:700}
+.tools .div{width:2px;align-self:stretch;background:var(--line);margin:0 .15rem}
+.grp{display:inline-flex;gap:.3rem;align-items:center}
+.side{display:flex;flex-direction:column;gap:.4rem;min-height:0;overflow:auto}
+.box{padding:.35rem .7rem .5rem}
+.box h3{margin:0 0 .3rem;font-size:1.05rem}
 .box h3 small{font-weight:400;color:var(--sub)}
 .row{display:flex;gap:.4rem;flex-wrap:wrap}
 .row button{flex:1}
-.tipgrid{display:flex;align-items:center;gap:.6rem;margin-top:.4rem}
-#tip{display:block;flex:none;width:9.5rem;height:9.5rem;cursor:crosshair}
+.tipgrid{display:flex;align-items:center;gap:.6rem;margin-top:.35rem}
+#tip{display:block;flex:none;width:8rem;height:8rem;cursor:crosshair}
 .tipbtn{flex:1;display:flex;flex-direction:column;gap:.5rem}
-#tipTxt{text-align:center;font-weight:800;font-size:1.15rem;min-height:1.5em}
-#tipTxt2{text-align:center;color:var(--sub);min-height:1.4em}
+#tipTxt{text-align:center;font-weight:800;font-size:1.05rem;min-height:1.4em;margin-top:.2rem}
+#tipTxt2{text-align:center;color:var(--sub);font-size:.9rem;min-height:1.3em}
 .spd{display:grid;grid-template-columns:repeat(5,1fr);gap:.3rem}
-.spd button{flex-direction:column;gap:0;padding:.25rem 0;min-height:3.4rem;line-height:1.15}
-.spd button b{font-size:1.3rem}
+.spd button{flex-direction:column;gap:0;padding:.15rem 0;min-height:3rem;line-height:1.1}
+.spd button b{font-size:1.2rem}
 .spd button span{font-size:.72rem;font-weight:600}
-.kmh{display:flex;align-items:center;gap:.5rem;margin-top:.5rem}
+.kmh{display:flex;align-items:center;gap:.5rem;margin-top:.35rem}
 .kmh input{width:7rem}
-.res button{min-height:3.2rem;font-size:1.1rem}
+.res button{min-height:2.8rem;font-size:1.05rem}
 .res button.hit.on{background:var(--blue);border-color:#0d3aa3}
 .res button.miss.on{background:var(--warn);border-color:#7d1a14}
-#memo{margin-top:.5rem}
-#bRec{min-height:3.8rem;font-size:1.25rem;width:100%}
+#memo{margin-top:.35rem}
+#bRec{min-height:3.2rem;font-size:1.15rem;width:100%;flex:none}
 
 /* 점 지우기 떠 있는 버튼 */
 #ptPop{position:fixed;z-index:30;display:flex;gap:.35rem;background:#fff;border:2px solid var(--line);border-radius:.6rem;padding:.3rem;box-shadow:0 .3rem 1rem rgba(0,0,0,.18)}
@@ -150,6 +153,11 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
 .litem.on{border-color:var(--green);background:#eef6f0}
 .mini{width:100%;height:auto;display:block;margin-bottom:.8rem}
 
+/* 좁은 창(125% 배율 노트북 등): 도구줄이 두 줄로 접히지 않게 여백만 줄인다 */
+@media (max-width:1700px){
+  .tools button{padding:.25rem .55rem;gap:.25rem}
+  .tools .lbl{display:none}
+}
 @media (max-width:1100px){
   #app{height:auto}
   .work{grid-template-columns:1fr}
@@ -196,21 +204,34 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
       <button id="bRename"><span class="ic">✏️</span> 이름 바꾸기</button>
       <button id="bCopy"><span class="ic">📄</span> 복제</button>
       <button id="bDel" class="danger"><span class="ic">🗑</span> 이 판 지우기</button>
-      <span class="sp"></span>
+      <div class="hint" id="hint"></div>
+      <div class="seq" id="seq"></div>
       <span id="saveSt" class="save"></span>
     </div>
     <div class="work">
       <section class="stage">
+        <!-- 🔒 v1.1 도구는 한 줄. 모드 | 선 종류 | 모드별 도구 + 안내 | 되돌리기 -->
         <div class="tools">
           <span class="grp">
             <button id="mBall" data-m="ball"><span class="ic">✋</span> 공 옮기기</button>
             <button id="mDraw" data-m="draw"><span class="ic">✏️</span> 선 긋기</button>
             <button id="mEdit" data-m="edit"><span class="ic">🖐</span> 선 고치기</button>
           </span>
-          <span class="lbl">선 종류</span>
+          <span class="div"></span>
           <span class="grp">
-            <button id="lPre" data-l="predict"><span style="color:#1650d8">━━</span> 예측 (파랑)</button>
-            <button id="lAct" data-l="actual"><span style="color:#d0231a">━━</span> 실제 간 길 (빨강)</button>
+            <button id="lPre" data-l="predict"><span style="color:#1650d8">━</span> 예측선</button>
+            <button id="lAct" data-l="actual"><span style="color:#d0231a">━</span> 실제선</button>
+          </span>
+          <span class="div"></span>
+          <span id="tBall" class="grp">
+            <span class="lbl">내 공</span>
+            <button id="cW" data-c="w">⚪ 흰 공</button>
+            <button id="cY" data-c="y">🟡 노란 공</button>
+            <button id="bReset"><span class="ic">↺</span> 처음 자리</button>
+          </span>
+          <span id="tDraw" class="grp">
+            <button id="bDone" class="primary"><span class="ic">✔</span> 긋기 끝</button>
+            <button id="bClear" class="danger"><span class="ic">🧹</span> 선 지우기</button>
           </span>
           <span class="sp"></span>
           <span class="grp">
@@ -218,21 +239,8 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
             <button id="bRedo"><span class="ic">↷</span> 다시하기</button>
           </span>
         </div>
-        <div class="tools">
-          <span id="tBall" class="grp">
-            <span class="lbl" style="margin-left:0">내 공(수구)</span>
-            <button id="cW" data-c="w">⚪ 흰 공</button>
-            <button id="cY" data-c="y">🟡 노란 공</button>
-            <button id="bReset"><span class="ic">↺</span> 공을 처음 자리로</button>
-          </span>
-          <span id="tDraw" class="grp">
-            <button id="bDone" class="primary"><span class="ic">✔</span> 긋기 끝</button>
-            <button id="bClear" class="danger"><span class="ic">🧹</span> 이 선 지우기</button>
-          </span>
-          <div class="hint" id="hint"></div>
-        </div>
         <div class="tblwrap">
-        <svg id="tbl" viewBox="-168 -160 1136 730" xmlns="http://www.w3.org/2000/svg">
+        <svg id="tbl" viewBox="-94 -94 988 588" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <marker id="arB" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1650d8"/></marker>
             <marker id="arR" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d0231a"/></marker>
@@ -240,7 +248,6 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
           <g id="gStatic"></g><g id="gDyn"></g>
         </svg>
         </div>
-        <div class="seq" id="seq"></div>
       </section>
 
       <aside class="side">
@@ -554,21 +561,21 @@ function railSeq(path){return path.map(railVal).filter(function(v){return v!==nu
 /* ═════════ 그리기 ═════════ */
 function staticTable(){
   var h=[];
-  h.push('<rect x="-110" y="-110" width="1020" height="620" rx="36" fill="#5b3a22"/>');
-  h.push('<rect x="-32" y="-32" width="864" height="464" rx="6" fill="#17613a"/>');
+  h.push('<rect x="-92" y="-92" width="984" height="584" rx="30" fill="#5b3a22"/>');
+  h.push('<rect x="-22" y="-22" width="844" height="444" rx="5" fill="#17613a"/>');
   h.push('<rect x="0" y="0" width="800" height="400" fill="#2a8a52"/>');
   for(var i=1;i<W;i++)h.push('<line x1="'+i*S+'" y1="0" x2="'+i*S+'" y2="400" stroke="rgba(255,255,255,.2)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>');
   for(var j=1;j<H;j++)h.push('<line x1="0" y1="'+j*S+'" x2="800" y2="'+j*S+'" stroke="rgba(255,255,255,.2)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>');
   for(i=0;i<=W;i++){
-    h.push(dot(i*S,-71),dot(i*S,471));
-    h.push(num(i*S,-126,i*10),num(i*S,547,i*10));
+    h.push(dot(i*S,-36),dot(i*S,436));
+    h.push(num(i*S,-58,i*10),num(i*S,480,i*10));
   }
   for(j=0;j<=H;j++){
-    h.push(dot(-71,j*S),dot(871,j*S));
-    h.push(num(-140,j*S+9,j*10),num(940,j*S+9,j*10));
+    h.push(dot(-36,j*S),dot(836,j*S));
+    h.push(num(-68,j*S+8,j*10),num(868,j*S+8,j*10));
   }
-  function dot(x,y){return '<circle cx="'+x+'" cy="'+y+'" r="8" fill="#f3e6c8" stroke="#1a1a1a" stroke-width="2.5"/>';}
-  function num(x,y,t){return '<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="27" font-weight="700" fill="#3b3b3b" font-family="inherit">'+t+'</text>';}
+  function dot(x,y){return '<circle cx="'+x+'" cy="'+y+'" r="6" fill="#f3e6c8" stroke="#1a1a1a" stroke-width="2"/>';}
+  function num(x,y,t){return '<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="25" font-weight="800" fill="#f3e6c8" font-family="inherit">'+t+'</text>';}
   return h.join('');
 }
 function pathSvg(path,color,marker,faint,k){
@@ -629,9 +636,9 @@ function renderSeq(){
 }
 function renderHint(){
   var t={
-    ball:'지금: ✋ 공 옮기기 — 공을 잡아 끌어서 옮기세요',
-    draw:'지금: ✏️ '+(LAYER==='predict'?'예측 선':'실제 간 길')+' 긋는 중 — 쿠션을 차례로 클릭하세요. 다 그었으면 [✔ 긋기 끝]',
-    edit:'지금: 🖐 선 고치기 — 동그라미를 끌어서 옮기고, 클릭하면 지울 수 있어요. 선을 클릭하면 점이 생겨요'
+    ball:'지금: ✋ 공을 잡아 끌어서 옮기세요',
+    draw:'지금: ✏️ '+(LAYER==='predict'?'예측선':'실제선')+' 긋는 중 — 쿠션을 차례로 클릭 → [긋기 끝]',
+    edit:'지금: 🖐 동그라미를 끌어 옮기기 · 누르면 지우기 · 선을 누르면 점 추가'
   }[MODE];
   $('hint').textContent=t;
 }
@@ -877,7 +884,7 @@ function miniSvg(a){
   var bl=a.balls||defaultBalls();
   function line(path,col){if(!path||path.length<2)return '';var pts=path.map(function(p){return p.x*S+','+p.y*S;}).join(' ');
     return '<polyline points="'+pts+'" fill="none" stroke="#fff" stroke-width="12" stroke-linejoin="round"/><polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="7" stroke-linejoin="round"/>';}
-  var h='<svg class="mini" viewBox="-168 -160 1136 730" xmlns="http://www.w3.org/2000/svg">'+staticTable()+line(a.predict,'#1650d8')+line(a.actual,'#d0231a');
+  var h='<svg class="mini" viewBox="-94 -94 988 588" xmlns="http://www.w3.org/2000/svg">'+staticTable()+line(a.predict,'#1650d8')+line(a.actual,'#d0231a');
   ['r','y','w'].forEach(function(n){if(!bl[n])return;var c={w:'#fbfbf5',y:'#f5c400',r:'#d8231b'}[n];
     h+='<circle cx="'+bl[n].x*S+'" cy="'+bl[n].y*S+'" r="'+BR*S+'" fill="'+c+'" stroke="#222" stroke-width="2"/>';});
   return h+'</svg>';
