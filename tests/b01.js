@@ -678,7 +678,7 @@ function init({session,users}){
  });
  await p.click('#bLog');await wait(200);await p.click('#vTrend');await wait(350);
  let xb=await p.textContent('#logBody');
- ok('X0 📈 탭 · 세 가지 구역',/📐 분리각 훈련 \(18문제\)/.test(xb)&&/🔁 원·투쿠션 훈련 \(4문제\)/.test(xb)&&/🎱 자유 연습 \(4번\)/.test(xb),xb.slice(0,200));
+ ok('X0 📈 탭 · 세 가지 구역',/📐 분리각 훈련 \(18문제\)/.test(xb)&&/🔁 원·투쿠션 훈련 · 예전 방식 \(4문제\)/.test(xb)&&/🎱 자유 연습 \(4번\)/.test(xb),xb.slice(0,200));
  ok('X1 약점: 2/8 두께 수구 12° · 넓게',/⚠ 2\/8 두께: 수구 방향을 평균 12° 틀립니다 — 보통 넓게 봅니다/.test(xb),xb.slice(0,400));
  ok('X2 약점 표: 2/8 줄 강조',await p.$eval('#logBody tr.worst',e=>/2\/8/.test(e.textContent)));
  ok('X3 표: 2/8 수구 경향 넓게 12°',/넓게 12°/.test(await p.$eval('#logBody tr.worst',e=>e.textContent)));
@@ -700,8 +700,34 @@ function init({session,users}){
  /* 판 고르면 그 판만 */
  await p.selectOption('#lBoard',{label:await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='cush');return KINDS.cush.ic+' '+b.name;})});await wait(300);
  xb=await p.textContent('#logBody');
- ok('X14 판 고르면 그 판 기록만',!/분리각 훈련 \(/.test(xb)&&/원·투쿠션 훈련 \(4문제\)/.test(xb));
+ ok('X14 판 고르면 그 판 기록만',!/분리각 훈련 \(/.test(xb)&&/원·투쿠션 훈련 · 예전 방식 \(4문제\)/.test(xb));
  await p.selectOption('#lBoard','');
+ await p.click('#bBack');
+
+ /* ── X2) 📈 원·투쿠션 v3 분석 — 손으로 계산한 답과 비교 ──
+    원쿠션 1적구 뒤 6문제(스스로):
+      얇은 3문제: 정답 왼쪽 2/8 · 첫 시도 왼쪽 4/8 · 4번 만에 → 두께 오차 2/8 · 두껍게 2/8
+      중간 3문제: 정답 왼쪽 4/8 · 첫 시도 왼쪽 4.5/8 · 2번 만에 → 오차 0.5/8 · 두껍게 0.5/8
+      첫 시도 지점 40 · 실제 가야 할 곳 43(같은 위 쿠션) → 3 작은 수
+    + 답 본 1문제(투쿠션, 5번 시도 · 정답 오른쪽 6/8 · 첫 시도 7/8 → 두껍게 1/8 · 지점 27 vs 30 → 3 작은 수)
+    기대: 스스로 6/7=86% · 평균 (4·3+2·3)/6=3번 · 두께 오차 (2·3+0.5·3+1)/7=1.2/8 · 두껍게 1.2/8 · 지점 3 작은 수 · ⚠ 얇은 두께
+    🔒 처음 짠 데이터는 "1번 만에 맞힘"인데 첫 시도 오차 0.5 를 기대했다 — 1번 만이면 첫 시도가 곧 정답이다(앱이 옳았다) */
+ await p.evaluate(()=>{const T=window.__T,c=BOARDS.find(x=>x.kind==='cush').id;let n=900;
+   const at=d=>new Date(2026,8,d,11,0,n++).toISOString();
+   const tr=(no,side,thick,cv,hit)=>({no,thick,side,cpt:[{r:'T',v:40}],act:[cv],actR:['T'],hit,pt:{x:4,y:0,rail:true}});
+   const push=(d,sim)=>T.bb_attempts.push({id:'v'+(n++),user_id:'dad',board_id:c,kind:'cush',created_at:at(d),result:null,memo:null,tip:null,speed:3,kmh:null,deleted_at:null,balls:{},predict:[],sim});
+   for(let i=0;i<3;i++)push(21,{ctype:'after',n:1,solvedBy:'self',triesN:4,tries:[tr(1,'L',4,50,false),tr(2,'L',3,47,false),tr(3,'L',2.5,45,false),tr(4,'L',2,43,true)]});
+   for(let i=0;i<3;i++)push(23,{ctype:'after',n:1,solvedBy:'self',triesN:2,tries:[tr(1,'L',4.5,41,false),tr(2,'L',4,43,true)]});
+   push(24,{ctype:'after',n:2,solvedBy:'answer',triesN:5,tries:[{...tr(1,'R',7,35,false),cpt:[{r:'T',v:27}]}],best:{side:'R',t16:12,act:[30,12],actR:['T','R']}});
+ });
+ await p.click('#bLog');await wait(200);await p.click('#vTrend');await wait(350);
+ const xt=await p.textContent('#logBody');
+ ok('X20 원쿠션·투쿠션 v3 구역 · 예전 방식은 따로',/🔁 원쿠션 · 투쿠션 훈련 \(7문제\)/.test(xt)&&/예전 방식/.test(xt),xt.slice(xt.indexOf('🔁'),xt.indexOf('🔁')+80));
+ ok('X21 스스로 맞힌 비율 86% · 평균 3번',/스스로 맞힌 비율\s*86%/.test(xt)&&/스스로 맞히기까지 평균[^번]*\)3번/.test(xt),xt.slice(xt.indexOf('스스로'),xt.indexOf('스스로')+120));
+ ok('X22 경향: 첫 시도 두께가 두껍다',/첫 시도에서 보통 1\.2\/8 두껍게 칩니다/.test(xt),xt.slice(xt.indexOf('📏'),xt.indexOf('📏')+60));
+ ok('X23 경향: 가야 할 지점을 3 작은 수로',/가야 할 지점을 평균 3 작은 수로 봅니다/.test(xt));
+ ok('X24 약점: 얇은 두께',/⚠ 얇은 두께 \(2\.5\/8 까지\) 문제가 가장 약합니다/.test(xt)&&await p.$$eval('#logBody tr.worst',es=>es.some(e=>/얇은 두께/.test(e.textContent))));
+ ok('X25 그래프 2개 추가(평균 시도 · 첫 시도 두께 오차)',/날짜별 스스로 맞히기까지 평균 시도/.test(xt)&&/날짜별 첫 시도 두께 오차/.test(xt));
  await p.click('#bBack');
 
  /* ── K) 한 화면 · 실버 UX 치수 ──

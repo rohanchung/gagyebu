@@ -7,7 +7,7 @@
  *      아버지 목적: "이렇게 치면 맞느냐"를 확인 · 수구 분리각 · 1적구 · 원/투쿠션 흐름 훈련
  */
 'use strict';
-var APP_VER='3.1.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.2.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
@@ -868,7 +868,7 @@ function findRoutes(){
     SIMV.info={result:list.length?'hit':'miss',routes:true,text:list.length?'🔍 '+(d.ctype==='after'?'득점하는':'맞히는')+' 길 '+list.length+'가지'+cond+' — 당구대 위 줄에서 길을 고르세요':'🔍 이 속도·당점으론 맞는 길이 없습니다 — 속도나 당점을 바꿔 보세요'};
     /* 모든 길을 봤으면 답을 본 것 — 한 번 기록 */
     if(list.length&&!d.answered){d.answered=true;if(!d.solved){d.solved='answer';var keep=SIMV,r0=list[0];
-      SIMV={res:r0.res,ai:r0.ai,info:r0.info,ids:liveBalls(),t:0,T:0,playing:false};cushDone();SIMV=keep;}saveSoon();}
+      r0.info.best=r0.center;SIMV={res:r0.res,ai:r0.ai,info:r0.info,ids:liveBalls(),t:0,T:0,playing:false};cushDone();SIMV=keep;}saveSoon();}
     renderAll();
   });
 }
@@ -1712,11 +1712,15 @@ function renderTrend(){
         '<td class="num">'+(r.eo==null?'—':r.eo+'°')+'</td><td>'+tendency(r.so,'넓게','좁게','°')+'</td><td class="num">'+(r.ec==null?'—':r.ec+'°')+'</td><td>'+tendency(r.sc,'넓게','좁게','°')+'</td></tr>';}).join('')+'</table></div></div>');
     h.push(setTable(P,'sep','°'));
   }
-  /* 🔁 원·투쿠션 — 부호: 찍은 수치 - 기준(계산 또는 실제) */
+  /* 🔁 원·투쿠션 v3 — 시도 내역으로: 스스로 맞힌 비율 · 평균 시도 · 첫 시도 오차 · 경향 · 두께 구간별 약점 */
+  var C3=C.filter(function(a){return a.sim.triesN!=null;});
+  if(C3.length)h.push(cushTrend(C3,full,half));
+  C=C.filter(function(a){return a.sim.triesN==null;});   /* 예전(v2) 기록은 아래 예전 방식으로 */
+  /* 🔁 예전 방식(v2) — 부호: 찍은 수치 - 기준(계산 또는 실제) */
   if(C.length){
     var errOf=function(ct){return function(a){if(a.sim.ctype!==ct)return null;var v=(a.sim.err||[]).filter(function(x){return x!=null;});return v.length?mean(v):null;};};
     var dC=daily(C,[errOf('first'),errOf('after')]);
-    h.push('<h3>🔁 원·투쿠션 훈련 <small>('+C.length+'문제)</small></h3>');
+    h.push('<h3>🔁 원·투쿠션 훈련 · 예전 방식 <small>('+C.length+'문제)</small></h3>');
     var sgn=function(ct){var v=[];C.forEach(function(a){var s=a.sim;if(s.ctype!==ct)return;(s.err||[]).forEach(function(e,k){if(e==null)return;var ref=ct==='first'?(s.sys||[])[k]:(s.act||[])[k];if(ref!=null&&s.dad[k]!=null)v.push(s.dad[k]-ref);});});return {m:mean(v),n:v.length};};
     var s1=sgn('first'),s2=sgn('after');
     h.push('<div class="weak">'+
@@ -1737,11 +1741,66 @@ function renderTrend(){
   $('logBody').innerHTML=h.join('');
   bindCharts();
 }
+/* 🔁 v3 분석
+   정답 = 스스로 맞힌 마지막 시도, 또는 답 보기·모든 길의 가운데 조준(sim.best)
+   첫 시도 두께 오차 = |첫 시도 두께 - 정답 두께| (1/8 단위, 공 반대쪽이면 그만큼 더 멀다)
+   경향: 첫 시도가 정답보다 얇으면 "얇게 칩니다" · 찍은 지점이 실제 가야 할 곳보다 작으면 "작은 수로 봅니다" */
+function v3Answer(s){
+  var tr=s.tries||[],last=tr[tr.length-1];
+  if(s.solvedBy==='self'&&last&&last.hit)return {u:uOf(last.side,Math.round(last.thick*2)),t8:last.thick,cR:last.actR&&last.actR[0],cV:last.act&&last.act[0],pv:last.cpt&&last.cpt[0]};
+  var b=s.best;if(!b)return null;
+  return {u:b.t16?uOf(b.side,b.t16):null,t8:b.t16?b.t16/2:null,cR:b.actR&&b.actR[0],cV:b.act&&b.act[0],pv:b.pt?{r:railId(b.pt),v:railVal(b.pt)}:null};
+}
+function cushTrend(L,full,half){
+  var rows=L.map(function(a){var s=a.sim,f=(s.tries||[])[0],ans=v3Answer(s),o={a:a,n:s.n||1,ct:s.ctype,self:s.solvedBy==='self',tries:s.triesN,ans:ans};
+    if(f&&ans&&s.ctype==='after'&&ans.u!=null){var uf=uOf(f.side,Math.round(f.thick*2));o.tErr=Math.abs(uf-ans.u)*8;o.tSign=(Math.abs(uf)-Math.abs(ans.u))*8;   /* + 이면 얇게 */
+      var c0=f.cpt&&f.cpt[0];if(c0&&ans.cR&&c0.r===ans.cR&&ans.cV!=null)o.pSign=c0.v-ans.cV;}
+    if(f&&ans&&s.ctype==='first'){var c1=f.cpt&&f.cpt[0];if(c1&&ans.pv&&c1.r===ans.pv.r)o.pSign=c1.v-ans.pv.v;}
+    return o;});
+  var h=[],selfN=rows.filter(function(r){return r.self;}).length,selfT=rows.filter(function(r){return r.self;}).map(function(r){return r.tries;});
+  var tE=rows.map(function(r){return r.tErr;}).filter(function(x){return x!=null;});
+  h.push('<h3>🔁 원쿠션 · 투쿠션 훈련 <small>('+rows.length+'문제)</small></h3>');
+  h.push('<div class="stats">'+
+    '<div class="stat"><div class="k">스스로 맞힌 비율</div><div class="v">'+pct(selfN,rows.length)+'</div></div>'+
+    '<div class="stat"><div class="k">스스로 맞히기까지 평균 <small>('+selfN+'문제)</small></div><div class="v">'+(selfT.length?r1(mean(selfT))+'번':'—')+'</div></div>'+
+    '<div class="stat"><div class="k">첫 시도 두께 오차 <small>(1적구 뒤 '+tE.length+'문제)</small></div><div class="v">'+(tE.length?r1(mean(tE))+'/8':'—')+'</div></div>'+
+    '<div class="stat"><div class="k">답 본 문제</div><div class="v">'+(rows.length-selfN)+'번</div></div></div>');
+  /* 경향 · 약점 — 표본 3개 이상만 */
+  var weak=[],ts=rows.map(function(r){return r.tSign;}).filter(function(x){return x!=null;});
+  if(ts.length>=3){var m=mean(ts);weak.push(Math.abs(m)>=0.5?'<p>📏 첫 시도에서 보통 <b>'+r1(Math.abs(m))+'/8 '+(m>0?'얇게':'두껍게')+'</b> 칩니다 <small>('+ts.length+'문제)</small></p>':'<p>📏 첫 시도 두께는 고른 편입니다 <small>('+ts.length+'문제)</small></p>');}
+  var pa=rows.filter(function(r){return r.ct==='after';}).map(function(r){return r.pSign;}).filter(function(x){return x!=null;});
+  if(pa.length>=3){var mp=mean(pa);if(Math.abs(mp)>=1)weak.push('<p>📍 1적구 뒤: 수구가 가야 할 지점을 평균 <b>'+r1(Math.abs(mp))+' '+(mp<0?'작은':'큰')+' 수</b>로 봅니다 <small>('+pa.length+'문제)</small></p>');}
+  var pf=rows.filter(function(r){return r.ct==='first';}).map(function(r){return r.pSign;}).filter(function(x){return x!=null;});
+  if(pf.length>=3){var mf=mean(pf);if(Math.abs(mf)>=1)weak.push('<p>📍 쿠션 먼저: 첫 시도 지점이 정답보다 평균 <b>'+r1(Math.abs(mf))+' '+(mf<0?'작은':'큰')+' 수</b>입니다 <small>('+pf.length+'문제)</small></p>');}
+  /* 두께 구간(정답 기준)별 */
+  var G=[['얇은 두께 (2.5/8 까지)',0,2.5],['중간 두께 (3~5.5/8)',3,5.5],['두꺼운 두께 (6/8 부터)',6,8]].map(function(g){
+    var R=rows.filter(function(r){return r.ct==='after'&&r.ans&&r.ans.t8!=null&&r.ans.t8>=g[1]&&r.ans.t8<=g[2];});
+    var sT=R.filter(function(r){return r.self;}).map(function(r){return r.tries;}),e=R.map(function(r){return r.tErr;}).filter(function(x){return x!=null;}),sg=R.map(function(r){return r.tSign;}).filter(function(x){return x!=null;});
+    return {name:g[0],n:R.length,self:R.filter(function(r){return r.self;}).length,avgT:sT.length?r1(mean(sT)):null,
+      /* 약점 점수: 답 본 문제는 시도+2 로 친다(못 맞힌 게 더 어렵다) */
+      score:R.length?mean(R.map(function(r){return r.self?r.tries:r.tries+2;})):null,e:e.length?r1(mean(e)):null,sg:sg.length?mean(sg):null};});
+  var cand=G.filter(function(g){return g.n>=3;}).sort(function(x,y){return y.score-x.score;});
+  var worst=cand.length>=2&&cand[0].score>cand[cand.length-1].score+0.5?cand[0]:null;
+  if(worst)weak.push('<p>⚠ <b>'+worst.name+'</b> 문제가 가장 약합니다 — 스스로 맞힌 비율 '+pct(worst.self,worst.n)+(worst.avgT!=null?' · 평균 '+worst.avgT+'번':'')+' <small>('+worst.n+'문제)</small></p>');
+  h.push('<div class="weak">'+(weak.length?weak.join(''):'<p>1적구 뒤 쿠션 문제를 3개 이상 풀면 경향과 약점을 알려 드립니다.</p>')+'</div>');
+  /* 그래프: 같은 단위끼리만 한 그림에(두 축 금지) */
+  var byN=function(n,f){return function(a){return (a.sim.n||1)===n?f(a):null;};};
+  var triesF=function(a){return a.sim.solvedBy==='self'?a.sim.triesN:null;};
+  var tErrF=function(a){var r=rows.filter(function(x){return x.a===a;})[0];return r?r.tErr:null;};
+  var d1=daily(L,[byN(1,triesF),byN(2,triesF)]),d2=daily(L,[byN(1,tErrF),byN(2,tErrF)]);
+  h.push('<div class="sec2"><div>'+lineChart({w:half,title:'날짜별 스스로 맞히기까지 평균 시도',unit:'번',names:['원쿠션','투쿠션'],keys:d1.keys,series:d1.series})+'</div>'+
+    '<div>'+lineChart({w:half,title:'날짜별 첫 시도 두께 오차 (1적구 뒤)',unit:'/8',names:['원쿠션','투쿠션'],keys:d2.keys,series:d2.series})+'</div></div>');
+  h.push('<table class="t" style="margin-bottom:.8rem"><tr><th>정답 두께</th><th>문제</th><th>스스로 맞힘</th><th>평균 시도</th><th>첫 시도 두께 오차</th><th>경향</th></tr>'+
+    G.map(function(g){return '<tr class="'+(worst&&g===worst?'worst':'')+'"><td>'+(worst&&g===worst?'⚠ ':'')+g.name+'</td><td class="num">'+g.n+'</td><td class="num">'+(g.n?pct(g.self,g.n):'—')+'</td>'+
+      '<td class="num">'+(g.avgT==null?'—':g.avgT+'번')+'</td><td class="num">'+(g.e==null?'—':g.e+'/8')+'</td><td>'+tendency(g.sg,'얇게','두껍게','/8')+'</td></tr>';}).join('')+'</table>');
+  h.push(setTable(L,'cush','번'));
+  return h.join('');
+}
 /* 📝 세트 기록 — 최근 세트 10개 */
 function setTable(L,k,unit){
   var sets={},order=[];
   L.forEach(function(a){var st=a.sim.set;if(!st)return;if(!sets[st.id]){sets[st.id]={at:a.created_at,v:[]};order.push(st.id);}
-    var e=k==='sep'?[a.sim.eObj,a.sim.eCue]:(a.sim.err||[]);var v=e.filter(function(x){return x!=null;});if(v.length)sets[st.id].v.push(mean(v));});
+    var e=k==='sep'?[a.sim.eObj,a.sim.eCue]:a.sim.triesN!=null?[a.sim.solvedBy==='self'?a.sim.triesN:null]:(a.sim.err||[]);var v=e.filter(function(x){return x!=null;});if(v.length)sets[st.id].v.push(mean(v));});
   if(!order.length)return '';
   order=order.slice(-10).reverse();
   return '<div class="chart"><h4>📝 최근 10문제 세트</h4><table class="t"><tr><th>언제</th><th>푼 문제</th><th>평균 오차</th></tr>'+
