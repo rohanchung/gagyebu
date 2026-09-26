@@ -115,17 +115,17 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .res button.miss.on{background:var(--warn);border-color:#7d1a14}
 #memo{margin-top:.35rem}
 .recrow{display:flex;gap:.35rem;flex:none}
-#bRec{min-height:3.2rem;font-size:1.15rem;flex:1}
-#bNextT,#bCmp{min-height:3.2rem;flex:none}
+#bRec{min-height:2.9rem;font-size:1.15rem;flex:1}
+#bNextT{min-height:2.9rem;flex:none}
 /* 높이가 낮은 창(노트북)에서만 당점 원·속도칸을 줄인다 */
 @media (max-height:800px){#tip{width:6rem;height:6rem}.spd button{min-height:2.6rem}#tipGuide{display:none}.aimtxt{min-height:0}}
 .hint.ok{background:#e3ecff;border-color:#9db6f5;color:#0d3aa3}
 .hint.bad{background:#fde7e4;border-color:#f0b0a8;color:#7d1a14}
 .hint.foul{background:#fff1d6;border-color:#f0c878;color:#7a4b00}
 .hint.run{background:#f1e6fb;border-color:#c9a7ec;color:#4a1a7a}
-.aimtxt{font-weight:800;font-size:1rem;line-height:1.25;margin:0 0 .35rem;min-height:2.5em}
+.aimtxt{font-weight:800;font-size:1rem;line-height:1.25;margin:0 0 .25rem;min-height:2.5em}
 .simrow{display:flex;gap:.4rem}
-#bSim{flex:1;min-height:3rem;font-size:1.12rem;background:#6a2bb0;border-color:#4a1a7a;color:#fff}
+#bSim{flex:1;min-height:2.8rem;font-size:1.12rem;background:#6a2bb0;border-color:#4a1a7a;color:#fff}
 #bSim:hover{background:#56209a}
 #bSlow{flex:none}
 /* 두께: [◐ 왼쪽] 1/8 2/8 3/8 4/8 · [◑ 오른쪽] 5/8 6/8 7/8 8/8 — 두 줄 */
@@ -328,11 +328,11 @@ body.k-cush .tools .lbl{display:none}
             <button id="bSim"><span class="ic">▶</span> <span id="bSimT">시뮬레이션</span></button>
             <button id="bSlow" title="천천히 보기">🐢 천천히</button>
           </div>
+          <div class="row" data-k="free cush" style="margin-top:.3rem"><button id="bScan">🎯 맞는 범위</button><button id="bCmp" data-k="cush">💨 속도 비교</button></div>
         </section>
         <div class="recrow">
           <button id="bRec" class="primary"><span class="ic">✅</span> 이 시도 기록하기</button>
           <button id="bNextT" data-k="sep">다음 두께 ▶</button>
-          <button id="bCmp" data-k="cush">💨 속도 비교</button>
         </div>
       </aside>
     </div>

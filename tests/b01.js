@@ -200,7 +200,7 @@ function init({session,users}){
  const setUp=()=>p.evaluate(()=>{pushUndo();ST.balls={w:{x:1,y:2},y:{x:1,y:0.6},r:{x:3,y:2.1},r2:{x:7,y:3.8},cue:'w'};
    ST.draft.predict=[{ref:'cue'},{x:3,y:2}];ST.draft.tip={x:0,y:0};ST.draft.speed=3;ST.draft.kmh=null;renderAll();});
  await setUp();
- ok('S1 조준 → 첫 공·두께 표시',/첫 공: 빨간 공 ① · 두께 5\/8 \(왼쪽\)/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
+ ok('S1 조준 → 첫 공·두께 표시',/첫 공: 빨간 공 ① · 두께 4\.5\/8 \(왼쪽\)/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
  const probe=await p.evaluate(()=>{const sv=computeSim(),E=sv.res.events,h=E.find(e=>e.type==='ball'&&(e.a==='w'||e.b==='w'));
    const f=sv.res.frames.find(f=>f.t>h.t+0.35);return {first:h&&(h.a==='w'?h.b:h.a),pt:[f.p.w[0]/DM,f.p.w[1]/DM],res:sv.info.result};});
  ok('S2 첫 충돌 = 빨강 ①',probe.first==='r',probe);
@@ -331,7 +331,7 @@ function init({session,users}){
  ok('J2 실제 득점률 50% · 시뮬레이션 득점률',/실제 득점률[^%]*50%/.test(body)&&/시뮬레이션 득점률/.test(body),body.slice(0,300));
  ok('J2b 분리각 문제 1번 · 평균 오차',/📐 분리각 훈련[\s\S]*문제\s*1번/.test(body)&&/1적구 평균 오차[^°]*\d+(\.\d)?°/.test(body));
  ok('J3 표 3줄',(await p.$$('#logBody tr.click')).length===3);
- ok('J4 조건 글자(첫 공·두께)',/빨간 공 ① 5\/8/.test(body)&&/두께 4\/8 왼쪽/.test(body));
+ ok('J4 조건 글자(첫 공·두께)',/빨간 공 ① 4\.5\/8/.test(body)&&/두께 4\/8 왼쪽/.test(body));
  await p.click('#logBody tr.click >> nth=2');await wait(100);
  ok('J5 지난 시도 그림(시뮬레이션 길 포함)',(await p.$$('.modal svg.mini polyline')).length>=4);
  await p.click('.modal .btns .primary');await wait(200);   /* 이 조건으로 다시 */
@@ -394,7 +394,7 @@ function init({session,users}){
  await p.evaluate(()=>{ST.balls.r2={x:4.5,y:3.3};});
  await p.click('#ctype [data-ct="after"]');await wait(60);
  ok('U20 1적구 뒤: 두께칸 보임 · 공 셋',await p.isVisible('#thkBox')&&(await p.evaluate(()=>liveBalls().join()))==='w,r,r2');
- ok('U21 첫 공·두께 표시',/첫 공: 빨간 공 ① · 두께 4\/8/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
+ ok('U21 두께는 판 위 말풍선으로 · 중복 글자 숨김',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='두께 4/8 (반)'))&&!(await p.isVisible('#aimTxt'))&&/첫 공: 빨간 공 ① · 두께 4\/8/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
  await p.click('#ncush [data-n="1"]');
  const act=await p.evaluate(()=>{const sv=computeSim();return sv.info;});
  ok('U22 시뮬레이션 수구 쿠션 지점 계산',act.act&&act.act.length===1,act);
@@ -423,6 +423,56 @@ function init({session,users}){
  const ub=await p.textContent('#logBody');
  ok('U30 기록 화면: 🔁 원·투쿠션 통계 · 조건 글자',/🔁 원·투쿠션 훈련[\s\S]*문제\s*1번/.test(ub)&&/1적구 뒤 4\/8 · 원쿠션 · 찍은 지점 [\d.]+/.test(ub),ub.slice(0,400));
  await p.click('#bBack');
+
+ /* ── V) 🎯 맞는 범위 찾기 (v2.2) ── */
+ const waitScan=async()=>{for(let i=0;i<100;i++){if(await p.evaluate(()=>!!(SIMV&&SIMV.info&&SIMV.info.scan)))return true;await wait(50);}return false;};
+ await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='free');switchBoard(b.id);MODE='ball';
+   ST.balls={w:{x:1,y:2},y:{x:1,y:0.6},r:{x:3,y:2.1},r2:{x:7,y:3.8},cue:'w'};ST.draft.predict=[{ref:'cue'},{x:3,y:2}];ST.draft.tip={x:0,y:0};ST.draft.speed=3;ST.draft.kmh=null;renderAll();
+   const sv=computeSim(),h=sv.res.events.find(e=>e.type==='ball');const f=sv.res.frames.find(f=>f.t>h.t+0.35);ST.balls.r2={x:f.p.w[0]/DM,y:f.p.w[1]/DM};renderAll();});
+ ok('V0 자유 연습에 🎯 버튼',await p.isVisible('#bScan'));
+ await p.click('#bScan');await wait(30);
+ ok('V1 계산 중 글자',/🎯 계산 중… \d+\/\d+/.test(await p.textContent('#hint'))||await p.evaluate(()=>!!(SIMV&&SIMV.info.scan)));
+ ok('V2 계산이 끝난다',await waitScan());
+ let vt=await p.textContent('#hint');
+ ok('V3 맞는 두께 글자: 빨강 ①·② 각각',/🎯 맞는 두께 \(속도 3 · 정중앙\) — 빨간 공 ①: .* · 빨간 공 ②: /.test(vt),vt);
+ ok('V4 빨강 ① 쪽에 득점 구간이 있다(방금 쳐서 득점한 조준 포함)',/빨간 공 ①: (왼쪽|오른쪽|정면)/.test(vt),vt);
+ const sc=await p.evaluate(()=>({n:SIMV.scan.items.length,hit:SIMV.scan.items.filter(x=>x.res==='hit').length,ranges:SIMV.scan.ranges.length,best:!!SIMV.scan.best,
+   un:SIMV.scan.items.filter(x=>!x.res).length}));
+ ok('V5 두 공 × 31 조준 · 모두 판정',sc.n===62&&sc.un===0,sc);
+ ok('V6 구간·가운데 조준',sc.ranges>=1&&sc.best,sc);
+ ok('V7 부채꼴이 그려진다',(await p.$$('#gDyn line')).length>=60);
+ ok('V8 [가운데로 조준해 보기] 버튼',await p.isVisible('#bUseBest'));
+ /* 🔒 부채꼴이 거짓말하지 않는가 — 초록 조준을 하나하나 다시 치면 전부 득점 */
+ const recheck=await p.evaluate(()=>{const it=SIMV.scan.items.filter(x=>x.res==='hit');let bad=0;
+   it.forEach(x=>{const ai={dir:x.dir,contact:rayHit(ST.balls[ST.balls.cue],x.dir)};const r=simWith(ai,speedMs());if(judge(r,ai).result!=='hit')bad++;});return {n:it.length,bad};});
+ ok('V9 초록 조준은 다시 쳐도 전부 득점',recheck.n>0&&recheck.bad===0,recheck);
+ await p.click('#bUseBest');await wait(100);await p.click('#bSim');await wait(150);
+ ok('V10 가운데로 조준 → 바로 쳐서 ⭕ 득점',/⭕ 득점/.test(await p.textContent('#hint'))&&(await st()).draft.predict.length===2,await p.textContent('#hint'));
+ await p.click('#bUndo');
+ /* 바꾸면 멈춘다 */
+ await p.click('#bScan');await p.click('#spd [data-s="4"]');await wait(400);
+ ok('V11 계산 중 조건을 바꾸면 멈춘다',await p.evaluate(()=>SIMV===null));
+ await p.click('#spd [data-s="3"]');
+ /* 🔁 쿠션 먼저: 쿠션 위 지점을 0.5 씩 */
+ await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='cush');switchBoard(b.id);
+   ST.draft.ctype='first';ST.draft.ncush=1;ST.draft.cpts=[];ST.balls.w={x:1.5,y:2.6};ST.balls.r={x:6,y:2.4};ST.balls.cue='w';ST.draft.tip={x:0,y:0};ST.draft.speed=3;ST.draft.kmh=null;renderAll();});
+ await p.click('#bScan');await wait(100);
+ ok('V12 쿠션 지점이 없으면 안내',/먼저 쿠션 지점을 하나 찍어/.test(await p.textContent('#mask')));
+ await p.click('.modal .btns button');
+ await p.evaluate(()=>{ST.draft.cpts=[{x:3.5,y:0,rail:true}];renderAll();});
+ await p.click('#bScan');
+ ok('V13 쿠션 계산 끝',await waitScan());
+ vt=await p.textContent('#hint');
+ ok('V14 맞는 쿠션 지점 · 무회전 계산 나란히',/🎯 맞는 쿠션 지점 \(속도 3 · 정중앙\) — (위 [\d.]+( ~ [\d.]+)?|없음)/.test(vt)&&/무회전 계산 38\.5/.test(vt),vt);
+ ok('V15 윗쿠션 0~80 을 0.5 씩(161곳)',await p.evaluate(()=>SIMV.scan.items.length)===161);
+ ok('V16 찍어 둔 지점은 그대로',JSON.stringify((await st()).draft.cpts)==='[{"x":3.5,"y":0,"rail":true}]');
+ if(await p.isVisible('#bUseBest')){
+   await p.click('#bUseBest');await wait(100);await p.click('#bSim');await wait(150);
+   ok('V17 가운데 지점으로 → 맞음',/⭕ 원쿠션으로 빨간 공 ① 맞음/.test(await p.textContent('#hint'))&&(await st()).draft.cpts[0].x!==3.5,await p.textContent('#hint'));
+ }else ok('V17 (맞는 지점 없음 — 조건상 건너뜀)',true);
+ /* 분리각 판엔 없다 */
+ await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='sep');switchBoard(b.id);});
+ ok('V18 분리각 판엔 🎯 없음',!(await p.isVisible('#bScan')));
 
  /* ── K) 한 화면 · 실버 UX 치수 ──
     🔒 v1.1: 화면 전체(2560×1440)로 쟀더니 통과했지만, 실제 브라우저 창은 탭·주소창을 빼면 ~1300 이라

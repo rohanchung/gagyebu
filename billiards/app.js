@@ -347,7 +347,8 @@ function snapRail(p){
 
 /* ═════════ 조준 · 두께 ═════════ */
 /* 두께(0~1)를 1/8 단위 글자로 — 8/8 = 정면(풀), 4/8 = 반 */
-function thickTxt(t){var e=clamp(Math.round(t*8),1,8);return e===8?'8/8 (정면)':e===4?'4/8 (반)':e+'/8';}
+/* v2.2: 반 칸(1/16)까지 — 맞는 범위를 1/16 로 훑으니 4.5/8 같은 값이 나온다 */
+function thickTxt(t){var e=clamp(Math.round(t*16)/2,0.5,8);return e===8?'8/8 (정면)':e===4?'4/8 (반)':e+'/8';}
 /* 수구에서 dir 로 쐈을 때 처음 맞는 공 · 두께 · 맞는 순간 수구 자리(고스트) */
 function rayHit(c,dir){
   var best=null;
@@ -362,11 +363,13 @@ function rayHit(c,dir){
   return best;
 }
 /* 분리각 훈련 — 두께(1~8/8)·좌우 → 조준 방향 */
-function sepAim(){
-  var c=ST.balls[ST.balls.cue], o=ST.balls.r, d=ST.draft;
+function sepAim(){var d=ST.draft;return aimAt('r',d.thick/8,d.side);}
+/* 수구 → 공 target 을 두께 t(0~1)·좌우로 맞히는 조준 방향 */
+function aimAt(target,t,side){
+  var c=ST.balls[ST.balls.cue], o=ST.balls[target];
   var dx=o.x-c.x, dy=o.y-c.y, L=Math.hypot(dx,dy);
-  var off=(1-d.thick/8)*2*BR;if(L<=off+1e-6)return null;
-  var th=Math.asin(off/L)*(d.side==='L'?-1:1), ux=dx/L, uy=dy/L, rx=-uy, ry=ux;
+  var off=(1-t)*2*BR;if(L<=off+1e-6)return null;
+  var th=Math.asin(off/L)*(side==='L'?-1:1), ux=dx/L, uy=dy/L, rx=-uy, ry=ux;
   return {x:Math.cos(th)*ux+Math.sin(th)*rx, y:Math.cos(th)*uy+Math.sin(th)*ry};
 }
 function aimInfo(){
@@ -439,6 +442,95 @@ function judgeCush(res,ai){
   return {kind:'cush',ctype:first?'first':'after',n:N,dad:dad.map(function(x){return x.v;}),sys:sys?sys.map(function(x){return x.v;}):null,
     act:act.map(function(x){return x.v;}),err:err,result:ok?'hit':'miss',missCm:miss,text:txt,
     sysPath:sp?sp.map(function(q){return [r2(q.x),r2(q.y)];}):null,rails:rails,thick:d.thick,side:d.side};
+}
+/* ═════════ 🎯 맞는 범위 찾기 (v2.2) ═════════
+   아버지: "이렇게 치면 맞느냐" — 한 번 쳐 보는 대신, 지금 당점·속도로 조준을 촘촘히 돌려 **맞는 구간**을 보여 준다.
+   🎱 자유 연습   : 빨강 ①·② 각각 첫 공으로, 두께 1/16 씩 (왼쪽 얇게 → 정면 → 오른쪽 얇게)
+   🔁 쿠션 먼저   : 찍은 첫 쿠션 위에서 지점을 0.5 씩
+   🔁 1적구 뒤    : 빨강 ① 두께 1/16 씩
+   한 번 계산 ≈ 8ms · 몇 개씩 나눠 돌려 화면이 멈추지 않게 한다. 무엇이든 바뀌면(clearSim) 멈춘다 */
+var SCAN_TOKEN=0;
+function scanCandidates(){
+  var K=kind(),out=[],c=ST.balls[ST.balls.cue];
+  function thickSweep(target){
+    var seq=[];for(var t=1;t<=16;t++)seq.push({side:'L',t16:t});for(t=15;t>=1;t--)seq.push({side:'R',t16:t});
+    seq.forEach(function(s,i){var dir=aimAt(target,s.t16/16,s.side);if(!dir)return;
+      var hit=rayHit(c,dir);
+      out.push({grp:target,idx:i,target:target,side:s.side,t16:s.t16,dir:dir,ghost:hit?hit.ghost:null,block:!hit||hit.ball!==target});});
+  }
+  if(K==='free'){thickSweep('r');thickSweep('r2');}
+  else if(K==='cush'&&cushAfter())thickSweep('r');
+  else if(K==='cush'){
+    var cp=ST.draft.cpts[0];if(!cp)return null;
+    var r=railId(cp),max=(r==='T'||r==='B')?W:H,i=0;
+    for(var v=0;v<=max*10+1e-9;v+=0.5,i++){var p=r==='T'||r==='B'?{x:v/10,y:cp.y,rail:true}:{x:cp.x,y:v/10,rail:true};
+      var q=toCenter(p),dx=q.x-c.x,dy=q.y-c.y,L=Math.hypot(dx,dy);if(L<1e-6)continue;
+      out.push({grp:r,idx:i,rail:r,v:v,pt:p,dir:{x:dx/L,y:dy/L},end:q});}
+  }
+  return out;
+}
+function scanRange(){
+  var K=kind();if(K==='sep')return;
+  if(K==='cush'&&!cushAfter()&&!ST.draft.cpts.length){modal({title:'먼저 쿠션 지점을 하나 찍어 주세요',body:'찍은 쿠션 위에서 지점을 조금씩 옮겨 가며 계산합니다.',buttons:[{label:'알겠습니다',value:1,cls:'primary'}]});return;}
+  clearSim();
+  var items=scanCandidates()||[],tok=++SCAN_TOKEN,i=0,V=speedMs(),saved=clone(ST.draft.cpts);
+  SIMV={scan:{items:items,done:0},ids:liveBalls(),t:0,T:0,playing:false,info:{result:'cmp',text:'🎯 계산 중… 0/'+items.length}};
+  renderAll();
+  function step(){
+    if(tok!==SCAN_TOKEN||!SIMV||!SIMV.scan)return;
+    var end=Math.min(items.length,i+8);
+    for(;i<end;i++){var it=items[i];if(it.block){it.res='block';continue;}
+      if(it.pt)ST.draft.cpts=[it.pt].concat(saved.slice(1));   /* 쿠션 먼저: 첫 지점만 바꿔 계산 */
+      var ai={dir:it.dir,contact:rayHit(ST.balls[ST.balls.cue],it.dir)},r=simWith(ai,V),I=judge(r,ai);
+      it.res=I.result==='hit'?'hit':I.result==='foul'?'foul':'miss';
+    }
+    ST.draft.cpts=saved;
+    SIMV.scan.done=i;SIMV.info.text='🎯 계산 중… '+i+'/'+items.length;
+    if(i<items.length){renderHint();setTimeout(step,0);return;}
+    finishScan();
+  }
+  setTimeout(step,0);
+}
+/* 이어진 성공 구간 → 글자 · 가장 넓은 구간의 가운데 = 추천 조준 */
+function finishScan(){
+  var sc=SIMV.scan,items=sc.items,groups={},order=[];
+  items.forEach(function(it){if(!groups[it.grp]){groups[it.grp]=[];order.push(it.grp);}groups[it.grp].push(it);});
+  var ranges=[];
+  order.forEach(function(g){var run=null;
+    groups[g].forEach(function(it,k){
+      if(it.res==='hit'){if(!run){run={grp:g,from:it,to:it,items:[]};ranges.push(run);}run.to=it;run.items.push(it);}
+      else run=null;
+    });});
+  var best=null;ranges.forEach(function(r){if(!best||r.items.length>best.items.length)best=r;});
+  sc.ranges=ranges;sc.best=best?best.items[Math.floor((best.items.length-1)/2)]:null;
+  var RN={T:'위',B:'아래',L:'왼쪽',R:'오른쪽'};
+  var th=function(it){return it.t16===16?'정면':(it.side==='L'?'왼쪽 ':'오른쪽 ')+(it.t16/2)+'/8';};
+  var one=function(r){return r.from===r.to?(r.from.pt?RN[r.from.rail]+' '+r.from.v:th(r.from)):
+    (r.from.pt?RN[r.from.rail]+' '+r.from.v+' ~ '+r.to.v:th(r.from)+' ~ '+th(r.to));};
+  var cond=' (속도 '+(ST.draft.kmh!=null?ST.draft.kmh+'km/h':ST.draft.speed)+' · '+tipDesc(ST.draft.tip)[0]+')';
+  var txt;
+  if(kind()==='cush'&&!cushAfter()){
+    var sys=null,cp=ST.draft.cpts[0],c=ST.balls[ST.balls.cue];
+    if(cp&&ST.draft.ncush===1){var sp=sysPath(c,ST.balls.r,[railId(cp)]);if(sp)sys=cval(sp[1],railId(cp));}
+    txt='🎯 맞는 쿠션 지점'+cond+' — '+(ranges.length?ranges.map(one).join(' · '):'없음')+(sys!=null?' · 무회전 계산 '+sys:'');
+  }else{
+    txt='🎯 맞는 두께'+cond+' — '+order.map(function(g){var rs=ranges.filter(function(r){return r.grp===g;});
+      return BNAME[g]+': '+(rs.length?rs.map(one).join(', '):'없음');}).join(' · ');
+  }
+  if(!ranges.length)txt+=' — 속도나 당점을 바꿔 보세요';
+  var foul=items.filter(function(x){return x.res==='foul';}).length;
+  if(foul)txt+=' · ⚠ 파울 조준 '+foul+'개';
+  SIMV.info={result:ranges.length?'hit':'miss',text:txt,scan:true};
+  renderAll();
+}
+/* 가장 넓은 성공 구간의 가운데로 조준을 옮기고 바로 쳐 본다 */
+function useBest(){
+  var b=SIMV&&SIMV.scan&&SIMV.scan.best;if(!b)return;
+  pushUndo();var d=ST.draft;
+  if(b.pt)d.cpts=[b.pt].concat(d.cpts.slice(1));
+  else if(kind()==='cush'){d.thick=b.t16/2;d.side=b.side;}
+  else d.predict=[{ref:'cue'},{x:r2(b.ghost.x),y:r2(b.ghost.y)}];
+  saveSoon();renderAll();runSim();
 }
 /* 💨 속도 1~5 비교 — 같은 조준·당점으로 속도만 바꿔 수구 길을 겹쳐 본다 ("무회전이라도 속도에 따라 달라진다") */
 function compareSpeeds(){
@@ -535,7 +627,7 @@ function runSim(){
   RAF=requestAnimationFrame(step);
   renderSimBtn();renderHint();
 }
-function clearSim(){if(SIMV){cancelAnimationFrame(RAF);SIMV=null;}}
+function clearSim(){SCAN_TOKEN++;if(SIMV){cancelAnimationFrame(RAF);SIMV=null;}}
 function simFrame(){var F=SIMV.res.frames;return clamp(Math.floor(SIMV.t*PH.DEF.fps)||0,0,F.length-1);}
 
 /* ═════════ 그리기 ═════════ */
@@ -620,7 +712,19 @@ function renderTable(){
   }
   /* 시뮬레이션: 지나간 자리 + 지금 자리 */
   var pos={};ids.forEach(function(n){pos[n]=ST.balls[n];});
-  if(SIMV&&SIMV.multi){
+  if(SIMV&&SIMV.scan){
+    /* 🎯 조준 부채꼴 — 초록 맞음 · 빨강 빗나감 · 주황 파울 · 회색 다른 공에 가림 */
+    /* 빗나감은 옅게 — 진하면 판 전체가 붉게 덮여 초록 구간이 묻힌다(v2.2 화면 확인) */
+    var CC={hit:'#19c24a',miss:'rgba(208,35,26,.16)',foul:'rgba(240,154,26,.7)',block:'rgba(120,120,120,.25)'},cu=ST.balls[ST.balls.cue];
+    SIMV.scan.items.forEach(function(it){if(!it.res)return;
+      var e=it.end||it.ghost||{x:cu.x+it.dir.x*0.8,y:cu.y+it.dir.y*0.8};
+      h.push('<line x1="'+cu.x*S+'" y1="'+cu.y*S+'" x2="'+e.x*S+'" y2="'+e.y*S+'" stroke="'+CC[it.res]+'" stroke-width="'+(it.res==='hit'?3.5:1.5)+'" vector-effect="non-scaling-stroke" pointer-events="none"/>');});
+    var bb=SIMV.scan.best;
+    if(bb){var be=bb.end||bb.ghost;
+      h.push('<line x1="'+cu.x*S+'" y1="'+cu.y*S+'" x2="'+be.x*S+'" y2="'+be.y*S+'" stroke="#fff" stroke-width="8" vector-effect="non-scaling-stroke" pointer-events="none"/>');
+      h.push('<line x1="'+cu.x*S+'" y1="'+cu.y*S+'" x2="'+be.x*S+'" y2="'+be.y*S+'" stroke="#0f8a33" stroke-width="4" vector-effect="non-scaling-stroke" pointer-events="none"/>');
+      h.push(bubble(be.x*S,be.y*S,'가운데',  '#0f8a33',k));}
+  }else if(SIMV&&SIMV.multi){
     /* 💨 속도 비교: 수구 길 5개를 옅은 색 → 짙은 색으로 겹친다 */
     var PAL=['#d9c2f2','#b48ae0','#6a2bb0','#45157a','#220a3d'];
     SIMV.multi.forEach(function(o,j){var Fm=o.res.frames,cu=ST.balls.cue,pts=[];
@@ -690,7 +794,10 @@ function renderHint(){
   if(SIMV){
     if(SIMV.playing){el.classList.add('run');el.textContent='▶ 굴러가는 중… (한 번 더 누르면 끝으로)';return;}
     var I=SIMV.info;el.classList.add(I.result==='hit'?'ok':I.result==='foul'?'foul':I.result==='cmp'?'run':I.none||I.result==='miss'?'bad':'run');
-    el.textContent=I.text;return;
+    el.textContent=I.text;
+    if(SIMV.scan&&SIMV.scan.best&&I.scan){var b=document.createElement('button');b.id='bUseBest';b.className='primary';b.style.marginLeft='.6rem';b.style.flex='none';
+      b.innerHTML='▶ 가운데로 조준해 보기';b.addEventListener('click',useBest);el.appendChild(b);}
+    return;
   }
   var t={
     ball:'지금: ✋ 공을 잡아 끌어서 옮기세요',
@@ -714,6 +821,8 @@ function renderTools(){
   var K=kind();
   ['free','sep','cush'].forEach(function(x){document.body.classList.toggle('k-'+x,K===x);});
   $('thkBox').classList.toggle('hide',K==='cush'&&!cushAfter());
+  /* 1적구 뒤 쿠션: 조준 글자는 두께 버튼·판 위 말풍선과 같은 말이라 숨긴다(패널이 넘쳤다) */
+  $('aimTxt').classList.toggle('hide',cushAfter());
   ['mBall','mDraw','mEdit','mObj','mCue','mCpt'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.m===MODE);});
   ['lPre','lAct'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.l===LAYER);});
   ['cW','cY'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.c===ST.balls.cue);});
@@ -908,7 +1017,7 @@ function simOut(sv){
 function record(){
   var d=ST.draft,b=curBoard(),K=kind();if(!b)return;
   if(!aimInfo()){runSim();return;}                         /* 조준이 없으면 같은 안내를 보여 준다 */
-  if(!SIMV||SIMV.playing||SIMV.multi){var sv=computeSim();sv.t=sv.T;SIMV=sv;renderAll();}
+  if(!SIMV||SIMV.playing||SIMV.multi||SIMV.scan){var sv=computeSim();sv.t=sv.T;SIMV=sv;renderAll();}
   var info=SIMV.info, simData=simOut(SIMV);
   function save(result,memo){
     var row={board_id:b.id,kind:K,balls:clone(ST.balls),predict:K==='free'?pathOut(d.predict):[],actual:K==='free'&&d.actual.length>1?pathOut(d.actual):null,
@@ -1197,6 +1306,7 @@ function bind(){
   $('ctype').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ctype===b.dataset.ct)return;pushUndo();ST.draft.ctype=b.dataset.ct;ST.draft.cpts=[];MODE='cpt';saveSoon();renderAll();});
   $('ncush').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ncush===+b.dataset.n)return;pushUndo();ST.draft.ncush=+b.dataset.n;ST.draft.cpts=[];MODE='cpt';saveSoon();renderAll();});
   $('bCmp').addEventListener('click',compareSpeeds);
+  $('bScan').addEventListener('click',scanRange);
   ['lPre','lAct'].forEach(function(id){$(id).addEventListener('click',function(){LAYER=this.dataset.l;SEL=null;hidePop();clearSim();if(MODE==='ball')MODE='draw';renderAll();});});
   ['cW','cY'].forEach(function(id){$(id).addEventListener('click',function(){if(ST.balls.cue===this.dataset.c)return;pushUndo();ST.balls.cue=this.dataset.c;saveSoon();renderAll();});});
   $('bReset').addEventListener('click',function(){pushUndo();var c=ST.balls.cue,d=defaultBalls();d.cue=c;ST.balls=d;saveSoon();renderAll();toast('공을 처음 자리로 옮겼습니다 (↶ 되돌리기 가능)');});
