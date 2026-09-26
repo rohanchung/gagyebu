@@ -545,6 +545,50 @@ function init({session,users}){
  await p.click('#bSet10');await wait(100);await toBoard('free');
  ok('W21 판을 바꾸면 세트 멈춤',await p.evaluate(()=>SET===null));
 
+ /* ── X) 📈 실력 추이 (v2.4) — 답을 아는 가짜 기록을 날짜별로 심는다 ── */
+ await p.evaluate(()=>{
+   const T=window.__T,b=BOARDS.find(x=>x.kind==='sep').id,c=BOARDS.find(x=>x.kind==='cush').id,f=BOARDS.find(x=>x.kind==='free').id;
+   T.bb_attempts.length=0;let n=0;
+   const at=(d,h)=>new Date(2026,8,d,h||10,0,n++).toISOString();
+   const push=(o)=>T.bb_attempts.push(Object.assign({id:'x'+(n++),user_id:'dad',deleted_at:null,balls:{},predict:[],tip:null,speed:3,kmh:null,memo:null},o));
+   /* 분리각: 2/8 두께에서 수구를 늘 12° 넓게 본다(약점) · 나머지는 2° · 날짜가 갈수록 1적구 오차가 준다 */
+   [[20,6],[22,4],[25,2]].forEach(([d,eo])=>{
+     for(let i=0;i<3;i++)push({board_id:b,kind:'sep',created_at:at(d),result:null,sim:{thick:2,side:'L',obj:48,pObj:48+eo,eObj:eo,cue:40,pCue:52,eCue:12,set:{id:'S'+d,no:i+1}}});
+     for(let i=0;i<3;i++)push({board_id:b,kind:'sep',created_at:at(d),result:null,sim:{thick:5,side:'R',obj:-20,pObj:-20-eo,eObj:eo,cue:-50,pCue:-48,eCue:2,set:{id:'S'+d,no:i+4}}});
+   });
+   /* 원·투쿠션: 쿠션 먼저에서 계산보다 늘 2 작게 찍는다 */
+   [21,24].forEach(d=>{for(let i=0;i<2;i++)push({board_id:c,kind:'cush',created_at:at(d),result:null,sim:{ctype:'first',n:1,dad:[36],sys:[38],act:[37],err:[2],result:'miss'}});});
+   /* 자유: 실제 득점 2/4 */
+   [['hit','hit'],['miss','hit'],['hit','miss'],['miss','miss']].forEach(([r,s],i)=>push({board_id:f,kind:'free',created_at:at(21+i),result:r,sim:{result:s}}));
+ });
+ await p.click('#bLog');await wait(200);await p.click('#vTrend');await wait(350);
+ let xb=await p.textContent('#logBody');
+ ok('X0 📈 탭 · 세 가지 구역',/📐 분리각 훈련 \(18문제\)/.test(xb)&&/🔁 원·투쿠션 훈련 \(4문제\)/.test(xb)&&/🎱 자유 연습 \(4번\)/.test(xb),xb.slice(0,200));
+ ok('X1 약점: 2/8 두께 수구 12° · 넓게',/⚠ 2\/8 두께: 수구 방향을 평균 12° 틀립니다 — 보통 넓게 봅니다/.test(xb),xb.slice(0,400));
+ ok('X2 약점 표: 2/8 줄 강조',await p.$eval('#logBody tr.worst',e=>/2\/8/.test(e.textContent)));
+ ok('X3 표: 2/8 수구 경향 넓게 12°',/넓게 12°/.test(await p.$eval('#logBody tr.worst',e=>e.textContent)));
+ ok('X4 5/8 는 고름에 가깝다(좁게 2°)',await p.evaluate(()=>[...document.querySelectorAll('#logBody tr')].some(t=>/^5\/8/.test(t.textContent)&&/2°/.test(t.textContent))));
+ ok('X5 쿠션 먼저 경향: 계산보다 2 작은 수',/무회전 계산보다 평균 2 작은 수를 찍습니다/.test(xb),xb);
+ ok('X6 그래프 3개 · 범례',(await p.$$('#logBody .chart svg')).length===3&&/1적구[\s\S]*수구/.test(await p.$eval('#logBody .legend',e=>e.textContent)));
+ const pts=await p.evaluate(()=>[...document.querySelectorAll('#logBody .chart')][0].querySelectorAll('circle').length);
+ ok('X7 분리각 그래프: 3날짜 × 2선 = 점 6개',pts===6,pts);
+ ok('X8 1적구 오차가 날짜마다 준다(6→4→2 · 5/8 도 같은 값)',await p.evaluate(()=>{const c=CH[0].o.series[0].map(x=>x.y);return JSON.stringify(c)==='[6,4,2]';}),await p.evaluate(()=>CH[0].o.series[0]));
+ ok('X9 끝점 직접 표시',await p.evaluate(()=>[...document.querySelectorAll('#logBody .chart svg text')].some(t=>t.textContent==='1적구 2°')));
+ /* 마우스 올리면 그날 값 */
+ const hr=await p.$eval('#logBody .chart .hit',e=>{const r=e.getBoundingClientRect();return [r.x+r.width*0.02,r.y+r.height/2];});
+ await p.mouse.move(hr[0],hr[1]);await wait(80);
+ ok('X10 마우스 → 날짜·값 풍선',/9\/20[\s\S]*1적구: 6° \(6번\)[\s\S]*수구: 7° \(6번\)/.test(await p.textContent('#logBody .ctip')),await p.textContent('#logBody .ctip'));
+ await p.mouse.move(5,5);
+ ok('X11 [표로 보기] 에 같은 숫자',/9\/20[\s\S]*6°/.test(await p.$eval('#logBody details',e=>e.textContent)));
+ ok('X12 세트 기록: 최근이 위 · 좋아짐 표시',/최근 10문제 세트/.test(xb)&&/▼ 1° 좋아짐/.test(xb),xb.slice(xb.indexOf('최근 10문제'),xb.indexOf('최근 10문제')+200));
+ ok('X13 자유 연습 그래프 0~100%',await p.evaluate(()=>CH[2].o.unit==='%'&&CH[2].o.max===100));
+ /* 판 고르면 그 판만 */
+ await p.selectOption('#lBoard',{label:await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='cush');return KINDS.cush.ic+' '+b.name;})});await wait(300);
+ xb=await p.textContent('#logBody');
+ ok('X14 판 고르면 그 판 기록만',!/분리각 훈련 \(/.test(xb)&&/원·투쿠션 훈련 \(4문제\)/.test(xb));
+ await p.selectOption('#lBoard','');
+ await p.click('#bBack');
+
  /* ── K) 한 화면 · 실버 UX 치수 ──
     🔒 v1.1: 화면 전체(2560×1440)로 쟀더니 통과했지만, 실제 브라우저 창은 탭·주소창을 빼면 ~1300 이라
        로한 화면에서 오른쪽 패널에 스크롤이 생겼다. → **실제 브라우저 창 크기**로 잰다.

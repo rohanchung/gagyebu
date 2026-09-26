@@ -1162,14 +1162,14 @@ function closeLog(){$('logv').classList.add('hide');$('workv').classList.remove(
 function boardName(id){var b=BOARDS.filter(function(x){return x.id===id;})[0];return b?b.name:'(지운 판)';}
 function loadLog(){
   LOGBOARD=$('lBoard').value;
-  ['vAtt','vEvt'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.v===LOGVIEW);});
+  ['vAtt','vTrend','vEvt'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.v===LOGVIEW);});
   $('logBody').innerHTML='<div class="empty">불러오는 중…</div>';
-  if(LOGVIEW==='att'){
+  if(LOGVIEW==='att'||LOGVIEW==='trend'){
     var q=SB.from('bb_attempts').select('*').is('deleted_at',null);
     if(LOGBOARD)q=q.eq('board_id',LOGBOARD);
     q.order('created_at',{ascending:false}).limit(1000).then(function(r){
       if(r.error){$('logBody').innerHTML='<div class="empty">⚠ 불러오지 못했습니다</div>';return;}
-      ATTS=r.data||[];renderAttempts();
+      ATTS=r.data||[];if(LOGVIEW==='trend')renderTrend();else renderAttempts();
     });
   }else{
     var e=SB.from('bb_events').select('*');
@@ -1311,6 +1311,141 @@ function renderEvents(){
     (EVTS.length>=500?'<p>최근 500개만 보여 줍니다.</p>':'');
 }
 
+/* ═════════ 📈 실력 추이 (v2.4) ═════════
+   날짜별 평균 오차 선 그래프 + 약점 분석 표 + 세트 기록.
+   🔒 차트 규칙(dataviz): 한 축 · 범주 색은 고정 순서(파랑 #2a78d6 → 주황 #eb6834, 색각 검사 통과) ·
+      글자는 먹색(선 색으로 쓰지 않음) · 범례 + 끝점 직접 표시 · 마우스 올리면 그날 값 · [표로 보기] */
+var SERIES=['#2a78d6','#eb6834'];
+function dayKey(t){var d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function dayLab(k){var p=k.split('-');return (+p[1])+'/'+(+p[2]);}
+function mean(a){return a.length?a.reduce(function(s,x){return s+x;},0)/a.length:null;}
+function r1(v){return v==null?null:Math.round(v*10)/10;}
+/* 기록 → 날짜별로 묶어 series 마다 평균 */
+function daily(A,fns){
+  var days={},keys=[];
+  A.forEach(function(a){var k=dayKey(a.created_at);if(!days[k]){days[k]=[];keys.push(k);}days[k].push(a);});
+  keys.sort();
+  return {keys:keys,series:fns.map(function(f){return keys.map(function(k){var v=[];days[k].forEach(function(a){var x=f(a);if(x!=null)v.push(x);});return {y:r1(mean(v)),n:v.length};});})};
+}
+var CH=[];   /* 그린 차트들(마우스 올림용) */
+function niceMax(v){if(v<=0)return 1;var p=Math.pow(10,Math.floor(Math.log10(v))),m=v/p;return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*p;}
+function lineChart(o){ /* o:{title,unit,names[],keys[],series[[{y,n}]],max?,w} */
+  /* 🔒 그림 단위 = 실제 화면 px (o.w = 들어갈 칸 너비). viewBox 를 고정하면 칸 너비에 따라 글자가 들쭉날쭉했다(v2.4 화면 확인) */
+  var fs=Math.round(parseFloat(getComputedStyle(document.documentElement).fontSize)*0.8);
+  var Wd=Math.max(420,Math.round(o.w||900)),Ht=fs*13,L=fs*3.6,R=fs*7.5,T=fs*0.9,B=fs*2.2,pw=Wd-L-R,ph=Ht-T-B,n=o.keys.length;
+  var mx=o.max||niceMax(Math.max.apply(null,o.series.reduce(function(a,s){return a.concat(s.map(function(p){return p.y||0;}));},[1])));
+  var X=function(i){return L+(n<=1?pw/2:i*pw/(n-1));},Y=function(v){return T+ph-v/mx*ph;};
+  var h=['<svg viewBox="0 0 '+Wd+' '+Ht+'" role="img" aria-label="'+esc(o.title)+'">'];
+  /* 눈금 5칸 — niceMax 가 1·2·2.5·5·10 배수라 5로 나누면 늘 깔끔하다(3.8·1.3 같은 눈금이 나왔다) */
+  for(var g=0;g<=5;g++){var v=mx*g/5,y=Y(v);
+    h.push('<line x1="'+L+'" y1="'+y+'" x2="'+(L+pw)+'" y2="'+y+'" stroke="'+(g?'#ebe6da':'#b9b2a2')+'" stroke-width="'+(g?1:1.5)+'"/>');
+    h.push('<text x="'+(L-10)+'" y="'+(y+fs*0.35)+'" text-anchor="end" font-size="'+fs+'" fill="#555">'+(Math.round(v*10)/10)+o.unit+'</text>');}
+  var step=Math.max(1,Math.ceil(n/Math.max(2,Math.floor(pw/(fs*4)))));   /* 날짜 글자가 겹치지 않게 칸 너비로 솎는다 */
+  o.keys.forEach(function(k,i){if(i%step&&i!==n-1)return;h.push('<text x="'+X(i)+'" y="'+(Ht-fs*0.6)+'" text-anchor="middle" font-size="'+fs+'" fill="#555">'+dayLab(k)+'</text>');});
+  var labY=[];
+  o.series.forEach(function(s,si){
+    var pts=s.map(function(p,i){return p.y==null?null:[X(i),Y(p.y)];}),seg=[],d='';
+    pts.forEach(function(q){if(q){d+=(seg.length?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1);seg.push(q);}else seg=[];});
+    if(d)h.push('<path d="'+d+'" fill="none" stroke="'+SERIES[si]+'" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"'+(si?' stroke-dasharray="10 6"':'')+'/>');
+    pts.forEach(function(q){if(q)h.push('<circle cx="'+q[0]+'" cy="'+q[1]+'" r="6" fill="'+SERIES[si]+'" stroke="#fff" stroke-width="2"/>');});
+    /* 끝점 직접 표시 — 글자는 먹색, 옆 점이 색을 맡는다 */
+    for(var j=pts.length-1;j>=0;j--)if(pts[j]){
+      var ly=pts[j][1]+fs*0.35;labY.forEach(function(q){if(Math.abs(q-ly)<fs*1.25)ly=q+(ly>=q?fs*1.25:-fs*1.25);});labY.push(ly);   /* 두 끝 글자가 겹치면 비켜 놓는다 */
+      h.push('<text x="'+(pts[j][0]+fs*0.7)+'" y="'+ly+'" font-size="'+(fs+1)+'" font-weight="700" fill="#1a1a1a">'+esc((o.labels||o.names)[si])+' '+s[j].y+o.unit+'</text>');break;}
+  });
+  h.push('<line class="xh" x1="0" y1="'+T+'" x2="0" y2="'+(T+ph)+'" stroke="#888" stroke-width="1.5" stroke-dasharray="4 4" visibility="hidden"/>');
+  h.push('<rect class="hit" x="'+L+'" y="'+T+'" width="'+pw+'" height="'+ph+'" fill="transparent"/>');
+  h.push('</svg>');
+  var id=CH.length;CH.push({o:o,X:X,L:L,pw:pw,n:n,Wd:Wd});
+  var leg='<div class="legend">'+o.names.map(function(nm,i){return '<span><i style="background:'+(i?'repeating-linear-gradient(90deg,'+SERIES[i]+' 0 8px,transparent 8px 12px)':SERIES[i])+'"></i>'+esc(nm)+'</span>';}).join('')+'</div>';
+  var tbl='<details><summary>표로 보기</summary><table class="t"><tr><th>날짜</th>'+o.names.map(function(nm){return '<th>'+esc(nm)+'</th>';}).join('')+'</tr>'+
+    o.keys.map(function(k,i){return '<tr><td class="num">'+dayLab(k)+'</td>'+o.series.map(function(s){return '<td class="num">'+(s[i].y==null?'—':s[i].y+o.unit+' <small>('+s[i].n+'번)</small>')+'</td>';}).join('')+'</tr>';}).join('')+'</table></details>';
+  return '<div class="chart" data-ch="'+id+'"><h4>'+esc(o.title)+'</h4>'+leg+h.join('')+'<div class="ctip hide"></div>'+tbl+'</div>';
+}
+function bindCharts(){
+  document.querySelectorAll('.chart[data-ch]').forEach(function(el){
+    var c=CH[+el.dataset.ch],svgEl=el.querySelector('svg'),tip=el.querySelector('.ctip'),xh=el.querySelector('.xh'),hit=el.querySelector('.hit');
+    function at(e){var r=svgEl.getBoundingClientRect(),sx=(e.clientX-r.left)/r.width*c.Wd;
+      var i=c.n<=1?0:Math.round((sx-c.L)/c.pw*(c.n-1));return clamp(i,0,c.n-1);}
+    hit.addEventListener('mousemove',function(e){
+      var i=at(e),o=c.o,x=c.X(i);xh.setAttribute('x1',x);xh.setAttribute('x2',x);xh.setAttribute('visibility','visible');
+      tip.innerHTML='<b>'+dayLab(o.keys[i])+'</b><br>'+o.names.map(function(nm,si){var p=o.series[si][i];
+        return '<span style="color:'+SERIES[si]+'">●</span> '+esc(nm)+': '+(p.y==null?'—':p.y+o.unit+' ('+p.n+'번)');}).join('<br>');
+      tip.classList.remove('hide');
+      var er=el.getBoundingClientRect(),sr=svgEl.getBoundingClientRect(),px=sr.left-er.left+x/c.Wd*sr.width;
+      tip.style.left=Math.min(px+14,er.width-tip.offsetWidth-8)+'px';tip.style.top=(sr.top-er.top+10)+'px';
+    });
+    hit.addEventListener('mouseleave',function(){tip.classList.add('hide');xh.setAttribute('visibility','hidden');});
+  });
+}
+/* 약점 — 표본 3번 이상인 칸에서 평균 오차가 가장 큰 곳 */
+function tendency(v,wide,narrow,unit){if(v==null)return '—';var a=Math.abs(r1(v));return a<1?'고름':(v>0?wide:narrow)+' '+a+unit;}
+function renderTrend(){
+  CH=[];
+  var full=$('logBody').clientWidth||1200,half=window.innerWidth>1300?(full-16)/2-28:full-28;full-=28;
+  var A=ATTS.slice().sort(function(a,b){return a.created_at<b.created_at?-1:1;}),h=[];
+  var P=A.filter(function(a){return a.kind==='sep'&&a.sim&&!a.sim.none;}),C=A.filter(function(a){return a.kind==='cush'&&a.sim&&!a.sim.none;}),
+      F=A.filter(function(a){return (a.kind==='free'||!a.kind)&&a.sim;});
+  if(!A.length){$('logBody').innerHTML='<div class="empty">아직 기록이 없습니다.<br>분리각·원투쿠션 훈련을 몇 번 풀면 여기에 실력 변화가 그려집니다.</div>';return;}
+  /* 📐 분리각 */
+  if(P.length){
+    var dP=daily(P,[function(a){return a.sim.eObj;},function(a){return a.sim.eCue;}]);
+    h.push('<h3>📐 분리각 훈련 <small>('+P.length+'문제)</small></h3>');
+    /* 두께별 · 당점별 약점 — 부호: 예측 각이 정답보다 크면 "넓게 봄" */
+    var rows=[];
+    for(var t=1;t<=8;t++){var L=P.filter(function(a){return Math.round(a.sim.thick)===t;});
+      var eo=L.map(function(a){return a.sim.eObj;}).filter(function(x){return x!=null;}),ec=L.map(function(a){return a.sim.eCue;}).filter(function(x){return x!=null;});
+      var so=L.filter(function(a){return a.sim.pObj!=null;}).map(function(a){return Math.abs(a.sim.pObj)-Math.abs(a.sim.obj);});
+      var scu=L.filter(function(a){return a.sim.pCue!=null&&a.sim.cue!=null;}).map(function(a){return Math.abs(a.sim.pCue)-Math.abs(a.sim.cue);});
+      rows.push({t:t,n:L.length,eo:r1(mean(eo)),ec:r1(mean(ec)),so:mean(so),sc:mean(scu)});}
+    var cand=[];rows.forEach(function(r){if(r.n<3)return;if(r.eo!=null)cand.push({r:r,what:'1적구',e:r.eo,s:r.so});if(r.ec!=null)cand.push({r:r,what:'수구',e:r.ec,s:r.sc});});
+    cand.sort(function(a,b){return b.e-a.e;});
+    var worstT=cand.length?cand[0].r.t:null;
+    h.push('<div class="weak">'+(cand.length?cand.slice(0,2).map(function(c){return '<p>⚠ <b>'+c.r.t+'/8 두께</b>: '+c.what+' 방향을 평균 <b>'+c.e+'°</b> 틀립니다'+
+      (c.s!=null&&Math.abs(c.s)>=1?' — 보통 <b>'+(c.s>0?'넓게':'좁게')+'</b> 봅니다':'')+' <small>('+c.r.n+'문제)</small></p>';}).join(''):
+      '<p>두께마다 3문제 이상 풀면 약점을 찾아 드립니다.</p>')+'</div>');
+    h.push('<div class="sec2"><div>'+lineChart({w:half,title:'날짜별 평균 오차',unit:'°',names:['1적구','수구'],keys:dP.keys,series:dP.series})+'</div>');
+    h.push('<div><table class="t"><tr><th>두께</th><th>문제</th><th>1적구 오차</th><th>경향</th><th>수구 오차</th><th>경향</th></tr>'+
+      rows.map(function(r){return '<tr class="'+(r.t===worstT?'worst':'')+'"><td>'+(r.t===worstT?'⚠ ':'')+r.t+'/8'+(r.t===8?' 정면':r.t===4?' 반':'')+'</td><td class="num">'+r.n+'</td>'+
+        '<td class="num">'+(r.eo==null?'—':r.eo+'°')+'</td><td>'+tendency(r.so,'넓게','좁게','°')+'</td><td class="num">'+(r.ec==null?'—':r.ec+'°')+'</td><td>'+tendency(r.sc,'넓게','좁게','°')+'</td></tr>';}).join('')+'</table></div></div>');
+    h.push(setTable(P,'sep','°'));
+  }
+  /* 🔁 원·투쿠션 — 부호: 찍은 수치 - 기준(계산 또는 실제) */
+  if(C.length){
+    var errOf=function(ct){return function(a){if(a.sim.ctype!==ct)return null;var v=(a.sim.err||[]).filter(function(x){return x!=null;});return v.length?mean(v):null;};};
+    var dC=daily(C,[errOf('first'),errOf('after')]);
+    h.push('<h3>🔁 원·투쿠션 훈련 <small>('+C.length+'문제)</small></h3>');
+    var sgn=function(ct){var v=[];C.forEach(function(a){var s=a.sim;if(s.ctype!==ct)return;(s.err||[]).forEach(function(e,k){if(e==null)return;var ref=ct==='first'?(s.sys||[])[k]:(s.act||[])[k];if(ref!=null&&s.dad[k]!=null)v.push(s.dad[k]-ref);});});return {m:mean(v),n:v.length};};
+    var s1=sgn('first'),s2=sgn('after');
+    h.push('<div class="weak">'+
+      (s1.n>=3?'<p>쿠션 먼저: 무회전 계산보다 평균 <b>'+Math.abs(r1(s1.m))+'</b> '+(s1.m<0?'작은 수':'큰 수')+'를 찍습니다 <small>('+s1.n+'지점)</small></p>':'')+
+      (s2.n>=3?'<p>1적구 뒤 쿠션: 수구가 실제 닿는 곳보다 평균 <b>'+Math.abs(r1(s2.m))+'</b> '+(s2.m<0?'작은 수':'큰 수')+'로 예측합니다 <small>('+s2.n+'지점)</small></p>':'')+
+      (s1.n<3&&s2.n<3?'<p>3지점 이상 풀면 경향을 알려 드립니다.</p>':'')+'</div>');
+    h.push(lineChart({w:full,title:'날짜별 평균 차이 (쿠션 수치)',unit:'',names:['쿠션 먼저 · 계산과 차이','1적구 뒤 · 예측 오차'],labels:['쿠션 먼저','1적구 뒤'],keys:dC.keys,series:dC.series}));
+    h.push(setTable(C,'cush',''));
+  }
+  /* 🎱 자유 연습 */
+  if(F.length){
+    var dF=daily(F,[function(a){return a.result?(a.result==='hit'?100:0):null;},function(a){return a.result&&a.sim.result?(a.result===a.sim.result?100:0):null;}]);
+    h.push('<h3>🎱 자유 연습 <small>('+F.length+'번)</small></h3>');
+    h.push(lineChart({w:full,title:'날짜별 실제 득점률 · 시뮬레이션과 실제가 같았던 비율',unit:'%',names:['실제 득점률','시뮬레이션 일치'],labels:['득점률','일치'],keys:dF.keys,series:dF.series,max:100}));
+  }
+  $('logBody').innerHTML=h.join('');
+  bindCharts();
+}
+/* 📝 세트 기록 — 최근 세트 10개 */
+function setTable(L,k,unit){
+  var sets={},order=[];
+  L.forEach(function(a){var st=a.sim.set;if(!st)return;if(!sets[st.id]){sets[st.id]={at:a.created_at,v:[]};order.push(st.id);}
+    var e=k==='sep'?[a.sim.eObj,a.sim.eCue]:(a.sim.err||[]);var v=e.filter(function(x){return x!=null;});if(v.length)sets[st.id].v.push(mean(v));});
+  if(!order.length)return '';
+  order=order.slice(-10).reverse();
+  return '<div class="chart"><h4>📝 최근 10문제 세트</h4><table class="t"><tr><th>언제</th><th>푼 문제</th><th>평균 오차</th></tr>'+
+    order.map(function(id,i){var s=sets[id],m=r1(mean(s.v)),pv=order[i+1]?r1(mean(sets[order[i+1]].v)):null;
+      return '<tr><td class="num">'+fmtDT(s.at)+'</td><td class="num">'+s.v.length+'</td><td class="num"><b>'+(m==null?'—':m+unit)+'</b>'+
+        (m!=null&&pv!=null&&m!==pv?' <small>'+(m<pv?'▼ '+r1(pv-m)+unit+' 좋아짐':'▲ '+r1(m-pv)+unit)+'</small>':'')+'</td></tr>';}).join('')+'</table></div>';
+}
+
 /* ═════════ 휴지통 ═════════ */
 function daysLeft(t){return Math.max(0,KEEP_DAYS-Math.floor((Date.now()-new Date(t))/864e5));}
 function openTrash(){
@@ -1407,7 +1542,7 @@ function bind(){
   $('bBack').addEventListener('click',closeLog);
   $('bTrash').addEventListener('click',openTrash);
   $('bSet').addEventListener('click',openSettings);
-  ['vAtt','vEvt'].forEach(function(id){$(id).addEventListener('click',function(){LOGVIEW=this.dataset.v;loadLog();});});
+  ['vAtt','vTrend','vEvt'].forEach(function(id){$(id).addEventListener('click',function(){LOGVIEW=this.dataset.v;loadLog();});});
   $('lBoard').addEventListener('change',loadLog);
   ['mBall','mDraw','mEdit','mObj','mCue','mCpt'].forEach(function(id){$(id).addEventListener('click',function(){setMode(this.dataset.m);});});
   $('ctype').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ctype===b.dataset.ct)return;pushUndo();ST.draft.ctype=b.dataset.ct;ST.draft.cpts=[];MODE='cpt';saveSoon();renderAll();});
@@ -1462,7 +1597,8 @@ function bind(){
     else if(e.key==='Escape'){SEL=null;hidePop();if(SIMV&&!SIMV.playing){clearSim();renderAll();}else renderTable();}
     else if((e.key==='Delete'||e.key==='Backspace')&&MODE==='edit'&&SEL!==null){e.preventDefault();delPoint();}
   });
-  var rt=null;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){hidePop();renderTable();},80);});
+  var rt=null;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){hidePop();renderTable();
+    if(!$('logv').classList.contains('hide')&&LOGVIEW==='trend'&&ATTS)renderTrend();},80);});
 }
 
 bind();
