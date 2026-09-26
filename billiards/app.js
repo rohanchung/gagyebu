@@ -196,7 +196,8 @@ document.addEventListener('visibilitychange',function(){if(document.hidden&&save
 /* ═════════ 판 CRUD ═════════ */
 function switchBoard(id){
   if(saveTimer)flush();
-  clearSim();
+  clearSim();QTOKEN++;
+  if(SET&&SET.board!==id){SET=null;toast('판을 바꿔서 10문제 풀기를 멈췄습니다');}
   CUR=id;pref('board',id);
   var b=curBoard();ST={balls:clone(b.balls),draft:clone(b.draft)};
   UNDO=[];REDO=[];SEL=null;HOVER=null;DRAG=null;
@@ -532,6 +533,103 @@ function useBest(){
   else d.predict=[{ref:'cue'},{x:r2(b.ghost.x),y:r2(b.ghost.y)}];
   saveSoon();renderAll();runSim();
 }
+/* ═════════ 🎲 문제 모드 (v2.3) ═════════
+   🎲 새 문제  : 배치를 무작위로. 자유 연습은 **지금 당점·속도로 득점할 수 있는 배치만** 낸다(맞는 범위로 확인)
+   📝 10문제   : 분리각·원투쿠션 — 새 문제 → 예측 → 정답 보기(자동 기록) → 다음 문제 … → 평균 오차 · 지난 세트와 비교 */
+var SET=null, QTOKEN=0;
+function rnd(a,b){return a+Math.random()*(b-a);}
+function rpos(m){return {x:r2(rnd(m,W-m)),y:r2(rnd(m,H-m))};}
+function apart(list,p,g){return list.every(function(q){return Math.hypot(q.x-p.x,q.y-p.y)>=g;});}
+/* 한 배치 후보 — 공끼리 3반지름 이상 떨어뜨린다 */
+function randomBalls(ids,m){
+  var out={},got=[];
+  for(var k=0;k<ids.length;k++){var p,t=0;do{p=rpos(m);t++;}while(!apart(got,p,BR*3)&&t<200);out[ids[k]]=p;got.push(p);}
+  return out;
+}
+/* 이 배치가 문제로 쓸 만한가 — 종류별 조건 */
+function problemOk(){
+  var K=kind(),c=ST.balls[ST.balls.cue],o=ST.balls.r,d=Math.hypot(o.x-c.x,o.y-c.y);
+  if(K==='sep'){var ai=aimInfo();return d>=1.2&&d<=4.5&&ai&&ai.contact&&ai.contact.ball==='r';}
+  if(K==='cush'&&!cushAfter()){
+    if(d<1)return false;
+    /* 거울 계산으로 풀 수 있는 쿠션 조합이 하나는 있어야 문제다 */
+    var combos=ST.draft.ncush===1?[['T'],['B'],['L'],['R']]:[['T','R'],['T','L'],['B','R'],['B','L'],['R','T'],['L','T'],['R','B'],['L','B']];
+    return combos.some(function(rs){return !!sysPath(c,o,rs);});
+  }
+  if(K==='cush'){var a2=aimInfo();if(!a2||!a2.contact||a2.contact.ball!=='r'||d<1.2)return false;
+    var I=judgeCush(simWith(a2,speedMs()),a2);return !I.none&&I.act&&I.act.length===ST.draft.ncush;}
+  return true;
+}
+function newProblem(){
+  var K=kind(),tok=++QTOKEN,tries=0;
+  pushUndo();
+  var d=ST.draft;d.predObj=null;d.predCue=null;d.cpts=[];d.predict=[];d.actual=[];
+  var cue=ST.balls.cue;
+  function once(){
+    var ids=K==='free'?ALLB:liveBalls(),nb=randomBalls(ids,K==='cush'?0.45:0.3);
+    ids.forEach(function(n){ST.balls[n]=nb[n];});
+    if(K==='sep'||(K==='cush'&&cushAfter())){d.thick=1+Math.floor(Math.random()*8);d.side=Math.random()<0.5?'L':'R';}
+  }
+  if(K!=='free'){
+    do{once();tries++;}while(!problemOk()&&tries<300);
+    MODE={sep:'pobj',cush:'cpt'}[K];saveSoon();renderAll();
+    toast('🎲 새 문제'+(SET?' — '+SET.i+'/'+SET.n:''));return;
+  }
+  /* 🎱 자유 연습: 지금 당점·속도로 득점 조준이 하나라도 있는 배치가 나올 때까지(나눠서 돌린다) */
+  $('hint').className='hint run';$('hint').textContent='🎲 득점할 수 있는 배치를 찾는 중…';
+  function attempt(){
+    if(tok!==QTOKEN)return;
+    once();tries++;
+    var V=speedMs(),items=scanCandidates()||[],found=false;
+    for(var i=0;i<items.length&&!found;i++){var it=items[i];if(it.block)continue;
+      var ai={dir:it.dir,contact:rayHit(ST.balls[cue],it.dir)};if(judge(simWith(ai,V),ai).result==='hit')found=true;}
+    if(!found&&tries<20){setTimeout(attempt,0);return;}
+    MODE='draw';LAYER='predict';saveSoon();renderAll();
+    toast(found?'🎲 새 문제 — 득점할 수 있는 배치입니다. 조준을 그어 보세요':'⚠ 득점 배치를 못 찾았습니다. 속도나 당점을 바꿔 다시 눌러 보세요');
+  }
+  setTimeout(attempt,0);
+}
+function startSet(){
+  var K=kind();if(K!=='sep'&&K!=='cush')return;
+  SET={id:'s'+Date.now().toString(36),n:10,i:1,kind:K,board:CUR,answered:false,scores:[]};
+  newProblem();renderTools();
+}
+function stopSet(){SET=null;renderAll();toast('10문제 풀기를 멈췄습니다');}
+/* 정답을 본 순간 자동 기록(한 문제에 한 번) */
+function onSimDone(){
+  if(!SET||SET.answered||SET.board!==CUR||!SIMV||SIMV.multi||SIMV.scan)return;
+  SET.answered=true;
+  var I=SIMV.info,e=SET.kind==='sep'?[I.eObj,I.eCue]:(I.err||[]);
+  var v=e.filter(function(x){return x!=null;});
+  SET.scores.push({no:SET.i,err:v.length?v.reduce(function(a,b){return a+b;},0)/v.length:null,text:I.text});
+  record();
+  renderHint();renderSimBtn();   /* 🔒 안내 줄은 굴러가기 끝에서 먼저 그려진다 — 답함 표시 뒤에 다시 그려야 [다음 문제 ▶] 가 나온다 */
+}
+function nextQ(){
+  if(!SET)return;
+  if(SET.i>=SET.n){finishSet();return;}
+  SET.i++;SET.answered=false;newProblem();renderTools();
+}
+function setScore(L){var v=L.filter(function(x){return x!=null;});return v.length?Math.round(v.reduce(function(a,b){return a+b;},0)/v.length*10)/10:null;}
+/* 세트 결과 — 평균 오차 · 지난 세트와 비교 */
+function finishSet(){
+  var S0=SET,unit=S0.kind==='sep'?'°':'',avgNow=setScore(S0.scores.map(function(x){return x.err;}));
+  SET=null;renderAll();
+  var what=S0.kind==='sep'?'1적구·수구 방향 평균 오차':(ST.draft.ctype==='after'?'쿠션 지점 예측 평균 오차':'무회전 계산과 평균 차이');
+  SB.from('bb_attempts').select('*').is('deleted_at',null).eq('kind',S0.kind).order('created_at',{ascending:false}).limit(500).then(function(r){
+    var prev=null,sets={},order=[];
+    (r.data||[]).forEach(function(a){var st=a.sim&&a.sim.set;if(!st||st.id===S0.id)return;if(!sets[st.id]){sets[st.id]=[];order.push(st.id);}
+      var s=a.sim,e=S0.kind==='sep'?[s.eObj,s.eCue]:(s.err||[]);var v=e.filter(function(x){return x!=null;});
+      if(v.length)sets[st.id].push(v.reduce(function(x,y){return x+y;},0)/v.length);});
+    if(order.length)prev=setScore(sets[order[0]]);
+    var cmp=prev==null||avgNow==null?'':(avgNow<prev?'<p style="color:#0d3aa3;font-weight:800">지난 세트 '+prev+unit+' → 이번 '+avgNow+unit+' · '+Math.round((prev-avgNow)*10)/10+unit+' 좋아졌습니다 👍</p>':
+      avgNow>prev?'<p style="font-weight:800">지난 세트 '+prev+unit+' → 이번 '+avgNow+unit+'</p>':'<p style="font-weight:800">지난 세트와 같습니다 ('+avgNow+unit+')</p>');
+    var rows=S0.scores.map(function(x){return '<tr><td class="num">'+x.no+'</td><td class="num"><b>'+(x.err==null?'—':Math.round(x.err*10)/10+unit)+'</b></td><td>'+esc(x.text)+'</td></tr>';}).join('');
+    modal({title:'📝 10문제 끝!',wide:true,html:'<p style="font-size:1.3rem">'+what+': <b>'+(avgNow==null?'—':avgNow+unit)+'</b></p>'+cmp+
+      '<table class="t"><tr><th>번호</th><th>오차</th><th>정답</th></tr>'+rows+'</table>',
+      buttons:[{label:'닫기',value:null},{label:'<span class="ic">📝</span> 10문제 더',value:'again',cls:'primary'}]}).then(function(m){if(m.value==='again')startSet();});
+  });
+}
 /* 💨 속도 1~5 비교 — 같은 조준·당점으로 속도만 바꿔 수구 길을 겹쳐 본다 ("무회전이라도 속도에 따라 달라진다") */
 function compareSpeeds(){
   var ai=aimInfo();if(!ai){runSim();return;}
@@ -623,6 +721,7 @@ function runSim(){
     if(SIMV.t>=SIMV.T)SIMV.playing=false;
     renderTable();renderHint();renderSimBtn();
     if(SIMV.playing)RAF=requestAnimationFrame(step);
+    else onSimDone();
   }
   RAF=requestAnimationFrame(step);
   renderSimBtn();renderHint();
@@ -795,6 +894,8 @@ function renderHint(){
     if(SIMV.playing){el.classList.add('run');el.textContent='▶ 굴러가는 중… (한 번 더 누르면 끝으로)';return;}
     var I=SIMV.info;el.classList.add(I.result==='hit'?'ok':I.result==='foul'?'foul':I.result==='cmp'?'run':I.none||I.result==='miss'?'bad':'run');
     el.textContent=I.text;
+    if(SET&&SET.answered&&SET.board===CUR&&!SIMV.multi&&!SIMV.scan){var nb=document.createElement('button');nb.id='bNextQ';nb.className='primary';nb.style.marginLeft='.6rem';nb.style.flex='none';
+      nb.innerHTML=SET.i>=SET.n?'📝 결과 보기':'다음 문제 ▶ ('+(SET.i+1)+'/'+SET.n+')';nb.addEventListener('click',nextQ);el.appendChild(nb);}
     if(SIMV.scan&&SIMV.scan.best&&I.scan){var b=document.createElement('button');b.id='bUseBest';b.className='primary';b.style.marginLeft='.6rem';b.style.flex='none';
       b.innerHTML='▶ 가운데로 조준해 보기';b.addEventListener('click',useBest);el.appendChild(b);}
     return;
@@ -815,11 +916,16 @@ function renderSimBtn(){
   $('bSimT').textContent=SIMV&&SIMV.playing?'끝으로 건너뛰기':(tr?'정답 보기':'시뮬레이션');
   $('bSlow').classList.toggle('on',SLOW);
   /* 훈련 판은 [다음 두께 ▶]·[속도 비교]와 한 줄이라 글자를 줄인다 */
-  $('bRec').innerHTML='<span class="ic">✅</span> '+(tr?'기록하기':'이 시도 기록하기');
+  var done=!!(SET&&SET.board===CUR&&SET.answered);   /* 세트는 정답을 보면 자동 기록 — 두 번 저장하지 않게 */
+  $('bRec').disabled=done;
+  $('bRec').innerHTML='<span class="ic">✅</span> '+(done?'기록됨':tr?'기록하기':'이 시도 기록하기');
 }
 function renderTools(){
   var K=kind();
   ['free','sep','cush'].forEach(function(x){document.body.classList.toggle('k-'+x,K===x);});
+  var on=!!(SET&&SET.board===CUR);$('setChip').classList.toggle('hide',!on);$('bSet10').classList.toggle('hide',on);
+  if(on)$('setNo').textContent=SET.i+' / '+SET.n;
+  $('bNextT').classList.toggle('hide',on);   /* 세트 중엔 [다음 문제 ▶] 하나만 — [다음 두께]와 헷갈린다 */
   $('thkBox').classList.toggle('hide',K==='cush'&&!cushAfter());
   /* 1적구 뒤 쿠션: 조준 글자는 두께 버튼·판 위 말풍선과 같은 말이라 숨긴다(패널이 넘쳤다) */
   $('aimTxt').classList.toggle('hide',cushAfter());
@@ -1011,6 +1117,7 @@ function simOut(sv){
   sv.ids.forEach(function(n){var a=[];for(var i=0;i<F.length;i+=3)a.push([r2(F[i].p[n][0]/DM),r2(F[i].p[n][1]/DM)]);
     var L=F[F.length-1].p[n];a.push([r2(L[0]/DM),r2(L[1]/DM)]);paths[n]=a;});
   var o=clone(sv.info);o.v=2;o.V=r2(speedMs());o.paths=paths;o.aim=[r2(sv.ai.dir.x),r2(sv.ai.dir.y)];o.feel=clone(FEEL);
+  if(SET&&SET.board===CUR)o.set={id:SET.id,no:SET.i};
   if(kind()==='cush'){o.ctype=ST.draft.ctype;o.cpts=clone(ST.draft.cpts);}
   return o;
 }
@@ -1024,7 +1131,7 @@ function record(){
       tip:d.tip,speed:d.kmh!=null?null:d.speed,kmh:d.kmh,result:result,memo:(memo||'').trim()||null,sim:simData};
     $('bRec').disabled=true;
     SB.from('bb_attempts').insert(row).select().single().then(function(r){
-      $('bRec').disabled=false;
+      $('bRec').disabled=false;renderSimBtn();
       if(r.error||!r.data){toast('⚠ 기록하지 못했습니다 — 인터넷을 확인해 주세요');return;}
       logEvent('attempt.save',b.id,{name:b.name,result:result,sim:info.result||null,kind:K});
       if(K==='free'){pushUndo();d.memo='';d.actual=[];if(LAYER==='actual')LAYER='predict';saveSoon();renderAll();}
@@ -1032,7 +1139,7 @@ function record(){
         var n=(c&&c.data)?c.data.length:null;
         toast('✅ 기록했습니다'+(n?' — 이 판의 '+n+'번째':''));
       });
-    },function(){$('bRec').disabled=false;toast('⚠ 기록하지 못했습니다 — 인터넷을 확인해 주세요');});
+    },function(){$('bRec').disabled=false;renderSimBtn();toast('⚠ 기록하지 못했습니다 — 인터넷을 확인해 주세요');});
   }
   if(K!=='free'){save(null,'');return;}
   modal({title:'✅ 이 시도 기록하기',html:'<p>시뮬레이션: <b>'+esc(info.text)+'</b></p><p style="margin-top:.8rem;font-weight:700">실제로 쳐 보셨나요?</p>',
@@ -1307,6 +1414,9 @@ function bind(){
   $('ncush').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ncush===+b.dataset.n)return;pushUndo();ST.draft.ncush=+b.dataset.n;ST.draft.cpts=[];MODE='cpt';saveSoon();renderAll();});
   $('bCmp').addEventListener('click',compareSpeeds);
   $('bScan').addEventListener('click',scanRange);
+  $('bNewQ').addEventListener('click',function(){if(SET){nextQ();return;}newProblem();});
+  $('bSet10').addEventListener('click',startSet);
+  $('bSetStop').addEventListener('click',stopSet);
   ['lPre','lAct'].forEach(function(id){$(id).addEventListener('click',function(){LAYER=this.dataset.l;SEL=null;hidePop();clearSim();if(MODE==='ball')MODE='draw';renderAll();});});
   ['cW','cY'].forEach(function(id){$(id).addEventListener('click',function(){if(ST.balls.cue===this.dataset.c)return;pushUndo();ST.balls.cue=this.dataset.c;saveSoon();renderAll();});});
   $('bReset').addEventListener('click',function(){pushUndo();var c=ST.balls.cue,d=defaultBalls();d.cue=c;ST.balls=d;saveSoon();renderAll();toast('공을 처음 자리로 옮겼습니다 (↶ 되돌리기 가능)');});

@@ -474,6 +474,77 @@ function init({session,users}){
  await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='sep');switchBoard(b.id);});
  ok('V18 분리각 판엔 🎯 없음',!(await p.isVisible('#bScan')));
 
+ /* ── W) 🎲 문제 모드 (v2.3) ── */
+ const toBoard=k=>p.evaluate(k=>{const b=BOARDS.find(x=>x.kind===k);if(b.id!==CUR)switchBoard(b.id);},k);
+ await toBoard('sep');
+ ok('W0 새 문제·10문제 버튼',await p.isVisible('#bNewQ')&&await p.isVisible('#bSet10')&&!(await p.isVisible('#setChip')));
+ const before1=await st();
+ await p.click('#bNewQ');await wait(100);
+ let w=await st();
+ ok('W1 분리각 새 문제: 배치·두께 바뀜 · 예측 비움 · ① 모드',JSON.stringify(w.balls)!==JSON.stringify(before1.balls)&&w.draft.thick>=1&&w.draft.thick<=8&&!w.draft.predObj&&(await p.evaluate(()=>MODE))==='pobj');
+ ok('W2 분리각 문제 조건: 거리 1.2~4.5칸 · 첫 공 = 빨강 ①',await p.evaluate(()=>problemOk()));
+ /* 여러 번 뽑아도 늘 조건을 지킨다 */
+ ok('W3 20번 뽑아도 모두 조건 충족',await p.evaluate(()=>{for(let i=0;i<20;i++){newProblem();if(!problemOk())return false;}return true;}));
+ await p.click('#bUndo');
+ ok('W4 되돌리기로 이전 배치',(await p.evaluate(()=>UNDO.length))>=0);
+ /* 원·투쿠션 */
+ await toBoard('cush');
+ await p.evaluate(()=>{ST.draft.ctype='first';ST.draft.ncush=1;renderAll();});
+ await p.click('#bNewQ');await wait(100);
+ ok('W5 쿠션 먼저 새 문제: 거울로 풀리는 배치',await p.evaluate(()=>problemOk()&&ST.draft.cpts.length===0&&MODE==='cpt'));
+ await p.evaluate(()=>{ST.draft.ctype='after';renderAll();});
+ await p.click('#bNewQ');await wait(300);
+ ok('W6 1적구 뒤 새 문제: 수구가 쿠션을 N번 닿는 배치',await p.evaluate(()=>problemOk()));
+ /* 자유 연습: 득점 가능한 배치만 */
+ await toBoard('free');
+ await p.click('#bNewQ');
+ for(let i=0;i<80;i++){if(/득점할 수 있는 배치입니다|못 찾았/.test(await p.textContent('#toast')))break;await wait(100);}
+ ok('W7 자유 새 문제: 득점 조준이 있는 배치',/득점할 수 있는 배치/.test(await p.textContent('#toast'))&&await p.evaluate(()=>{const it=scanCandidates();const V=speedMs();
+   return it.some(x=>{if(x.block)return false;const ai={dir:x.dir,contact:rayHit(ST.balls[ST.balls.cue],x.dir)};return judge(simWith(ai,V),ai).result==='hit';});}),await p.textContent('#toast'));
+ ok('W8 자유 새 문제 → 선 긋기 모드',(await p.evaluate(()=>MODE))==='draw'&&(await st()).draft.predict.length===0);
+ ok('W9 자유 연습엔 10문제 없음',!(await p.isVisible('#bSet10')));
+
+ /* 📝 10문제 — 분리각 */
+ await toBoard('sep');
+ const nAtt0=(await p.evaluate(()=>window.__T.bb_attempts.length));
+ await p.click('#bSet10');await wait(100);
+ ok('W10 세트 시작: 1 / 10 · 버튼 숨김',await p.isVisible('#setChip')&&(await p.textContent('#setNo'))==='1 / 10'&&!(await p.isVisible('#bSet10')));
+ /* 한 문제 풀기: 정답 근처(±5°)를 예측으로 찍고 정답 보기 */
+ const solve=async(off)=>{
+   await p.evaluate(off=>{const ai=aimInfo(),sv=computeSim(),I=sv.info,a=Math.atan2(ai.dir.y,ai.dir.x),o=ST.balls.r,g=ai.contact.ghost;
+     const s1=Math.atan2(o.y-g.y,o.x-g.x)-a>0?1:-1;const po=a+(I.obj+off)*Math.PI/180,pc=a+((I.cue==null?-s1*60:I.cue)-off)*Math.PI/180;
+     ST.draft.predObj={x:o.x+Math.cos(po),y:o.y+Math.sin(po)};ST.draft.predCue={x:g.x+Math.cos(pc),y:g.y+Math.sin(pc)};renderAll();},off);
+   await p.click('#bSim');await wait(60);await p.click('#bSim');await wait(250);
+ };
+ await solve(6);
+ let T3=await p.evaluate(()=>window.__T.bb_attempts);
+ const last=T3[T3.length-1];
+ ok('W11 정답 보면 자동 기록 · 세트 번호',T3.length===nAtt0+1&&last.sim.set&&last.sim.set.no===1,last.sim&&last.sim.set);
+ ok('W12b 자동 기록 뒤 [기록하기] 막힘 · [다음 두께] 숨김',await p.$eval('#bRec',e=>e.disabled&&/기록됨/.test(e.textContent))&&!(await p.isVisible('#bNextT')));
+ ok('W12 [다음 문제 ▶ (2/10)]',/다음 문제 ▶ \(2\/10\)/.test(await p.textContent('#hint')));
+ await p.click('#bSim');await wait(60);await p.click('#bSim');await wait(200);
+ ok('W13 같은 문제 다시 봐도 두 번 기록 안 함',(await p.evaluate(()=>window.__T.bb_attempts.length))===nAtt0+1);
+ await p.click('#bNextQ');await wait(150);
+ ok('W14 2 / 10 · 새 배치',(await p.textContent('#setNo'))==='2 / 10'&&(await p.evaluate(()=>MODE))==='pobj');
+ for(let i=2;i<=10;i++){await solve(6);if(i<10){await p.click('#bNextQ');await wait(120);}}
+ ok('W15 10번째 → [결과 보기]',/📝 결과 보기/.test(await p.textContent('#hint')));
+ await p.click('#bNextQ');await wait(400);
+ let mk=await p.textContent('#mask');
+ ok('W16 결과 창: 평균 오차 · 10줄',/10문제 끝/.test(mk)&&/평균 오차: [\d.]+°/.test(mk)&&(await p.$$('.modal table tr')).length===11,mk.slice(0,200));
+ ok('W17 세트 끝나면 표시 사라짐',!(await p.isVisible('#setChip')));
+ /* 한 세트 더 — 이번엔 더 정확하게(오차 2°) → 지난 세트와 비교 */
+ await p.click('.modal .btns .primary');await wait(150);
+ ok('W18 [10문제 더] → 새 세트 1 / 10',(await p.textContent('#setNo'))==='1 / 10');
+ for(let i=1;i<=10;i++){await solve(2);await p.click('#bNextQ');await wait(i<10?120:400);}
+ mk=await p.textContent('#mask');
+ ok('W19 지난 세트와 비교 · 좋아졌습니다',/지난 세트 [\d.]+° → 이번 [\d.]+° · [\d.]+° 좋아졌습니다/.test(mk),mk.slice(0,300));
+ await p.click('.modal .btns button');
+ /* 그만하기 · 판 바꾸면 멈춤 */
+ await p.click('#bSet10');await wait(100);await p.click('#bSetStop');
+ ok('W20 그만하기',!(await p.isVisible('#setChip'))&&await p.evaluate(()=>SET===null));
+ await p.click('#bSet10');await wait(100);await toBoard('free');
+ ok('W21 판을 바꾸면 세트 멈춤',await p.evaluate(()=>SET===null));
+
  /* ── K) 한 화면 · 실버 UX 치수 ──
     🔒 v1.1: 화면 전체(2560×1440)로 쟀더니 통과했지만, 실제 브라우저 창은 탭·주소창을 빼면 ~1300 이라
        로한 화면에서 오른쪽 패널에 스크롤이 생겼다. → **실제 브라우저 창 크기**로 잰다.

@@ -70,6 +70,7 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .bbar{display:flex;align-items:center;gap:.5rem;padding:.35rem .8rem;flex-wrap:wrap}
 .bname{font-size:1.25rem;font-weight:800;margin-right:.5rem}
 .save{font-weight:700;color:var(--green)}
+.setchip{display:inline-flex;align-items:center;gap:.4rem;font-weight:800;font-size:1.1rem;padding:.1rem .2rem .1rem .7rem;border-radius:.6rem;background:#fff3cf;border:2px solid #e6c46a}
 .save.bad{color:var(--warn)}
 
 /* ── 작업판 ──
@@ -245,6 +246,10 @@ body.k-cush .tools .lbl{display:none}
       <button id="bRename"><span class="ic">✏️</span> 이름 바꾸기</button>
       <button id="bCopy"><span class="ic">📄</span> 복제</button>
       <button id="bDel" class="danger"><span class="ic">🗑</span> 이 판 지우기</button>
+      <!-- v2.3 🎲 문제 모드 -->
+      <button id="bNewQ"><span class="ic">🎲</span> 새 문제</button>
+      <button id="bSet10" data-k="sep cush"><span class="ic">📝</span> 10문제 풀기</button>
+      <span id="setChip" class="setchip hide">📝 <b id="setNo"></b> <button id="bSetStop">그만하기</button></span>
       <div class="hint" id="hint"></div>
       <div class="seq" id="seq"></div>
       <span id="saveSt" class="save"></span>
