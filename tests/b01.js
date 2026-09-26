@@ -505,6 +505,51 @@ function init({session,users}){
  ok('U36 기록 화면: N번 만에 · 답 봄',/⭕ 4번 만에/.test(ub)&&/답 봄 \(0번 시도\)/.test(ub),ub.slice(0,300));
  await p.click('#bBack');
 
+ /* ── R) 🔍 모든 길 찾기 (v3.1) ── */
+ const waitRoutes=async()=>{for(let i=0;i<200;i++){if(await p.evaluate(()=>!!(SIMV&&SIMV.routes&&SIMV.info&&!/찾는 중/.test(SIMV.info.text))))return true;await wait(50);}return false;};
+ await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='cush'&&x.draft.ncush===1);switchBoard(b.id);ST.draft.ctype='after';renderAll();});
+ await p.click('#bNewQ');await wait(300);
+ ok('R0 🔍 모든 길 버튼 · 속도 비교는 도구줄',await p.isVisible('#bRoutes')&&await p.evaluate(()=>!!document.querySelector('.stage .tools #bCmp')));
+ const nA=await p.evaluate(()=>window.__T.bb_attempts.length);
+ await p.click('#bRoutes');
+ ok('R1 길 찾기 끝',await waitRoutes());
+ let rh=await p.textContent('#hint');
+ const rl=await p.evaluate(()=>SIMV.routes.list.map(r=>({w:r.w,key:r.key})));
+ ok('R2 득점하는 길 N가지 · 안내 줄은 요약만',/🔍 득점하는 길 \d+가지 \(속도 3 · 정중앙/.test(rh)&&rl.length>=1&&!(await p.$('#hint .rchip')),rh);
+ ok('R3 길 전용 줄: 번호 버튼 = 길 수 · 설명 · [이 길로 해 보기]',await p.isVisible('#routeBar')&&(await p.$$('#routeBar .rchip')).length===rl.length&&/① .* → 빨간 공 ② · (쉬움|보통|어려움)/.test(await p.textContent('#routeBar .rdesc'))&&await p.isVisible('#bUseRoute'),await p.textContent('#routeBar'));
+ ok('R4 쉬운 길(폭 넓은 길)부터',rl.every((r,i)=>i===0||r.w<=rl[i-1].w),rl);
+ /* 🔒 길이 정직한가 — 각 길의 가운데·양 끝 조준을 끝까지 굴리면 득점 */
+ const rhon=await p.evaluate(()=>{const c=ST.balls[ST.balls.cue];let n=0,bad=0;SIMV.routes.list.forEach(r=>[r.items[0],r.center,r.items[r.items.length-1]].forEach(x=>{n++;
+   const ai={dir:x.dir,contact:rayHit(c,x.dir)};const I=judgeCush(simWith(ai,speedMs()),ai);if(I.result!=='hit'||I.actR.join('>')!==r.key)bad++;}));return {n,bad};});
+ ok('R5 길마다 가운데·양 끝을 끝까지 굴려도 득점 · 같은 쿠션 순서',rhon.n>0&&rhon.bad===0,rhon);
+ ok('R6 길을 보면 답 본 것으로 한 번 기록',(await p.evaluate(()=>window.__T.bb_attempts.length))===nA+1&&(await p.evaluate(()=>window.__T.bb_attempts[window.__T.bb_attempts.length-1].sim.solvedBy))==='answer');
+ ok('R7 선택한 길: 노란 선 · 정답 두께 표시',await p.evaluate(()=>[...document.querySelectorAll('#gDyn polyline')].some(e=>e.getAttribute('stroke')==='#ffcc33')&&[...document.querySelectorAll('#gDyn text')].some(t=>/^정답 두께 /.test(t.textContent))));
+ ok('R7b 말풍선 글자가 칸 안(길 번호)',!(await fits()).length,await fits());
+ if(rl.length>1){const d1=await p.textContent('#routeBar .rdesc');await p.click('#routeBar .rchip >> nth=1');await wait(80);
+   ok('R8 다른 길 고르면 설명·강조가 바뀐다',/^② /.test(await p.textContent('#routeBar .rdesc'))&&(await p.textContent('#routeBar .rdesc'))!==d1&&await p.evaluate(()=>SIMV.routes.sel===1));}
+ else ok('R8 (길이 하나 — 건너뜀)',true);
+ await p.click('#bUseRoute');await wait(100);
+ ok('R9 [이 길로 해 보기] → 두께가 그 길로 · 길 줄 사라짐',!(await p.isVisible('#routeBar'))&&/길로 바꿨습니다/.test(await p.textContent('#toast')));
+ await p.click('#bSim');await wait(60);await p.click('#bSim');await wait(300);
+ ok('R10 그 길로 쳐 보면 ⭕ 득점',/⭕ \d+번째 만에 득점/.test(await p.textContent('#hint')),await p.textContent('#hint'));
+ /* 🔁² 투쿠션 · 쿠션 먼저: 네 쿠션을 전부 훑는다 */
+ await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='cush'&&x.draft.ncush===2);switchBoard(b.id);ST.draft.ctype='first';renderAll();});
+ await p.click('#bNewQ');await wait(300);
+ await p.click('#bRoutes');await wait(40);
+ ok('R11 계산 중 진행률',/🔍 길 찾는 중/.test(await p.textContent('#hint')));
+ ok('R12 끝',await waitRoutes());
+ const r2l=await p.evaluate(()=>SIMV.routes.list.map(r=>r.key));
+ ok('R13 투쿠션 길 = 쿠션 두 개 순서',r2l.length>=1&&r2l.every(k=>k.split('>').length===2)&&/(위|아래|왼쪽|오른쪽) [\d. ~]+ → (위|아래|왼쪽|오른쪽) [\d. ~]+ → 빨간 공 ①/.test(await p.textContent('#routeBar .rdesc')),[r2l,await p.textContent('#routeBar .rdesc')]);
+ /* 좁은 창에서도 길 줄 때문에 화면이 넘치지 않는다 */
+ await p.setViewportSize({width:1536,height:730});await wait(250);
+ const rv2=await p.evaluate(()=>{const s=document.querySelector('.side');return {page:document.documentElement.scrollHeight-innerHeight,side:s.scrollHeight-s.clientHeight,
+   over:[...document.querySelectorAll('#workv button')].filter(e=>{const r=e.getBoundingClientRect();return r.width&&(r.bottom>innerHeight+.5||r.right>innerWidth+.5);}).map(e=>e.textContent.trim())};});
+ ok('R14 1536×730: 길 줄이 있어도 스크롤·잘림 없음',rv2.page<=1&&rv2.side<=1&&!rv2.over.length,rv2);
+ await p.setViewportSize({width:2560,height:1440});await wait(250);
+ await p.click('#spd [data-s="4"]');await wait(60);
+ ok('R15 조건을 바꾸면 길 줄 사라짐',!(await p.isVisible('#routeBar'))&&await p.evaluate(()=>SIMV===null));
+ await p.click('#spd [data-s="3"]');
+
  /* ── V) 🎯 맞는 범위 찾기 (v2.2) ── */
  const waitScan=async()=>{for(let i=0;i<100;i++){if(await p.evaluate(()=>!!(SIMV&&SIMV.info&&SIMV.info.scan)))return true;await wait(50);}return false;};
  await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='free');switchBoard(b.id);MODE='ball';

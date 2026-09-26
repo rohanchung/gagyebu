@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" data-ver="3.0.0">
+<html lang="ko" data-ver="3.1.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- 🔒 버전 꼬리표(?v=) — 없으면 GitHub Pages 캐시 때문에 새 index.html 에 옛 app.js 가 붙어 돈다
      (실제로 "불러오는 중" 화면이 안 꺼지고 그 아래 앱이 떴다). 세 곳(html data-ver · 두 src · APP_VER/PH.VERSION)을 같이 올린다 — b01 이 확인 -->
-<script src="physics.js?v=3.0.0"></script>
+<script src="physics.js?v=3.1.0"></script>
 <!--
   🎱 아버지 당구 연습장 — 로한북과 완전히 별개인 앱. (2026-09-26 v1 · v2 4구 훈련)
   🔒 v2: 3구가 아니라 **4구**다(흰·노랑·빨강 ①②). 중대 규격. 물리 시뮬레이션은 physics.js
@@ -127,6 +127,9 @@ body:has(#app:not(.hide)) #boot,body:has(#login:not(.hide)) #boot{display:none!i
 .recrow{display:flex;gap:.35rem;flex:none}
 #bRec{min-height:2.9rem;font-size:1.15rem;flex:1}
 #bNextT{min-height:2.9rem;flex:none}
+.routebar{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin-top:.35rem;padding:.3rem .5rem;background:#fff8e0;border:2px solid #efd28a;border-radius:.6rem;font-weight:700}
+.routebar .rdesc{flex:1;min-width:18rem;line-height:1.3}
+.routebar button{flex:none}
 /* 높이가 낮은 창(노트북)에서만 당점 원·속도칸을 줄인다 */
 @media (max-height:800px){#tip{width:6rem;height:6rem}.spd button{min-height:2.6rem}#tipGuide{display:none}.aimtxt{min-height:0}}
 .hint.ok{background:#e3ecff;border-color:#9db6f5;color:#0d3aa3}
@@ -313,12 +316,15 @@ body.k-cush .tools .lbl{display:none}
             <button id="bDone" class="primary"><span class="ic">✔</span> 긋기 끝</button>
             <button id="bClear" class="danger"><span class="ic">🧹</span> 선 지우기</button>
           </span>
+          <button id="bCmp" data-k="cush"><span class="ic">💨</span> 속도 비교</button>
           <span class="sp"></span>
           <span class="grp">
             <button id="bUndo"><span class="ic">↶</span> 되돌리기</button>
             <button id="bRedo"><span class="ic">↷</span> 다시하기</button>
           </span>
         </div>
+        <!-- 🔍 모든 길: 길 번호 · 선택한 길 설명 · [이 길로 해 보기] — 안내 줄에 몰아넣었더니 글자가 세로로 접히고 패널이 잘렸다(v3.1 화면 확인) -->
+        <div class="routebar hide" id="routeBar"></div>
         <div class="tblwrap">
         <svg id="tbl" viewBox="-94 -94 988 588" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -359,7 +365,7 @@ body.k-cush .tools .lbl{display:none}
             <button id="bSim"><span class="ic">▶</span> <span id="bSimT">시뮬레이션</span></button>
             <button id="bSlow" title="천천히 보기">🐢 천천히</button>
           </div>
-          <div class="row" data-k="free cush" style="margin-top:.3rem"><button id="bScan" data-k="free">🎯 맞는 범위</button><button id="bAnswer" data-k="cush">💡 답 보기</button><button id="bCmp" data-k="cush">💨 속도 비교</button></div>
+          <div class="row" data-k="free cush" style="margin-top:.3rem"><button id="bScan" data-k="free">🎯 맞는 범위</button><button id="bAnswer" data-k="cush">💡 답 보기</button><button id="bRoutes" data-k="cush">🔍 모든 길</button></div>
         </section>
         <div class="recrow">
           <button id="bRec" class="primary"><span class="ic">✅</span> 이 시도 기록하기</button>
@@ -392,7 +398,7 @@ body.k-cush .tools .lbl{display:none}
 <div id="mask" class="hide"></div>
 <div id="toast" class="hide"></div>
 
-<script src="app.js?v=3.0.0"></script>
+<script src="app.js?v=3.1.0"></script>
 
 </body>
 </html>

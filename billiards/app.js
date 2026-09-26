@@ -7,7 +7,7 @@
  *      아버지 목적: "이렇게 치면 맞느냐"를 확인 · 수구 분리각 · 1적구 · 원/투쿠션 흐름 훈련
  */
 'use strict';
-var APP_VER='3.0.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.1.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
@@ -717,14 +717,28 @@ function cushCands(allRails){
   return out;
 }
 /* 정답 풀기(같은 배치·당점·속도면 다시 안 푼다) */
+function solveKey(allRails){var d=ST.draft;return JSON.stringify([liveBalls().map(function(n){return ST.balls[n];}),ST.balls.cue,d.ctype,d.ncush,d.tip,speedMs(),FEEL,
+    d.ctype==='first'&&!allRails&&d.cpts[0]?railId(d.cpts[0]):'all']);}
+function solveOne(it,V,c){if(it.block){it.res='block';return;}
+  var ai={dir:it.dir,contact:rayHit(c,it.dir)},I=judgeCush(simWith(ai,V,cushStop()),ai);
+  it.res=I.result==='hit'?'hit':'miss';it.act=I.act;it.actR=I.actR;}
 function solveCush(allRails){
-  var d=ST.draft,key=JSON.stringify([liveBalls().map(function(n){return ST.balls[n];}),ST.balls.cue,d.ctype,d.ncush,d.tip,speedMs(),FEEL,
-    d.ctype==='first'&&!allRails&&d.cpts[0]?railId(d.cpts[0]):'all']);
+  var key=solveKey(allRails);
   if(SOLVE.key===key)return SOLVE.val;
   var items=cushCands(allRails),V=speedMs(),c=ST.balls[ST.balls.cue];
-  items.forEach(function(it){if(it.block){it.res='block';return;}
-    var ai={dir:it.dir,contact:rayHit(c,it.dir)},I=judgeCush(simWith(ai,V,cushStop()),ai);
-    it.res=I.result==='hit'?'hit':'miss';it.act=I.act;it.actR=I.actR;});
+  items.forEach(function(it){solveOne(it,V,c);});
+  return solveFinish(key,items);
+}
+/* 나눠 돌리기 — 쿠션 먼저는 네 쿠션 × 0.5 = 약 640곳이라 화면이 멈추지 않게. 무엇이든 바뀌면(clearSim) 멈춘다 */
+function solveCushAsync(allRails,prog,done){
+  var key=solveKey(allRails);if(SOLVE.key===key){done(SOLVE.val);return;}
+  var items=cushCands(allRails),V=speedMs(),c=ST.balls[ST.balls.cue],i=0,tok=++SCAN_TOKEN;
+  (function step(){if(tok!==SCAN_TOKEN)return;var end=Math.min(items.length,i+24);
+    for(;i<end;i++)solveOne(items[i],V,c);
+    if(i<items.length){prog(i,items.length);setTimeout(step,0);return;}
+    done(solveFinish(key,items));})();
+}
+function solveFinish(key,items){
   var ranges=[],run=null,prev=null;
   items.forEach(function(it){if(it.res==='hit'&&run&&prev&&prev.grp===it.grp&&prev.res==='hit'){run.to=it;run.items.push(it);}
     else if(it.res==='hit'){run={grp:it.grp,from:it,to:it,items:[it]};ranges.push(run);}else run=null;prev=it;});
@@ -791,7 +805,7 @@ function showAnswer(){
   var b=sol.best,c=ST.balls[ST.balls.cue],ai={dir:b.dir,contact:rayHit(c,b.dir)},res=simWith(ai,speedMs()),I=judgeCush(res,ai);
   var tg=d.ctype==='after'?'r2':'r',S=d.ctype==='after'?b.ghost:c,sp=S&&b.actR&&b.actR.length?sysPath(S,ST.balls[tg],b.actR):null;
   var sysT=sp?' · 무회전 계산 '+sp.slice(1,1+b.actR.length).map(function(q,k){return RNM[b.actR[k]]+' '+cval(q,b.actR[k]);}).join(' → '):'';
-  var more=sol.ranges.length>1?' · 다른 길 '+(sol.ranges.length-1)+'가지':'';
+  var more=sol.ranges.length>1?' · 다른 길도 있어요 → 🔍 모든 길':'';
   var txt=d.ctype==='after'
     ?'💡 정답: '+rangeTxt(sol.ranges[0])+(sol.ranges[0].items.length>2?' (가운데 '+thickWord(b.side,b.t16)+')':'')+' → 수구 '+viaTxt(b)+' → '+BNAME.r2+sysT+more
     :'💡 정답: '+rangeTxt(sol.ranges[0])+(sol.ranges[0].items.length>2?' (가운데 '+b.v+')':'')+(b.actR.length>1?' → '+viaTxt(b):'')+' → '+BNAME.r+sysT+more;
@@ -813,6 +827,66 @@ function applyAnswer(){
   pushUndo();var d=ST.draft;
   if(b.pt)d.cpts=[b.pt];else{d.thick=b.t16/2;d.side=b.side;d.cpts=(b.actR||[]).map(function(r,k){return railPt(r,b.act[k]);});}
   saveSoon();renderAll();toast('💡 정답 '+(b.pt?'지점':'두께')+'으로 바꿨습니다 — [▶ 쳐 보기]로 확인해 보세요');
+}
+/* ═════════ 🔍 모든 길 찾기 (v3.1) ═════════
+   득점하는(맞히는) 조준을 전부 굴려 보고, 수구가 지나간 **쿠션 순서별로** 묶어 "길"로 보인다. 폭 넓은 길(쉬운 길)부터.
+   🔒 색: 선택한 길 하나만 진한 노랑 + 어두운 테두리, 나머지는 옅은 흰 선. 길의 구별은 번호(①②③)가 맡는다.
+      (네 가지 색을 동시에 쓰면 초록 천 위에서 주황·분홍이 구별이 안 됐다 — dataviz 검사 실패) */
+var CIRC='①②③④⑤⑥';
+function routesOf(sol){
+  var runs=[],cur=null,prev=null;
+  sol.items.forEach(function(it){var key=it.res==='hit'?(it.actR||[]).join('>'):null;
+    if(key&&cur&&prev&&prev.res==='hit'&&prev.grp===it.grp&&(prev.actR||[]).join('>')===key)cur.items.push(it);
+    else if(key){cur={key:key,items:[it]};runs.push(cur);}else cur=null;prev=it;});
+  runs.forEach(function(r){r.center=r.items[Math.floor((r.items.length-1)/2)];r.w=r.items.length;});
+  runs.sort(function(x,y){return y.w-x.w;});
+  return runs.slice(0,6);
+}
+function routeLevel(r){var after=ST.draft.ctype==='after';var w=after?r.w/2:r.w*0.5;   /* 두께 1/8 칸 · 쿠션 수치 */
+  return w>=3?'쉬움':w>=1.5?'보통':'어려움';}
+function routeTxt(r,i){
+  var d=ST.draft,after=d.ctype==='after',its=r.items,rails=r.center.actR,N=rails.length;
+  var cush=rails.map(function(rl,k){var vs=its.map(function(x){return x.act[k];}).filter(function(v){return v!=null;});
+    var lo=Math.min.apply(null,vs),hi=Math.max.apply(null,vs);return RNM[rl]+' '+(lo===hi?lo:lo+' ~ '+hi);}).join(' → ');
+  var head=after?rangeTxt({from:its[0],to:its[its.length-1]})+' → '+cush:cush;
+  var c=ST.balls[ST.balls.cue],S=after?r.center.ghost:c,sp=S?sysPath(S,ST.balls[after?'r2':'r'],rails):null;
+  var sys=sp?' · 무회전 계산 '+sp.slice(1,1+N).map(function(q,k){return RNM[rails[k]]+' '+cval(q,rails[k]);}).join(' → '):'';
+  return CIRC[i]+' '+head+' → '+(after?BNAME.r2:BNAME.r)+' · '+routeLevel(r)+sys;
+}
+function findRoutes(){
+  if(kind()!=='cush')return;
+  var d=ST.draft;clearSim();hidePop();
+  SIMV={routes:{list:[],sel:0},ids:liveBalls(),res:null,t:0,T:0,playing:false,info:{result:'cmp',routes:true,text:'🔍 길 찾는 중…'}};
+  renderAll();
+  solveCushAsync(d.ctype==='first',function(i,n){if(SIMV&&SIMV.routes){SIMV.info.text='🔍 길 찾는 중… '+i+'/'+n;renderHint();}},function(sol){
+    if(!SIMV||!SIMV.routes)return;
+    var list=routesOf(sol),V=speedMs(),c=ST.balls[ST.balls.cue];
+    list.forEach(function(r){var ai={dir:r.center.dir,contact:rayHit(c,r.center.dir)},res=simWith(ai,V);r.ai=ai;r.res=res;r.info=judgeCush(res,ai);
+      var F=res.frames,cu=ST.balls.cue,pts=[];for(var j=0;j<F.length;j+=2)pts.push([F[j].p[cu][0]/DM,F[j].p[cu][1]/DM]);r.path=pts;});
+    SIMV.routes.list=list;SIMV.ai=list[0]?list[0].ai:null;
+    var cond=' (속도 '+(d.kmh!=null?d.kmh+'km/h':d.speed)+' · '+tipDesc(d.tip)[0]+')';
+    SIMV.info={result:list.length?'hit':'miss',routes:true,text:list.length?'🔍 '+(d.ctype==='after'?'득점하는':'맞히는')+' 길 '+list.length+'가지'+cond+' — 당구대 위 줄에서 길을 고르세요':'🔍 이 속도·당점으론 맞는 길이 없습니다 — 속도나 당점을 바꿔 보세요'};
+    /* 모든 길을 봤으면 답을 본 것 — 한 번 기록 */
+    if(list.length&&!d.answered){d.answered=true;if(!d.solved){d.solved='answer';var keep=SIMV,r0=list[0];
+      SIMV={res:r0.res,ai:r0.ai,info:r0.info,ids:liveBalls(),t:0,T:0,playing:false};cushDone();SIMV=keep;}saveSoon();}
+    renderAll();
+  });
+}
+function selRoute(i){if(!SIMV||!SIMV.routes||!SIMV.routes.list[i])return;SIMV.routes.sel=i;SIMV.ai=SIMV.routes.list[i].ai;renderRouteBar();renderTable();}
+/* 길 전용 줄 */
+function renderRouteBar(){
+  var el=$('routeBar'),R=SIMV&&SIMV.routes&&SIMV.routes.list.length?SIMV.routes:null;
+  el.classList.toggle('hide',!R);if(!R){el.innerHTML='';return;}
+  el.innerHTML=R.list.map(function(r,i){return '<button class="rchip'+(i===R.sel?' on':'')+'" data-r="'+i+'">'+CIRC[i]+' '+routeLevel(r)+'</button>';}).join('')+
+    '<span class="rdesc">'+esc(routeTxt(R.list[R.sel],R.sel))+'</span><button id="bUseRoute" class="primary">이 길로 해 보기</button>';
+  el.querySelectorAll('[data-r]').forEach(function(b){b.addEventListener('click',function(){selRoute(+b.dataset.r);});});
+  $('bUseRoute').addEventListener('click',applyRoute);
+}
+function applyRoute(){
+  var r=SIMV&&SIMV.routes&&SIMV.routes.list[SIMV.routes.sel];if(!r)return;
+  var b=r.center,no=SIMV.routes.sel;pushUndo();var d=ST.draft;   /* pushUndo 가 SIMV 를 지우니 번호를 먼저 */
+  if(b.pt)d.cpts=[b.pt];else{d.thick=b.t16/2;d.side=b.side;d.cpts=(b.actR||[]).map(function(rl,k){return railPt(rl,b.act[k]);});}
+  saveSoon();renderAll();toast('🔍 '+CIRC[no]+' 길로 바꿨습니다 — [▶ 쳐 보기]로 확인해 보세요');
 }
 /* 한 문제가 끝남(스스로 맞힘 또는 답 봄) — 한 번만 기록 */
 function cushDone(){
@@ -985,7 +1059,7 @@ function renderTable(){
   }else if(ai&&(K==='sep'||cushAfter())){
     /* 분리각·1적구 뒤 쿠션: 조준선(흰 점선) + 맞는 자리(고스트) + 예측 방향
        🔒 답 보기 중엔 정답 두께로 그린다 — 아버지 두께로 그리면 굴러가는 정답 공과 어긋났다(v3 화면 확인) */
-    var ANS=K==='cush'&&SIMV&&SIMV.info&&SIMV.info.answer&&SIMV.ai;
+    var ANS=K==='cush'&&SIMV&&SIMV.info&&(SIMV.info.answer||SIMV.info.routes)&&SIMV.ai;
     var aiD=ANS?SIMV.ai:ai,c=ST.balls[ST.balls.cue],g=aiD.contact?aiD.contact.ghost:null;
     if(g){h.push('<line x1="'+c.x*S+'" y1="'+c.y*S+'" x2="'+g.x*S+'" y2="'+g.y*S+'" stroke="#fff" stroke-width="3" stroke-dasharray="8 7" vector-effect="non-scaling-stroke" pointer-events="none"/>');
       h.push(ballSvg(ST.balls.cue,g,k,false,true));
@@ -1018,7 +1092,19 @@ function renderTable(){
   }
   /* 시뮬레이션: 지나간 자리 + 지금 자리 */
   var pos={};ids.forEach(function(n){pos[n]=ST.balls[n];});
-  if(SIMV&&SIMV.scan){
+  if(SIMV&&SIMV.routes){
+    var RL=SIMV.routes.list,sel=SIMV.routes.sel;
+    RL.forEach(function(r,i){if(i===sel)return;var pts=r.path.map(function(q){return (q[0]*S).toFixed(1)+','+(q[1]*S).toFixed(1);}).join(' ');
+      h.push('<polyline points="'+pts+'" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="6" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>');
+      h.push('<polyline points="'+pts+'" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>');});
+    var sr=RL[sel];
+    if(sr){var sp2=sr.path.map(function(q){return (q[0]*S).toFixed(1)+','+(q[1]*S).toFixed(1);}).join(' ');
+      h.push('<polyline points="'+sp2+'" fill="none" stroke="#1a1a1a" stroke-width="10" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity=".75" pointer-events="none"/>');
+      h.push('<polyline points="'+sp2+'" fill="none" stroke="#ffcc33" stroke-width="5" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>');}
+    /* 번호는 길의 첫 쿠션에 */
+    RL.forEach(function(r,i){var c0=r.center;if(!c0.actR||!c0.actR[0])return;var p=railPt(c0.actR[0],c0.act[0]);
+      h.push(bubble(p.x*S,p.y*S,CIRC[i],i===sel?'#7a5200':'#333',k,p.y===H?'up':undefined));});
+  }else if(SIMV&&SIMV.scan){
     /* 🎯 조준 부채꼴 — 초록 맞음 · 빨강 빗나감 · 주황 파울 · 회색 다른 공에 가림 */
     /* 빗나감은 옅게 — 진하면 판 전체가 붉게 덮여 초록 구간이 묻힌다(v2.2 화면 확인) */
     var CC={hit:'#19c24a',miss:'rgba(208,35,26,.16)',foul:'rgba(240,154,26,.7)',block:'rgba(120,120,120,.25)'},cu=ST.balls[ST.balls.cue];
@@ -1179,7 +1265,7 @@ function renderSide(){
   document.querySelectorAll('#ncush button').forEach(function(x){x.classList.toggle('on',+x.dataset.n===d.ncush);});
   renderSimBtn();
 }
-function renderAll(){if(!ST)return;renderTabs();renderTools();renderHint();renderSeq();renderSide();renderTable();}
+function renderAll(){if(!ST)return;renderTabs();renderTools();renderHint();renderSeq();renderSide();renderRouteBar();renderTable();}
 
 /* ═════════ 당점 ═════════ */
 function tipDesc(t){
@@ -1769,6 +1855,7 @@ function bind(){
   ['mBall','mDraw','mEdit','mObj','mCue','mCpt'].forEach(function(id){$(id).addEventListener('click',function(){setMode(this.dataset.m);});});
   $('ctype').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ctype===b.dataset.ct)return;pushUndo();ST.draft.ctype=b.dataset.ct;ST.draft.cpts=[];resetTries();MODE='cpt';saveSoon();renderAll();});
   $('bAnswer').addEventListener('click',showAnswer);
+  $('bRoutes').addEventListener('click',findRoutes);
   $('bCmp').addEventListener('click',compareSpeeds);
   $('bScan').addEventListener('click',scanRange);
   $('bNewQ').addEventListener('click',function(){if(SET){nextQ();return;}newProblem();});
