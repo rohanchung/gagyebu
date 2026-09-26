@@ -10,6 +10,11 @@ const DAD={id:'dad',email:'dad@test',app_metadata:{provider:'email',app:'billiar
 const ROHAN={id:'rohan',email:'rohan@test',app_metadata:{provider:'email'}};
 
 function init({session,users}){
+  /* 🔒 새로고침 때 앱이 처음 보이는 순간을 찍어 둔다 — 그때 이미 판 종류·탭·당구대가 다 그려져 있어야 한다 */
+  window.__reveal=null;
+  new MutationObserver(function(){var app=document.getElementById('app');if(window.__reveal||!app||app.classList.contains('hide'))return;
+    window.__reveal={k:document.body.className,tabs:document.querySelectorAll('#tabs button').length,boot:!document.getElementById('boot').classList.contains('hide'),
+      balls:document.querySelectorAll('#gDyn circle').length};}).observe(document,{subtree:true,attributes:true,attributeFilter:['class']});
   const T={bb_boards:[],bb_attempts:[],bb_events:[]};window.__T=T;window.__ops=[];window.__out=0;let seq=0;
   let cur=session;
   const J=o=>o==null?o:JSON.parse(JSON.stringify(o));
@@ -85,7 +90,12 @@ function init({session,users}){
    for(let i=1;i<=8;i++){await p.mouse.move(a+(e-a)*i/8,bb+(f-bb)*i/8);await wait(10);}await p.mouse.up();await wait(60);};
  const st=()=>p.evaluate(()=>JSON.parse(JSON.stringify(ST)));
  const seq=()=>p.evaluate(()=>railSeq(ST.draft[LAYER]));
+ /* 말풍선 글자가 칸을 넘는 것들(실제 글자 폭으로 잰다) */
+ const fits=()=>p.evaluate(()=>[...document.querySelectorAll('#gDyn g')].map(g=>{const r=g.querySelector('rect'),t=g.querySelector('text');
+   return r&&t?{t:t.textContent,over:t.getComputedTextLength()-r.width.baseVal.value}:null;}).filter(x=>x&&x.over>-2));
  ok('B0 첫 판',(await p.textContent('#bName'))==='판 1');
+ const rv=await p.evaluate(()=>window.__reveal);
+ ok('B0c 앱이 처음 보일 때 이미 다 그려짐(판 종류·탭·공 · 불러오는 중 화면 없음)',rv&&/k-free/.test(rv.k)&&rv.tabs>=1&&!rv.boot&&rv.balls>=4,rv);
  ok('B0b 기본 모드 = 공 옮기기',/공을 잡아 끌어서/.test(await p.textContent('#hint')));
 
  /* ── B) 선 긋기 ── */
@@ -101,7 +111,8 @@ function init({session,users}){
  ok('B3 점 5개(내 공 + 4)',s.draft.predict.length===5,s.draft.predict);
  ok('B4 첫 점 = 내 공',s.draft.predict[0].ref==='cue');
  ok('B5 쿠션 위로 붙음 30→15→45',JSON.stringify(await seq())==='[30,15,45]',await seq());
- ok('B6 공 자석',s.draft.predict[4].ref==='r');
+ /* 🔒 v2.4 로한: 공 근처로 가면 공 가운데로 붙어 버렸다 → 공 자석 없음(두께가 늘 정면으로 강제됐다) */
+ ok('B6 공 근처도 누른 자리 그대로(공 자석 없음)',!s.draft.predict[4].ref&&await p.evaluate(()=>{const q=snapPt({x:6.12,y:2.07});return q.x===6.12&&q.y===2.07&&!q.ref&&!q.rail;}));
  ok('B7 아래 쿠션 지점 글자',/30 → 15 → 45/.test(await p.textContent('#seq')));
  /* 🔒 v1.2 5 단위 눈금이 아니라 0~80 아무 수치나 */
  ok('B7b 자유 위치 — 윗쿠션 23·68, 옆쿠션 27, 아랫쿠션 7',await p.evaluate(()=>[snapPt({x:2.31,y:0.12}),snapPt({x:6.83,y:0.2}),snapPt({x:7.9,y:2.66}),snapPt({x:0.72,y:3.95})].map(railVal).join()==='23,68,27,7'),
@@ -313,6 +324,7 @@ function init({session,users}){
  const hs=await p.textContent('#hint');
  ok('T10 1적구 30° (반 두께)',/1적구 (29|30|31)°/.test(hs),hs);
  ok('T11 예측과 차이(°)',/1적구 \d+° \(예측 3[2-4]°, [1-5]° 차이\)/.test(hs)&&/수구 \d+° \(예측 \d+°, \d+° 차이\)/.test(hs)&&/분리각 \d+°/.test(hs),hs);
+ ok('T12b 말풍선 글자가 칸 안(두께·1적구·수구)',!(await fits()).length,await fits());
  ok('T12 판 위에 각도 숫자',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>/^1적구 \d+°$/.test(t.textContent))));
  await p.click('#bRec');await wait(300);
  T=await p.evaluate(()=>window.__T);
@@ -371,6 +383,7 @@ function init({session,users}){
  await p.click('#bSim');await wait(80);await p.click('#bSim');await wait(150);
  let hc=await p.textContent('#hint');
  ok('U11 정답: 아버지 위 39 · 무회전 계산 위 40 (1 차이) · 결과',/아버지 위 39 · 무회전 계산 위 40 \(1 차이\) · (⭕|△|❌)/.test(hc),hc);
+ ok('U12b 말풍선 글자가 칸 안(계산·지점)',!(await fits()).length,await fits());
  ok('U12 계산선·계산 숫자가 그려진다',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='계산 40')));
  /* 다시 찍으면 새로 — 원쿠션은 1개 */
  await click(4,0.3);
@@ -378,6 +391,7 @@ function init({session,users}){
  await p.click('#bCmp');await wait(150);
  hc=await p.textContent('#hint');
  ok('U14 속도 1~5 비교 — 다섯 줄 + 글자',await p.evaluate(()=>SIMV&&SIMV.multi&&SIMV.multi.length===5)&&/💨 속도별 — 1단 .* · 5단 /.test(hc)&&(await p.$$('#gDyn polyline')).length>=5,hc);
+ ok('U15b 말풍선 글자가 칸 안(1단 ⭕)',!(await fits()).length,await fits());
  ok('U15 속도별 끝자리 말풍선',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].filter(t=>/^\d단 (⭕|❌)$/.test(t.textContent)).length===5));
  /* 투쿠션 */
  await p.click('#ncush [data-n="2"]');
@@ -442,6 +456,8 @@ function init({session,users}){
  ok('V6 구간·가운데 조준',sc.ranges>=1&&sc.best,sc);
  ok('V7 부채꼴이 그려진다',(await p.$$('#gDyn line')).length>=60);
  ok('V8 [가운데로 조준해 보기] 버튼',await p.isVisible('#bUseBest'));
+ /* 🔒 v2.4 로한: "가운데" 글자가 말풍선 칸을 벗어났다 — 실제 글자 폭을 재서 모든 말풍선이 칸 안인지 */
+ ok('V8b 말풍선 글자가 칸 안(가운데)',!(await fits()).length,await fits());
  /* 🔒 부채꼴이 거짓말하지 않는가 — 초록 조준을 하나하나 다시 치면 전부 득점 */
  const recheck=await p.evaluate(()=>{const it=SIMV.scan.items.filter(x=>x.res==='hit');let bad=0;
    it.forEach(x=>{const ai={dir:x.dir,contact:rayHit(ST.balls[ST.balls.cue],x.dir)};const r=simWith(ai,speedMs());if(judge(r,ai).result!=='hit')bad++;});return {n:it.length,bad};});

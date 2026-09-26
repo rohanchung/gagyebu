@@ -48,6 +48,7 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
   min-height:2.8rem;padding:.3rem .7rem;border:2px solid #857d6c;border-radius:.5rem;background:#fff;width:100%}
 .hide{display:none!important}
 
+#boot{min-height:100vh;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:var(--sub)}
 /* ── 로그인 ── */
 #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
 .lcard{background:var(--card);border:2px solid var(--line);border-radius:1rem;padding:2rem 2.2rem;width:min(30rem,94vw);box-shadow:0 .4rem 1.4rem rgba(0,0,0,.08)}
@@ -62,7 +63,10 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 /* ── 앱 머리 ── */
 .top{display:flex;align-items:center;gap:.5rem;padding:.35rem .8rem;background:#fff;border-bottom:2px solid var(--line);flex-wrap:wrap}
 .brand{font-weight:800;font-size:1.2rem;margin-right:.5rem}
-#tabs{display:flex;gap:.35rem;flex-wrap:wrap}
+.tabzone{flex:1;min-width:0;display:flex;align-items:center;gap:.5rem}
+.tabzone>button{flex:none}
+#tabs{display:flex;gap:.35rem;flex-wrap:nowrap;min-width:0;overflow:hidden;flex:0 1 auto}
+#tabs button{flex:none}
 #tabs button{min-height:2.6rem;border-radius:.6rem .6rem 0 0;border-bottom-width:4px}
 #tabs button.on{border-bottom-color:var(--focus)}
 .sp{flex:1}
@@ -219,6 +223,9 @@ body.k-cush .tools .lbl{display:none}
 <body>
 
 <!-- ═════════ 로그인 ═════════ -->
+<!-- 🔒 첫 화면: 판을 다 불러와 그릴 준비가 될 때까지 이것만 보인다(새로고침 때 다른 화면이 잠깐 비쳤다) -->
+<div id="boot">🎱 불러오는 중…</div>
+
 <div id="login" class="hide">
   <form class="lcard" id="lform" autocomplete="on" onsubmit="return false">
     <h1>🎱 당구 연습장</h1>
@@ -238,17 +245,18 @@ body.k-cush .tools .lbl{display:none}
 <div id="app" class="hide">
   <header class="top">
     <div class="brand">🎱 당구 연습장</div>
-    <nav id="tabs"></nav>
-    <button id="bMore"><span class="ic">📂</span> 판 목록</button>
-    <button id="bNew" class="primary"><span class="ic">＋</span> 새 판</button>
-    <div class="sp"></div>
-    <!-- v1.2 쿠션 눈금 간격 — 1 단위(0~80 정수) 또는 0.5 단위(32.5) -->
+    <!-- 🔒 탭은 들어가는 만큼 전부 — 넘치는 판만 [판 목록 (외 N개)] 로 (로한: "판들을 최대한 여러 개 띄우자") -->
+    <div class="tabzone">
+      <nav id="tabs"></nav>
+      <button id="bMore"><span class="ic">📂</span> 판 목록</button>
+      <button id="bNew" class="primary"><span class="ic">＋</span> 새 판</button>
+    </div>
+    <!-- v1.2 쿠션 눈금 간격 — 1 단위(0~80 정수) 또는 0.5 단위(32.5) · 오른쪽으로 옮겨 탭 자리를 넓혔다 -->
     <span class="grp stepgrp" id="stepGrp">
       <span class="lbl">눈금 간격</span>
       <button data-st="1">1 단위</button>
       <button data-st="0.5">0.5 단위</button>
     </span>
-    <div class="sp"></div>
     <button id="bLog"><span class="ic">📋</span> 기록</button>
     <button id="bTrash"><span class="ic">🗑</span> 휴지통</button>
     <button id="bSet"><span class="ic">⚙</span> 설정</button>

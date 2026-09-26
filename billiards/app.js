@@ -118,7 +118,7 @@ function loginMsg(err){
   if(/rate|too many/i.test(m))return '잠시 후에 다시 시도해 주세요.';
   return '로그인하지 못했습니다. ('+m+')';
 }
-function showLogin(msg){$('app').classList.add('hide');$('login').classList.remove('hide');$('loginErr').textContent=msg||'';setTimeout(function(){$('email').focus();},30);}
+function showLogin(msg){$('boot').classList.add('hide');$('app').classList.add('hide');$('login').classList.remove('hide');$('loginErr').textContent=msg||'';setTimeout(function(){$('email').focus();},30);}
 function doLogin(){
   var email=$('email').value.trim(),pw=$('pw').value;
   if(!email||!pw){$('loginErr').textContent='아이디와 비밀번호를 모두 넣어 주세요.';return;}
@@ -133,7 +133,8 @@ function doLogin(){
 function enter(u){
   if(!isBB(u)){USER=null;SB.auth.signOut();showLogin('이 계정은 당구 연습장 계정이 아닙니다.');return;}
   USER=u;$('pw').value='';
-  $('login').classList.add('hide');$('app').classList.remove('hide');
+  /* 🔒 앱은 판을 불러와 그린 뒤에 보인다(reveal). 먼저 보이면 판 종류가 정해지기 전이라 모든 도구가 한꺼번에 보였다가 바뀌었다 */
+  $('login').classList.add('hide');$('boot').classList.remove('hide');
   loadBoards();
 }
 
@@ -149,7 +150,7 @@ function purgeOld(){
 function loadBoards(){
   setSave('불러오는 중…');
   SB.from('bb_boards').select('*').is('deleted_at',null).order('sort',{ascending:true}).order('created_at',{ascending:true}).then(function(r){
-    if(r.error){setSave('⚠ 불러오지 못했습니다 — 새로고침(F5) 해 주세요',true);return;}
+    if(r.error){reveal();setSave('⚠ 불러오지 못했습니다 — 새로고침(F5) 해 주세요',true);return;}
     BOARDS=(r.data||[]).map(normBoard);
     purgeOld();
     setSave('');   /* 🔒 첫 실행(판 0개)에서 '불러오는 중…' 이 그대로 남았다 */
@@ -161,7 +162,7 @@ function loadBoards(){
 function createBoard(name,balls,draft,silent,from,kd){
   var sort=BOARDS.reduce(function(m,b){return Math.max(m,b.sort||0);},0)+1;
   return SB.from('bb_boards').insert({name:name,balls:balls,draft:draft,sort:sort,kind:kd||'free'}).select().single().then(function(r){
-    if(r.error||!r.data){toast('⚠ 새 판을 만들지 못했습니다');return;}
+    if(r.error||!r.data){reveal();toast('⚠ 새 판을 만들지 못했습니다');return;}
     var b=normBoard(r.data);BOARDS.push(b);
     logEvent(from?'board.copy':'board.create',b.id,from?{from:from,name:name}:{name:name,kind:b.kind});
     MODE=b.kind==='sep'?'pobj':b.kind==='cush'?'cpt':'ball';
@@ -204,7 +205,13 @@ function switchBoard(id){
   var OK={sep:{ball:1,pobj:1,pcue:1},free:{ball:1,draw:1,edit:1},cush:{ball:1,cpt:1}},FIRST={sep:'pobj',free:'ball',cush:'cpt'};
   if(!OK[b.kind][MODE])MODE=FIRST[b.kind];
   if(MODE==='draw'&&!ST.draft[LAYER].length)MODE='ball';
-  hidePop();renderAll();
+  hidePop();renderAll();reveal();
+}
+/* 첫 판을 그릴 준비가 됐을 때 한 번 — 불러오는 중 화면을 걷고 앱을 보인다 */
+function reveal(){
+  if(!$('app').classList.contains('hide'))return;
+  $('boot').classList.add('hide');$('app').classList.remove('hide');
+  if(ST)renderAll();   /* 숨긴 채로는 당구대 크기를 몰라 못 그린다 — 보인 뒤 다시 */
 }
 function newBoard(){
   var pick='free';
@@ -284,13 +291,13 @@ function resolve(p){
   return p;
 }
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
-/* 🧲 자석 — 공 근처면 공 중심, 쿠션 근처면 쿠션 **위로만** 붙이고 위치는 자유(수치 1 단위 = 0.1칸), 나머지는 완전 자유.
+/* 🧲 자석 — 쿠션 근처면 쿠션 **위로만** 붙이고 위치는 자유(수치 1 단위 = 0.1칸), 나머지는 완전 자유.
    🔒 v1.2 로한: "당구가 5 단위로 움직이는 게 아니다. 0~80 아무 곳이나 찍혀야지" — 처음엔 0.5칸(=5) 눈금에 붙였다.
-      1 단위 = 약 2.8cm · 32인치 화면 약 17px 라 계단처럼 안 느껴지고, 숫자는 32·33 처럼 깔끔하게 읽힌다 */
+      1 단위 = 약 2.8cm · 32인치 화면 약 17px 라 계단처럼 안 느껴지고, 숫자는 32·33 처럼 깔끔하게 읽힌다
+   🔒 v2.4 로한: "공 근처로 가면 공 가운데로 붙어 버린다 — 상관없어야 하는 거 아냐?" — 공 자석을 뺐다.
+      4구는 두께가 핵심인데, 공 중심에 붙으면 조준이 늘 정면(8/8)으로 강제된다 */
 function snapPt(p){
-  var k=pxK()/S, ballR=Math.max(0.22,22*k), band=Math.max(0.4,30*k);
-  var best=null;liveBalls().forEach(function(n){var d=dist(p,ST.balls[n]);if(d<ballR&&(!best||d<best.d))best={n:n,d:d};});
-  if(best){var b=ST.balls[best.n];return {x:b.x,y:b.y,ref:best.n===ST.balls.cue?'cue':best.n};}
+  var k=pxK()/S, band=Math.max(0.4,30*k);
   var nx=p.x<band?0:(p.x>W-band?W:null), ny=p.y<band?0:(p.y>H-band?H:null);
   if(nx!==null||ny!==null){
     var q=STEP/10;                               /* 1 단위 = 0.1칸 · 0.5 단위 = 0.05칸 */
@@ -750,8 +757,11 @@ function pathSvg(path,color,marker,faint){
   return '<polyline points="'+pts+'" fill="none" stroke="#fff" stroke-width="'+(faint?7:11)+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"'+op+'/>'+
          '<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="'+(faint?4:6)+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" marker-end="url(#'+marker+')"'+op+'/>';
 }
+/* 글자 폭 어림(굵은 글꼴) — 한글·기호는 숫자보다 넓다. 🔒 글자 수 × 0.62 로 잡았더니 "가운데" 가 칸을 벗어났다 */
+function textEm(t){var w=0;String(t).split("").forEach(function(ch){var c=ch.charCodeAt(0);
+  w+=(c>=0xAC00&&c<=0xD7A3)||(c>=0x3130&&c<=0x318F)||(c>=0x2460&&c<=0x24FF)||(c>=0x2600)?1.05:ch===" "?0.32:/[0-9]/.test(ch)?0.62:/[A-Za-z]/.test(ch)?0.64:0.5;});return w;}
 function bubble(x,y,t,color,k,below){
-  var fs=22*k, w=(String(t).length*0.62+0.9)*fs, hgt=fs*1.4;
+  var fs=22*k, w=(textEm(t)+1)*fs, hgt=fs*1.4;
   var bx=x-w/2, by=y-hgt-12*k;
   if(below===true||(below!=='up'&&y<=0.01))by=y+12*k;   /* 윗쿠션이면 아래로 · below='up' 이면 늘 위 */
   return '<g pointer-events="none"><rect x="'+bx+'" y="'+by+'" width="'+w+'" height="'+hgt+'" rx="'+6*k+'" fill="#fff" stroke="'+color+'" stroke-width="'+3*k+'"/>'+
@@ -939,13 +949,19 @@ function renderTools(){
   $('bClear').disabled=K==='sep'?!(ST.draft.predObj||ST.draft.predCue):K==='cush'?!ST.draft.cpts.length:!ST.draft[LAYER].length;
   $('bUndo').disabled=!UNDO.length;$('bRedo').disabled=!REDO.length;
 }
+/* 탭 — 들어가는 만큼 전부 띄우고, 넘치면 뒤에서부터 [판 목록] 으로 넘긴다(지금 판은 늘 남긴다) */
 function renderTabs(){
-  var n=BOARDS.length, MAX=6, show=BOARDS.slice(0,MAX);
-  var ci=BOARDS.findIndex(function(b){return b.id===CUR;});
-  if(ci>=MAX)show=BOARDS.slice(0,MAX-1).concat([BOARDS[ci]]);
-  $('tabs').innerHTML=show.map(function(b){return '<button data-id="'+b.id+'" class="'+(b.id===CUR?'on':'')+'">'+KINDS[b.kind].ic+' '+esc(b.name)+'</button>';}).join('');
-  var rest=n-show.length;
-  $('bMore').innerHTML='<span class="ic">📂</span> 판 목록'+(rest>0?' (외 '+rest+'개)':'');
+  var el=$('tabs'),n=BOARDS.length,show=BOARDS.slice();
+  function draw(){
+    el.innerHTML=show.map(function(b){return '<button data-id="'+b.id+'" class="'+(b.id===CUR?'on':'')+'">'+KINDS[b.kind].ic+' '+esc(b.name)+'</button>';}).join('');
+    var rest=n-show.length;
+    $('bMore').innerHTML='<span class="ic">📂</span> 판 목록'+(rest>0?' (외 '+rest+'개)':'');
+  }
+  draw();
+  while(show.length>1&&el.scrollWidth>el.clientWidth+1){
+    var i=show.length-1;if(show[i].id===CUR)i--;
+    show.splice(i,1);draw();
+  }
   var b=curBoard();$('bName').textContent=b?b.name:'';
   document.querySelectorAll('#stepGrp button').forEach(function(x){x.classList.toggle('on',+x.dataset.st===STEP);});
 }
@@ -1597,7 +1613,7 @@ function bind(){
     else if(e.key==='Escape'){SEL=null;hidePop();if(SIMV&&!SIMV.playing){clearSim();renderAll();}else renderTable();}
     else if((e.key==='Delete'||e.key==='Backspace')&&MODE==='edit'&&SEL!==null){e.preventDefault();delPoint();}
   });
-  var rt=null;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){hidePop();renderTable();
+  var rt=null;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){hidePop();renderTable();if(ST)renderTabs();
     if(!$('logv').classList.contains('hide')&&LOGVIEW==='trend'&&ATTS)renderTrend();},80);});
 }
 
