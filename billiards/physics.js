@@ -59,7 +59,9 @@ function simulate(opt){
   var slideK=1/(0.4*R*R);
   function snap(){var p={};ids.forEach(function(id){p[id]=[B[id].x,B[id].y];});frames.push({t:t,p:p});}
   snap();nextF=fstep;
-  var rolled={};  /* 미끄럼→구름 전환 순간 기록(분리각 측정용) */
+  /* opt.stopWhen(ev) 가 참이면 그 자리에서 멈춘다 — 맞는 범위·힌트 계산처럼 결과만 필요할 때 빨라진다 */
+  var stopped=false;
+  function emit(ev){events.push(ev);if(opt.stopWhen&&opt.stopWhen(ev))stopped=true;}
   while(t<P.tMax){
     var moving=false;
     for(var i=0;i<ids.length;i++){
@@ -73,7 +75,7 @@ function simulate(opt){
         var tq=cross([0,0,R],[fx,fy,0]);
         b.w[0]+=tq[0]*slideK*h;b.w[1]+=tq[1]*slideK*h;
         if(tr<=dt){b.w[0]=b.v[1]/R;b.w[1]=-b.v[0]/R;
-          events.push({t:t+tr,type:'roll',ball:b.id,x:b.x,y:b.y,v:[b.v[0],b.v[1]]});}
+          emit({t:t+tr,type:'roll',ball:b.id,x:b.x,y:b.y,v:[b.v[0],b.v[1]]});}
       }else{
         var sp=len2(b.v[0],b.v[1]);
         if(sp>0){var ns=Math.max(0,sp-P.muR*G*dt);b.v[0]*=ns/sp;b.v[1]*=ns/sp;}
@@ -89,7 +91,7 @@ function simulate(opt){
       cushion(b,b.y<R&&b.v[1]<0,[0,1],'T');
       cushion(b,b.y>P.W-R&&b.v[1]>0,[0,-1],'B');
       var ss=len2(b.v[0],b.v[1]);
-      if(ss<0.003&&len2(b.v[0]+b.w[1]*R,b.v[1]-b.w[0]*R)<0.003){b.v=[0,0];b.w=[0,0,0];b.on=false;events.push({t:t,type:'stop',ball:b.id,x:b.x,y:b.y});}
+      if(ss<0.003&&len2(b.v[0]+b.w[1]*R,b.v[1]-b.w[0]*R)<0.003){b.v=[0,0];b.w=[0,0,0];b.on=false;emit({t:t,type:'stop',ball:b.id,x:b.x,y:b.y});}
       else moving=true;
     }
     /* 공끼리 */
@@ -102,7 +104,7 @@ function simulate(opt){
           var jn=(1+P.eB)/2*vn;
           A.v[0]-=jn*nx;A.v[1]-=jn*ny;C.v[0]+=jn*nx;C.v[1]+=jn*ny;
           A.on=true;C.on=true;moving=true;
-          events.push({t:t,type:'ball',a:A.id,b:C.id,x:A.x,y:A.y,bx:C.x,by:C.y,n:[nx,ny],
+          emit({t:t,type:'ball',a:A.id,b:C.id,x:A.x,y:A.y,bx:C.x,by:C.y,n:[nx,ny],
             va:[A.v[0],A.v[1]],vb:[C.v[0],C.v[1]]});
         }
         var ov=(2*R-dd)/2;A.x-=nx*ov;A.y-=ny*ov;C.x+=nx*ov;C.y+=ny*ov;
@@ -110,7 +112,7 @@ function simulate(opt){
     }
     t+=dt;
     if(t>=nextF){snap();nextF+=fstep;}
-    if(!moving)break;
+    if(!moving||stopped)break;
   }
   snap();
   var stops={};ids.forEach(function(id){stops[id]=[B[id].x,B[id].y];});
@@ -139,10 +141,10 @@ function simulate(opt){
     rvx+=(rn2-rn)*n[0];rvy+=(rn2-rn)*n[1];
     b.w[1]=-rvx/R;b.w[0]=rvy/R;
     if(side==='L')b.x=R;else if(side==='R')b.x=P.L-R;else if(side==='T')b.y=R;else b.y=P.W-R;
-    events.push({t:t,type:'cushion',ball:b.id,side:side,x:b.x,y:b.y});
+    emit({t:t,type:'cushion',ball:b.id,side:side,x:b.x,y:b.y});
   }
 }
 
-var API={VERSION:'2.5.0',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
+var API={VERSION:'3.0.0',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;else root.BBPhys=API;
 })(this);
