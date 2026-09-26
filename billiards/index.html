@@ -116,9 +116,9 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 #memo{margin-top:.35rem}
 .recrow{display:flex;gap:.35rem;flex:none}
 #bRec{min-height:3.2rem;font-size:1.15rem;flex:1}
-#bNextT{min-height:3.2rem;flex:none}
+#bNextT,#bCmp{min-height:3.2rem;flex:none}
 /* 높이가 낮은 창(노트북)에서만 당점 원·속도칸을 줄인다 */
-@media (max-height:800px){#tip{width:6rem;height:6rem}.spd button{min-height:2.6rem}}
+@media (max-height:800px){#tip{width:6rem;height:6rem}.spd button{min-height:2.6rem}#tipGuide{display:none}.aimtxt{min-height:0}}
 .hint.ok{background:#e3ecff;border-color:#9db6f5;color:#0d3aa3}
 .hint.bad{background:#fde7e4;border-color:#f0b0a8;color:#7d1a14}
 .hint.foul{background:#fff1d6;border-color:#f0c878;color:#7a4b00}
@@ -134,13 +134,12 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .thk button.lr{font-size:.92rem}
 .tag.foul{background:#fff1d6;color:#7a4b00}
 .modal .btns button.hitb{background:var(--blue);border-color:#0d3aa3;color:#fff}
-.kindpick{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-top:.6rem}
+.kindpick{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-top:.6rem}
 .kindpick button{flex-direction:column;min-height:6.5rem;padding:.6rem;white-space:normal;line-height:1.3;border-width:3px}
 .kindpick button b{font-size:1.25rem}
 .kindpick button span{font-weight:400;font-size:.92rem}
-/* 판 종류에 따라 보이는 도구 — 🎱 자유(.kf) / 📐 분리각(.ks) */
-body.k-sep .kf{display:none!important}
-body:not(.k-sep) .ks{display:none!important}
+/* 판 종류에 따라 보이는 도구 — data-k="free sep cush" 중 지금 종류가 없으면 숨긴다 (🎱 자유 · 📐 분리각 · 🔁 원·투쿠션) */
+body.k-free [data-k]:not([data-k~="free"]),body.k-sep [data-k]:not([data-k~="sep"]),body.k-cush [data-k]:not([data-k~="cush"]){display:none!important}
 .kindpick button.on{background:#eef6f0;color:var(--ink);border-color:var(--green)}
 
 /* 점 지우기 떠 있는 버튼 */
@@ -185,6 +184,9 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
 .litem.on{border-color:var(--green);background:#eef6f0}
 .mini{width:100%;height:auto;display:block;margin-bottom:.8rem}
 
+/* 원·투쿠션 판은 도구줄 버튼이 가장 많다(종류 4개가 올라와 있다) — 늘 좁은 여백 */
+body.k-cush .tools button{padding:.25rem .55rem;gap:.25rem}
+body.k-cush .tools .lbl{display:none}
 /* 좁은 창(125% 배율 노트북 등): 도구줄이 두 줄로 접히지 않게 여백만 줄인다 */
 @media (max-width:1700px){
   .tools button{padding:.25rem .55rem;gap:.25rem}
@@ -254,13 +256,18 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
         <div class="tools">
           <span class="grp">
             <button id="mBall" data-m="ball"><span class="ic">✋</span> 공 옮기기</button>
-            <button id="mDraw" data-m="draw" class="kf"><span class="ic">✏️</span> 선 긋기</button>
-            <button id="mEdit" data-m="edit" class="kf"><span class="ic">🖐</span> 선 고치기</button>
-            <button id="mObj" data-m="pobj" class="ks"><span class="ic">🔴</span> ① 1적구 방향</button>
-            <button id="mCue" data-m="pcue" class="ks"><span class="ic">⚪</span> ② 수구 방향</button>
+            <button id="mDraw" data-m="draw" data-k="free"><span class="ic">✏️</span> 선 긋기</button>
+            <button id="mEdit" data-m="edit" data-k="free"><span class="ic">🖐</span> 선 고치기</button>
+            <button id="mObj" data-m="pobj" data-k="sep"><span class="ic">🔴</span> ① 1적구 방향</button>
+            <button id="mCue" data-m="pcue" data-k="sep"><span class="ic">⚪</span> ② 수구 방향</button>
+            <button id="mCpt" data-m="cpt" data-k="cush"><span class="ic">📍</span> 쿠션 지점 찍기</button>
           </span>
-          <span class="div kf"></span>
-          <span class="grp kf">
+          <!-- 🔁 원·투쿠션 종류 — 오른쪽 패널이 넘쳐서 도구줄로 올렸다(v2.1) -->
+          <span class="div" data-k="cush"></span>
+          <span class="grp" id="ctype" data-k="cush"><button data-ct="first">쿠션 먼저</button><button data-ct="after">1적구 뒤 쿠션</button></span>
+          <span class="grp" id="ncush" data-k="cush"><button data-n="1">원쿠션</button><button data-n="2">투쿠션</button></span>
+          <span class="div" data-k="free"></span>
+          <span class="grp" data-k="free">
             <button id="lPre" data-l="predict"><span style="color:#1650d8">━</span> 예측선</button>
             <button id="lAct" data-l="actual"><span style="color:#d0231a">━</span> 실제선</button>
           </span>
@@ -294,12 +301,12 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
 
       <aside class="side">
         <!-- 📐 분리각 훈련: 두께를 버튼으로 고른다(조준은 두께에서 계산) -->
-        <section class="box ks">
-          <h3>① 두께 <small>— 1적구(빨간 공 ①)의 어디를</small></h3>
+        <section class="box" data-k="sep cush" id="thkBox">
+          <h3>📏 두께 <small>— 1적구(빨간 공 ①)의 어디를</small></h3>
           <div class="thk" id="thk"></div>
         </section>
         <section class="box">
-          <h3><span class="kf">①</span><span class="ks">②</span> 당점 <small>— 원을 클릭하세요</small></h3>
+          <h3>🎯 당점 <small>— 원을 클릭하세요</small></h3>
           <div class="row" id="tipGuide">
             <button data-g="cross">십자</button><button data-g="c12">12시</button><button data-g="c16">16방향</button>
           </div>
@@ -310,13 +317,13 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
           <div id="tipTxt"></div><div id="tipTxt2"></div>
         </section>
         <section class="box">
-          <h3><span class="kf">②</span><span class="ks">③</span> 속도 <small>— 3 보통 = 2쿠션</small></h3>
+          <h3>💨 속도 <small>— 3 보통 = 2쿠션</small></h3>
           <div class="spd" id="spd"></div>
-          <div class="kmh kf"><span>또는</span><input id="kmh" type="number" min="0" max="99" step="0.5" inputmode="decimal" placeholder="숫자"><b>km/h</b></div>
+          <div class="kmh" data-k="free"><span>또는</span><input id="kmh" type="number" min="0" max="99" step="0.5" inputmode="decimal" placeholder="숫자"><b>km/h</b></div>
         </section>
         <section class="box">
-          <h3 class="kf">③ 조준 · 시뮬레이션</h3>
-          <div class="aimtxt kf" id="aimTxt"></div>
+          <h3 data-k="free">▶ 조준 · 시뮬레이션</h3>
+          <div class="aimtxt" data-k="free cush" id="aimTxt"></div>
           <div class="simrow">
             <button id="bSim"><span class="ic">▶</span> <span id="bSimT">시뮬레이션</span></button>
             <button id="bSlow" title="천천히 보기">🐢 천천히</button>
@@ -324,7 +331,8 @@ table.t{width:100%;border-collapse:collapse;background:#fff;border:2px solid var
         </section>
         <div class="recrow">
           <button id="bRec" class="primary"><span class="ic">✅</span> 이 시도 기록하기</button>
-          <button id="bNextT" class="ks">다음 두께 ▶</button>
+          <button id="bNextT" data-k="sep">다음 두께 ▶</button>
+          <button id="bCmp" data-k="cush">💨 속도 비교</button>
         </div>
       </aside>
     </div>

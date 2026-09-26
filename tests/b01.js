@@ -215,7 +215,10 @@ function init({session,users}){
  J=await judge('foul');
  ok('S5 길목에 상대 공 → ⚠ 파울',J.result==='foul'&&/상대 공\(노란 공\)/.test(J.text),J);
  J=await judge('miss');
- ok('S6 빨강 ②가 길목 밖 → ❌ 실패 + 몇 cm 차이',J.result==='miss'&&J.missCm>0&&/빨간 공 ①만 맞힘 · 빨간 공 ②와 [\d.]+cm 차이/.test(J.text),J);
+ ok('S6 빨강 ②가 길목 밖 → ❌ 실패 + 몇 cm 차이',J.result==='miss'&&J.missCm>0&&/빨간 공 ①만 맞힘 · 빨간 공 ②와 [\d.]+(cm|mm)( \(거의 맞음\))? 차이/.test(J.text),J);
+ /* 🔒 v2.1: 0.3mm 로 스친 공이 "0cm 차이 ❌" 로 떴다 — 1cm 미만은 mm */
+ ok('S6b 빗나간 거리 글자',await p.evaluate(()=>[missTxt(0.03),missTxt(0.33),missTxt(4.26)].join('|'))==='1mm 미만 (거의 맞음)|3mm (거의 맞음)|4.3cm',
+   await p.evaluate(()=>[missTxt(0.03),missTxt(0.33),missTxt(4.26)]));
  await p.evaluate(pt=>{ST.balls.r2={x:pt[0],y:pt[1]};renderAll();},probe.pt);
  const before=await st();
  await p.click('#bSim');await wait(150);
@@ -257,7 +260,8 @@ function init({session,users}){
 
  /* ── I) 판 CRUD ── */
  await p.click('#bNew');
- ok('I0 새 판 = 종류 고르기(기본 자유 연습)',/자유 연습/.test(await p.textContent('#mask'))&&/분리각 훈련/.test(await p.textContent('#mask'))&&await p.$eval('[data-k="free"]',e=>e.classList.contains('on')));
+ ok('I0b 자유 판에서 연 새 판 창에 종류 3개가 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).length))===3);
+ ok('I0 새 판 = 종류 고르기(기본 자유 연습)',/자유 연습/.test(await p.textContent('#mask'))&&/분리각 훈련/.test(await p.textContent('#mask'))&&await p.$eval('[data-kind="free"]',e=>e.classList.contains('on')));
  await p.fill('#mIn','옆돌리기');await p.click('.modal .btns .primary');await wait(200);
  ok('I1 새 판 탭',(await p.textContent('#tabs')).includes('🎱 옆돌리기')&&(await p.textContent('#bName'))==='옆돌리기');
  ok('I2 새 판은 빈 선',(await st()).draft.predict.length===0);
@@ -286,7 +290,7 @@ function init({session,users}){
  ok('I13 목록에서 열기',(await p.textContent('#bName'))==='판 1');
 
  /* ── T) 📐 분리각 훈련 ── */
- await p.click('#bNew');await p.click('[data-k="sep"]');
+ await p.click('#bNew');await p.click('[data-kind="sep"]');
  ok('T0 종류 고르면 이름도 분리각',/^분리각 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));
  await p.click('.modal .btns .primary');await wait(250);
  ok('T1 분리각 판 · 탭 아이콘',(await p.$eval('#tabs button.on',e=>e.textContent)).startsWith('📐')&&await p.evaluate(()=>kind()==='sep'&&document.body.classList.contains('k-sep')));
@@ -338,6 +342,88 @@ function init({session,users}){
  ok('J7 변경 이력',/새 판 ‘옆돌리기’/.test(ev)&&/이름을 ‘옆돌리기’ → ‘옆돌리기 연습’/.test(ev)&&/휴지통에서 살렸습니다/.test(ev)&&/분리각 문제를 기록/.test(ev),ev.slice(0,300));
  await p.click('#bBack');
 
+ /* ── U) 🔁 원·투쿠션 훈련 (v2.1) ── */
+ /* 🔒 v2.1: 종류 버튼이 data-k 를 쓰다가 '종류별 숨기기' 규칙에 걸려 다른 판에서 사라졌다 → 어느 판에서든 셋 다 보여야 */
+ await p.click('#bNew');
+ ok('U-1 분리각 판에서 연 새 판 창에도 종류 3개가 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).length))===3);
+ await p.click('[data-kind="cush"]');
+ ok('U0 종류 고르면 이름도 쿠션',/^쿠션 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));
+ await p.click('.modal .btns .primary');await wait(250);
+ ok('U1 쿠션 판 · 탭 아이콘 · 바로 지점 찍기',(await p.$eval('#tabs button.on',e=>e.textContent)).startsWith('🔁')&&(await p.evaluate(()=>kind()+MODE))==='cushcpt'&&await p.evaluate(()=>document.body.classList.contains('k-cush')));
+ ok('U2 도구: 📍 쿠션 지점 · 다른 판 도구 숨김',await p.isVisible('#mCpt')&&!(await p.isVisible('#mObj'))&&!(await p.isVisible('#mDraw'))&&!(await p.isVisible('#bNextT'))&&await p.isVisible('#bCmp')&&await p.isVisible('#ctype'));
+ ok('U3 기본 = 쿠션 먼저 · 원쿠션 · 두께칸 숨김',await p.$eval('#ctype [data-ct="first"]',e=>e.classList.contains('on'))&&await p.$eval('#ncush [data-n="1"]',e=>e.classList.contains('on'))&&!(await p.isVisible('#thkBox')));
+ ok('U4 쿠션 먼저 = 수구·빨강 ① 둘만',(await p.evaluate(()=>liveBalls().join()))==='w,r');
+ /* 🔒 거울 원리 — 대칭 배치면 한가운데, 투쿠션은 입사각 = 반사각 */
+ ok('U5 거울: (2,2)→윗쿠션→(6,2) = 40',await p.evaluate(()=>{const sp=sysPath({x:2,y:2},{x:6,y:2},['T']);return sp&&Math.abs(sp[1].x-4)<1e-9&&cval(sp[1],'T')===40;}));
+ const refl=await p.evaluate(()=>{const sp=sysPath({x:1.5,y:2.5},{x:5,y:3},['T','R']);if(!sp)return null;
+   const ang=(a,b)=>Math.atan2(b.y-a.y,b.x-a.x);
+   const i1=ang(sp[0],sp[1]),o1=ang(sp[1],sp[2]),i2=ang(sp[1],sp[2]),o2=ang(sp[2],sp[3]);
+   return {top:Math.abs(Math.cos(i1)-Math.cos(o1))<1e-9&&Math.abs(Math.sin(i1)+Math.sin(o1))<1e-9,
+           right:Math.abs(Math.sin(i2)-Math.sin(o2))<1e-9&&Math.abs(Math.cos(i2)+Math.cos(o2))<1e-9};});
+ ok('U6 투쿠션 거울: 두 쿠션 모두 입사각 = 반사각',refl&&refl.top&&refl.right,refl);
+ ok('U7 같은 쿠션 두 번은 계산 안 함',await p.evaluate(()=>sysPath({x:2,y:2},{x:6,y:2},['T','T'])===null));
+ await p.evaluate(()=>{pushUndo();ST.balls.w={x:2,y:2};ST.balls.r={x:6,y:2};ST.balls.cue='w';renderAll();});
+ ok('U8 안내: 쿠션 지점을 찍어 주세요',/쿠션 지점을 찍어/.test(await p.textContent('#aimTxt')));
+ await p.mouse.move(...(await cl(3.9,0.3)));await wait(60);
+ ok('U9 미리보기 말풍선 39',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='39')));
+ await click(3.9,0.3);
+ ok('U10 쿠션 위로 붙음 · 조준 글자',JSON.stringify((await st()).draft.cpts)==='[{"x":3.9,"y":0,"rail":true}]'&&/조준: 쿠션 39 → 목표 빨간 공 ①/.test(await p.textContent('#aimTxt')),(await st()).draft.cpts);
+ await p.click('#bSim');await wait(80);await p.click('#bSim');await wait(150);
+ let hc=await p.textContent('#hint');
+ ok('U11 정답: 아버지 위 39 · 무회전 계산 위 40 (1 차이) · 결과',/아버지 위 39 · 무회전 계산 위 40 \(1 차이\) · (⭕|△|❌)/.test(hc),hc);
+ ok('U12 계산선·계산 숫자가 그려진다',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='계산 40')));
+ /* 다시 찍으면 새로 — 원쿠션은 1개 */
+ await click(4,0.3);
+ ok('U13 원쿠션: 다시 찍으면 바꿔 찍힘',(await st()).draft.cpts.length===1&&(await st()).draft.cpts[0].x===4);
+ await p.click('#bCmp');await wait(150);
+ hc=await p.textContent('#hint');
+ ok('U14 속도 1~5 비교 — 다섯 줄 + 글자',await p.evaluate(()=>SIMV&&SIMV.multi&&SIMV.multi.length===5)&&/💨 속도별 — 1단 .* · 5단 /.test(hc)&&(await p.$$('#gDyn polyline')).length>=5,hc);
+ ok('U15 속도별 끝자리 말풍선',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].filter(t=>/^\d단 (⭕|❌)$/.test(t.textContent)).length===5));
+ /* 투쿠션 */
+ await p.click('#ncush [data-n="2"]');
+ ok('U16 투쿠션으로 바꾸면 지점 비움',(await st()).draft.cpts.length===0&&(await st()).draft.ncush===2);
+ await click(3,0.3);
+ ok('U17 1개만 찍으면 "1개 더"',/1개 더 찍어/.test(await p.textContent('#aimTxt')));
+ await click(7.8,1.2);
+ ok('U18 두 지점 · 말풍선 ① ②',(await st()).draft.cpts.length===2&&await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>/^② /.test(t.textContent))));
+ await p.click('#bSim');await wait(80);await p.click('#bSim');await wait(150);
+ hc=await p.textContent('#hint');
+ ok('U19 투쿠션 정답 글자(→)',/아버지 위 30 → 오른쪽 12 · 무회전 계산 위 [\d.]+ → 오른쪽 [\d.]+/.test(hc),hc);
+ /* 1적구 뒤 쿠션 */
+ /* 빨강 ②를 수구→빨강 ① 일직선 밖으로(안 그러면 ②를 먼저 맞는다) */
+ await p.evaluate(()=>{ST.balls.r2={x:4.5,y:3.3};});
+ await p.click('#ctype [data-ct="after"]');await wait(60);
+ ok('U20 1적구 뒤: 두께칸 보임 · 공 셋',await p.isVisible('#thkBox')&&(await p.evaluate(()=>liveBalls().join()))==='w,r,r2');
+ ok('U21 첫 공·두께 표시',/첫 공: 빨간 공 ① · 두께 4\/8/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
+ await p.click('#ncush [data-n="1"]');
+ const act=await p.evaluate(()=>{const sv=computeSim();return sv.info;});
+ ok('U22 시뮬레이션 수구 쿠션 지점 계산',act.act&&act.act.length===1,act);
+ await click(5,3.8);
+ await p.click('#bSim');await wait(80);await p.click('#bSim');await wait(150);
+ hc=await p.textContent('#hint');
+ ok('U23 정답: 예측 · 실제 · 빨강 ②까지 필요한 지점',/수구 쿠션: 예측 (위|아래|왼쪽|오른쪽) [\d.]+ · 실제 (위|아래|왼쪽|오른쪽) [\d.]+/.test(hc)&&/빨강 ②까지 필요한 지점 (위|아래|왼쪽|오른쪽) [\d.]+/.test(hc),hc);
+ await p.click('#bRec');await wait(300);
+ let TT=await p.evaluate(()=>window.__T);
+ const ua=TT.bb_attempts[TT.bb_attempts.length-1];
+ ok('U24 기록 → kind cush · 예측 오차 · 찍은 지점',ua.kind==='cush'&&ua.sim.ctype==='after'&&Array.isArray(ua.sim.err)&&ua.sim.cpts.length===1&&ua.result===null,ua.sim&&{c:ua.sim.ctype,e:ua.sim.err});
+ await p.click('#thk [data-t="6"]');
+ ok('U25 두께 바꾸면 지점 비우고 다시 찍기',(await st()).draft.cpts.length===0&&(await p.evaluate(()=>MODE))==='cpt');
+ await p.click('#mCpt');await click(5,3.8);await p.click('#bClear');
+ ok('U26 지점 지우기',(await st()).draft.cpts.length===0);
+ /* ⚙ 테이블 감각 */
+ await p.click('#bSet');await wait(150);
+ ok('U27 설정: 테이블 감각 · 지금 3단 = 2쿠션 ✓',/테이블 감각/.test(await p.textContent('#mask'))&&/3단\)로 짧은 방향 → 2쿠션 ✓/.test(await p.textContent('#feelNow')),await p.textContent('#feelNow'));
+ await p.click('[data-f="cloth:fast"]');await wait(80);
+ ok('U28 천 빠름 → 더 굴러감 · 기억',/→ [3-9]쿠션/.test(await p.textContent('#feelNow'))&&(await p.evaluate(()=>JSON.parse(localStorage.getItem('bb.feel')).cloth))==='fast'&&(await p.evaluate(()=>feelParams().muR))===0.0075,await p.textContent('#feelNow'));
+ await p.click('[data-f="cloth:mid"]');await wait(50);
+ await p.click('.modal .btns .primary');
+ ok('U29 감각 변경 이력',(await p.evaluate(()=>window.__T.bb_events.some(e=>e.kind==='feel.change'))));
+ /* 기록 화면 */
+ await p.click('#bLog');await wait(200);await p.click('#vAtt');await wait(250);
+ const ub=await p.textContent('#logBody');
+ ok('U30 기록 화면: 🔁 원·투쿠션 통계 · 조건 글자',/🔁 원·투쿠션 훈련[\s\S]*문제\s*1번/.test(ub)&&/1적구 뒤 4\/8 · 원쿠션 · 찍은 지점 [\d.]+/.test(ub),ub.slice(0,400));
+ await p.click('#bBack');
+
  /* ── K) 한 화면 · 실버 UX 치수 ──
     🔒 v1.1: 화면 전체(2560×1440)로 쟀더니 통과했지만, 실제 브라우저 창은 탭·주소창을 빼면 ~1300 이라
        로한 화면에서 오른쪽 패널에 스크롤이 생겼다. → **실제 브라우저 창 크기**로 잰다.
@@ -357,8 +443,9 @@ function init({session,users}){
  let m;
  for(const [W,H,font,btnH] of [[2560,1300,23,56],[1920,950,15,38],[1536,730,15,38]]){
   await p.setViewportSize({width:W,height:H});await wait(200);
-  for(const md of ['ball','draw','edit','sep:ball','sep:pobj','sep:pcue']){
-   await p.evaluate(m=>{const sep=m.startsWith('sep:');const b=BOARDS.find(x=>x.kind===(sep?'sep':'free'));if(b.id!==CUR)switchBoard(b.id);setMode(m.replace('sep:',''));},md);await wait(80);
+  for(const md of ['ball','draw','edit','sep:ball','sep:pobj','sep:pcue','cush:ball','cush:cpt']){
+   /* 원·투쿠션은 가장 칸이 많은 '1적구 뒤 쿠션'으로 잰다 */
+   await p.evaluate(m=>{const k=m.includes(':')?m.split(':')[0]:'free';const b=BOARDS.find(x=>x.kind===k);if(b.id!==CUR)switchBoard(b.id);if(k==='cush')ST.draft.ctype='after';setMode(m.replace(/^\w+:/,''));},md);await wait(80);
    m=await meas();const t=W+'×'+H+' '+md+' · ';
    ok('K '+t+'글자 ≥'+font+'px',m.root>=font,m.root);
    ok('K '+t+'버튼 ≥'+btnH+'px',m.minBtn>=btnH-0.5,m.minBtn);
