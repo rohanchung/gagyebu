@@ -10541,7 +10541,13 @@ document.getElementById('reloadBtn').addEventListener('click',function(){locatio
 document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth.signOut().then(function(){location.reload();});});
 
 /* ====== Supabase 로그인 ====== */
-function enter(){document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){
+/* 🔒 v4.20 문지기 — 같은 Supabase 에 아버지 당구 연습장(billiards/) 계정이 산다.
+   그 계정은 DB 에서도 로한북 테이블이 막혀 있지만(RLS), 화면도 들이지 않는다. 빈 가계부를 보여주면 헷갈린다 */
+function isBilliardsUser(u){ return !!(u&&u.app_metadata&&u.app_metadata.app==='billiards'); }
+function enter(){
+  if(isBilliardsUser(USER)){ USER=null; SB.auth.signOut();
+    document.getElementById('loginErr').innerHTML='이 계정은 로한북 계정이 아닙니다. <a href="billiards/">당구 연습장으로 가기</a>'; return; }
+  document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){
     /* 🔒 v4.13 병합 기준본 = 서버에서 받은 **원본**(마이그레이션 전). 마이그레이션도 '내가 바꾼 것'으로 쳐야 병합 때 살아남는다 */
     syncSetBase(d);
     DB=migrateDB(d);
