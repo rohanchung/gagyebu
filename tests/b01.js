@@ -45,7 +45,7 @@ function init({session,users}){
       cur={user:u.user};return Promise.resolve({data:{user:u.user,session:cur},error:null});},
     signOut:()=>{window.__out++;cur=null;return Promise.resolve({})},
     updateUser:()=>Promise.resolve({data:{},error:null}),
-    onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};
+    onAuthStateChange:(cb)=>{window.__authCb=cb;return {data:{subscription:{unsubscribe(){}}}};}}})};
 }
 
 (async()=>{
@@ -94,6 +94,13 @@ function init({session,users}){
  const fits=()=>p.evaluate(()=>[...document.querySelectorAll('#gDyn g')].map(g=>{const r=g.querySelector('rect'),t=g.querySelector('text');
    return r&&t?{t:t.textContent,over:t.getComputedTextLength()-r.width.baseVal.value}:null;}).filter(x=>x&&x.over>-2));
  ok('B0 첫 판',(await p.textContent('#bName'))==='판 1');
+ /* 🔒 v2.5: 배포 캐시 때문에 새 index.html + 옛 app.js 가 돌아 '불러오는 중' 이 안 꺼지고 그 아래 앱이 떴다 */
+ {const H=fs.readFileSync(FILE,'utf8'),A=fs.readFileSync(path.join(__dirname,'..','billiards','app.js'),'utf8'),PV=require(path.join(__dirname,'..','billiards','physics.js')).VERSION;
+  const hv=(H.match(/data-ver="([^"]+)"/)||[])[1],v1=(H.match(/physics\.js\?v=([\d.]+)/)||[])[1],v2=(H.match(/app\.js\?v=([\d.]+)/)||[])[1],av=(A.match(/APP_VER='([^']+)'/)||[])[1];
+  ok('B0v 버전 꼬리표 다섯 곳이 같다(html·physics?v·app?v·APP_VER·PH.VERSION)',hv&&[v1,v2,av,PV].every(x=>x===hv),[hv,v1,v2,av,PV]);}
+ await p.evaluate(()=>document.getElementById('boot').classList.remove('hide'));
+ ok('B0s 앱이 보이면 불러오는 중 화면은 CSS 만으로도 숨음',await p.evaluate(()=>getComputedStyle(document.getElementById('boot')).display==='none'));
+ await p.evaluate(()=>document.getElementById('boot').classList.add('hide'));
  const rv=await p.evaluate(()=>window.__reveal);
  ok('B0c 앱이 처음 보일 때 이미 다 그려짐(판 종류·탭·공 · 불러오는 중 화면 없음)',rv&&/k-free/.test(rv.k)&&rv.tabs>=1&&!rv.boot&&rv.balls>=4,rv);
  ok('B0b 기본 모드 = 공 옮기기',/공을 잡아 끌어서/.test(await p.textContent('#hint')));
@@ -243,6 +250,9 @@ function init({session,users}){
  await p.click('#spd [data-s="3"]');
  await p.keyboard.press('Enter');await wait(100);
  ok('S12 Enter = ▶',await p.evaluate(()=>SIMV!==null));
+ await p.evaluate(()=>{clearSim();renderAll();});await p.focus('#tipMid');await p.keyboard.press('Enter');await wait(80);
+ ok('S12b 버튼에 초점 + Enter = 그 버튼만(▶ 안 돎)',await p.evaluate(()=>SIMV===null&&ST.draft.tip&&ST.draft.tip.x===0&&ST.draft.tip.y===0));
+ await p.evaluate(()=>document.activeElement.blur());
  await p.click('#bSim');await wait(80);
  await p.click('#bSlow');
  ok('S13 🐢 천천히 켜고 기억',await p.evaluate(()=>SLOW&&localStorage.getItem('bb.slow')==='1'));
@@ -650,6 +660,9 @@ function init({session,users}){
    ok('K '+t+'당구대 꽉 참',Math.max(m.fillW,m.fillH)>=0.97&&m.fillW>=(W>=1900?0.75:0.7),[m.fillW,m.fillH]);
   }
  }
+ /* 로그인이 풀리면 로그인 화면으로(저장 실패만 반복하지 않게) */
+ await p.evaluate(()=>window.__authCb&&window.__authCb('SIGNED_OUT',null));await wait(100);
+ ok('Y1 로그인 풀림 → 로그인 화면 · 안내',await p.isVisible('#login')&&!(await p.isVisible('#app'))&&/다시 로그인해 주세요/.test(await p.textContent('#loginErr')));
  ok('Z 에러 없음',!errs.length,errs);
  await c.close();
  }finally{await b.close();}

@@ -7,6 +7,7 @@
  *      아버지 목적: "이렇게 치면 맞느냐"를 확인 · 수구 분리각 · 1적구 · 원/투쿠션 흐름 훈련
  */
 'use strict';
+var APP_VER='2.5.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
@@ -209,8 +210,9 @@ function switchBoard(id){
 }
 /* 첫 판을 그릴 준비가 됐을 때 한 번 — 불러오는 중 화면을 걷고 앱을 보인다 */
 function reveal(){
+  $('boot').classList.add('hide');   /* 🔒 앱이 이미 보여도 늘 걷는다(두 번째 호출에 남아 있었다) */
   if(!$('app').classList.contains('hide'))return;
-  $('boot').classList.add('hide');$('app').classList.remove('hide');
+  $('app').classList.remove('hide');
   if(ST)renderAll();   /* 숨긴 채로는 당구대 크기를 몰라 못 그린다 — 보인 뒤 다시 */
 }
 function newBoard(){
@@ -1446,6 +1448,8 @@ function renderTrend(){
     h.push('<h3>🎱 자유 연습 <small>('+F.length+'번)</small></h3>');
     h.push(lineChart({w:full,title:'날짜별 실제 득점률 · 시뮬레이션과 실제가 같았던 비율',unit:'%',names:['실제 득점률','시뮬레이션 일치'],labels:['득점률','일치'],keys:dF.keys,series:dF.series,max:100}));
   }
+  /* 🔒 옛 기록(v1 — 시뮬레이션 결과 없음)만 있으면 구역이 하나도 안 생겨 빈 화면이었다(실제 DB 가 그랬다) */
+  if(!h.length)h.push('<div class="empty">아직 실력 추이를 그릴 기록이 없습니다.<br>분리각·원투쿠션 훈련을 풀거나 ▶ 시뮬레이션 뒤 기록하면 여기에 쌓입니다.<br><small>(예전 방식으로 남긴 기록 '+A.length+'개는 [🎯 시도 기록]에서 볼 수 있습니다)</small></div>');
   $('logBody').innerHTML=h.join('');
   bindCharts();
 }
@@ -1608,6 +1612,8 @@ function bind(){
       return;
     }
     if(inField)return;
+    /* 🔒 버튼에 초점이 있을 때 Enter = 그 버튼만 누른다(전엔 버튼 + ▶ 가 같이 돌았다) */
+    if(e.key==='Enter'&&e.target.tagName==='BUTTON')return;
     if(e.key==='Enter'){e.preventDefault();if(MODE==='draw')doneDraw();else runSim();}
     else if(e.key==='Escape'&&MODE==='draw'){e.preventDefault();doneDraw();}
     else if(e.key==='Escape'){SEL=null;hidePop();if(SIMV&&!SIMV.playing){clearSim();renderAll();}else renderTable();}
@@ -1618,6 +1624,8 @@ function bind(){
 }
 
 bind();
+/* 로그인이 풀리면(다른 곳에서 로그아웃 · 토큰 만료) 저장 실패만 반복하지 말고 로그인 화면으로 */
+try{SB.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT'&&USER){USER=null;showLogin('로그인이 풀렸습니다. 다시 로그인해 주세요.');}});}catch(e){}
 SB.auth.getSession().then(function(r){
   var s=r&&r.data&&r.data.session;
   if(s)enter(s.user);else showLogin('');
