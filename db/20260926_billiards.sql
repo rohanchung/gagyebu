@@ -105,3 +105,13 @@ create policy bb_add  on public.bb_events for insert to authenticated with check
 
 -- ④ 작업 중인 판(그어 둔 선·당점·속도)을 자동 저장하는 칸 — 기록하기 전에 창을 닫아도 남는다
 alter table public.bb_boards add column if not exists draft jsonb not null default '{}'::jsonb;
+
+-- ⑤ v2 (4구 훈련) — 판 종류(자유 연습 / 분리각 훈련 / 원·투쿠션) · 시뮬레이션 결과 · 파울
+--    balls 에 r2(빨간 공 ②)가 붙는다. 스키마는 그대로, 옛 판은 앱이 불러올 때 채운다
+alter table public.bb_boards add column if not exists kind text not null default 'free';
+alter table public.bb_boards drop constraint if exists bb_boards_kind_check;
+alter table public.bb_boards add constraint bb_boards_kind_check check (kind in ('free','sep','cush'));
+alter table public.bb_attempts add column if not exists kind text not null default 'free';
+alter table public.bb_attempts add column if not exists sim jsonb;   -- 시뮬레이션 판정·경로·오차
+alter table public.bb_attempts drop constraint if exists bb_attempts_result_check;
+alter table public.bb_attempts add constraint bb_attempts_result_check check (result in ('hit','miss','foul'));

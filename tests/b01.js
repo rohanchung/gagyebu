@@ -71,6 +71,7 @@ function init({session,users}){
   await p.fill('#email','dad@test');await p.fill('#pw','pw-dad-1');await p.press('#pw','Enter');await wait(400);
   ok('A7 아버지 → 입장',await p.isVisible('#app'));
   const T=await p.evaluate(()=>window.__T);
+  ok('A8b 첫 실행에 불러오는 중 글자가 남지 않음',!/불러오는/.test(await p.textContent('#saveSt')),await p.textContent('#saveSt'));
   ok('A8 첫 판 자동 생성',T.bb_boards.length===1&&T.bb_boards[0].name==='판 1',T.bb_boards);
   ok('A9 로그인 후 비밀번호 칸 비움',(await p.inputValue('#pw'))==='');
   ok('A10 에러 없음',!errs.length,errs);
@@ -134,8 +135,8 @@ function init({session,users}){
  ok('C2 클릭 → 지우기 버튼',await p.isVisible('#ptPop'));
  await p.click('#ptDel');await wait(60);
  ok('C3 점 지우기',JSON.stringify(await seq())==='[35,45]'&&(await st()).draft.predict.length===4,await seq());
- /* 첫 선분(내 공 2,2.5 → 3.5,0) 중간 클릭 = 점 추가 */
- await click(2.75,1.25);
+ /* 첫 선분(내 공 2,3 → 3.5,0) 중간 클릭 = 점 추가 */
+ await click(2.75,1.5);
  ok('C4 선 클릭 → 점 추가',(await st()).draft.predict.length===5);
  await p.click('#bUndo');await wait(40);
  ok('C5 되돌리기',(await st()).draft.predict.length===4);
@@ -147,20 +148,22 @@ function init({session,users}){
  ok('C8 다시하기 버튼',(await st()).draft.predict.length===5);
  await p.keyboard.press('Control+z');await wait(40);
 
- /* ── D) 공 옮기기 ── */
+ /* ── D) 공 옮기기 (4구: 흰·노랑·빨강 ①②) ── */
+ ok('D0 공 4개',(await p.evaluate(()=>liveBalls().join()))==='w,y,r,r2'&&(await p.$$('#gDyn circle[fill="#d8231b"]')).length===2);
+ ok('D0b 상대 공 표시',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='상대 공')));
  await p.click('#mBall');
- await drag(2,2.5,1,3);
+ await drag(2,3,1,3.5);
  s=await st();
- ok('D1 흰 공 옮김',Math.abs(s.balls.w.x-1)<0.03&&Math.abs(s.balls.w.y-3)<0.03,s.balls.w);
+ ok('D1 흰 공 옮김',Math.abs(s.balls.w.x-1)<0.03&&Math.abs(s.balls.w.y-3.5)<0.03,s.balls.w);
  ok('D2 선 시작이 공을 따라감',await p.evaluate(()=>{const q=resolve(ST.draft.predict[0]);return q.x===ST.balls.w.x&&q.y===ST.balls.w.y;}));
- await drag(6,2,1,3);              /* 빨간 공을 흰 공 위로 → 겹치면 안 됨 */
+ await drag(4,2,1,3.5);              /* 빨간 공 ②를 흰 공 위로 → 겹치면 안 됨 */
  s=await st();
- ok('D3 공끼리 안 겹침',Math.hypot(s.balls.r.x-s.balls.w.x,s.balls.r.y-s.balls.w.y)>=0.2-1e-9,[s.balls.r,s.balls.w]);
+ ok('D3 공끼리 안 겹침',Math.hypot(s.balls.r2.x-s.balls.w.x,s.balls.r2.y-s.balls.w.y)>=2*0.117-1e-9,[s.balls.r2,s.balls.w]);
  await p.click('#cY');
- ok('D4 내 공 = 노란 공',(await st()).balls.cue==='y');
+ ok('D4 내 공 = 노란 공 · 상대 = 흰 공',(await st()).balls.cue==='y'&&(await p.evaluate(()=>opp()))==='w');
  await p.click('#cW');
 
- /* ── E) 당점 · 속도 · 결과 ── */
+ /* ── E) 당점 · 속도 ── */
  const tipAt=async(x,y)=>{const bx=await p.$eval('#tip',e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width];});
    await p.mouse.click(bx[0]+bx[2]/2+x*bx[2]/2.3,bx[1]+bx[2]/2+y*bx[2]/2.3);await wait(40);};
  await tipAt(0.45,-0.45);
@@ -171,12 +174,11 @@ function init({session,users}){
  await p.click('#tipMid');
  ok('E4 정중앙',(await p.textContent('#tipTxt'))==='정중앙');
  await tipAt(0.45,-0.45);
+ ok('E5 새 판 속도 기본 3(보통)',(await st()).draft.speed===3&&await p.$eval('#spd [data-s="3"]',e=>e.classList.contains('on')));
+ await p.fill('#kmh','12.5');await p.press('#kmh','Tab');await wait(40);
+ ok('E6 km/h 넣으면 단계 표시는 꺼짐',(await st()).draft.kmh===12.5&&!(await p.$eval('#spd [data-s="3"]',e=>e.classList.contains('on'))));
  await p.click('#spd [data-s="3"]');
- ok('E5 속도 3',(await st()).draft.speed===3&&await p.$eval('#spd [data-s="3"]',e=>e.classList.contains('on')));
- await p.fill('#kmh','12.5');await p.press('#kmh','Tab');
- await p.click('#rHit');await p.fill('#memo','조금 두껍게');
- s=await st();
- ok('E6 km/h · 결과 · 메모',s.draft.kmh===12.5&&s.draft.result==='hit'&&s.draft.memo==='조금 두껍게',s.draft);
+ ok('E7 단계 누르면 km/h 비움',(await st()).draft.kmh===null&&(await st()).draft.speed===3);
 
  /* ── F) 실제 간 길 ── */
  await p.click('#lAct');
@@ -185,44 +187,86 @@ function init({session,users}){
  ok('F2 실제 선 40→20',JSON.stringify(await seq())==='[40,20]',await seq());
  ok('F3 아래 글자에 실제도',/실제:.*40 → 20/.test(await p.textContent('#seq')));
  await p.click('#bDone');
+ await p.click('#lPre');
 
  /* ── G) 자동 저장 ── */
  await wait(1000);
  let T=await p.evaluate(()=>window.__T);
- ok('G1 자동 저장(선)',T.bb_boards[0].draft.predict.length===4&&T.bb_boards[0].draft.actual.length===3,T.bb_boards[0].draft);
+ ok('G1 자동 저장(선·빨강 ②)',T.bb_boards[0].draft.predict.length===4&&T.bb_boards[0].draft.actual.length===3&&!!T.bb_boards[0].balls.r2,T.bb_boards[0].draft);
  ok('G2 저장됨 표시',/저장됨/.test(await p.textContent('#saveSt')),await p.textContent('#saveSt'));
 
- /* ── H) 기록하기 ── */
- await p.click('#bRec');await wait(300);
+ /* ── S) 시뮬레이션 · 4구 판정 ──
+    🔒 판정이 물리와 맞는지: 수구가 실제로 지나가는 자리에 빨강 ②를 놓으면 득점, 상대 공을 놓으면 파울, 비켜 놓으면 실패 */
+ const setUp=()=>p.evaluate(()=>{pushUndo();ST.balls={w:{x:1,y:2},y:{x:1,y:0.6},r:{x:3,y:2.1},r2:{x:7,y:3.8},cue:'w'};
+   ST.draft.predict=[{ref:'cue'},{x:3,y:2}];ST.draft.tip={x:0,y:0};ST.draft.speed=3;ST.draft.kmh=null;renderAll();});
+ await setUp();
+ ok('S1 조준 → 첫 공·두께 표시',/첫 공: 빨간 공 ① · 두께 5\/8 \(왼쪽\)/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
+ const probe=await p.evaluate(()=>{const sv=computeSim(),E=sv.res.events,h=E.find(e=>e.type==='ball'&&(e.a==='w'||e.b==='w'));
+   const f=sv.res.frames.find(f=>f.t>h.t+0.35);return {first:h&&(h.a==='w'?h.b:h.a),pt:[f.p.w[0]/DM,f.p.w[1]/DM],res:sv.info.result};});
+ ok('S2 첫 충돌 = 빨강 ①',probe.first==='r',probe);
+ ok('S3 빨강 ②가 멀면 실패',probe.res==='miss',probe);
+ const judge=(mv)=>p.evaluate(([mv,pt])=>{const b=JSON.parse(JSON.stringify(ST.balls));
+   if(mv==='hit')ST.balls.r2={x:pt[0],y:pt[1]};
+   if(mv==='foul'){ST.balls.y={x:pt[0],y:pt[1]};}
+   /* miss: 빨강 ②는 멀리(7, 3.8) 그대로 — 가까이 비켜 두면 쿠션 돌아 나온 수구가 결국 맞힌다(첫 판 실측) */
+   const i=computeSim().info;ST.balls=b;return i;},[mv,probe.pt]);
+ let J=await judge('hit');
+ ok('S4 수구 길목에 빨강 ② → ⭕ 득점',J.result==='hit'&&/⭕ 득점 — 빨간 공 ①.*빨간 공 ②/.test(J.text),J);
+ J=await judge('foul');
+ ok('S5 길목에 상대 공 → ⚠ 파울',J.result==='foul'&&/상대 공\(노란 공\)/.test(J.text),J);
+ J=await judge('miss');
+ ok('S6 빨강 ②가 길목 밖 → ❌ 실패 + 몇 cm 차이',J.result==='miss'&&J.missCm>0&&/빨간 공 ①만 맞힘 · 빨간 공 ②와 [\d.]+cm 차이/.test(J.text),J);
+ await p.evaluate(pt=>{ST.balls.r2={x:pt[0],y:pt[1]};renderAll();},probe.pt);
+ const before=await st();
+ await p.click('#bSim');await wait(150);
+ ok('S7 ▶ → 굴러가는 중',await p.evaluate(()=>SIMV&&SIMV.playing)&&/굴러가는 중/.test(await p.textContent('#hint'))&&/끝으로/.test(await p.textContent('#bSim')));
+ await p.click('#bSim');await wait(150);
+ ok('S8 한 번 더 → 끝으로 · 결과 글자',await p.evaluate(()=>SIMV&&!SIMV.playing)&&/⭕ 득점/.test(await p.textContent('#hint'))&&await p.$eval('#hint',e=>e.classList.contains('ok')),await p.textContent('#hint'));
+ ok('S9 지나간 자리가 그려진다',(await p.$$('#gDyn polyline')).length>=2);
+ ok('S10 시뮬레이션은 공 자리를 안 바꾼다',JSON.stringify((await st()).balls)===JSON.stringify(before.balls));
+ await p.click('#spd [data-s="4"]');await wait(60);
+ ok('S11 조건을 바꾸면 결과가 지워진다',await p.evaluate(()=>SIMV===null)&&!/득점/.test(await p.textContent('#hint')));
+ await p.click('#spd [data-s="3"]');
+ await p.keyboard.press('Enter');await wait(100);
+ ok('S12 Enter = ▶',await p.evaluate(()=>SIMV!==null));
+ await p.click('#bSim');await wait(80);
+ await p.click('#bSlow');
+ ok('S13 🐢 천천히 켜고 기억',await p.evaluate(()=>SLOW&&localStorage.getItem('bb.slow')==='1'));
+ await p.click('#bSlow');
+
+ /* ── H) 기록하기 — 시뮬레이션 결과 + 실제로 쳐 본 결과 ── */
+ await p.click('#bRec');await wait(150);
+ ok('H0 실제 결과를 묻는다',/실제로 쳐 보셨나요/.test(await p.textContent('#mask'))&&/⭕ 득점/.test(await p.textContent('#mask')));
+ await p.fill('#mIn','조금 두껍게');await p.click('.modal .btns .hitb');await wait(300);
  T=await p.evaluate(()=>window.__T);
  const a=T.bb_attempts[0];
  ok('H1 시도 1건',T.bb_attempts.length===1);
- ok('H2 예측 쿠션 저장',a&&JSON.stringify(a.predict.filter(x=>x.rail).map(x=>x.x===0||x.x===8?x.y*10:x.x*10))==='[35,45]',a&&a.predict);
- ok('H3 당점·속도·결과·메모',a&&a.tip&&a.speed===3&&a.kmh===12.5&&a.result==='hit'&&a.memo==='조금 두껍게',a);
- ok('H4 실제 선 저장',a&&a.actual&&a.actual.length===3);
- ok('H5 그때 공 배치 저장',a&&a.balls.w.x===s.balls.w.x);
- s=await st();
- ok('H6 결과·메모·실제만 비움',s.draft.result===null&&s.draft.memo===''&&s.draft.actual.length===0&&s.draft.predict.length===4&&s.draft.speed===3);
+ ok('H2 종류·조준 저장',a&&a.kind==='free'&&a.predict.length===2);
+ ok('H3 당점·속도·실제 결과·메모',a&&a.tip&&a.speed===3&&a.result==='hit'&&a.memo==='조금 두껍게',a);
+ ok('H4 시뮬레이션 판정·경로 저장',a&&a.sim&&a.sim.result==='hit'&&a.sim.paths&&a.sim.paths.w.length>5&&a.sim.V===1.6,a&&a.sim&&{r:a.sim.result,V:a.sim.V});
+ ok('H5 빨강 ② 자리 저장',a&&a.balls.r2&&Math.abs(a.balls.r2.x-probe.pt[0])<0.02);
  ok('H7 알림',/기록했습니다.*1번째/.test(await p.textContent('#toast')),await p.textContent('#toast'));
- ok('H8 이벤트 로그',T.bb_events.some(e=>e.kind==='attempt.save'));
- await p.click('#rMiss');await p.click('#bRec');await wait(300);
- /* 선 없이 기록 → 안내 */
- await p.click('#lPre');await p.click('#bClear');await p.click('.modal .btns .danger');await wait(60);
+ ok('H8 이벤트 로그',T.bb_events.some(e=>e.kind==='attempt.save'&&e.payload.sim==='hit'));
+ await p.click('#bRec');await wait(150);await p.click('.modal .btns button:has-text("실패")');await wait(300);
+ /* 조준 없이 → 안내 */
+ await p.evaluate(()=>{pushUndo();ST.draft.predict=[];renderAll();});
  await p.click('#bRec');await wait(100);
- ok('H9 선 없이 기록 → 안내',/예측 선을 그어 주세요/.test(await p.textContent('#mask')));
+ ok('H9 조준 없이 기록 → 안내',/먼저 조준선을 그어 주세요/.test(await p.textContent('#mask')));
  await p.click('.modal .btns button');
  await p.click('#bUndo');
 
  /* ── I) 판 CRUD ── */
- await p.click('#bNew');await p.fill('#mIn','옆돌리기');await p.click('.modal .btns .primary');await wait(200);
- ok('I1 새 판 탭',(await p.textContent('#tabs')).includes('옆돌리기')&&(await p.textContent('#bName'))==='옆돌리기');
+ await p.click('#bNew');
+ ok('I0 새 판 = 종류 고르기(기본 자유 연습)',/자유 연습/.test(await p.textContent('#mask'))&&/분리각 훈련/.test(await p.textContent('#mask'))&&await p.$eval('[data-k="free"]',e=>e.classList.contains('on')));
+ await p.fill('#mIn','옆돌리기');await p.click('.modal .btns .primary');await wait(200);
+ ok('I1 새 판 탭',(await p.textContent('#tabs')).includes('🎱 옆돌리기')&&(await p.textContent('#bName'))==='옆돌리기');
  ok('I2 새 판은 빈 선',(await st()).draft.predict.length===0);
  await p.click('#bRename');await p.fill('#mIn','옆돌리기 연습');await p.press('#mIn','Enter');await wait(150);
  ok('I3 이름 바꾸기',(await p.textContent('#bName'))==='옆돌리기 연습'&&(await p.evaluate(()=>window.__T.bb_boards.some(b=>b.name==='옆돌리기 연습'))));
  await p.click('#tabs button:has-text("판 1")');await wait(100);
- ok('I4 탭 전환 → 판 1 선 그대로',(await st()).draft.predict.length===4);
+ ok('I4 탭 전환 → 판 1 선 그대로',(await st()).draft.predict.length===2);
  await p.click('#bCopy');await wait(200);
- ok('I5 복제',(await p.textContent('#bName'))==='판 1 (복사)'&&(await st()).draft.predict.length===4);
+ ok('I5 복제',(await p.textContent('#bName'))==='판 1 (복사)'&&(await st()).draft.predict.length===2);
  await p.click('#bDel');
  ok('I6 지우기 확인창',/휴지통/.test(await p.textContent('#mask')));
  await p.click('.modal .btns .danger');await wait(200);
@@ -236,26 +280,62 @@ function init({session,users}){
  /* 탭이 7개 넘으면 목록으로 */
  for(let i=0;i<5;i++){await p.click('#bNew');await p.click('.modal .btns .primary');await wait(150);}
  ok('I10 탭 최대 6 + 판 목록 외 N개',(await p.$$('#tabs button')).length===6&&/외 2개/.test(await p.textContent('#bMore')),await p.textContent('#bMore'));
- ok('I11 지금 판은 늘 탭에 보임',await p.$eval('#tabs button.on',e=>e.textContent)===await p.textContent('#bName'));
+ ok('I11 지금 판은 늘 탭에 보임',(await p.$eval('#tabs button.on',e=>e.textContent)).endsWith(await p.textContent('#bName')));
  await p.click('#bMore');ok('I12 판 목록 8개',(await p.$$('.modal .litem')).length===8);
  await p.click('.modal .litem:first-child [data-go]');await wait(100);
  ok('I13 목록에서 열기',(await p.textContent('#bName'))==='판 1');
 
+ /* ── T) 📐 분리각 훈련 ── */
+ await p.click('#bNew');await p.click('[data-k="sep"]');
+ ok('T0 종류 고르면 이름도 분리각',/^분리각 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));
+ await p.click('.modal .btns .primary');await wait(250);
+ ok('T1 분리각 판 · 탭 아이콘',(await p.$eval('#tabs button.on',e=>e.textContent)).startsWith('📐')&&await p.evaluate(()=>kind()==='sep'&&document.body.classList.contains('k-sep')));
+ ok('T2 도구: ① 1적구 ② 수구 · 선긋기 숨김',await p.isVisible('#mObj')&&await p.isVisible('#mCue')&&!(await p.isVisible('#mDraw'))&&!(await p.isVisible('#lPre')));
+ ok('T3 공은 수구·1적구 둘만',(await p.evaluate(()=>liveBalls().join()))==='w,r');
+ ok('T4 두께 8칸+좌우 · 기본 4/8 · 왼쪽',(await p.$$('#thk [data-t]')).length===8&&await p.$eval('#thk [data-t="4"]',e=>e.classList.contains('on'))&&await p.$eval('#thk [data-lr="L"]',e=>e.classList.contains('on')));
+ ok('T5 조준 글자 4/8 (반)',/빨간 공 ① · 두께 4\/8 \(반\) \(왼쪽\)/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
+ ok('T6 바로 ① 1적구 방향 모드',(await p.evaluate(()=>MODE))==='pobj'&&/① 1적구/.test(await p.textContent('#hint')));
+ /* 정답 방향 근처(1적구: 조준에서 30°, 수구: 반대쪽 약 33°)를 조금 틀리게 찍는다 */
+ const geo=await p.evaluate(()=>{const ai=aimInfo(),a=Math.atan2(ai.dir.y,ai.dir.x),o=ST.balls.r,g=ai.contact.ghost;
+   const s1=Math.atan2(o.y-g.y,o.x-g.x)-a>0?1:-1;
+   const po=a+s1*33*Math.PI/180,pc=a-s1*40*Math.PI/180;
+   return {o:[o.x+Math.cos(po),o.y+Math.sin(po)],c:[g.x+Math.cos(pc)*0.9,g.y+Math.sin(pc)*0.9]};});
+ await click(geo.o[0],geo.o[1]);
+ ok('T7 ① 찍으면 ② 로 넘어감',(await p.evaluate(()=>MODE))==='pcue'&&!!(await st()).draft.predObj);
+ await click(geo.c[0],geo.c[1]);
+ ok('T8 ② 수구 방향 저장',!!(await st()).draft.predCue);
+ ok('T9 버튼 = 정답 보기',/정답 보기/.test(await p.textContent('#bSim')));
+ await p.click('#bSim');await wait(100);await p.click('#bSim');await wait(150);
+ const hs=await p.textContent('#hint');
+ ok('T10 1적구 30° (반 두께)',/1적구 (29|30|31)°/.test(hs),hs);
+ ok('T11 예측과 차이(°)',/1적구 \d+° \(예측 3[2-4]°, [1-5]° 차이\)/.test(hs)&&/수구 \d+° \(예측 \d+°, \d+° 차이\)/.test(hs)&&/분리각 \d+°/.test(hs),hs);
+ ok('T12 판 위에 각도 숫자',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>/^1적구 \d+°$/.test(t.textContent))));
+ await p.click('#bRec');await wait(300);
+ T=await p.evaluate(()=>window.__T);
+ const sa=T.bb_attempts[T.bb_attempts.length-1];
+ ok('T13 기록 → 종류 sep · 오차 저장(묻지 않음)',sa.kind==='sep'&&sa.sim&&sa.sim.eObj!=null&&sa.sim.eCue!=null&&sa.sim.thick===4&&sa.result===null,sa.sim&&{e:sa.sim.eObj,c:sa.sim.eCue});
+ await p.click('#bNextT');
+ s=await st();
+ ok('T14 다음 두께 → 5/8 · 예측 비움 · ① 부터',s.draft.thick===5&&!s.draft.predObj&&!s.draft.predCue&&(await p.evaluate(()=>MODE))==='pobj');
+ await p.click('#thk [data-lr="R"]');await p.click('#thk [data-t="2"]');
+ ok('T15 오른쪽 · 2/8',/두께 2\/8 \(오른쪽\)/.test(await p.textContent('#aimTxt')),await p.textContent('#aimTxt'));
+
  /* ── J) 기록 화면 ── */
  await p.click('#bLog');await wait(300);
  const body=await p.textContent('#logBody');
- ok('J1 시도 2번',/시도\s*2번/.test(body),body.slice(0,120));
- ok('J2 성공률 50%',/50%/.test(body));
- ok('J3 표 2줄',(await p.$$('#logBody tr.click')).length===2);
- ok('J4 쿠션 지점 표시',/35 → 45/.test(body));
- await p.click('#logBody tr.click >> nth=1');await wait(100);
- ok('J5 지난 시도 그림',(await p.$$('.modal svg.mini polyline')).length>=2);
+ ok('J1 자유 연습 시도 2번',/🎱 자유 연습[\s\S]*시도\s*2번/.test(body),body.slice(0,200));
+ ok('J2 실제 득점률 50% · 시뮬레이션 득점률',/실제 득점률[^%]*50%/.test(body)&&/시뮬레이션 득점률/.test(body),body.slice(0,300));
+ ok('J2b 분리각 문제 1번 · 평균 오차',/📐 분리각 훈련[\s\S]*문제\s*1번/.test(body)&&/1적구 평균 오차[^°]*\d+(\.\d)?°/.test(body));
+ ok('J3 표 3줄',(await p.$$('#logBody tr.click')).length===3);
+ ok('J4 조건 글자(첫 공·두께)',/빨간 공 ① 5\/8/.test(body)&&/두께 4\/8 왼쪽/.test(body));
+ await p.click('#logBody tr.click >> nth=2');await wait(100);
+ ok('J5 지난 시도 그림(시뮬레이션 길 포함)',(await p.$$('.modal svg.mini polyline')).length>=4);
  await p.click('.modal .btns .primary');await wait(200);   /* 이 조건으로 다시 */
- ok('J6 다시 해보기 → 당구대로',await p.isVisible('#workv')&&(await st()).draft.predict.length===4&&(await st()).draft.speed===3);
+ ok('J6 다시 해보기 → 당구대로',await p.isVisible('#workv')&&(await p.textContent('#bName'))==='판 1'&&(await st()).draft.predict.length===2&&(await st()).draft.speed===3);
  await p.click('#bLog');await wait(200);
  await p.click('#vEvt');await wait(200);
  const ev=await p.textContent('#logBody');
- ok('J7 변경 이력',/새 판 ‘옆돌리기’/.test(ev)&&/이름을 ‘옆돌리기’ → ‘옆돌리기 연습’/.test(ev)&&/휴지통에서 살렸습니다/.test(ev),ev.slice(0,300));
+ ok('J7 변경 이력',/새 판 ‘옆돌리기’/.test(ev)&&/이름을 ‘옆돌리기’ → ‘옆돌리기 연습’/.test(ev)&&/휴지통에서 살렸습니다/.test(ev)&&/분리각 문제를 기록/.test(ev),ev.slice(0,300));
  await p.click('#bBack');
 
  /* ── K) 한 화면 · 실버 UX 치수 ──
@@ -277,7 +357,8 @@ function init({session,users}){
  let m;
  for(const [W,H,font,btnH] of [[2560,1300,23,56],[1920,950,15,38],[1536,730,15,38]]){
   await p.setViewportSize({width:W,height:H});await wait(200);
-  for(const md of ['ball','draw','edit']){await p.evaluate(m=>setMode(m),md);await wait(80);
+  for(const md of ['ball','draw','edit','sep:ball','sep:pobj','sep:pcue']){
+   await p.evaluate(m=>{const sep=m.startsWith('sep:');const b=BOARDS.find(x=>x.kind===(sep?'sep':'free'));if(b.id!==CUR)switchBoard(b.id);setMode(m.replace('sep:',''));},md);await wait(80);
    m=await meas();const t=W+'×'+H+' '+md+' · ';
    ok('K '+t+'글자 ≥'+font+'px',m.root>=font,m.root);
    ok('K '+t+'버튼 ≥'+btnH+'px',m.minBtn>=btnH-0.5,m.minBtn);
