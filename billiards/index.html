@@ -66,7 +66,8 @@ input[type=text],input[type=email],input[type=password],input[type=number],selec
 .tabzone{flex:1;min-width:0;display:flex;align-items:center;gap:.5rem}
 .tabzone>button{flex:none}
 #tabs{display:flex;gap:.35rem;flex-wrap:nowrap;min-width:0;overflow:hidden;flex:0 1 auto}
-#tabs button{flex:none}
+#tabs button{flex:none;padding:.25rem .6rem}
+.stepgrp button{min-width:3rem;padding:.25rem .5rem}
 #tabs button{min-height:2.6rem;border-radius:.6rem .6rem 0 0;border-bottom-width:4px}
 #tabs button.on{border-bottom-color:var(--focus)}
 .sp{flex:1}
@@ -253,9 +254,9 @@ body.k-cush .tools .lbl{display:none}
     </div>
     <!-- v1.2 쿠션 눈금 간격 — 1 단위(0~80 정수) 또는 0.5 단위(32.5) · 오른쪽으로 옮겨 탭 자리를 넓혔다 -->
     <span class="grp stepgrp" id="stepGrp">
-      <span class="lbl">눈금 간격</span>
-      <button data-st="1">1 단위</button>
-      <button data-st="0.5">0.5 단위</button>
+      <span class="lbl">눈금</span>
+      <button data-st="1" title="쿠션 눈금 1 단위 (예: 32)">1</button>
+      <button data-st="0.5" title="쿠션 눈금 0.5 단위 (예: 32.5)">0.5</button>
     </span>
     <button id="bLog"><span class="ic">📋</span> 기록</button>
     <button id="bTrash"><span class="ic">🗑</span> 휴지통</button>
