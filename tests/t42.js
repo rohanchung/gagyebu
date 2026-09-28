@@ -1055,10 +1055,23 @@ async function boot(st){
     await p.waitForTimeout(250);
   }
   await p.evaluate(()=>setStCalYM(todayStr().slice(0,7)));await p.waitForTimeout(250);
-  /* ④ 제로데이 — 지난 날인데 학습도 과제도 없는 칸 */
+  /* ④ 제로데이 — 지난 날인데 학습도 과제도 없는 칸
+     ⚠️ [테스트 결함] 이번 달 격자에서만 세면 **매달 1일에 깨진다** — 그날엔 이번 달에
+        '지난 날'이 하나도 없다. W10·W22 와 같은 종류다 → 지난달로 옮겨서 센다.
+        지난달은 통째로 과거라 날짜와 무관하게 성립한다. */
+  const _ymZ=await p.evaluate(()=>stCalYM());
+  await p.evaluate(()=>stCalMove(-1));await p.waitForTimeout(280);
   ok('W9 제로데이 칸이 표시된다',(await p.$$('#v-study .scday.zero')).length>=1);
-  /* ⑤ 3일 창 밖은 흐리게 */
+  await p.evaluate(x=>setStCalYM(x),_ymZ);await p.waitForTimeout(280);
+  /* ⑤ 3일 창 밖은 흐리게
+     ⚠️ [테스트 결함 · 2026-09-28 발견] 이번 달 격자에서만 셌더니, **월말에는 이번 달에
+        「오늘+3일 이후」 칸이 하나도 없어서** 깨졌다(9/28 에 9월은 30일까지뿐이다).
+        W22 를 고칠 때 같은 종류를 봤는데 여기를 안 고쳤다 → **다음 달로 옮겨서 센다.**
+        다음 달은 통째로 창 밖이라 날짜와 무관하게 성립한다. */
+  const _ym0=await p.evaluate(()=>stCalYM());
+  await p.evaluate(()=>stCalMove(1));await p.waitForTimeout(280);
   ok('W10 미래 3일 밖은 흐리다',(await p.$$('#v-study .scday.far')).length>=1);
+  await p.evaluate(x=>setStCalYM(x),_ym0);await p.waitForTimeout(280);
   /* ⑥ 날짜 클릭 → 우측 패널이 그날 것으로 */
   await p.evaluate(x=>setStCalSel(x),ago(1));await p.waitForTimeout(350);
   let side=await p.$eval('#v-study .calside',e=>e.textContent);

@@ -697,6 +697,53 @@ textarea.mla.same{background:#f2f9f4}
    다른 칸과 같은 크기면 오타가 안 보인다 — 크게, 오른쪽 정렬, 자릿수 고정폭 */
 #fAmt{font-size:18px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:.3px}
 #txnSave{width:100%;padding:11px;font-size:13.5px}
+/* ══ v4.20 🔮 사주 — 예측→현실→검증 세로 시간축 ══
+   🔒 좌우 2열로 놓지 않는다. EMR 은 같은 현재를 둘이 보니 2열이지만,
+      사주는 시간이 흘러간다 — 위에서 아래로 읽혀야 순서가 보인다 */
+.sjunit{display:inline-flex;gap:0}
+.sjunit button{font-size:11px;padding:4px 10px}
+.sjpick{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;margin-bottom:11px}
+.sjp{border:1px solid var(--line);border-radius:7px;background:var(--card);padding:5px 2px;
+  cursor:pointer;text-align:center;font-family:inherit;line-height:1.25;min-width:0}
+.sjp b{display:block;font-size:10.5px;font-weight:700;white-space:nowrap}
+.sjp span{display:block;font-size:10px;color:var(--muted)}
+.sjp.on{border-color:var(--accent);background:var(--accent-bg);box-shadow:inset 0 0 0 1px var(--accent)}
+.sjp:hover{border-color:var(--accent)}
+.sjflow{display:flex;flex-direction:column;gap:0}
+.sjstep{border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:var(--card)}
+.sjstep.one{border-left:3px solid var(--accent)}
+.sjstep.two{border-left:3px solid #9aa6b6;background:var(--soft)}
+.sjstep.three{border-left:3px solid var(--gold)}
+.sjarrow{text-align:center;color:#c3ccda;font-size:15px;line-height:1;margin:3px 0}
+.sjhd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.sjwho{font-size:12.5px;font-weight:800}
+.sjtm{font-weight:800}
+.sjtm.prior{color:var(--pos)}.sjtm.mid{color:var(--warn)}.sjtm.post{color:var(--neg)}
+.sjtext{font-size:12.5px;line-height:1.8;white-space:pre-wrap;color:#33425e}
+.sjareas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:9px}
+.sjarea{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--soft);min-width:0}
+.sjak{font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:2px}
+.sjav{font-size:11.5px;line-height:1.6;color:#33425e;white-space:pre-wrap}
+.sjsub{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.6}
+/* ⚖ 담당 방과 어긋나는 지점 — 숨기지 않고 드러낸다 */
+.sjconf{margin-top:9px;background:var(--warn-bg);border:1px solid #f0dfae;border-radius:9px;
+  padding:8px 10px;font-size:11.5px;line-height:1.65;color:#6b5412}
+.sjreal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.sjr{display:flex;gap:6px;align-items:baseline;font-size:11.5px;min-width:0}
+.sjrk{flex-shrink:0;font-size:10px;font-weight:800;color:var(--muted);background:#eef2f7;
+  border-radius:4px;padding:1px 5px}
+.sjr>span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sjint{margin-top:8px;border-top:1px dashed var(--line);padding-top:7px;font-size:11.5px;line-height:1.7}
+.sjchips{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.sjv{font-size:11px;border-radius:999px;padding:3px 10px;background:#eef2f7;color:var(--muted);font-weight:600}
+.sjv.pos{background:#e3f4ea;color:#1f7a45}.sjv.warn{background:#fdf1d8;color:#8a6d16}
+.sjv.neg{background:#fde2e2;color:#a32d2d}
+.sjev{border-top:1px solid var(--line);padding-top:7px;margin-top:7px}
+@media(max-width:900px){
+  .sjpick{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .sjareas{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sjreal{grid-template-columns:1fr}
+}
 .taxin{width:130px;text-align:right;padding:5px 7px;border:1px solid var(--accent);border-radius:6px;font-size:12px;background:#f7faff}
 /* ══ v4.17 🗝️ 예산 — 스크롤 없이 한 화면에 ══
    로한: "한 줄로 쭉 만들지 말고 최소 2,3줄로 컴팩트하게 스크롤 내리지 않고 현황이 보이게."
@@ -6477,6 +6524,243 @@ function sajuRead(key,title){var r=(DB.saju.readings||{})[key];
 function bub(key,title){var has=DB.saju.readings&&DB.saju.readings[key];return '<span class="bub'+(has?' on':'')+'" onclick="event.stopPropagation();sajuRead(\''+key+'\',\''+(''+title).replace(/'/g,'')+'\')" title="해석">💬</span>';}
 function sajuPickYear(y){DB.ui.sajuYear=y;var mm=(DB.ui.sajuYM&&DB.ui.sajuYM.slice(5))||String(new Date().getMonth()+1).padStart(2,'0');DB.ui.sajuYM=y+'-'+mm;save();renderSaju();}
 function sajuPickMonth(ym){DB.ui.sajuYM=ym;DB.ui.sajuYear=parseInt(ym.slice(0,4));save();renderSaju();}
+/* ══════════ v4.20 🔮 사주 — 예측과 검증 ══════════
+   정본: saju-design.md · DB: db/20260928_saju_v2.sql
+   🔒 **세로 시간축이다.** 건강 EMR 은 같은 **현재**를 두 AI 가 격리된 채 보니 좌우 2열이 맞았지만,
+      사주는 같은 **시간축**을 나눴 본다 — 로버트(예측) → 로한(행동) → 수연(검수).
+      좌우로 놓으면 「두 AI 가 사주를 봐준다」로 오해된다.
+   🔒 2단(실제 기록)은 **파생**이다. 거래·학습·건강은 이미 app_state 에 있다 — 복사하지 않는다. */
+var SJ={fc:null,ev:{},notes:[],err:'',loading:false,unit:'month',open:{}};
+var SJ_AREAS=['사업','재물','공부','관계','건강','주의'];
+/* 🔒 평가 대상과 관찰 대상을 가른다(설계 §6).
+   일지가 월 1~2건이라 관계·사업은 대조할 기록이 없다 — 예측은 하되 판정하지 않는다 */
+var SJ_JUDGED={'재물':1,'공부':1,'건강':1};
+var SJ_VERDICT={hit:{l:'적중',c:'pos'},partial:{l:'부분 적중',c:'warn'},
+  miss:{l:'불일치',c:'neg'},indeterminate:{l:'판정불가',c:'mut'}};
+var SJ_TIMING={prior:{l:'사전',t:'기간 시작 전에 잠김 — 온전한 사전예측'},
+  mid:{l:'기간 중',t:'기간이 시작된 뒤에 잠김 — 부분 사후다'},
+  post:{l:'사후',t:'기간이 끝난 뒤에 잠김 — 예측이 아니다. 평가하지 않는다'}};
+
+function sjSel(){
+  var v=(DB.ui&&DB.ui.sjSel)||'';
+  if(SJ.unit==='month')return /^\d{4}-\d{2}$/.test(v)?v:todayStr().slice(0,7);
+  return /^\d{4}$/.test(v)?v:todayStr().slice(0,4);
+}
+function sjSetUnit(u){SJ.unit=u;DB.ui=DB.ui||{};DB.ui.sjSel='';save();renderSaju();}
+function sjPick(v){DB.ui=DB.ui||{};DB.ui.sjSel=v;save();renderSaju();}
+/* 기간 → [시작, 끝] */
+function sjRange(v){
+  if(/^\d{4}$/.test(v))return [v+'-01-01', v+'-12-31'];
+  return [v+'-01', lastDayOfYM(v)];
+}
+function sjLoad(){
+  if(!USER||!SB.from||SJ.loading)return;
+  SJ.loading=true;
+  SB.from('saju_forecasts').select('*').order('target_start',{ascending:false})
+    .then(function(r){if(r.error)throw r.error;SJ.fc=r.data||[];SJ.err='';
+      return SB.from('saju_evaluations').select('*');})
+    .then(function(r){if(r&&r.error)throw r.error;
+      SJ.ev={};((r&&r.data)||[]).forEach(function(e){(SJ.ev[e.forecast_id]=SJ.ev[e.forecast_id]||[]).push(e);});
+      return SB.from('saju_notes').select('*').order('note_date',{ascending:false});})
+    .then(function(r){if(r&&r.error)throw r.error;SJ.notes=(r&&r.data)||[];})
+    .catch(function(e){SJ.err=(e&&e.message)||String(e);if(!SJ.fc)SJ.fc=[];})
+    .then(function(){SJ.loading=false;renderSaju();});
+}
+/* 사이드 메뉴로 들어올 때마다 다시 읽는다 — 방이 그 사이에 썼을 수 있다 */
+function sajuOpen(){renderSaju();sjLoad();}
+
+/* 그 기간의 예측 — 마지막 버전이 대표, 옛 버전은 이력으로 남는다 */
+function sjFcOf(v){
+  var r=sjRange(v), pt=(SJ.unit==='year')?'year':'month';
+  var a=(SJ.fc||[]).filter(function(f){return f.period_type===pt&&f.target_start===r[0];});
+  a.sort(function(x,y){return y.version-x.version;});
+  return a;
+}
+
+/* ── 📌 실제 기록 — 🔒 **파생이다. 저장하지 않는다.**
+   설계 §8: 거래·학습·건강은 이미 app_state 에 있다. saju_events 테이블을 만들지 않았다. */
+function sjReality(a,b){
+  var out=[];
+  var tx=(DB.transactions||[]).filter(function(t){return t.date>=a&&t.date<=b;});
+  var exp=tx.filter(function(t){return t.type==='expense';}).reduce(function(s,t){return s+(+t.amt||0);},0);
+  var inc=tx.filter(function(t){return t.type==='income';}).reduce(function(s,t){return s+(+t.amt||0);},0);
+  if(tx.length)out.push({k:'재물',t:'거래 '+tx.length+'건 · 수입 '+won(inc)+' · 지출 '+won(exp)});
+  var us=((DB.study&&DB.study.units)||[]).filter(function(u){return u.day&&u.day>=a&&u.day<=b&&!u.backlog;});
+  if(us.length){var dn=us.filter(function(u){return u.status==='done';}).length;
+    out.push({k:'공부',t:'과제 '+dn+'/'+us.length+' 완료'});}
+  var dr=((DB.study&&DB.study.drills)||[]).filter(function(d){return d.date>=a&&d.date<=b;});
+  if(dr.length){var qn=dr.reduce(function(s,d){return s+(+d.n||0);},0);
+    out.push({k:'공부',t:'드릴 '+dr.length+'회 · '+qn+'문항'});}
+  var ws=((DB.health&&DB.health.weights)||[]).filter(function(w){return w.date>=a&&w.date<=b;});
+  if(ws.length){var f=ws[0],l=ws[ws.length-1];
+    out.push({k:'건강',t:'체중 '+ws.length+'회 · '+(+f.kg||0)+'→'+(+l.kg||0)+'kg'});}
+  var he=((DB.health&&DB.health.events)||[]).filter(function(e){return e.date>=a&&e.date<=b;});
+  he.forEach(function(e){out.push({k:'건강',t:(e.date||'').slice(5)+' '+(e.title||e.name||'')});});
+  var jn=(DB.journal||[]).filter(function(j){return j.date>=a&&j.date<=b;});
+  jn.forEach(function(j){out.push({k:'일지',t:(j.date||'').slice(5)+' '+(j.title||j.t||'')});});
+  return out;
+}
+/* 🙋 개입 — 로한만 기록한다(설계 §4). 무엇을 보고 움직였는지는 본인만 안다 */
+function sjNotesOf(fid,a,b){
+  return (SJ.notes||[]).filter(function(n){
+    return n.forecast_id===fid||(!n.forecast_id&&n.note_date>=a&&n.note_date<=b);});
+}
+/* ── 기간 또 상태 ● 검증완료 ◐ 진행중 ○ 예측완료 · 빈칸 ── */
+function sjState(v){
+  var r=sjRange(v), fs2=sjFcOf(v), td=todayStr();
+  if(!fs2.length)return {k:'none',ico:'·',lab:'예측 없음'};
+  var f=fs2[0], ev=(SJ.ev[f.id]||[]);
+  if(ev.length)return {k:'done',ico:'●',lab:'검증 완료',f:f};
+  if(r[1]<td)return {k:'due',ico:'◐',lab:'검증 대기',f:f};
+  if(r[0]<=td)return {k:'now',ico:'◐',lab:'진행 중',f:f};
+  return {k:'ahead',ico:'○',lab:'예측 완료',f:f};
+}
+
+/* ── 🔮 예측과 검증 — 세로 3단 ── */
+function sjBox(){
+  if(SJ.fc===null)return '<div class="sec"><h4>🔮 예측과 검증</h4>'
+    +'<div class="mut" style="font-size:11.5px;padding:8px 0">불러오는 중…</div></div>';
+  var v=sjSel(), r=sjRange(v), td=todayStr();
+  var fs2=sjFcOf(v), f=fs2[0]||null, ev=f?(SJ.ev[f.id]||[]):[];
+  var ended=(r[1]<td), started=(r[0]<=td);
+
+  /* 기간 고르기 — 월은 12칸, 년은 최근 6년 */
+  var picks='';
+  if(SJ.unit==='month'){
+    var y=v.slice(0,4);
+    for(var m=1;m<=12;m++){var mm=y+'-'+String(m).padStart(2,'0'),st=sjState(mm);
+      picks+='<button class="sjp'+(mm===v?' on':'')+'" onclick="sjPick(\''+mm+'\')" title="'+st.lab+'">'
+        +'<b>'+m+'월</b><span>'+st.ico+'</span></button>';}
+    picks='<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">'
+      +'<button class="ghost sm" onclick="sjPick(\''+(+y-1)+'-'+v.slice(5)+'\')">◀</button>'
+      +'<b style="font-size:14px">'+y+'년</b>'
+      +'<button class="ghost sm" onclick="sjPick(\''+(+y+1)+'-'+v.slice(5)+'\')">▶</button>'
+      +'<button class="ghost sm" style="margin-left:auto" onclick="sjPick(\''+todayStr().slice(0,7)+'\')">이번 달</button></div>'
+      +'<div class="sjpick">'+picks+'</div>';
+  }else{
+    var cy=+todayStr().slice(0,4);
+    for(var yy=cy-2;yy<=cy+3;yy++){var s2=sjState(''+yy);
+      picks+='<button class="sjp'+((''+yy)===v?' on':'')+'" onclick="sjPick(\''+yy+'\')" title="'+s2.lab+'">'
+        +'<b>'+yy+'</b><span>'+s2.ico+'</span></button>';}
+    picks='<div class="sjpick">'+picks+'</div>';
+  }
+
+  /* ── 1단 🔮 예측 ── */
+  var one;
+  if(!f){
+    one='<div class="mut" style="font-size:11.5px;padding:10px 0">'
+      +(ended?'이 기간엔 사전예측이 없다. 지나간 기간이라 <b>지금 써도 예측이 아니다</b>(timing=post).'
+        :'아직 예측이 없다. 사주방 로버트가 <code>saju_publish()</code> 로 쓴다.')
+      +'</div>';
+  }else{
+    var tm=SJ_TIMING[f.timing]||{l:f.timing||'-',t:''};
+    var st=(f.structured&&typeof f.structured==='object')?f.structured:null;
+    one='<div class="sjhd"><span class="sjwho">🔮 로버트 · 사전예측</span>'
+      +'<span class="mut" style="font-size:10.5px">'
+        +'🔒 v'+f.version+' · <span class="sjtm '+(f.timing||'')+'" title="'+mdEsc(tm.t)+'">'+tm.l+'</span>'
+        +' · '+String(f.locked_at||f.created_at||'').slice(0,10)+' 잠김</span></div>';
+    if(st){
+      one+='<div class="sjareas">'+SJ_AREAS.filter(function(k){return stNorm2(st[k]);}).map(function(k){
+        return '<div class="sjarea"><div class="sjak">'+k
+          +(SJ_JUDGED[k]?'':'<span class="mut" title="대조할 기록이 없어 판정하지 않는다"> 관찰</span>')+'</div>'
+          +'<div class="sjav">'+mdEsc(String(st[k]))+'</div></div>';}).join('')+'</div>';
+    }
+    one+='<div class="sjtext">'+mdEsc(f.content||'')+'</div>';
+    if(stNorm2(f.basis))one+='<div class="sjsub"><b>근거로 삼은 기록</b> — '+mdEsc(f.basis)+'</div>';
+    /* ⚖ 담당 방과 어긋나는 지점 — 설계 §0: 덮어쓰지 않고 드러낸다. 최종 판단은 로한이 */
+    if(stNorm2(f.conflict))one+='<div class="sjconf">⚖ <b>담당 방과 어긋나는 점</b><br>'+mdEsc(f.conflict)
+      +'<div class="mut" style="font-size:10px;margin-top:4px">사주는 예측할 뿐 지시하지 않는다. 최종 판단은 로한이 한다.</div></div>';
+    if(fs2.length>1)one+='<div class="mut" style="font-size:10px;margin-top:6px">이전 버전 '+(fs2.length-1)+'개가 그대로 남아 있다 — 고친 것이 아니라 덧쓴 것이다</div>';
+  }
+
+  /* ── 2단 📌 실제 기록 (파생) ── */
+  var real=sjReality(r[0], ended?r[1]:td);
+  var notes=f?sjNotesOf(f.id,r[0],r[1]).filter(function(n){return n.kind==='intervention';}):[];
+  var two='<div class="sjhd"><span class="sjwho">📌 실제 기록</span>'
+    +'<span class="mut" style="font-size:10.5px">로한북에서 가져온다 · 해석하지 않는다</span></div>';
+  two+=real.length
+    ? '<div class="sjreal">'+real.map(function(x){
+        return '<div class="sjr"><span class="sjrk">'+x.k+'</span><span>'+mdEsc(x.t)+'</span></div>';}).join('')+'</div>'
+    : '<div class="mut" style="font-size:11.5px;padding:8px 0">'+(started?'이 기간 기록이 없다.':'아직 오지 않은 기간이다.')+'</div>';
+  /* 🙋 개입 — 예측을 읽고 움직였으면 「불일치」가 된다. 그걸 가르려고 둔다(설계 §4) */
+  if(notes.length)two+='<div class="sjint">'+notes.map(function(n){
+    return '<div>🙋 <b>'+(n.note_date||'').slice(5)+'</b> '+mdEsc(n.body||'')+'</div>';}).join('')+'</div>';
+  /* 🔒 기간이 시작되기 전에도 연다 — 예측을 읽고 **미리** 움직이는 게 가장 값진 경우다.
+     started 로 막았더니 10월 예측을 9월에 읽고 손쓴 것을 기록할 수 없었다(t52-B9 가 잡았다) */
+  if(f)two+='<div style="margin-top:8px"><button class="ghost sm" onclick="sjIntModal(\''+f.id+'\')">🙋 이 예측을 보고 한 행동 기록</button>'
+    +'<div class="mut" style="font-size:10px;margin-top:3px">예측을 읽고 움직였다면 적어라 — 가만히 있을수록 맞는 시스템이 되면 안 된다</div></div>';
+
+  /* ── 3단 🔎 검수 — ⚠️ 기간이 안 끝났으면 **열지 않는다** ── */
+  var three='';
+  if(f&&ended){
+    three='<div class="sjhd"><span class="sjwho">🔎 수연 · 사후평가</span>'
+      +'<span class="mut" style="font-size:10.5px">'+(ev.length?String(ev[0].evaluated_at||'').slice(0,10):'대기')+'</span></div>';
+    if(ev.length){
+      three+='<div class="sjchips">'+ev.map(function(e){var V=SJ_VERDICT[e.verdict]||{l:e.verdict,c:'mut'};
+        return '<span class="sjv '+V.c+'" title="'+mdEsc(e.reasoning||'')+'">'+mdEsc(e.area)+' <b>'+V.l+'</b></span>';}).join('')+'</div>';
+      ev.forEach(function(e){
+        three+='<div class="sjev"><div class="sjak">'+mdEsc(e.area)+'</div>'
+          +(stNorm2(e.evidence)?'<div class="sjsub"><b>근거가 된 실제 기록</b> — '+mdEsc(e.evidence)+'</div>':'')
+          +(stNorm2(e.reasoning)?'<div class="sjav">'+mdEsc(e.reasoning)+'</div>':'')
+          +(e.hindsight_risk?'<div class="mut" style="font-size:10px;margin-top:3px">사후 끼워맞춤 여지: <b>'
+            +({low:'낮음',mid:'보통',high:'높음'}[e.hindsight_risk]||e.hindsight_risk)+'</b></div>':'')
+          +'</div>';});
+    }else if(f.timing==='post'){
+      three+='<div class="mut" style="font-size:11.5px;padding:8px 0">⚠️ 기간이 끝난 뒤에 쓴 글이라 <b>평가 대상이 아니다.</b></div>';
+    }else{
+      three+='<div class="mut" style="font-size:11.5px;padding:8px 0">기간이 끝났다. 수연의 검수를 기다린다 — <code>saju_due()</code></div>';
+    }
+  }
+
+  var st2=sjState(v);
+  return '<div class="sec">'
+   +'<div class="bkhd"><span class="subhd2">🔮 예측과 검증</span>'
+     +'<span class="seg sjunit"><button class="'+(SJ.unit==='month'?'on':'')+'" onclick="sjSetUnit(\'month\')">월운</button>'
+     +'<button class="'+(SJ.unit==='year'?'on':'')+'" onclick="sjSetUnit(\'year\')">연운</button></span></div>'
+   +(SJ.err?'<div class="stnudge" style="margin-bottom:8px">⚠️ '+mdEsc(SJ.err)+'</div>':'')
+   +picks
+   +'<div class="sjflow">'
+     +'<div class="sjstep one">'+one+'</div>'
+     +'<div class="sjarrow">▾</div>'
+     +'<div class="sjstep two">'+two+'</div>'
+     +(three?('<div class="sjarrow">▾</div><div class="sjstep three">'+three+'</div>'):'')
+   +'</div>'
+   +'<div class="mut" style="font-size:10.5px;margin-top:9px">'
+     +'로버트가 쓰고 잠그면 → 로한이 살고 → 수연이 검수한다. '
+     +'작성시각은 <b>서버가 정한다</b> — 뒤에서 바꿀 수 없다.</div>'
+   +'</div>';
+}
+/* 짧은 공백 검사 — stNorm 은 학습용이라 여기서 따로 둔다 */
+function stNorm2(v){return !!(v&&String(v).trim());}
+
+/* 🙋 개입 기록 — 🔒 로한만 쓴다. AI 가 추정하지 않는다 */
+function sjIntModal(fid){
+  openModal('<div class="mtop"><h3>🙋 예측을 보고 한 행동</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11px;margin-bottom:9px">예측을 읽고 움직였다면 여기 적는다. '
+     +'이걸 안 남기면 수연은 「예측이 틀렸다」고만 본다.</div>'
+   +'<div class="field"><label>어떻게 했나</label>'
+   +'<div class="seg" id="sjIntSeg">'
+     +'<button class="on" onclick="sjIntKind(this,\'acted\')">읽고 움직였다</button>'
+     +'<button onclick="sjIntKind(this,\'none\')">읽었지만 그대로 놓됐다</button>'
+     +'<button onclick="sjIntKind(this,\'unaware\')">예측과 무관하게 일어났다</button>'
+   +'</div></div>'
+   +'<div class="field"><label>내용</label><textarea id="sjIntBody" rows="3" placeholder="예: 예측 보고 10/02 카드값 선결제했다"></textarea></div>'
+   +'<div class="field"><label>날짜</label><input id="sjIntDate" value="'+todayStr()+'"></div>'
+   +'<button class="btn" style="width:100%" onclick="sjIntSave(\''+fid+'\')">기록</button>');
+  modal._sjik='acted';
+}
+function sjIntKind(b,k){modal._sjik=k;var bs=b.parentNode.querySelectorAll('button');
+  for(var i=0;i<bs.length;i++)bs[i].classList.remove('on');b.classList.add('on');}
+function sjIntSave(fid){
+  var body=(document.getElementById('sjIntBody').value||'').trim();
+  var d=(document.getElementById('sjIntDate').value||'').trim();
+  if(!body)return alert('내용을 적어라');
+  if(!isDateStr(d))return alert('날짜 형식이 아니다');
+  SB.from('saju_notes').insert({user_id:USER.id,note_date:d,kind:'intervention',
+    intervention:modal._sjik||'acted',forecast_id:fid,body:body})
+    .then(function(r){if(r.error)throw r.error;closeModal();logAct('🙋 사주 개입 기록 · '+d);save();sjLoad();})
+    .catch(function(e){alert('저장 실패: '+((e&&e.message)||e));});
+}
 function renderSaju(){
   var S=DB.saju,ig=S.ilgan,N=S.natal,cd=sajuCurDaeun(),curY=new Date().getFullYear();
   var selY=DB.ui.sajuYear||curY;
@@ -6500,8 +6784,11 @@ function renderSaju(){
    +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span></div></div>'
    +'<div class="sec" style="flex:1.5;min-width:300px;margin-bottom:0"><h4>대운 흐름</h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
    +'</div>'
+   /* 🔒 v4.20 — 명식·대운(공통 기준) 바로 아래가 이 페이지의 본문이다.
+      아래 세운·월별 격자는 **명리 참고표**로 내려간다 */
+   +sjBox()
    +'<div class="sajucols">'
-   +'<div class="sec sc"><h4>연도별 세운</h4><div class="scbody">'+yrs+'</div></div>'
+   +'<div class="sec sc"><h4>연도별 세운 <span class="mut" style="font-size:10px">명리 참고</span></h4><div class="scbody">'+yrs+'</div></div>'
    +'<div class="sec sc"><h4>'+selY+'년 월별</h4><div class="scbody">'+months+'</div></div>'
    +'<div class="sec sc"><h4>특이일 <span class="mut">'+ym+'</span></h4><div class="scbody">'+special+'</div></div>'
    +'</div>'
@@ -8445,13 +8732,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.19';
+var APP_VERSION='4.21';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.21',date:'2026-09-28',note:'<b>🔮 사주 — 「해석 보기」에서 「예측 → 현실 → 검증」으로.</b> 정본 <code>saju-design.md</code> · DB <code>db/20260928_saju_v2.sql</code>(0단계 적용 완료) · 로버트가 쓰고 잠그면 → 로한이 살고 → 수연이 검수한다 · 🔒 <b>세로 시간축이다 — EMR 과 정반대다.</b> 건강은 같은 <b>현재</b>를 두 AI 가 격리된 채 보니 좌우 2열이 맞았지만, 사주는 같은 <b>시간축</b>을 나눴 본다. 좌우로 놓으면 「두 AI 가 사주를 봐준다」로 오해된다 · 🔒 <b>기간이 안 끝났으면 검증 단을 열지 않는다</b> — 빈 칸은 「수연이 일을 안 했다」로 읽힌다 · 🔒 <b>실제 기록은 파생이다</b> — 거래·학습·건강은 이미 app_state 에 있다. saju_events 테이블을 만들지 않았다 · 🙋 <b>「개입」을 드러낸다</b> — 예측을 읽고 막으면 판정 4개로는 「불일치」가 된다. 그럼 <b>가만히 있을수록 맞는 시스템</b>이 된다 — 판정과 별개 축으로 두고 로한만 기록한다 · ⚠️ <b>[결함] 기간 시작 전엔 개입 기록 버튼이 안 뗴다</b> — 10월 예측을 9월에 읽고 <b>미리 손쓴 것</b>을 기록할 수 없었다. 그게 가장 값진 경우인데 막고 있었다(t53-B9 가 잡았다) · timing(사전·기간 중·사후)을 그대로 보여주고, <b>사후는 평가 대상이 아니라고 말한다</b> · 대조할 기록이 없는 영역(사업·관계·주의)은 「관찰」로 표시 — 예측은 하되 판정하지 않는다 · ⚖ 담당 방(생활·학습)과 어긋나는 점을 숨기지 않는다 — <b>사주는 예측할 뿐 지시하지 않고, 최종 판단은 로한이 한다</b> · 연도별 세운·월별 격자는 「명리 참고」로 내려갔다 · t53 신설 35건'},
   {v:'4.19',date:'2026-09-23',note:'<b>🧾 거래 모달을 동선대로 · 💴 금액은 절대 줄바꿈하지 않는다.</b> 로한: <i>"계정과목 바꾸고, 결제수단, 금액 쓰고 끝이라 사실 이게 기타부분(세무·세부계정과목·메모)보다 더 위에 와야 되는 거 아니냐."</i> · 🔎 <b>실측이 그렇다</b>(거래 1,052건): 메모 94건(9%) · 세부계정과목 <b>7건(0.7%)</b> · 세무 수동 <b>3건(0.3%)</b>. 매번 쓰는 것이 위, 가끔 쓰는 것이 아래 · 순서: 유형 → 대분류 → <b>계정과목 → 결제수단 → 금액 → 날짜</b> → 「기타」(접힘) · 🧾 <b>세무 구분은 계정과목에서 자동</b>으로 정해진다 — 카테고리의 <code>deductible</code>·<code>incType</code> 에서 파생한다. 4지선다는 「바꾸기」를 눌러야 나온다. 한번 직접 고르면 계정과목을 바꿔도 <b>자동이 덤지 않는다</b> · 📁 <b>세부계정과목은 재물로 등록할 때만 뜨다</b> — 그게 그 칸의 유일한 용도다(재물관리 카테고리). 식비·카페 같은 일회성 소비에선 매번 넘겨야 하는 빈 칸이었다 · 🔒 접어도 <b>요약은 보인다</b>(「사업 · 재물 등록 · 메모」) — 안 보이면 잘못 들어간 것을 영영 모른다. 수정하러 들어왔는데 기타에 값이 있으면 <b>펼쳐서</b> 열린다 · 금액칸을 18px 로 키우고 저장을 전폭으로 — 마지막으로 하는 일이다 · ⚠️ <b>[결함] 지출에서 카드를 고른 뒤 수입·이체로 바꾸면 결제 성격·할부 칸이 켜진 채 남았다</b> — methodChange 가 income 에서 early return 이라 끄지 않았다. 수입에 카드값·할부는 없다 · 💴 <b>[결함] 금액이 길어지면 통계칸에서 숫자가 두 줄로 쪼개졌다</b>(로한: 「극혐」). nowrap 을 박았더니 이번엔 가로로 잘렸다(1180px 에서 57px 넘침) — 잘라내는 건 더 나쁘다. → 폭이 모자라면 <b>월 네비를 위로 빼 전폭을 쓰고</b>(1520px↓), 그래도 모자라면 <b>3열 2줄</b>로 눠힌다(1300px↓). 360~1920px 전 구간에서 줄바꿈·잘림 0 으로 잠갔다(t51-G) · t51 신설 44건'},
   {v:'4.18',date:'2026-09-23',note:'<b>🗓️ 월별 예산 이력 · 0원 예산은 「예산 없음」이 아니다.</b> 생활방 v2 핸드오프 반영 · 생활방: <i>"budgets 는 월 구분 없는 평면 객체다. <b>예산을 바꾸면 과거 기준이 사라진다.</b>"</i> · 🔎 실제로 그러됐다 — 9/23 생활방이 예산을 전면 개정(식비 300,000→170,000 · 교통비 30,000→20,000 등)하자 <b>9월 실적이 10월용 예산으로 재단돼 거의 전부 초과로 보인다</b> · 🗝️ <b>budgetsM[YYYY-MM]</b> — 그 달 확정 예산. 있으면 그것, 없으면 기준값을 쓴다 · 🔒 <b>budgets 를 월별로 쪼개지 않았다</b>(생활방 제안은 budgets:{「2026-10」:{…}}) — 기준값을 남겨야 새 달이 그걸 이어받고, 옛 백업 복원도 그대로 돌아간다 · 🔒 <b>기준을 바꾸면 지난 달들을 옛 값으로 자동으로 굳힌다</b> — 버튼을 누르게 만들면 안 누른다. 그럼 과거가 또 사라진다. 이번 달과 미래는 안 굳힌다(진행 중이라 기준을 따라가는 게 맞다) · 상단에 <b>「이 달로 고정」/「고정 해제」</b> 버튼과 「이 달 확정 예산/기준 예산」 배지 · 고정된 달을 보며 고치면 <b>그 달만</b> 바뀜다 — 지난 달 숨자를 고치다가 앞으로 쓸 기준까지 바꾸면 안 된다 · 🔴 <b>[결함·v4.17] 0원 예산을 「예산 없음」으로 봤다.</b> 생활방이 선물을 <b>일부러 0</b> 으로 둔다(「경조사 시 조정」) — 그건 <b>쓰지 말라는 선언</b>인데 화면에서 사라졌다. → <b>빈칸 = 예산 없음 · 0 = 0원 예산</b>. 0원인데 쓰면 초과로 뜨고 「쓰면 안 된다」고 적는다 · t50 34건 → <b>49건</b>(월별 이력 9 · 0원 예산 6)'},
   {v:'4.17',date:'2026-09-23',note:'<b>🗝️ 예산 현실화 — 월 전환 · 생활방 한마디 · 2·3열 컴팩트.</b> 로한: <i>"예산 영역을 현실화하는 거다. 그 방은 로버트(생활)이 담당하고 <b>그도 조정 권한을 갖고 있다.</b> 상단에 월을 바꿀 수 있게 하고, 로버트가 한마디 남길 공간을 만들고, 한 줄로 쫑 만들지 말고 2,3줄로 컴팩트하게 스크롤 없이 현황이 보이게."</i> · 🔎 <b>실측이 문제를 바꿨다</b> — 지출 분류 32개 중 예산이 잡힌 건 <b>11개뿐</b>인데, 예산 밖에서 1,465,905원이 나갔다 — 예산 합계(1,373,000)보다 많다. 예산을 안 지트 게 아니라 <b>예산이 현실을 안 덩고 있었다</b> · 🔴 <b>옛 화면은 그걸 볼 수 없게 독해했다</b> — ’예산 합계 − <b>총지출</b>’을 ’예산 잔여’라 불렀다. 예산 밖 지출까지 뺀 값이라 <b>예산을 다 지켜도 ’초과’로 뜨는다</b>. 숫자는 맞지만 이름이 거짓이었다 → 안/밖을 갈랐다 · 상단 ◀ ▶ 월 전환 + 통계 6칸(예산합계·예산안·잔여·예산밖·총지출·예산안 비중) · 🔒 월은 재정 탭 전체가 공유한다(<code>ui.month</code>) — 따로 두면 ’예산은 8월인데 가계부는 9월’인 화면이 생긴다 · 🔒 <b>예산값은 달마다 다르지 않다 — 기준값 하나다.</b> 월을 바꾸면 ’지금 예산을 그 달 실적에 대본 것’이다 — 새 예산안을 지난 달로 검산하라고 그렇게 둔다. 화면에 그렇게 적어둔다 · 💬 <b>로버트(생활) 한마디</b> — <code>budgetNote["YYYY-MM"]</code>. 앱은 <b>읽기만</b> 한다(학습 캘린더의 학습방 멘트와 같은 규칙) · 분류를 <b>예산 안 / 예산 밖 / 조용한 것</b> 으로 갈랐다. 예산 밖 칸에 예산을 넣으면 위로 올라간다 — <b>거기가 현실화의 작업대다</b> · 정렬은 <b>초과가 큰 순</b> · 조용한 분류는 숨기지 않고 개수를 적어 <b>접어둔다</b> · 예산칸에 0 을 넣으면 <b>키를 지운다</b> — ’0원 예산’과 ’예산 없음’은 다른 말이다(빈 서랍 금지) · ⚠️ <b>[결함] 모바일 CSS 규칙을 기본 정의 앞에 둔 탓에 400px 에서 3열이 그대로 나와 입력칸이 잘렸다</b> — 미디어쿼리는 구체성을 안 올린다. 같으면 뒤가 이긴다 → 기본 정의 바로 뒤로 옮겼고, t50-C2·C3 으로 잠금 · t50 신설 34건(실데이터 32분류 그대로)'},
@@ -10349,7 +10637,7 @@ function delTxn(id){
    (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
 var VIEW_RENDER={emr:emrOpen,daily:renderDaily,goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
   acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,insu:renderInsu,
-  saju:renderSaju,journal:renderJournal,items:renderItems,log:renderLog,study:renderStudy};
+  saju:sajuOpen,journal:renderJournal,items:renderItems,log:renderLog,study:renderStudy};
 
 /* ====== 이벤트 ====== */
 /* v2.5 ⇔ 메뉴 텍스트를 아이콘/글자로 가른다. 접을 때 글자만 숨기면 된다.
