@@ -739,6 +739,17 @@ textarea.mla.same{background:#f2f9f4}
 .sjv.pos{background:#e3f4ea;color:#1f7a45}.sjv.warn{background:#fdf1d8;color:#8a6d16}
 .sjv.neg{background:#fde2e2;color:#a32d2d}
 .sjev{border-top:1px solid var(--line);padding-top:7px;margin-top:7px}
+/* ══ v4.22 🗓 「이미 알고 있던 것」 ══
+   수연: "예측된 사건과 이미 예정되어 있던 사건을 반드시 분리해야 해."
+   🔒 예측문과 **다른 색·다른 칸**으로 둔다. 같은 칸에 넣으면 읽는 순간 적중으로 착각한다.
+      회색이다 — 자랑거리가 아니라 **차감 항목**이다. */
+.sjknown{margin-bottom:9px;background:#eef2f7;border:1px dashed #b9c4d2;border-radius:9px;
+  padding:7px 10px;font-size:11.5px;line-height:1.65;color:#4a5568}
+.sjknown b{font-size:10.5px;color:var(--muted)}
+/* 🔒 legacy = 서버가 작성시각을 못 봤다. 배지로 낙인을 드러낸다 */
+.sjlgc{font-size:10px;font-weight:800;background:#fdf1d8;color:#8a6d16;border-radius:4px;padding:1px 5px}
+/* known 과 겹치는 적중은 색을 주지 않는다 — 달력을 읽은 것이다 */
+.sjv.cal{background:#eef2f7;color:var(--muted);text-decoration:line-through}
 @media(max-width:900px){
   .sjpick{grid-template-columns:repeat(6,minmax(0,1fr))}
   .sjareas{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -6540,6 +6551,13 @@ var SJ_VERDICT={hit:{l:'적중',c:'pos'},partial:{l:'부분 적중',c:'warn'},
 var SJ_TIMING={prior:{l:'사전',t:'기간 시작 전에 잠김 — 온전한 사전예측'},
   mid:{l:'기간 중',t:'기간이 시작된 뒤에 잠김 — 부분 사후다'},
   post:{l:'사후',t:'기간이 끝난 뒤에 잠김 — 예측이 아니다. 평가하지 않는다'}};
+/* 🔒 timing 을 누가 보증하나 — 서버가 본 것과 자기신고를 섞지 않는다(설계 §15) */
+var SJ_TRUST={server:'DB 가 작성시각을 직접 봤다',
+  self:'legacy — 서버가 작성시각을 보지 못했다. 「그때 썼다」는 본인 신고다'};
+/* known 과 겹치는 적중 — 🔒 달력을 읽은 것은 적중이 아니다(설계 §15) */
+var SJ_OVL={none:{l:'',t:''},
+  partial:{l:' ~겹침',t:'이미 알던 일정과 일부 겹친다 — 그만큼 깎아서 읽어라'},
+  full:{l:' 달력',t:'이미 알던 일정과 완전히 겹친다 — 예측이 아니라 달력을 읽은 것이다'}};
 
 function sjSel(){
   var v=(DB.ui&&DB.ui.sjSel)||'';
@@ -6658,7 +6676,18 @@ function sjBox(){
     one='<div class="sjhd"><span class="sjwho">🔮 로버트 · 사전예측</span>'
       +'<span class="mut" style="font-size:10.5px">'
         +'🔒 v'+f.version+' · <span class="sjtm '+(f.timing||'')+'" title="'+mdEsc(tm.t)+'">'+tm.l+'</span>'
-        +' · '+String(f.locked_at||f.created_at||'').slice(0,10)+' 잠김</span></div>';
+        /* 🔒 서버가 작성시각을 봤나, 아니면 자기신고인가. 섞어 보여주면 legacy 가 사전예측으로 읽힌다 */
+        +(f.legacy?' <span class="sjlgc" title="'+mdEsc(SJ_TRUST.self)+'">자기신고 '
+            +String(f.declared_at||'').slice(0,10)+'</span>'
+          :' · '+String(f.locked_at||f.created_at||'').slice(0,10)+' 잠김')
+      +'</span></div>';
+    /* ── 🗓 이미 알고 있던 것 — 🔒 **예측문 위에, 다른 칸으로.**
+       수연: "예측된 사건과 이미 예정되어 있던 사건을 반드시 분리해야 해."
+       확인된 사례: 9/30 예측에 ★풍무점 2차 설명회 가 들어 있었다. 그건 명리가 아니라 달력이다.
+       위에 두는 이유 — 예측문을 먼저 읽으면 이미 「맞췄다」로 각인된 뒤다. */
+    if(stNorm2(f.known))one+='<div class="sjknown">🗓 <b>예측 시점에 이미 알고 있던 일정</b><br>'
+      +mdEsc(f.known)
+      +'<div class="mut" style="font-size:10px;margin-top:4px">이건 예측이 아니다. 이 일이 실제로 일어나도 <b>적중으로 세지 않는다.</b></div></div>';
     if(st){
       one+='<div class="sjareas">'+SJ_AREAS.filter(function(k){return stNorm2(st[k]);}).map(function(k){
         return '<div class="sjarea"><div class="sjak">'+k
@@ -6696,12 +6725,19 @@ function sjBox(){
     three='<div class="sjhd"><span class="sjwho">🔎 수연 · 사후평가</span>'
       +'<span class="mut" style="font-size:10.5px">'+(ev.length?String(ev[0].evaluated_at||'').slice(0,10):'대기')+'</span></div>';
     if(ev.length){
+      /* 🔒 known 과 완전히 겹치는 적중은 **색을 주지 않는다.** 달력을 읽은 것이다(설계 §15).
+         칩만 초록으로 두면 화면이 「맞췄다」고 거짓말한다 — 숨기면 거짓말이 아니라 칠하면 거짓말이다. */
       three+='<div class="sjchips">'+ev.map(function(e){var V=SJ_VERDICT[e.verdict]||{l:e.verdict,c:'mut'};
-        return '<span class="sjv '+V.c+'" title="'+mdEsc(e.reasoning||'')+'">'+mdEsc(e.area)+' <b>'+V.l+'</b></span>';}).join('')+'</div>';
+        var O=SJ_OVL[e.known_overlap]||SJ_OVL.none, cal=(e.known_overlap==='full');
+        return '<span class="sjv '+(cal?'cal':V.c)+'" title="'
+          +mdEsc((O.t?O.t+' / ':'')+(e.reasoning||''))+'">'+mdEsc(e.area)+' <b>'+V.l+'</b>'+O.l+'</span>';}).join('')+'</div>';
       ev.forEach(function(e){
         three+='<div class="sjev"><div class="sjak">'+mdEsc(e.area)+'</div>'
           +(stNorm2(e.evidence)?'<div class="sjsub"><b>근거가 된 실제 기록</b> — '+mdEsc(e.evidence)+'</div>':'')
           +(stNorm2(e.reasoning)?'<div class="sjav">'+mdEsc(e.reasoning)+'</div>':'')
+          +(e.known_overlap&&e.known_overlap!=='none'
+            ?'<div class="sjsub">🗓 <b>이미 알던 일정과 '+(e.known_overlap==='full'?'완전히':'일부')+' 겹친다</b> — '
+              +mdEsc((SJ_OVL[e.known_overlap]||{}).t||'')+'</div>':'')
           +(e.hindsight_risk?'<div class="mut" style="font-size:10px;margin-top:3px">사후 끼워맞춤 여지: <b>'
             +({low:'낮음',mid:'보통',high:'높음'}[e.hindsight_risk]||e.hindsight_risk)+'</b></div>':'')
           +'</div>';});
@@ -6727,7 +6763,8 @@ function sjBox(){
    +'</div>'
    +'<div class="mut" style="font-size:10.5px;margin-top:9px">'
      +'로버트가 쓰고 잠그면 → 로한이 살고 → 수연이 검수한다. '
-     +'작성시각은 <b>서버가 정한다</b> — 뒤에서 바꿀 수 없다.</div>'
+     +'작성시각은 <b>서버가 정한다</b> — 뒤에서 바꿀 수 없다. '
+     +'<b>이미 알던 일정(🗓)은 적중으로 세지 않는다</b> — 그건 달력이다.</div>'
    +'</div>';
 }
 /* 짧은 공백 검사 — stNorm 은 학습용이라 여기서 따로 둔다 */
@@ -8732,13 +8769,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.21';
+var APP_VERSION='4.22';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.22',date:'2026-09-28',note:'<b>🗓 사주 — 「이미 알고 있던 일정」을 예측과 갈랐다.</b> DB <code>db/20260928b_saju_known.sql</code>(적용 완료) · 검수자 수연의 지적을 반영했고 <b>두 건 다 실제 데이터에서 확인했다</b> · ⚠️ <b>[결함] 로버트의 예측문에 이미 확정된 일정이 섞여 있었다</b> — 9/30 예측에 ★풍무점 2차 설명회가, jw-plan 에 「9월 중요일정: 9/3 진료, 9/6 결혼, 9/19·9/30 설명회」가 그대로 있다. 그 일이 실제로 열리면 <b>적중으로 세어진다. 그건 명리가 아니라 달력이다</b> — 검증 전체가 무의미해진다 · 🔒 세 가지를 가른다 — <b>이미 알던 것(known) / 명리로 예측한 것 / 실제 일어난 것(파생)</b> · 🔒 <b>잠그려면 known 을 밝혀야 한다</b> — 없으면 「없음」이라고 쓴다(빈 서랍 금지). 비워 두면 수연이 적중과 달력 읽기를 가를 수 없다 · 🔒 <b>적중으로 판정하려면 known_overlap 을 밝혀야 한다</b> — 겹치면 칩에 색을 주지 않고 취소선을 긋는다. <b>칠하면 거짓말이다</b> · 🔒 화면에선 known 을 <b>예측문 위, 다른 칸(회색 점선)</b>에 둔다 — 예측문을 먼저 읽으면 이미 「맞췄다」로 각인된 뒤다 · 🆕 <b>legacy 경로</b> — 기존 readings 49건은 지금 넣으면 전부 timing=post 가 되어 평가가 거부된다. 그렇다고 「사실 8월에 썼다」를 믿고 사전예측으로 찍으면 서버 보증이 무의미해진다 → 섞지 않고 <b>낙인</b>한다: 자기신고 declared_at 으로 timing 을 재고 <code>timing_trust=self</code> 로 박는다(server 와 통계에서 분리) · 🔒 legacy 낙인은 지울 수 없다 — 트리거가 되돌린다 · ⚠️ <b>[결함] guard 가 UPDATE 에만 걸려 있었다</b> — saju_publish 는 INSERT 로 바로 locked 를 넣으니 INSERT 경로가 뚫려 있었다 → insert or update 로 바꿨다 · 롤백 드라이런 11건 전부 통과(흔적 0건) · 수연의 「테이블이 조회되지 않는다」는 사실이 아니다 — 테이블 3·트리거 7·함수 11 다 있고 <b>행이 0건</b>이다. 로버트가 아직 한 건도 안 썼다'},
   {v:'4.21',date:'2026-09-28',note:'<b>🔮 사주 — 「해석 보기」에서 「예측 → 현실 → 검증」으로.</b> 정본 <code>saju-design.md</code> · DB <code>db/20260928_saju_v2.sql</code>(0단계 적용 완료) · 로버트가 쓰고 잠그면 → 로한이 살고 → 수연이 검수한다 · 🔒 <b>세로 시간축이다 — EMR 과 정반대다.</b> 건강은 같은 <b>현재</b>를 두 AI 가 격리된 채 보니 좌우 2열이 맞았지만, 사주는 같은 <b>시간축</b>을 나눴 본다. 좌우로 놓으면 「두 AI 가 사주를 봐준다」로 오해된다 · 🔒 <b>기간이 안 끝났으면 검증 단을 열지 않는다</b> — 빈 칸은 「수연이 일을 안 했다」로 읽힌다 · 🔒 <b>실제 기록은 파생이다</b> — 거래·학습·건강은 이미 app_state 에 있다. saju_events 테이블을 만들지 않았다 · 🙋 <b>「개입」을 드러낸다</b> — 예측을 읽고 막으면 판정 4개로는 「불일치」가 된다. 그럼 <b>가만히 있을수록 맞는 시스템</b>이 된다 — 판정과 별개 축으로 두고 로한만 기록한다 · ⚠️ <b>[결함] 기간 시작 전엔 개입 기록 버튼이 안 뗴다</b> — 10월 예측을 9월에 읽고 <b>미리 손쓴 것</b>을 기록할 수 없었다. 그게 가장 값진 경우인데 막고 있었다(t53-B9 가 잡았다) · timing(사전·기간 중·사후)을 그대로 보여주고, <b>사후는 평가 대상이 아니라고 말한다</b> · 대조할 기록이 없는 영역(사업·관계·주의)은 「관찰」로 표시 — 예측은 하되 판정하지 않는다 · ⚖ 담당 방(생활·학습)과 어긋나는 점을 숨기지 않는다 — <b>사주는 예측할 뿐 지시하지 않고, 최종 판단은 로한이 한다</b> · 연도별 세운·월별 격자는 「명리 참고」로 내려갔다 · t53 신설 35건'},
   {v:'4.19',date:'2026-09-23',note:'<b>🧾 거래 모달을 동선대로 · 💴 금액은 절대 줄바꿈하지 않는다.</b> 로한: <i>"계정과목 바꾸고, 결제수단, 금액 쓰고 끝이라 사실 이게 기타부분(세무·세부계정과목·메모)보다 더 위에 와야 되는 거 아니냐."</i> · 🔎 <b>실측이 그렇다</b>(거래 1,052건): 메모 94건(9%) · 세부계정과목 <b>7건(0.7%)</b> · 세무 수동 <b>3건(0.3%)</b>. 매번 쓰는 것이 위, 가끔 쓰는 것이 아래 · 순서: 유형 → 대분류 → <b>계정과목 → 결제수단 → 금액 → 날짜</b> → 「기타」(접힘) · 🧾 <b>세무 구분은 계정과목에서 자동</b>으로 정해진다 — 카테고리의 <code>deductible</code>·<code>incType</code> 에서 파생한다. 4지선다는 「바꾸기」를 눌러야 나온다. 한번 직접 고르면 계정과목을 바꿔도 <b>자동이 덤지 않는다</b> · 📁 <b>세부계정과목은 재물로 등록할 때만 뜨다</b> — 그게 그 칸의 유일한 용도다(재물관리 카테고리). 식비·카페 같은 일회성 소비에선 매번 넘겨야 하는 빈 칸이었다 · 🔒 접어도 <b>요약은 보인다</b>(「사업 · 재물 등록 · 메모」) — 안 보이면 잘못 들어간 것을 영영 모른다. 수정하러 들어왔는데 기타에 값이 있으면 <b>펼쳐서</b> 열린다 · 금액칸을 18px 로 키우고 저장을 전폭으로 — 마지막으로 하는 일이다 · ⚠️ <b>[결함] 지출에서 카드를 고른 뒤 수입·이체로 바꾸면 결제 성격·할부 칸이 켜진 채 남았다</b> — methodChange 가 income 에서 early return 이라 끄지 않았다. 수입에 카드값·할부는 없다 · 💴 <b>[결함] 금액이 길어지면 통계칸에서 숫자가 두 줄로 쪼개졌다</b>(로한: 「극혐」). nowrap 을 박았더니 이번엔 가로로 잘렸다(1180px 에서 57px 넘침) — 잘라내는 건 더 나쁘다. → 폭이 모자라면 <b>월 네비를 위로 빼 전폭을 쓰고</b>(1520px↓), 그래도 모자라면 <b>3열 2줄</b>로 눠힌다(1300px↓). 360~1920px 전 구간에서 줄바꿈·잘림 0 으로 잠갔다(t51-G) · t51 신설 44건'},
   {v:'4.18',date:'2026-09-23',note:'<b>🗓️ 월별 예산 이력 · 0원 예산은 「예산 없음」이 아니다.</b> 생활방 v2 핸드오프 반영 · 생활방: <i>"budgets 는 월 구분 없는 평면 객체다. <b>예산을 바꾸면 과거 기준이 사라진다.</b>"</i> · 🔎 실제로 그러됐다 — 9/23 생활방이 예산을 전면 개정(식비 300,000→170,000 · 교통비 30,000→20,000 등)하자 <b>9월 실적이 10월용 예산으로 재단돼 거의 전부 초과로 보인다</b> · 🗝️ <b>budgetsM[YYYY-MM]</b> — 그 달 확정 예산. 있으면 그것, 없으면 기준값을 쓴다 · 🔒 <b>budgets 를 월별로 쪼개지 않았다</b>(생활방 제안은 budgets:{「2026-10」:{…}}) — 기준값을 남겨야 새 달이 그걸 이어받고, 옛 백업 복원도 그대로 돌아간다 · 🔒 <b>기준을 바꾸면 지난 달들을 옛 값으로 자동으로 굳힌다</b> — 버튼을 누르게 만들면 안 누른다. 그럼 과거가 또 사라진다. 이번 달과 미래는 안 굳힌다(진행 중이라 기준을 따라가는 게 맞다) · 상단에 <b>「이 달로 고정」/「고정 해제」</b> 버튼과 「이 달 확정 예산/기준 예산」 배지 · 고정된 달을 보며 고치면 <b>그 달만</b> 바뀜다 — 지난 달 숨자를 고치다가 앞으로 쓸 기준까지 바꾸면 안 된다 · 🔴 <b>[결함·v4.17] 0원 예산을 「예산 없음」으로 봤다.</b> 생활방이 선물을 <b>일부러 0</b> 으로 둔다(「경조사 시 조정」) — 그건 <b>쓰지 말라는 선언</b>인데 화면에서 사라졌다. → <b>빈칸 = 예산 없음 · 0 = 0원 예산</b>. 0원인데 쓰면 초과로 뜨고 「쓰면 안 된다」고 적는다 · t50 34건 → <b>49건</b>(월별 이력 9 · 0원 예산 6)'},

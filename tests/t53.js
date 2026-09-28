@@ -5,7 +5,13 @@
       ② 기간이 안 끝났으면 3단(검증)을 **열지 않는다** — 빈 칸은 "수연이 일을 안 했다"로 읽힌다
       ③ 실제 기록은 **파생**이다. saju_* 에 복사하지 않는다(설계 §8)
       ④ 「개입」을 드러낸다 — 예측을 읽고 막으면 「불일치」가 되는 문제(설계 §4)
-      ⑤ timing(prior/mid/post)을 그대로 보여준다. post 는 평가 대상이 아니라고 말한다 */
+      ⑤ timing(prior/mid/post)을 그대로 보여준다. post 는 평가 대상이 아니라고 말한다
+   🔒 v4.22 (db/20260928b_saju_known.sql · 설계 §15) — 검수자 수연의 지적
+      ⑥ 「이미 알고 있던 일정」은 예측문과 **다른 칸**이고, **예측문 위**에 온다.
+         아래 두면 예측문을 먼저 읽고 「맞췄다」로 각인된 뒤다.
+      ⑦ known 과 완전히 겹치는 적중은 **색을 주지 않는다** — 달력을 읽은 것이다.
+         숨기면 거짓말이 아니라 **칠하면 거짓말**이다.
+      ⑧ legacy 는 「자기신고」 배지를 달고 「잠김」이라고 하지 않는다 — 서버가 시각을 못 봤다 */
 const {chromium}=require('playwright');
 const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 const FILE=process.argv[2]||path.join(__dirname,'..','index.html');
@@ -16,7 +22,16 @@ const FC=[
   content:'丁酉월 — 정관이 들어오는 달.',
   structured:{'재물':'10월 중순 자금 압박 가능','공부':'마감·제출이 맞는 달','관계':'경조사 지출 주의'},
   basis:'거래 9월 163건 · 학습 과제 43건',
+  /* 🔴 실제 데이터에서 확인된 문제 — 9/30 예측에 ★풍무점 2차 설명회가 들어 있었다.
+     그 일이 열리면 적중으로 세어진다. 그건 명리가 아니라 달력이다. */
+  known:'9/30 풍무점 2차 설명회(1차 9/19 의 후속, 확정) · 10/3 개천절 연휴',
   conflict:'명리는 확장운. 생활방은 긴축 중.'},
+ /* 🔒 legacy — 서버가 작성시각을 못 봤다. 자기신고 declared_at 으로 timing 을 쟀다 */
+ {id:'f-lgc',period_type:'month',target_start:'2026-07-01',target_end:'2026-07-31',version:1,
+  status:'locked',timing:'prior',timing_trust:'self',legacy:true,declared_at:'2026-06-20',
+  locked_at:'2026-09-28T03:00:00Z',created_at:'2026-09-28T03:00:00Z',
+  content:'7월 — 겁재의 달. 루틴이 무너질 수 있다.',known:'없음(legacy — 당시 기록이 남아 있지 않다)',
+  structured:{'재물':'지출 관리가 흔들린다'}},
  {id:'f-aug',period_type:'month',target_start:'2026-08-01',target_end:'2026-08-31',version:1,
   status:'locked',timing:'prior',locked_at:'2026-07-28T00:00:00Z',created_at:'2026-07-28T00:00:00Z',
   content:'乙未월 — 겁재가 강한 달.',structured:{'재물':'지출이 새는 달'}},
@@ -27,12 +42,16 @@ const FC=[
  /* 같은 기간 v2 — 옛 버전이 남는다 */
  {id:'f-aug2',period_type:'month',target_start:'2026-08-01',target_end:'2026-08-31',version:2,
   status:'locked',timing:'mid',locked_at:'2026-08-05T00:00:00Z',created_at:'2026-08-05T00:00:00Z',
-  content:'8월 v2 — 보강',structured:{'재물':'지출이 새는 달(보강)'}}];
+  content:'8월 v2 — 보강',known:'8월엔 확정된 일정이 없었다',
+  structured:{'재물':'지출이 새는 달(보강)'}}];
 const EV=[
  {id:'e1',forecast_id:'f-aug2',area:'재물',verdict:'hit',evaluated_at:'2026-09-01T00:00:00Z',
-  evidence:'8월 거래 155건 · 생활용품 577,778',reasoning:'구체적 수치와 대응한다.',hindsight_risk:'mid'},
+  evidence:'8월 거래 155건 · 생활용품 577,778',reasoning:'구체적 수치와 대응한다.',hindsight_risk:'mid',
+  /* 🔒 이미 알던 일정과 완전히 겹친다 → 적중이라고 칠하면 거짓말이다 */
+  known_overlap:'full'},
  {id:'e2',forecast_id:'f-aug2',area:'공부',verdict:'partial',evaluated_at:'2026-09-01T00:00:00Z',
-  evidence:'8월 학습 기록 없음',reasoning:'대조할 기록이 적다.',hindsight_risk:'high'}];
+  evidence:'8월 학습 기록 없음',reasoning:'대조할 기록이 적다.',hindsight_risk:'high',
+  known_overlap:'none'}];
 const NOTES=[
  {id:'n1',note_date:'2026-10-02',kind:'intervention',intervention:'acted',forecast_id:'f-oct',
   body:'예측 보고 카드값 선결제 47만'}];
@@ -158,6 +177,39 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('H1 saju_notes 에 저장한다',ins.length===1&&ins[0].row.kind==='intervention',JSON.stringify(ins[0]||{}));
  ok('H2 기본값은 「읽고 움직였다」',ins.length===1&&ins[0].row.intervention==='acted',JSON.stringify(ins[0]&&ins[0].row));
  ok('H3 예측과 묶인다',ins.length===1&&ins[0].row.forecast_id==='f-oct');
+
+ /* ── I) 🗓 이미 알고 있던 일정 — 🔒 예측과 가른다 (v4.22 · 수연의 지적) ── */
+ await pick('2026-10'); t=await txt();
+ ok('I1 known 칸이 있다',(await q('.sjknown'))===1,String(await q('.sjknown')));
+ ok('I2 풍무 설명회가 known 칸 안에 있다',
+    await p.evaluate(()=>/풍무/.test((document.querySelector('#v-saju .sjknown')||{}).textContent||'')));
+ /* 🔒 예측문 **위**여야 한다. 아래 두면 이미 「맞췄다」로 각인된 뒤다 */
+ const kpos=await p.evaluate(()=>{
+   const k=document.querySelector('#v-saju .sjknown'), x=document.querySelector('#v-saju .sjtext');
+   if(!k||!x)return null;
+   return {above:k.getBoundingClientRect().bottom<=x.getBoundingClientRect().top+2};});
+ ok('I3 known 이 예측문 위에 온다',kpos&&kpos.above,JSON.stringify(kpos));
+ ok('I4 적중으로 세지 않는다고 못 박는다',/적중으로 세지 않는다/.test(t));
+ /* 🔒 known 은 예측문 안에 섞이지 않는다 — 같은 칸이면 가른 의미가 없다 */
+ ok('I5 예측 본문엔 known 이 섞이지 않는다',
+    await p.evaluate(()=>!/풍무/.test((document.querySelector('#v-saju .sjtext')||{}).textContent||'')));
+
+ /* ── J) 달력 읽기는 적중으로 칠하지 않는다 ── */
+ await pick('2026-08'); t=await txt();
+ ok('J1 겹치는 적중엔 적중 색을 주지 않는다',(await q('.sjv.cal'))===1,String(await q('.sjv.cal')));
+ ok('J2 그 칩엔 초록(적중) 색이 없다',(await q('.sjv.pos'))===0,String(await q('.sjv.pos')));
+ ok('J3 칩에 「달력」이라고 적는다',/달력/.test(t));
+ ok('J4 본문에도 겹침을 적는다',/이미 알던 일정과 완전히 겹친다/.test(t.replace(/s+/g,' ')));
+ /* 겹치지 않는 판정은 그대로 색을 준다 — 전부 회색이 되면 그것도 거짓말이다 */
+ ok('J5 겹치지 않는 판정은 색을 유지한다',(await q('.sjv.warn'))===1,String(await q('.sjv.warn')));
+
+ /* ── K) legacy 낙인 — 서버가 시각을 못 봤다 ── */
+ await pick('2026-07'); t=await txt();
+ ok('K1 자기신고 배지가 뜬다',(await q('.sjlgc'))===1,String(await q('.sjlgc')));
+ ok('K2 신고한 작성일을 적는다',/2026-06-20/.test(t));
+ /* 🔒 「잠김」이라고 하면 서버가 본 것처럼 읽힌다 */
+ ok('K3 「잠김」이라고 하지 않는다',!/잠김/.test(t),t.slice(0,0));
+ ok('K4 그래도 예측은 보인다',/겁재의 달/.test(t));
 
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
