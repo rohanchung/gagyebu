@@ -49,7 +49,7 @@ const POSTS=[
  {id:'p8',ym:'2026-08',member:'robert-life',kind:'review',status:'ok',parent_id:null,
   summary:'8월 총평이다.',own:'8월',others:null,ask:null,submitted_at:'2026-08-31T10:00:00Z'}];
 
-const FACTS={ym:'2026-09','거래건수':183,'지출':5432100,'학습과제':42,'과제완료':25,
+const FACTS={ym:'2026-09','거래건수':183,'수입':3342106,'지출':5432100,'학습과제':42,'과제완료':25,
  '드릴':18,'시험':3,'체크한날':25,'체중기록':5,'EMR턴':4,'일지':1,'로그':0,
  '주의':'「기록 없음」은 「하지 않음」이 아니다.'};
 
@@ -129,7 +129,7 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  /* 🔒 앱이 따로 세지 않는다 — DB 함수를 부른다(같은 질문에 답하는 함수는 하나) */
  const rpc=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='agora_facts'));
  ok('C1 agora_facts 를 DB 에서 가져온다',rpc.length>=1&&rpc[0].args.p_ym==='2026-09',JSON.stringify(rpc[0]||{}));
- ok('C2 숫자 칸 9개',(await q('.agf'))===9,String(await q('.agf')));
+ ok('C2 숫자 칸 10개',(await q('.agf'))===10,String(await q('.agf')));
  /* 🔒 0 을 드러낸다 — 로그 0 건이 첫 달 지적거리다 */
  ok('C3 0 인 칸을 빨갛게 드러낸다',(await q('.agf.zero'))===1,String(await q('.agf.zero')));
  ok('C4 파생이라고 못 박는다',/파생이다/.test(t)&&/복사하지 않는다/.test(t));

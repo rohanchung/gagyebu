@@ -175,6 +175,11 @@ language sql stable set search_path = public as $$
 $$;
 
 -- 📊 사실 묶음 — 🔒 **파생이다. 저장하지 않는다.** 방마다 다른 숫자를 들고 오면 토론이 아니다.
+-- ⚠️ [결함·수정 2026-09-30] 처음엔 data->'budgets'->ym 을 읽었다 — 그런 구조가 아니다.
+--    앱: budgetsOf(m) = DB.budgetsM[m] || DB.budgets  (월 확정본이 없으면 기준 한 벌)
+--    그래서 '예산' 이 늘 null 로 나왔고, 방들이 「예산이 없다」고 읽을 판이었다.
+-- 🔒 예산 대비 **판정**은 여기서 하지 않는다 — 앱이 이미 한다(원칙 2: 같은 질문에 답하는 함수는 하나).
+--    원자료(예산 한 벌 + 과목별 지출)만 주고 판단은 방이 한다.
 create or replace function public.agora_facts(p_ym text) returns jsonb
 language sql stable set search_path = public as $$
   with d as (select data from public.app_state where user_id = public.agora_uid() limit 1),
@@ -183,22 +188,34 @@ language sql stable set search_path = public as $$
   un as (select u from d, jsonb_array_elements(d.data->'study'->'units') u
           where u->>'day' like p_ym || '%' and coalesce((u->>'backlog')::boolean,false) = false),
   we as (select w from d, jsonb_array_elements(d.data->'health'->'weights') w
-          where w->>'date' like p_ym || '%' order by w->>'date')
+          where w->>'date' like p_ym || '%')
   select jsonb_build_object(
     'ym', p_ym,
     '거래건수', (select count(*) from tx),
     '수입',     (select coalesce(sum((t->>'amt')::numeric),0) from tx where t->>'type'='income'),
     '지출',     (select coalesce(sum((t->>'amt')::numeric),0) from tx where t->>'type'='expense'),
-    '예산',     (select d.data->'budgets'->p_ym from d),
+    -- 🔒 앱과 같은 규칙: 그 달 확정본이 있으면 그것, 없으면 기준 한 벌
+    '예산',     (select coalesce(d.data->'budgetsM'->p_ym, d.data->'budgets') from d),
+    '예산확정', (select (d.data->'budgetsM'->p_ym) is not null from d),
+    '예산합계', (select coalesce(sum((v)::numeric),0) from d,
+                  jsonb_each_text(coalesce(d.data->'budgetsM'->p_ym, d.data->'budgets', '{}'::jsonb)) e(k,v)),
+    -- 과목별 지출 — 예산과 대조할 원자료. 🔒 판정은 방이 한다
+    '과목별지출',(select coalesce(jsonb_object_agg(cat, amt),'{}'::jsonb) from (
+                  select coalesce(t->>'cat','(없음)') cat, sum((t->>'amt')::numeric) amt
+                    from tx where t->>'type'='expense' group by 1) z),
+    '고정비',   (select count(*) from d, jsonb_array_elements(d.data->'fixed') x),
+    '부채',     (select count(*) from d, jsonb_array_elements(d.data->'debts') x),
     '학습과제', (select count(*) from un),
     '과제완료', (select count(*) from un where u->>'status'='done'),
     '드릴',     (select count(*) from d, jsonb_array_elements(d.data->'study'->'drills') x
                   where x->>'date' like p_ym || '%'),
     '시험',     (select count(*) from d, jsonb_array_elements(d.data->'study'->'tests') x
                   where x->>'date' like p_ym || '%'),
+    '단어',     (select count(*) from d, jsonb_array_elements(d.data->'study'->'words') x),
     '체중기록', (select count(*) from we),
-    '체중변화', (select case when count(*)>=2
-                   then jsonb_build_array((min(w->>'date')), (max(w->>'date'))) else null end from we),
+    '체중변화', (select case when count(*)>=2 then jsonb_build_array(
+                     (select w->>'kg' from we order by w->>'date' limit 1),
+                     (select w->>'kg' from we order by w->>'date' desc limit 1)) else null end from we),
     '체크한날', (select count(*) from d, jsonb_object_keys(d.data->'checks') k where k like p_ym || '%'),
     '일지',     (select count(*) from d, jsonb_array_elements(d.data->'journal') x
                   where x->>'date' like p_ym || '%'),
@@ -206,6 +223,8 @@ language sql stable set search_path = public as $$
                   where x->>'date' like p_ym || '%'),
     'EMR턴',    (select count(*) from public.health_messages m
                   where to_char(m.created_at,'YYYY-MM') = p_ym and m.role='user'),
+    '사주예측', (select count(*) from public.saju_forecasts f
+                  where f.user_id = public.agora_uid() and f.target_start = (p_ym || '-01')::date),
     -- 🔒 사주 판정은 **링크만.** 복사하지 않는다(파생은 저장하지 않는다 + 사주는 사주 것이다)
     '사주판정', (select coalesce(jsonb_agg(jsonb_build_object('영역',e.area,'판정',e.verdict,
                     '달력겹침',e.known_overlap)),'[]'::jsonb)
