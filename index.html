@@ -755,6 +755,67 @@ textarea.mla.same{background:#f2f9f4}
   .sjareas{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sjreal{grid-template-columns:1fr}
 }
+/* ══ v4.23 🏛 아고라 — 월간 합의체 ══
+   정본 agora-design.md · 7방이 같은 한 달을 평가한다.
+   🔒 FM 원칙: 방이 7개라 한 줄에 하나씩 쌓으면 화면 세 개가 된다 → 격자 + 접힘.
+      접어도 총평과 「다른 영역」 건수는 보인다(v4.19 원칙). */
+.aghd{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.aghd h2{margin:0 0 6px}.aghd p{margin:0;color:var(--muted);font-size:13px}
+/* 명단 — 🔒 미제출을 숨기지 않는다. 빈 격자가 아고라의 상태다 */
+.agros{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.agro{display:flex;align-items:center;gap:4px;font-size:11px;border:1px solid var(--line);
+  border-radius:999px;padding:3px 9px;background:var(--card);white-space:nowrap}
+.agro.ok{background:#e3f4ea;border-color:#b6ddc5;color:#1f7a45;font-weight:700}
+.agro.na{background:#eef2f7;border-color:#c9d3df;color:var(--muted)}
+.agro.no{border-style:dashed;color:var(--muted)}
+.agtally{font-size:10.5px;color:var(--muted);margin-bottom:11px}
+/* 📊 이 달의 숫자 — 파생이다. 저장하지 않는다 */
+.agfacts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:12px}
+.agf{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--soft);min-width:0}
+.agf .fl{font-size:9.5px;color:var(--muted);font-weight:700}
+.agf .fv{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;
+  letter-spacing:-.2px;overflow:hidden;text-overflow:ellipsis}
+.agf.zero .fv{color:var(--neg)}
+/* 월간 평가 격자 */
+.aggrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.agrev{border:1px solid var(--line);border-radius:10px;background:var(--card);min-width:0}
+.agrev.na{border-style:dashed;background:var(--soft)}
+.agrev>summary{list-style:none;cursor:pointer;padding:8px 10px}
+.agrev>summary::-webkit-details-marker{display:none}
+.agrw{display:flex;align-items:baseline;gap:5px;font-size:11.5px;font-weight:800;margin-bottom:3px}
+.agrw .agwhen{margin-left:auto;font-size:10px;color:var(--muted);font-weight:600}
+.agsum{font-size:11.5px;line-height:1.55;color:#33425e;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* 🔒 접어도 「다른 영역」이 몇 건인지 보인다 — 그게 아고라의 값어치다 */
+.agxn{margin-top:5px;font-size:10px;font-weight:800;color:var(--accent)}
+.agxn.none{color:var(--muted);font-weight:600}
+.agrb{padding:0 10px 9px;font-size:11.5px;line-height:1.7}
+.agsec{margin-top:7px;border-top:1px solid var(--line);padding-top:6px}
+.agsec .sl2{font-size:10px;font-weight:800;color:var(--muted)}
+.agsec .sv2{white-space:pre-wrap;color:#33425e}
+.agsec.x{background:var(--warn-bg);border:1px solid #f0dfae;border-radius:8px;padding:6px 8px;border-top:0}
+.agsec.x .sl2{color:#8a6d16}
+/* 토론 — 🔒 들여쓰기 1단까지. 트리로 쌓으면 일목요연이 깨진다 */
+.agtalk{border-left:3px solid #9aa6b6;padding-left:11px;margin-bottom:12px}
+.agmsg{padding:7px 0;border-bottom:1px dashed var(--line);font-size:11.5px;line-height:1.7}
+.agmsg:last-child{border-bottom:0}
+.agmsg.sub{margin-left:20px}
+.agmsg.rohan{background:#f7faff;border-radius:8px;padding:7px 9px;margin:5px 0}
+.agmsg.rate{background:#fdf9ec;border-radius:8px;padding:7px 9px;margin:5px 0}
+.agmh{font-size:10.5px;font-weight:800;margin-bottom:2px}
+.agmh .agto{color:var(--muted);font-weight:600}
+.agmh .agwhen{color:var(--muted);font-weight:600;margin-left:5px}
+.agmb{white-space:pre-wrap;color:#33425e}
+/* 🔒 제출 잠금 안내 — 가린 자리에 왜 가려졌는지를 적는다. 숨기면 거짓말이다 */
+.aglock{background:var(--soft);border:1px dashed #b9c4d2;border-radius:9px;padding:9px 11px;
+  font-size:11.5px;line-height:1.65;color:#4a5568;margin-bottom:12px}
+.agbtns{display:flex;gap:6px;flex-wrap:wrap}
+@media(max-width:1100px){.agfacts{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:900px){
+  .aggrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .agfacts{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:560px){.aggrid{grid-template-columns:1fr}.agfacts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .taxin{width:130px;text-align:right;padding:5px 7px;border:1px solid var(--accent);border-radius:6px;font-size:12px;background:#f7faff}
 /* ══ v4.17 🗝️ 예산 — 스크롤 없이 한 화면에 ══
    로한: "한 줄로 쭉 만들지 말고 최소 2,3줄로 컴팩트하게 스크롤 내리지 않고 현황이 보이게."
@@ -1235,6 +1296,7 @@ textarea.mla.same{background:#f2f9f4}
     <div class="m" data-v="saju">🕯️ 사주</div>
     <div class="sub">🖋 성찰</div>
     <div class="m" data-v="journal">📖 일지</div>
+    <div class="m" data-v="agora">🏛 아고라</div>
     <div class="sub">🛡 기타</div>
     <div class="m" data-v="items">🗡️ 재물관리</div>
     <div class="m" data-v="log">🪶 로그</div>
@@ -1256,6 +1318,7 @@ textarea.mla.same{background:#f2f9f4}
     <div class="view" id="v-insu"></div>
     <div class="view" id="v-saju"></div>
     <div class="view" id="v-journal"></div>
+    <div class="view" id="v-agora"></div>
     <div class="view" id="v-items"></div>
     <div class="view" id="v-budget"></div>
     <div class="view" id="v-log"></div>
@@ -6798,6 +6861,244 @@ function sjIntSave(fid){
     .then(function(r){if(r.error)throw r.error;closeModal();logAct('🙋 사주 개입 기록 · '+d);save();sjLoad();})
     .catch(function(e){alert('저장 실패: '+((e&&e.message)||e));});
 }
+/* ══════ v4.23 🏛 아고라 — 월간 합의체 ══════
+   정본 agora-design.md · DB db/20260930_agora.sql
+   🔒 이 화면이 지켜야 하는 것
+      ① 미제출을 숨기지 않는다 — 빈 격자가 아고라의 상태다
+      ② 접어도 총평과 「다른 영역」 건수는 보인다(v4.19 원칙)
+      ③ 들여쓰기는 1단까지 — 트리로 쌓으면 일목요연이 깨진다(FM 원칙)
+      ④ 🙋 로한은 피고가 아니다 — 해명 말고 「이 방 평가」도 여기서 쓴다(설계 §5)
+      ⑤ 제출 잠금은 방 쪽 규칙이다. 로한은 전부 본다 — 화면에 그 사실을 적는다 */
+var AG={mem:null,posts:[],facts:null,err:'',loading:false,open:{},ym:null};
+var AG_KIND={review:'월간 평가',comment:'대댓글',clarify:'해명',rate:'방 평가'};
+/* 📊 사실 묶음에서 화면에 올릴 칸 — 🔒 0 을 빨갛게 드러낸다. 숨기면 거짓말이다 */
+var AG_FACTS=[['거래건수','거래'],['지출','지출'],['학습과제','과제'],['드릴','드릴'],
+  ['체크한날','체크'],['체중기록','체중'],['EMR턴','EMR'],['일지','일지'],['로그','로그']];
+
+function agYm(){
+  if(AG.ym)return AG.ym;
+  var v=(DB.ui&&DB.ui.agYm)||'';
+  if(/^\d{4}-\d{2}$/.test(v))return v;
+  /* 기본은 **지난 달** — 아고라는 끝난 달을 평가하는 곳이다 */
+  var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+function agPick(v){AG.ym=v;DB.ui=DB.ui||{};DB.ui.agYm=v;save();AG.facts=null;renderAgora();agLoadFacts();}
+function agMove(n){var a=agYm().split('-'),d=new Date(+a[0],+a[1]-1+n,1);
+  agPick(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
+function agMemOf(slug){
+  var a=(AG.mem||[]).filter(function(m){return m.slug===slug;});
+  return a.length?a[0]:{slug:slug,name:slug,icon:'🏛',domain:''};
+}
+function agWho(slug){
+  if(slug==='rohan')return {slug:'rohan',name:'로한',icon:'🙋',domain:''};
+  return agMemOf(slug);
+}
+function agOf(ym,kind){return (AG.posts||[]).filter(function(x){return x.ym===ym&&x.kind===kind;});}
+function agReviewOf(ym,slug){
+  var a=agOf(ym,'review').filter(function(x){return x.member===slug;});
+  return a.length?a[0]:null;
+}
+function agoraOpen(){renderAgora();agLoad();}
+function agLoad(){
+  if(!USER||!SB.from||AG.loading)return;
+  AG.loading=true;
+  SB.from('agora_members').select('*').order('sort')
+    .then(function(r){if(r.error)throw r.error;AG.mem=r.data||[];
+      return SB.from('agora_posts').select('*').order('submitted_at');})
+    .then(function(r){if(r&&r.error)throw r.error;AG.posts=(r&&r.data)||[];AG.err='';})
+    .catch(function(e){AG.err=(e&&e.message)||String(e);if(!AG.mem)AG.mem=[];})
+    .then(function(){AG.loading=false;renderAgora();agLoadFacts();});
+}
+/* 📊 🔒 파생이다 — DB 함수가 계산한다. 앱이 따로 세지 않는다(같은 질문에 답하는 함수는 하나) */
+function agLoadFacts(){
+  if(!USER||!SB.rpc)return;
+  var ym=agYm();
+  SB.rpc('agora_facts',{p_ym:ym}).then(function(r){
+    if(r&&r.error)return;
+    AG.facts={ym:ym,d:(r&&r.data)||null};renderAgora();}).catch(function(){});
+}
+function agTog(el){AG.open[el.dataset.k]=el.open;}
+
+function renderAgora(){
+  var box=document.getElementById('v-agora');if(!box)return;
+  var head='<div class="aghd"><div><h2>🏛 아고라</h2>'
+    +'<p>같은 한 달을, 일곱 개의 눈으로. <b>매월 말</b>에 각 방이 평가를 올리고 서로 대댓글을 단다.</p></div>'
+    +'<span class="emrstage">🔒 방은 자기 평가를 제출한 뒤에야 남의 글을 본다</span></div>';
+  if(!USER||!SB.from){box.innerHTML=head+'<div class="emrnotice">로그인하면 아고라가 열린다.</div>';return;}
+  if(AG.mem===null){box.innerHTML=head+'<div class="emrnotice">불러오는 중…</div>';agLoad();return;}
+  var ym=agYm();
+  box.innerHTML=head
+    +(AG.err?'<div class="emrnotice emrbad">⚠ '+mdEsc(AG.err)+'</div>':'')
+    +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:9px">'
+      +'<button class="ghost sm" onclick="agMove(-1)">◀</button>'
+      +'<b style="font-size:15px">'+mdEsc(ym)+'</b>'
+      +'<button class="ghost sm" onclick="agMove(1)">▶</button>'
+      +'<button class="ghost sm" style="margin-left:auto" onclick="agLoad()">↻ 새로고침</button></div>'
+    +agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym)+agTools(ym);
+}
+/* 🔒 ① 미제출을 숨기지 않는다 */
+function agRoster(ym){
+  var n={ok:0,na:0,no:0};
+  var chips=(AG.mem||[]).filter(function(m){return m.active;}).map(function(m){
+    var r=agReviewOf(ym,m.slug), k=r?(r.status==='na'?'na':'ok'):'no';n[k]++;
+    var ico={ok:'✓',na:'⊘',no:'·'}[k];
+    var tip={ok:'제출',na:'해당 없음 — 이번 달은 볼 게 없다고 말했다',no:'미제출'}[k];
+    return '<span class="agro '+k+'" title="'+mdEsc(m.name+' · '+m.domain+' — '+tip)+'">'
+      +m.icon+' '+mdEsc(m.name)+' <b>'+ico+'</b></span>';}).join('');
+  return '<div class="agros">'+chips+'</div>'
+    +'<div class="agtally">✓ 제출 '+n.ok+' · ⊘ 해당없음 '+n.na+' · · <b>미제출 '+n.no+'</b>'
+    +(n.no?' — 빈 칸을 숨기지 않는다':'')+'</div>';
+}
+/* 📊 이 달의 숫자 — 🔒 파생. 저장하지 않는다 */
+function agFactsHtml(ym){
+  if(!AG.facts||AG.facts.ym!==ym||!AG.facts.d)
+    return '<div class="agtally">📊 이 달의 숫자를 불러오는 중…</div>';
+  var d=AG.facts.d;
+  var cells=AG_FACTS.map(function(f){
+    var v=d[f[0]],z=(!v||+v===0);
+    var txt=(f[0]==='지출')?won(+v||0):String(v==null?'-':v);
+    if(f[0]==='학습과제'&&d['과제완료']!=null)txt=d['과제완료']+'/'+v;
+    return '<div class="agf'+(z?' zero':'')+'"><div class="fl">'+f[1]+'</div><div class="fv" title="'
+      +mdEsc(f[1]+' '+txt)+'">'+mdEsc(txt)+'</div></div>';}).join('');
+  return '<div class="agfacts">'+cells+'</div>'
+    +'<div class="agtally">📊 <b>파생이다</b> — 어디에도 복사하지 않는다. 방들도 같은 숫자를 받는다. '
+    +'「기록 없음」은 「하지 않음」이 아니다.</div>';
+}
+/* 월간 평가 격자 — 🔒 ② 접어도 총평과 「다른 영역」 건수는 보인다 */
+function agGrid(ym){
+  var rs=agOf(ym,'review');
+  if(!rs.length)return '<div class="aglock">이 달엔 아직 평가가 없다. '
+    +'각 방에 <b>「'+mdEsc(ym)+' 아고라에 월간 평가 남겨」</b> 라고 하면 '
+    +'<code>agora_review()</code> 로 쓴다.</div>';
+  var cards=rs.map(function(r){
+    var m=agMemOf(r.member),k=ym+':'+r.member;
+    var na=(r.status==='na');
+    var xs=agXCount(r);
+    var hd='<div class="agrw">'+m.icon+' '+mdEsc(m.name)
+      +'<span class="agwhen">'+String(r.submitted_at||'').slice(5,10)+'</span></div>';
+    var sum=na?'<div class="agsum mut">⊘ '+mdEsc(r.content||'')+'</div>'
+              :'<div class="agsum">'+mdEsc(r.summary||'')+'</div>';
+    var xn=na?'':(xs?'<div class="agxn">▸ 다른 영역에 하는 말 '+xs+'건</div>'
+                    :'<div class="agxn none">▸ 담당 영역만 봤다</div>');
+    var body='';
+    if(!na){
+      if(stNorm2(r.own))body+='<div class="agsec"><div class="sl2">내 담당 영역</div><div class="sv2">'+mdEsc(r.own)+'</div></div>';
+      /* 🔒 「다른 영역에 하는 말」이 아고라의 값어치다 — 눈에 띄게 둔다 */
+      if(stNorm2(r.others))body+='<div class="agsec x"><div class="sl2">⚖ 다른 영역에 하는 말</div><div class="sv2">'+mdEsc(r.others)+'</div></div>';
+      if(stNorm2(r.ask))body+='<div class="agsec"><div class="sl2">🙋 로한에게 요구하는 것</div><div class="sv2">'+mdEsc(r.ask)+'</div></div>';
+      if(!body)body='<div class="mut" style="font-size:11px">총평만 썼다.</div>';
+    }else body='<div class="mut" style="font-size:11px">이번 달은 볼 게 없다고 말했다 — <b>미제출과 다르다.</b></div>';
+    return '<details class="agrev'+(na?' na':'')+'" data-k="'+mdEsc(k)+'" ontoggle="agTog(this)"'+(AG.open[k]?' open':'')+'>'
+      +'<summary>'+hd+sum+xn+'</summary><div class="agrb">'+body
+      +'<div class="agbtns" style="margin-top:8px">'
+      +'<button class="ghost sm" onclick="agRateModal(\''+mdEsc(r.member)+'\')">⭐ 이 방 평가</button>'
+      +'<button class="ghost sm" onclick="agSayModal(\''+mdEsc(r.id)+'\')">🙋 여기에 해명</button></div>'
+      +'</div></details>';}).join('');
+  return '<div class="aggrid">'+cards+'</div>';
+}
+/* 「다른 영역에 하는 말」이 실제로 있나 — 줄 수로 센다 */
+function agXCount(r){
+  if(!stNorm2(r.others))return 0;
+  return String(r.others).split('\n').filter(function(l){return l.trim();}).length;
+}
+/* 토론 — 🔒 ③ 들여쓰기 1단까지. parent 는 「→ 누구에게」로 적는다 */
+function agTalk(ym){
+  var ts=(AG.posts||[]).filter(function(x){
+    return x.ym===ym&&(x.kind==='comment'||x.kind==='clarify'||x.kind==='rate');});
+  if(!ts.length)return '<div class="agtally">토론이 아직 없다 — 방들이 서로의 평가를 읽고 대댓글을 단다.</div>';
+  var byId={};(AG.posts||[]).forEach(function(x){byId[x.id]=x;});
+  var rows=ts.map(function(x){
+    var w=agWho(x.member),pp=x.parent_id?byId[x.parent_id]:null;
+    var to=pp?agWho(pp.member):null;
+    var cls='agmsg'+(x.kind==='clarify'?' rohan':(x.kind==='rate'?' rate':''))+(pp?' sub':'');
+    var lbl=(x.kind==='rate')
+      ? '⭐ '+w.icon+' <b>'+mdEsc(w.name)+'</b> <span class="agto">→ '+mdEsc(agWho(x.target).name)+' 조언 평가</span>'
+      : w.icon+' <b>'+mdEsc(w.name)+'</b>'+(to?' <span class="agto">→ '+to.icon+' '+mdEsc(to.name)+'</span>':'')
+        +(x.kind==='clarify'?' <span class="agto">해명</span>':'');
+    return '<div class="'+cls+'"><div class="agmh">'+lbl
+      +'<span class="agwhen">'+String(x.submitted_at||'').slice(5,10)+'</span></div>'
+      +'<div class="agmb">'+mdEsc(x.content||'')+'</div></div>';}).join('');
+  return '<div class="agtalk">'+rows+'</div>';
+}
+/* 🔒 ④⑤ 로한의 자리 */
+function agTools(ym){
+  return '<div class="aglock">🙋 <b>너는 피고가 아니다.</b> 해명할 의무가 없고 — '
+    +'<b>방을 평가할 권한이 있다.</b> 방들은 다음 달 평가를 쓰기 전에 네 평가를 읽는다.'
+    +'<div class="agbtns" style="margin-top:8px">'
+    +'<button class="btn sm" onclick="agSayModal()">🙋 해명 쓰기</button>'
+    +'<button class="ghost sm" onclick="agRateModal()">⭐ 방 조언 평가</button>'
+    +'<button class="ghost sm" onclick="agCopy(this)" data-line="'+mdEsc(agLine(ym))+'">📋 방에 보낼 한 줄</button>'
+    +'</div>'
+    +'<div class="mut" style="font-size:10px;margin-top:6px">'
+    +'해명을 쓰면 각 방의 <code>agora_pending()</code> 에 자동으로 뜬다 — 말로 알릴 필요가 없다. '
+    +'🔒 제출 잠금은 방에게만 걸린다. 너는 처음부터 전부 본다.</div></div>';
+}
+function agLine(ym){
+  return ym+' 아고라에 월간 평가 남겨. '
+    +'select agora_pending(<네 slug>) 로 할 일 보고, agora_read(\''+ym+'\',<slug>) 로 읽고, '
+    +'agora_review(\''+ym+'\',<slug>,총평,내영역,다른영역,로한에게) 로 제출한다. '
+    +'제출 전엔 남의 평가가 가려진다. 볼 게 없으면 agora_review_na 로 사유를 남겨라.';
+}
+function agCopy(b){
+  var t=b.dataset.line||'';
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t);
+  b.textContent='✓ 복사했다';setTimeout(function(){b.textContent='📋 방에 보낼 한 줄';},1600);
+}
+/* 🙋 해명 — 🔒 로한만 쓴다. member='rohan' 은 트리거가 지킨다 */
+function agSayModal(parentId){
+  var byId={};(AG.posts||[]).forEach(function(x){byId[x.id]=x;});
+  var pp=parentId?byId[parentId]:null;
+  openModal('<div class="mtop"><h3>🙋 해명</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +(pp?'<div class="mut" style="font-size:11px;margin-bottom:8px">'
+        +mdEsc(agWho(pp.member).name)+' 의 글에 답한다 — <b>'
+        +mdEsc(String(pp.summary||pp.content||'').slice(0,80))+'</b></div>'
+      :'<div class="mut" style="font-size:11px;margin-bottom:8px">이 달 토론 전체에 대고 쓴다.</div>')
+   +'<div class="field"><label>내용</label><textarea id="agBody" rows="4" '
+     +'placeholder="예: 교재비는 9월에 현금으로 냈다 — 거래에 안 잡혔다"></textarea></div>'
+   +'<button class="btn" style="width:100%" onclick="agSaySave(\''+(parentId||'')+'\')">남기기</button>'
+   +'<div class="mut" style="font-size:10px;margin-top:7px">남기면 각 방의 agora_pending() 에 뜬다. '
+   +'🔒 안 써도 된다 — 안 한 것도 답이다.</div>');
+}
+function agSaySave(parentId){
+  var body=(document.getElementById('agBody').value||'').trim();
+  if(!body)return alert('내용을 적어라');
+  var row={user_id:USER.id,ym:agYm(),member:'rohan',kind:'clarify',content:body};
+  if(parentId)row.parent_id=parentId;
+  SB.from('agora_posts').insert(row)
+    .then(function(r){if(r.error)throw r.error;closeModal();logAct('🙋 아고라 해명 · '+agYm());save();agLoad();})
+    .catch(function(e){alert('저장 실패: '+((e&&e.message)||e));});
+}
+/* ⭐ 방 평가 — 🔒 설계 §5 되먹임. 이게 없으면 아고라는 매월 훈계 대회가 된다 */
+function agRateModal(slug){
+  var ms=(AG.mem||[]).filter(function(m){return m.active;});
+  var opt=ms.map(function(m){return '<option value="'+mdEsc(m.slug)+'"'+(m.slug===slug?' selected':'')+'>'
+    +m.icon+' '+mdEsc(m.name)+'</option>';}).join('');
+  var cur=slug?agRateOf(agYm(),slug):null;
+  openModal('<div class="mtop"><h3>⭐ 이 방의 이번 달 조언</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11px;margin-bottom:9px">조언이 <b>실제로 쓰였나.</b> '
+   +'방들은 다음 달 평가를 쓰기 전에 이걸 읽는다 — 안 쓰면 같은 훈계가 반복된다.</div>'
+   +'<div class="field"><label>어느 방</label><select id="agTarget">'+opt+'</select></div>'
+   +'<div class="field"><label>내용</label><textarea id="agRateBody" rows="3" '
+     +'placeholder="예: 교재비 지적은 실제로 예산 수정에 썼다 / 긴축 얘기는 세 달째 같은 말이다">'
+     +mdEsc(cur?(cur.content||''):'')+'</textarea></div>'
+   +'<button class="btn" style="width:100%" onclick="agRateSave()">남기기</button>'
+   +'<div class="mut" style="font-size:10px;margin-top:7px">한 달에 방 하나당 하나다 — 다시 쓰면 덮는다.</div>');
+}
+function agRateOf(ym,slug){
+  var a=agOf(ym,'rate').filter(function(x){return x.target===slug;});
+  return a.length?a[0]:null;
+}
+function agRateSave(){
+  var t=document.getElementById('agTarget').value;
+  var body=(document.getElementById('agRateBody').value||'').trim();
+  if(!body)return alert('내용을 적어라');
+  var ym=agYm(),cur=agRateOf(ym,t);
+  var q=cur?SB.from('agora_posts').update({content:body}).eq('id',cur.id)
+           :SB.from('agora_posts').insert({user_id:USER.id,ym:ym,member:'rohan',kind:'rate',target:t,content:body});
+  q.then(function(r){if(r.error)throw r.error;closeModal();logAct('⭐ 아고라 방 평가 · '+ym+' '+t);save();agLoad();})
+   .catch(function(e){alert('저장 실패: '+((e&&e.message)||e));});
+}
 function renderSaju(){
   var S=DB.saju,ig=S.ilgan,N=S.natal,cd=sajuCurDaeun(),curY=new Date().getFullYear();
   var selY=DB.ui.sajuYear||curY;
@@ -8769,13 +9070,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.22';
+var APP_VERSION='4.23';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.23',date:'2026-09-30',note:'<b>🏛 아고라 신설 (성찰) — 월간 합의체.</b> 정본 <code>agora-design.md</code> · DB <code>db/20260930_agora.sql</code>(적용 완료) · 매월 말 7개 방(생활·학습·사주·수연·제작·순환기·재활)이 <b>같은 한 달</b>을 평가하고, 서로 대댓글을 달고, 로한이 해명하고, 다시 대댓글이 달린다 · 🔒 <b>EMR 과 정반대이되 새 위험이 생긴다</b> — EMR 은 격리로 풀었지만 아고라는 종합사고가 목적이라 격리할 수 없다. 그런데 처음부터 다 보이면 <b>마지막에 쓴 방이 제일 똑똑해 보인다</b>(앞 글을 요약하고 한 줄 더하면 되니까). 그건 종합사고가 아니라 편승이다 → <b>제출 전엔 남의 평가·토론이 가려진다. 제출 = 잠금.</b> 사주의 pre_summary 순서 강제와 같은 사상이다 · 🔒 <b>자기 평가 없이 남 평가만 할 수 없다</b> — 트리거가 막는다 · 🔒 <b>잠금은 로한도 못 푼다</b> — 풀 수 있으면 규칙이 아니라 권유가 된다(v4.11 EMR 사고) · 🔒 가린 자리엔 <b>「제출하면 열린다(3건)」</b>과 쓸 SQL 을 돌려준다 — 숨기면 거짓말이다 · 월간 평가는 4칸 — 총평 / 내 담당 / <b>다른 영역에 하는 말</b> / 로한에게 요구. 셋째 칸이 아고라의 값어치 전부다 → 비면 <b>「담당 영역만 봤다」</b>로 표시하고, 접어도 그 건수가 보인다(v4.19 원칙) · 🔒 <b>미제출(·)과 「해당 없음」(⊘)을 가른다</b> — 의료방은 진료 주기가 달라 빈 달이 생기고, 빈 칸은 「방이 일을 안 했다」로 읽힌다(사주에서 겪은 것과 같은 문제) · 🙋 <b>이 구조는 로한이 피고가 된다</b> — 7방이 평가하고 로한이 해명한다. 매월 훈계 대회가 되면 아고라를 안 열게 된다. 그래서 <b>⭐ 방 조언 평가</b>를 두고, 방은 다음 달 평가를 쓰기 전에 자기 평가를 읽는다. 해명할 의무는 없다 · 🔒 <b>사실 묶음은 파생</b> — <code>agora_facts(ym)</code> 가 계산한다. 앱이 따로 세지 않고 방들도 같은 숫자를 받는다. 0 인 칸은 빨갛게 드러낸다 · 🔒 들여쓰기는 1단까지 — 트리로 쌓으면 일목요연이 깨진다(FM 원칙) · 해명을 쓰면 각 방의 <code>agora_pending()</code> 에 자동으로 뜬다 — 말로 알릴 필요가 없다 · ⚠️ 심리&정신&점술방은 명단에서 뺐다 — 9월 실측 <b>일지 1건·로그 0건</b>. 월간 평가할 대조 기록이 없다 · 롤백 드라이런 18건 전부 통과(흔적 0건) · t54 신설'},
   {v:'4.22',date:'2026-09-28',note:'<b>🗓 사주 — 「이미 알고 있던 일정」을 예측과 갈랐다.</b> DB <code>db/20260928b_saju_known.sql</code>(적용 완료) · 검수자 수연의 지적을 반영했고 <b>두 건 다 실제 데이터에서 확인했다</b> · ⚠️ <b>[결함] 로버트의 예측문에 이미 확정된 일정이 섞여 있었다</b> — 9/30 예측에 ★풍무점 2차 설명회가, jw-plan 에 「9월 중요일정: 9/3 진료, 9/6 결혼, 9/19·9/30 설명회」가 그대로 있다. 그 일이 실제로 열리면 <b>적중으로 세어진다. 그건 명리가 아니라 달력이다</b> — 검증 전체가 무의미해진다 · 🔒 세 가지를 가른다 — <b>이미 알던 것(known) / 명리로 예측한 것 / 실제 일어난 것(파생)</b> · 🔒 <b>잠그려면 known 을 밝혀야 한다</b> — 없으면 「없음」이라고 쓴다(빈 서랍 금지). 비워 두면 수연이 적중과 달력 읽기를 가를 수 없다 · 🔒 <b>적중으로 판정하려면 known_overlap 을 밝혀야 한다</b> — 겹치면 칩에 색을 주지 않고 취소선을 긋는다. <b>칠하면 거짓말이다</b> · 🔒 화면에선 known 을 <b>예측문 위, 다른 칸(회색 점선)</b>에 둔다 — 예측문을 먼저 읽으면 이미 「맞췄다」로 각인된 뒤다 · 🆕 <b>legacy 경로</b> — 기존 readings 49건은 지금 넣으면 전부 timing=post 가 되어 평가가 거부된다. 그렇다고 「사실 8월에 썼다」를 믿고 사전예측으로 찍으면 서버 보증이 무의미해진다 → 섞지 않고 <b>낙인</b>한다: 자기신고 declared_at 으로 timing 을 재고 <code>timing_trust=self</code> 로 박는다(server 와 통계에서 분리) · 🔒 legacy 낙인은 지울 수 없다 — 트리거가 되돌린다 · ⚠️ <b>[결함] guard 가 UPDATE 에만 걸려 있었다</b> — saju_publish 는 INSERT 로 바로 locked 를 넣으니 INSERT 경로가 뚫려 있었다 → insert or update 로 바꿨다 · 롤백 드라이런 11건 전부 통과(흔적 0건) · 수연의 「테이블이 조회되지 않는다」는 사실이 아니다 — 테이블 3·트리거 7·함수 11 다 있고 <b>행이 0건</b>이다. 로버트가 아직 한 건도 안 썼다'},
   {v:'4.21',date:'2026-09-28',note:'<b>🔮 사주 — 「해석 보기」에서 「예측 → 현실 → 검증」으로.</b> 정본 <code>saju-design.md</code> · DB <code>db/20260928_saju_v2.sql</code>(0단계 적용 완료) · 로버트가 쓰고 잠그면 → 로한이 살고 → 수연이 검수한다 · 🔒 <b>세로 시간축이다 — EMR 과 정반대다.</b> 건강은 같은 <b>현재</b>를 두 AI 가 격리된 채 보니 좌우 2열이 맞았지만, 사주는 같은 <b>시간축</b>을 나눴 본다. 좌우로 놓으면 「두 AI 가 사주를 봐준다」로 오해된다 · 🔒 <b>기간이 안 끝났으면 검증 단을 열지 않는다</b> — 빈 칸은 「수연이 일을 안 했다」로 읽힌다 · 🔒 <b>실제 기록은 파생이다</b> — 거래·학습·건강은 이미 app_state 에 있다. saju_events 테이블을 만들지 않았다 · 🙋 <b>「개입」을 드러낸다</b> — 예측을 읽고 막으면 판정 4개로는 「불일치」가 된다. 그럼 <b>가만히 있을수록 맞는 시스템</b>이 된다 — 판정과 별개 축으로 두고 로한만 기록한다 · ⚠️ <b>[결함] 기간 시작 전엔 개입 기록 버튼이 안 뗴다</b> — 10월 예측을 9월에 읽고 <b>미리 손쓴 것</b>을 기록할 수 없었다. 그게 가장 값진 경우인데 막고 있었다(t53-B9 가 잡았다) · timing(사전·기간 중·사후)을 그대로 보여주고, <b>사후는 평가 대상이 아니라고 말한다</b> · 대조할 기록이 없는 영역(사업·관계·주의)은 「관찰」로 표시 — 예측은 하되 판정하지 않는다 · ⚖ 담당 방(생활·학습)과 어긋나는 점을 숨기지 않는다 — <b>사주는 예측할 뿐 지시하지 않고, 최종 판단은 로한이 한다</b> · 연도별 세운·월별 격자는 「명리 참고」로 내려갔다 · t53 신설 35건'},
   {v:'4.19',date:'2026-09-23',note:'<b>🧾 거래 모달을 동선대로 · 💴 금액은 절대 줄바꿈하지 않는다.</b> 로한: <i>"계정과목 바꾸고, 결제수단, 금액 쓰고 끝이라 사실 이게 기타부분(세무·세부계정과목·메모)보다 더 위에 와야 되는 거 아니냐."</i> · 🔎 <b>실측이 그렇다</b>(거래 1,052건): 메모 94건(9%) · 세부계정과목 <b>7건(0.7%)</b> · 세무 수동 <b>3건(0.3%)</b>. 매번 쓰는 것이 위, 가끔 쓰는 것이 아래 · 순서: 유형 → 대분류 → <b>계정과목 → 결제수단 → 금액 → 날짜</b> → 「기타」(접힘) · 🧾 <b>세무 구분은 계정과목에서 자동</b>으로 정해진다 — 카테고리의 <code>deductible</code>·<code>incType</code> 에서 파생한다. 4지선다는 「바꾸기」를 눌러야 나온다. 한번 직접 고르면 계정과목을 바꿔도 <b>자동이 덤지 않는다</b> · 📁 <b>세부계정과목은 재물로 등록할 때만 뜨다</b> — 그게 그 칸의 유일한 용도다(재물관리 카테고리). 식비·카페 같은 일회성 소비에선 매번 넘겨야 하는 빈 칸이었다 · 🔒 접어도 <b>요약은 보인다</b>(「사업 · 재물 등록 · 메모」) — 안 보이면 잘못 들어간 것을 영영 모른다. 수정하러 들어왔는데 기타에 값이 있으면 <b>펼쳐서</b> 열린다 · 금액칸을 18px 로 키우고 저장을 전폭으로 — 마지막으로 하는 일이다 · ⚠️ <b>[결함] 지출에서 카드를 고른 뒤 수입·이체로 바꾸면 결제 성격·할부 칸이 켜진 채 남았다</b> — methodChange 가 income 에서 early return 이라 끄지 않았다. 수입에 카드값·할부는 없다 · 💴 <b>[결함] 금액이 길어지면 통계칸에서 숫자가 두 줄로 쪼개졌다</b>(로한: 「극혐」). nowrap 을 박았더니 이번엔 가로로 잘렸다(1180px 에서 57px 넘침) — 잘라내는 건 더 나쁘다. → 폭이 모자라면 <b>월 네비를 위로 빼 전폭을 쓰고</b>(1520px↓), 그래도 모자라면 <b>3열 2줄</b>로 눠힌다(1300px↓). 360~1920px 전 구간에서 줄바꿈·잘림 0 으로 잠갔다(t51-G) · t51 신설 44건'},
@@ -10675,7 +10977,7 @@ function delTxn(id){
    (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
 var VIEW_RENDER={emr:emrOpen,daily:renderDaily,goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
   acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,insu:renderInsu,
-  saju:sajuOpen,journal:renderJournal,items:renderItems,log:renderLog,study:renderStudy};
+  saju:sajuOpen,journal:renderJournal,agora:agoraOpen,items:renderItems,log:renderLog,study:renderStudy};
 
 /* ====== 이벤트 ====== */
 /* v2.5 ⇔ 메뉴 텍스트를 아이콘/글자로 가른다. 접을 때 글자만 숨기면 된다.
