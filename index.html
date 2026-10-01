@@ -784,7 +784,7 @@ textarea.mla.same{background:#f2f9f4}
 .agcard:hover{border-color:#b9c4d2}
 .agcard.on{border-color:var(--accent);border-width:2px;padding:6px 8px;background:var(--accent-bg)}
 .agcard.na{border-style:dashed;background:var(--soft)}
-.agcard.no{border-style:dashed;opacity:.72;cursor:default}
+.agcard.no{border-style:dashed;opacity:.72}
 .agrw{display:flex;align-items:baseline;gap:5px;font-size:11.5px;font-weight:800;margin-bottom:3px}
 .agrw .agwhen{margin-left:auto;font-size:10px;color:var(--muted);font-weight:600;flex-shrink:0}
 /* 🔒 카드에선 총평을 2줄로 줄인다 — 전문은 아래 본문에서 다 보여준다 */
@@ -818,6 +818,14 @@ textarea.mla.same{background:#f2f9f4}
 .agsec.agask .sl2{color:#2d5aa8}
 .agpick{font-size:11px;color:var(--muted);margin-bottom:11px}
 /* 토론 — 🔒 들여쓰기 1단까지. 트리로 쌓으면 일목요연이 깨진다 */
+.agtalkhd{font-size:12px;font-weight:800;margin:4px 0 6px}
+/* 🔒 나를 지목한 평가 — 지목은 타래가 아니라 **남의 평가 본문(others)** 안에 있다.
+   미제출 방일수록 이게 중요하다: 9월 생활방은 안 썼는데 네 방이 생활방을 지목했다. */
+.agmen{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:9px;font-size:11px}
+.agmenb{border:1px solid #f0dfae;background:var(--warn-bg);color:#6b5412;border-radius:999px;
+  padding:3px 10px;cursor:pointer;font-weight:700}
+.agmenb:hover{border-color:#d9c27c}
+.agtalkhd .mut{font-weight:600}
 .agtalk{border-left:3px solid #9aa6b6;padding-left:11px;margin-bottom:12px}
 .agmsg{padding:8px 0;border-bottom:1px dashed var(--line);font-size:12px;line-height:1.75}
 .agmsg:last-child{border-bottom:0}
@@ -7058,7 +7066,7 @@ function renderAgora(){
       +'<b style="font-size:15px">'+mdEsc(ym)+'</b>'
       +'<button class="ghost sm" onclick="agMove(1)">▶</button>'
       +'<button class="ghost sm" style="margin-left:auto" onclick="agLoad()">↻ 새로고침</button></div>'
-    +agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym)+agTools(ym);
+    +agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym,agSelRoom())+agTools(ym);
 }
 /* 🔒 ① 미제출을 숨기지 않는다 */
 function agRoster(ym){
@@ -7103,8 +7111,9 @@ function agFactsHtml(ym){
    → EMR 과 같은 패턴: 목록은 고정 높이로 고르고, 본문은 전체 폭에 둔다. */
 function agSelRoom(){
   var v=(DB.ui&&DB.ui.agSel)||'';
+  /* 🔒 명단에 있으면 **미제출이어도** 고른 상태를 지킨다(그 방에 온 말을 봐야 한다) */
+  if(v&&(AG.mem||[]).some(function(m){return m.slug===v&&m.active;}))return v;
   var rs=agOf(agYm(),'review');
-  if(v&&rs.some(function(r){return r.member===v;}))return v;
   return rs.length?rs[0].member:'';
 }
 function agPickRoom(slug){DB.ui=DB.ui||{};DB.ui.agSel=slug;save();renderAgora();}
@@ -7117,8 +7126,12 @@ function agGrid(ym){
   /* 🔒 제출한 방 먼저, 그다음 미제출 — 미제출도 격자에 남긴다(숨기지 않는다) */
   var cards=(AG.mem||[]).filter(function(m){return m.active;}).map(function(m){
     var r=agReviewOf(ym,m.slug);
-    if(!r)return '<div class="agcard no" title="미제출"><div class="agrw">'+m.icon+' '+mdEsc(m.name)
-      +'</div><div class="agsum mut">· 미제출</div></div>';
+    /* 🔒 미제출 방도 **고를 수 있다** — 9월에 생활방은 미제출인데 네 방이 생활방을 지목했다.
+       자기가 안 썼다고 자기에게 온 말을 못 보면, 정작 읽어야 할 방이 못 읽는다. */
+    if(!r)return '<div class="agcard no'+(m.slug===sel?' on':'')+'" title="미제출 — 눌러서 이 방에 온 말을 본다"'
+      +' onclick="agPickRoom(\''+mdEsc(m.slug)+'\')">'
+      +'<div class="agrw">'+m.icon+' '+mdEsc(m.name)+'</div>'
+      +'<div class="agsum mut">· 미제출</div></div>';
     var na=(r.status==='na'), tg=agXTargets(r), xs=agXCount(r);
     return '<div class="agcard'+(na?' na':'')+(m.slug===sel?' on':'')
       +'" onclick="agPickRoom(\''+mdEsc(m.slug)+'\')">'
@@ -7139,7 +7152,14 @@ function agGrid(ym){
 /* 선택한 방의 전문 — 🔒 전체 폭. 총평도 전문으로 보여준다(카드에선 2줄로 줄였다) */
 function agFull(ym,slug){
   var r=slug?agReviewOf(ym,slug):null;
-  if(!r)return '<div class="agpick">위에서 방을 고르면 평가 전문이 여기 뜬다.</div>';
+  if(!slug)return '<div class="agpick">위에서 방을 고르면 평가 전문이 여기 뜬다.</div>';
+  if(!r){
+    var m0=agMemOf(slug);
+    return '<div class="agfull na"><div class="agfh">'+m0.icon+' <b>'+mdEsc(m0.name)+'</b>'
+      +'<span class="mut" style="font-size:10.5px">'+mdEsc(m0.domain||'')+'</span></div>'
+      +'<div class="mut" style="font-size:11.5px">이 달 평가를 <b>아직 내지 않았다.</b> '
+      +'아래는 이 방에 온 말이다 — 읽을 건 읽을 수 있다.</div></div>';
+  }
   var m=agMemOf(slug), na=(r.status==='na');
   var out='<div class="agfull'+(na?' na':'')+'">'
     +'<div class="agfh">'+m.icon+' <b>'+mdEsc(m.name)+'</b>'
@@ -7184,11 +7204,50 @@ function agXCount(r){
 }
 
 /* 토론 — 🔒 ③ 들여쓰기 1단까지. parent 는 「→ 누구에게」로 적는다 */
-function agTalk(ym){
-  var ts=(AG.posts||[]).filter(function(x){
-    return x.ym===ym&&(x.kind==='comment'||x.kind==='clarify'||x.kind==='rate');});
-  if(!ts.length)return '<div class="agtally">토론이 아직 없다 — 방들이 서로의 평가를 읽고 대댓글을 단다.</div>';
+/* 🔒 글타래의 **뿌리**를 찾는다 — parent 를 타고 올라가 맨 위 글(보통 월간 평가)에 닿는다.
+   「누구에게 한 말인가」는 바로 위 글이 아니라 **그 타래가 누구 평가에서 시작했나**로 정해진다.
+   ⚠️ 순환은 데이터가 깨졌을 때만 생기지만, 그때 화면이 멈추면 안 된다 — 걸음 수로 막는다. */
+function agRoot(x,byId){
+  var cur=x,n=0;
+  while(cur&&cur.parent_id&&byId[cur.parent_id]&&n<50){cur=byId[cur.parent_id];n++;}
+  return cur;
+}
+/* 🔴 [결함] 토론이 **고른 방과 상관없이 전부** 떴다.
+   로한: 「학습을 눌렀으면 다른 방애들이 학습방에 이야기한 것들만 떠야지. 수신자 기준으로 정리하라」.
+   맞다 — 방을 고르는 화면인데 아래는 안 바뀌니 고른 의미가 없었다.
+   🔒 그 방 화면엔 **그 방에 온 말**만 둔다:
+      ① 뿌리가 그 방의 평가인 글타래 전부(받은 말 + 거기 달린 답)
+      ② target 이 그 방인 ⭐ 로한의 방 평가
+      ③ 뿌리가 없는 글(수신자 불명)은 쓴 사람 쪽에 둔다 */
+function agTalk(ym,slug){
   var byId={};(AG.posts||[]).forEach(function(x){byId[x.id]=x;});
+  var all=(AG.posts||[]).filter(function(x){
+    return x.ym===ym&&(x.kind==='comment'||x.kind==='clarify'||x.kind==='rate');});
+  var ts=all.filter(function(x){
+    if(!slug)return true;
+    if(x.kind==='rate')return x.target===slug;
+    var rt=agRoot(x,byId);
+    if(rt&&rt!==x&&rt.kind==='review')return rt.member===slug;
+    return x.member===slug;                 /* 뿌리가 없다 — 쓴 사람 쪽에 */
+  });
+  var who=slug?agWho(slug):null;
+  /* 🔒 나를 지목한 평가 — 「다른 영역에 하는 말」은 타래가 아니라 **남의 평가 본문**에 있다.
+     이걸 안 모으면 미제출 방은 자기에게 온 말을 영영 못 본다(9월 생활방: 네 방이 지목). */
+  var men='';
+  if(slug){
+    var mn=agOf(ym,'review').filter(function(r){
+      return r.member!==slug&&r.status==='ok'&&agXTargets(r).some(function(t){return t.slug===slug;});});
+    if(mn.length)men='<div class="agmen"><span class="mut">⚖ 이 방을 지목한 평가</span>'
+      +mn.map(function(r){var m2=agMemOf(r.member);
+        return '<span class="agmenb" onclick="agPickRoom(\''+mdEsc(r.member)+'\')">'
+          +m2.icon+' '+mdEsc(m2.name)+'</span>';}).join('')
+      +'<span class="mut" style="font-size:10px">누르면 그 방 평가로 간다</span></div>';
+  }
+  var hd='<div class="agtalkhd">🗣 '+(who?mdEsc(who.icon+' '+who.name)+'에 온 말':'토론')
+    +' <span class="mut">'+ts.length+'건</span></div>';
+  if(!ts.length)return hd+men+'<div class="agtally">'
+    +(who?mdEsc(who.name)+'에 온 말이 아직 없다.':'토론이 아직 없다.')
+    +' 방들이 서로의 평가를 읽고 대댓글을 단다.</div>';
   var rows=ts.map(function(x){
     var w=agWho(x.member),pp=x.parent_id?byId[x.parent_id]:null;
     var to=pp?agWho(pp.member):null;
@@ -7201,7 +7260,7 @@ function agTalk(ym){
       +'<span class="agwhen">'+String(x.submitted_at||'').slice(5,10)+'</span></div>'
       /* 🔒 대댓글도 보고서다(실측 574~797자) — 마크다운으로 렌더한다 */
       +'<div class="agmb">'+mdRender(x.content||'')+'</div></div>';}).join('');
-  return '<div class="agtalk">'+rows+'</div>';
+  return hd+men+'<div class="agtalk">'+rows+'</div>';
 }
 /* 🔒 ④⑤ 로한의 자리 */
 function agTools(ym){
@@ -9238,13 +9297,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.27';
+var APP_VERSION='4.28';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.28',date:'2026-10-01',note:'<b>🗣 아고라 토론을 수신자 기준으로 갈랐다.</b> 로한: 「학습을 눌렀으면 다른 방애들이 학습방에 이야기한 것들만 떠야지. 수신자 기준으로 정리하라」 · ⚠️ <b>[결함] 토론이 고른 방과 상관없이 그 달 것 전부 떴다</b> — 방을 고르는 화면인데 아래가 안 바뀌니 <b>고른 의미가 없었다</b> · 🔒 그 방 화면엔 <b>그 방에 온 말</b>만 둔다: ① 뿌리가 그 방 평가인 글타래 전부(받은 말 + 거기 달린 답) ② target 이 그 방인 ⭐ 로한의 평가 · 「누구에게 한 말인가」는 바로 위 글이 아니라 <b>그 타래가 누구 평가에서 시작했나</b>로 정한다 (<code>agRoot()</code> 가 parent 를 타고 올라간다 · 데이터가 깨져 순환이 생겨도 걸음 수로 막는다) · 🔴 <b>[결함] 미제출 방은 고를 수조차 없었다</b> — 그런데 9월 생활방이 바로 그 경우다. 본인은 안 썼는데 <b>다섯 방이 생활방을 지목했다</b>. 자기에게 온 말을 정작 읽어야 할 방이 못 봤다 → 미제출 카드도 누를 수 있고, 본문엔 「아직 내지 않았다」고 적되 온 말은 보여준다 · 🆕 <b>「이 방을 지목한 평가」</b> — 지목은 타래가 아니라 <b>남의 평가 본문(others)</b> 안에 있어서 타래만 모아선 영영 안 보인다. 지목한 방을 칩으로 모아 누르면 그 평가로 간다 · 토론 머리에 <b>「🗣 📖 로버트(학습)에 온 말 4건」</b>을 적는다 — 지금 누구 화면인지 숨기지 않는다 · t54 79 → 86건(방을 바꾸면 남의 타래가 사라지는지까지 좌표로 잰다)'},
   {v:'4.27',date:'2026-10-01',note:'<b>🗓 사주 — 연·월·일을 가로 캐스케이드 하나로 합쳤다 + 아고라 카드 정리.</b> 로한: 「예측과 검증에 월별이 있는데 내려보면 연도별 세운·월별·특이일이 또 있다. 차라리 합쳐서 세로가 아닌 가로로. 2019|2020|2021 밑에 1월|2월|3월 밑에 1일|2일|3일, 그 안에 정관겁재든 지금 들어가 있는 정보를 매칭하면 되잖아」 · ⚠️ <b>[결함] 기간 고르는 UI 가 두 벌이었다</b> — 예측칸의 12칸과 아래 3열 세로 목록이 따로 놀아 <b>같은 일을 두 번 골라야 했다</b>. 어느 쪽이 「지금 고른 기간」인지 화면과 코드가 서로 다르게 답했다(원칙 2) · 🔒 <code>sjCascade()</code> 하나로 합쳤다 — <b>연 13칸 → 월 12칸 → 일 31칸</b> 가로 3줄. 칸 안에 <b>간지와 십신</b>이 들어간다(2020 庚子 편관·정인) · 연 고르면 그 해 월이, 월 고르면 그 달 일이 바뀐다 · 오늘 칸은 금색 밑줄 · 삼재는 연 칸에 표시 · 일 칸엔 吉凶平 · 연·월 칸엔 예측 상태(●◐○·) · 💬 해석 버튼은 <b>고른 기간 한 곳에만</b> 둔다 — 칸마다 넣으면 격자가 안 읽힌다 · 🔒 줄마다 가로 스크롤을 허용한다(달력류라 자연스럽다) — <b>페이지 가로 스크롤은 0</b>(360~1500px 확인) · <code>sajuPickYear/sajuPickMonth</code> 와 <code>.sajucols</code> 3열을 지웠다 · 「일운」 단위 추가 · ⚠️ <b>[결함·2회] 아고라 카드마다 아이콘 줄이 떴다</b> — 로한: 「각 방 밑에 동일하게 뜨는 게 뭐냐 / 각 방 클릭했을 때 정보만 있어야지 다 똑같애」. 맞다 — 7칸에 비슷한 이모지가 반복되면 <b>일목요연이 아니라 노이즈</b>다. 누구에게 말했는지는 <b>그 방을 클릭한 본문</b>에만 둔다. 🔒 카드엔 <b>예외만</b> 남긴다 — 다른 영역에 한마디도 안 한 방(「담당 영역만 봤다」). 있는 것은 당연하니 적지 않고 없는 것만 드러낸다 · 🙋 <b>「로한에게 요구하는 것」에 파란 컬러 블록</b>(로한 요청) — 「다른 영역」(노랑)과 색으로 가른다. 내가 할 일이 모이는 칸이다 · t53 49 → 59건 · t54 78 → 79건'},
   {v:'4.26',date:'2026-10-01',note:'<b>🔴 아고라가 실제 화면에서 깨졌다 — 원인 둘 다 내가 못 보던 자리였다.</b> 로한: 「푸쉬 이후에 완전히 깨져버리는 상황」 · 🔴 <b>[결함] 「다른 영역에 하는 말」 칸이 94px 상자로 쪼그라들어 글자가 겹쳤다</b> — 그 칸에 <code>class="agsec x"</code> 를 줬는데 <code>.x</code> 는 <b>모달 닫기 버튼의 전역 클래스</b>다(<code>display:inline-flex;width:30px;height:30px</code>). 내 규칙은 배경·테두리만 덮었을 뿐 display·width 는 안 건드려서 그대로 받았다 → <code>.agx</code> 로 바꿨다. 🔒 <b>한 글자 클래스는 전역과 부딪친다</b> · v4.23부터 있던 결함인데 <code>&lt;details&gt;</code> 가 접혀 있어 안 보였다 · 🔴 <b>[결함·중대] 브라우저에서 RPC 가 전부 실패하고 있었다</b> — <code>agora_uid()</code>·<code>saju_uid()</code> 가 <code>auth.users</code> 를 읽는데 <b>authenticated 롤엔 그 권한이 없다</b>(42501). 방(MCP)은 수퍼유저라 돌아갔고 <b>롤백 드라이런도 수퍼유저로 돌려서 못 봤다</b> · coalesce 는 두 인자를 다 평가할 수 있어 plpgsql 로 갈랐다 — auth.uid() 가 있으면 auth.users 를 아예 안 건드린다. security definer 는 쓰지 않았다 · 🔒 <b>중계 함수 드라이런은 authenticated 롤로 돌린다</b>(6/6 재검증) · 🔴 <b>[결함] facts 실패를 조용히 삼켰다</b> — 화면엔 「불러오는 중…」이 영원히 떠 있어 로한은 느린 건지 깨진 건지 몰랐다. <b>숨기면 거짓말이다</b> → 실패를 적고, 막히면 방마다 다른 숫자를 들고 오게 된다고 말한다 · ⚠️ t54 가 못 잡은 이유 — <b>칸의 개수만 세고 폭을 안 쟀다</b>. 🔒 칸은 존재가 아니라 <b>치수</b>로 잰다 (E6 신설: 일부러 깨뜨려 빨개지는 것까지 확인했다) · 선택자가 어긋나면 터지지 말고 실패하게 고쳤다 — 터지면 뒤 검사가 통째로 가려진다 · t54 77 → 78건'},
   {v:'4.25',date:'2026-10-01',note:'<b>🏛 아고라 — 클릭하면 화면이 깨지던 것 + 🔴 사실 묶음이 거짓이었다.</b> 첫 세션(2026-09)에 5방이 실제로 평가를 올렸고, 그 데이터로 재현해서 결함 6건을 잡았다 · 🔴 <b>[결함·중대] agora_facts 가 「로그 0건」을 내놨는데 거짓이었다</b> — <code>data-&gt;logs</code> 는 <b>존재하지 않는 키</b>다. 타임로그는 <code>data-&gt;timelog</code> 고 9월에 <b>23일분</b>이 있었다. 식단(<code>data-&gt;meals</code>) 28일분은 칸 자체가 없었고, 고정비는 <b>앱에 없는 기능</b>인데 「0건」으로 내놨다 · 🔒 설계 §6 은 「방마다 다른 숫자를 들고 오면 토론이 아니다」라서 facts 를 한 곳에 뒀다. <b>그 한 곳이 틀리니 다섯 방이 전부 같이 틀렸다</b> — 수연은 <b>없는 기능을 등록하라</b> 요구했고, 순환기는 「로그 0 vs 식단 28 = 입력 비용 문제」를 핵심 논거로 삼았고, 사주는 「취약일을 걸 대상이 없다」고 했다 · 🔒 <b>jsonb 는 없는 키를 null 로 주고 count 가 0 으로 바꾼다</b> — 「0」과 「그런 것이 없다」가 같은 모양으로 나온다. 0단계 드라이런 18건은 잠금만 봤고 값은 안 봤다. <b>파생 함수는 키 존재부터 검산한다</b> · 🔴 <b>[결함] 격자 카드를 누르면 화면이 깨졌다</b>(로한 발견) — <code>&lt;details&gt;</code> 로 펼쳤더니 같은 행의 <b>빈 칸 두 개가 함께 1000px 늘어났다</b>(실측 92px → 1082px, grid stretch) · 원인은 CSS 가 아니라 <b>구조 오판</b>이다 — 「총평 한 줄 + 짧은 4칸」을 가정했는데 방들은 <b>보고서</b>를 쓴다(실측 own 2,000자 · others 1,399자 · 총평 258자) → <b>EMR 패턴</b>으로 바꿨다: 격자는 고정 높이로 <b>고르는 곳</b>, 본문은 <b>전체 폭</b> · 🔴 <b>[결함] 총평 258자가 2줄로 잘려 펼쳐도 못 읽었다</b> → 카드에선 2줄, 본문에선 전문 · 🔴 <b>[결함] 마크다운이 글자로 보였다</b> — <code>mdEsc</code> 만 써서 화면에 <code>**</code> 가 52개. <code>mdRender</code> 로 바꿨다(대댓글도 574~797자짜리 보고서다) · 🔴 <b>[결함] 「다른 영역에 하는 말」을 줄 수로 셌다</b> — 사주방은 줄바꿈 없이 5개 방에 말했는데 「1건」, 순환기는 14줄로 5개 방에 말했는데 「14건」. 글의 모양이 방마다 다르니 줄·문단은 척도가 못 된다 → <b>누구에게 말했나</b>를 센다. 카드에 아이콘으로 띄운다(🏠📖🛠 · FM 원칙) · 제작방 9월 평가 제출 + 대댓글 3건(사주의 timing 지적은 틀렸다고 검산해 답했다 — 9월 예측을 9/28 에 신고했으니 mid 가 맞고, prior 는 10월 예측을 9월에 잠글 때다) · t54 58 → 77건(펼침 폭증·총평 전문·마크다운·누구에게 셈을 좌표로 박았다)'},

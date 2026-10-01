@@ -236,7 +236,10 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  await room('cardio'); t=await txt();
  ok('F1 🔴 화면에 ** 가 보이지 않는다',!/\*\*/.test(t),(t.match(/\*\*/g)||[]).length+'개');
  ok('F2 <b> 로 렌더된다',(await q('.agfull b'))>=2,String(await q('.agfull b')));
+ /* 🔒 대댓글은 **그 타래가 달린 방**에서 본다 — v4.28 부터 토론이 수신자 기준이다 */
+ await room('robert-study');
  ok('F3 대댓글도 마크다운으로 렌더된다',(await q('.agmb b'))>=2,String(await q('.agmb b')));
+ await room('cardio');
 
  /* ── G) 🔒 ⑤ 「다른 영역」은 누구에게 말했나로 센다 ── */
  /* 순환기는 5개 방 이름을 적었다(문단 5) */
@@ -263,6 +266,24 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
     await p.evaluate(()=>{const x=document.querySelector('#v-agora .agsec.agx');
       return !!x&&/다른 영역에 하는 말[\s\S]{0,80}제작방/.test(x.textContent);}));
 
+ /* ── H) 🔴 토론은 **수신자 기준**이다 (v4.28) ──
+    로한: 「학습을 눌렀으면 다른 방애들이 학습방에 이야기한 것들만 떠야지. 수신자 기준으로 정리하라」
+    전엔 고른 방과 상관없이 그 달 토론이 전부 떴다 — 방을 고르는 화면인데 아래가 안 바뀌면
+    고른 의미가 없다. 🔒 뿌리가 그 방 평가인 타래 + 그 방을 target 으로 한 ⭐ 만 둔다. */
+ await room('robert-study'); t=await txt();
+ ok('H0 토론 머리에 누구에게 온 말인지 적는다',/로버트\(학습\)에 온 말/.test(t));
+ ok('H1 학습 타래 4건만 뜬다(대댓글2·해명1·방평가1)',(await q('.agmsg'))===4,String(await q('.agmsg')));
+ /* 🔒 다른 방을 고르면 그 타래는 사라져야 한다 — 안 사라지면 필터가 안 먹은 것이다 */
+ await room('cardio');
+ ok('H1b 순환기를 고르면 학습 타래는 안 보인다',(await q('.agmsg'))===0,String(await q('.agmsg')));
+ ok('H1c 순환기 머리로 바뀐다',/순환기에 온 말/.test(await txt()));
+ /* 🔴 미제출 방도 **자기에게 온 말**을 봐야 한다 — 9월 생활방이 그 경우였다(네 방이 지목) */
+ await room('robert-life'); t=await txt();
+ ok('H1d 미제출 방도 고를 수 있다',(await p.evaluate(()=>(DB.ui||{}).agSel))==='robert-life');
+ ok('H1e 미제출이라고 말하되 온 말은 보여준다',/아직 내지 않았다/.test(t)&&/이 방에 온 말/.test(t));
+ /* 🔒 「다른 영역에 하는 말」 지목은 타래가 아니라 **남의 평가 본문**에 있다 — 따로 모은다 */
+ ok('H1f 이 방을 지목한 평가가 모인다',(await q('.agmenb'))>=2,String(await q('.agmenb')));
+ await room('robert-study'); t=await txt();
  /* ── H) 🔒 ⑦ 토론 — 들여쓰기 1단까지 ── */
  t=await txt();
  ok('H1 토론 글 4개(대댓글2·해명1·방평가1)',(await q('.agmsg'))===4,String(await q('.agmsg')));
