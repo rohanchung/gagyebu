@@ -279,12 +279,17 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
   });
   ok('J13 눌러서 해석을 읽을 수 있다',opened===true);
 
-  /* 🔒 사주 페이지가 같은 함수를 쓰는가 — 두 벌로 갈라지면 반드시 어긋난다 */
+  /* 🔒 사주 페이지가 같은 판정을 쓰는가 — 두 벌로 갈라지면 반드시 어긋난다.
+     ⚠️ [테스트 결함] 전엔 renderSaju 안에서 **함수 이름**(dayVerdictBadge)을 찾았다.
+        v4.27 에서 특이일 목록이 가로 캐스케이드(sjCascade)로 옮겨가고, 칸이 36px 라
+        배지 대신 판정만 받아 쓰게 되면서(dayVerdict) 깨졌다 — 중복은 생기지 않았는데도.
+        🔒 지키려는 건 **판정을 재구현하지 않는다**이지 특정 함수 이름이 아니다. */
   const dup=await p.evaluate(()=>{
-    const src=renderSaju.toString();
-    return src.indexOf('dayVerdictBadge')>=0 && src.indexOf("f.t==='충'")<0;
+    const src=renderSaju.toString()
+      +(typeof sjCascade==='function'?sjCascade.toString():'');
+    return /dayVerdict(Badge)?\s*\(/.test(src) && src.indexOf("f.t==='충'")<0;
   });
-  ok('J14 사주 페이지도 dayVerdictBadge 를 쓴다 (판정 중복 없음)',dup===true);
+  ok('J14 사주 화면도 공용 판정을 쓴다 (길흉 로직 재구현 없음)',dup===true);
 
   ok('J15 JS 에러 0',errs.length===0,errs[0]);
   await b.close();
