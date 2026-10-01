@@ -50,6 +50,13 @@ const OUTACT=502944+308400+212890+140220+122020+60000+42652+40649+22000+14130;  
    let _m=null,_p=null;const q={select(){if(_m==='update'){_m=null;store.v=_p.data;store.at=_p.updated_at;return Promise.resolve({data:[{updated_at:store.at}]});}return q},eq(){return q},maybeSingle(){return Promise.resolve({data:{data:store.v,updated_at:store.at||null}})},update(p){_m='update';_p=p;return q},upsert(row){store.v=row.data;store.at=row.updated_at;return Promise.resolve({})},order(){return q},limit(){return q},insert(){return Promise.resolve({data:[],error:null})},delete(){return q},in(){return q},then(a){return Promise.resolve({data:[],error:null}).then(a)}};
    window.supabase={createClient:()=>({from:()=>q,auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};},{st:STATE});
  const p=await c.newPage(),errs=[];
+ /* 🔒 시계를 2026-09-15 로 고정한다 — 이 테스트는 「이번 달 = 2026-09」를 전제로 짜였다.
+    ⚠️ [테스트 결함] 10/1 이 되자 budFreezePast() 가 9월을 **지난 달**로 보고 굳혔고,
+       DB.budgets 를 고쳐도 9월 화면은 굳은 사본(budgetsM['2026-09'])을 보게 돼 F2·G7 이 깨졌다.
+       앱은 맞게 동작했다 — 지난 달 예산을 굳혀 보존하는 게 설계다(v4.18).
+    t42 에서 같은 종류(날짜 의존)를 세 번 고쳤다. 거기선 상대 날짜로 바꿨지만,
+    예산은 「이번 달 / 지난 달」 자체가 시험 대상이라 **시계를 고정하는 게 맞다.** */
+ await p.clock.setFixedTime(new Date('2026-09-15T09:00:00'));
  p.on('pageerror',e=>errs.push(e.message));
  await p.route('https://**/*',r=>r.abort());
  await p.goto('file:///'+FILE.replace(/\\/g,'/').replace(/^\//,''));
@@ -81,7 +88,10 @@ const OUTACT=502944+308400+212890+140220+122020+60000+42652+40649+22000+14130;  
  await p.evaluate(()=>budMove(-2));await p.waitForTimeout(300);
  ok('A7 월은 재정 전체가 공유한다',(await p.evaluate(()=>DB.ui.month))==='2026-07');
  await p.evaluate(()=>budThisMonth());await p.waitForTimeout(300);
- ok('A8 「이번 달」로 돌아온다',(await p.evaluate(()=>DB.ui.month))===new Date().toISOString().slice(0,7));
+ /* 🔒 기대값은 **앱이 아는 오늘**에서 뽑는다 — Node 쪽 new Date() 와 비교하면
+    시계를 고정한 브라우저와 어긋난다(고정 2026-09 vs 실제 2026-10). */
+ ok('A8 「이번 달」로 돌아온다',
+    (await p.evaluate(()=>DB.ui.month))===(await p.evaluate(()=>todayStr().slice(0,7))));
  await p.evaluate(()=>{DB.ui.month='2026-09';save();renderBudget();});await p.waitForTimeout(300);
 
  /* ── B) 생활방 한마디 ── */

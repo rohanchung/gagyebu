@@ -203,7 +203,9 @@ language sql stable set search_path = public as $$
     '과목별지출',(select coalesce(jsonb_object_agg(cat, amt),'{}'::jsonb) from (
                   select coalesce(t->>'cat','(없음)') cat, sum((t->>'amt')::numeric) amt
                     from tx where t->>'type'='expense' group by 1) z),
-    '고정비',   (select count(*) from d, jsonb_array_elements(d.data->'fixed') x),
+    -- 🔒 「고정비」 칸은 뺐다 — DB.fixed 는 앱에 **없다**(코드 참조 0건).
+    --    없는 기능의 0 을 보여주니 수연이 「고정비를 등록하라」고 요구했다. 등록할 곳이 없다.
+    '없는기능', jsonb_build_array('고정비(fixed) — 앱에 없다. 등록할 곳이 없으니 요구하지 마라'),
     '부채',     (select count(*) from d, jsonb_array_elements(d.data->'debts') x),
     '학습과제', (select count(*) from un),
     '과제완료', (select count(*) from un where u->>'status'='done'),
@@ -219,8 +221,12 @@ language sql stable set search_path = public as $$
     '체크한날', (select count(*) from d, jsonb_object_keys(d.data->'checks') k where k like p_ym || '%'),
     '일지',     (select count(*) from d, jsonb_array_elements(d.data->'journal') x
                   where x->>'date' like p_ym || '%'),
-    '로그',     (select count(*) from d, jsonb_array_elements(d.data->'logs') x
-                  where x->>'date' like p_ym || '%'),
+    -- 🆕 식단 — data->'meals' (날짜 → 기록)
+    '식단',     (select count(*) from d, jsonb_object_keys(d.data->'meals') k where k like p_ym || '%'),
+    -- 🔴 [결함] 처음엔 data->'logs' 를 읽었다 — **존재하지 않는 키**다. 늘 0 이 나왔고
+    --    다섯 방이 「로그 0건」 위에서 9월 평가를 썼다. 실제 타임로그는 data->'timelog'(날짜→배열)이고
+    --    9월에 23일분이 있었다. 🔒 한 곳에서 거짓말하면 전원이 같이 속는다.
+    '타임로그', (select count(*) from d, jsonb_object_keys(d.data->'timelog') k where k like p_ym || '%'),
     'EMR턴',    (select count(*) from public.health_messages m
                   where to_char(m.created_at,'YYYY-MM') = p_ym and m.role='user'),
     '사주예측', (select count(*) from public.saju_forecasts f
