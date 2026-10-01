@@ -161,10 +161,35 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('F1 예측이 아직 없다고 말한다',/아직 예측이 없다/.test(t));
  ok('F2 saju_publish 로 쓴다고 알려준다',/saju_publish/.test(t));
 
- /* ── G) 기간 탐색 ── */
- ok('G1 월 12칸이 있다',(await q('.sjp'))===12,String(await q('.sjp')));
- await p.evaluate(()=>sjSetUnit('year'));await p.waitForTimeout(350);
- ok('G2 연운으로 바꾸면 연도 칸',(await q('.sjp'))===6,String(await q('.sjp')));
+ /* ── G) 🗓 가로 캐스케이드 — 연 → 월 → 일 (v4.27) ──
+    로한: "예측과 검증에 월별이 있는데 내려보면 연도별 세운·월별·특이일이 또 있다.
+          차라리 합쳐서 세로가 아닌 가로로. 그 안에 정관겁재든 정보를 매칭하면 되잖아."
+    🔒 기간 고르는 UI 가 **두 벌**이었다(예측칸 12칸 + 아래 3열 목록) → 하나로 합쳤다. */
+ const rows=async()=>p.$$eval('#v-saju .sjrow',rs=>rs.map(r=>r.querySelectorAll('.sjc').length));
+ ok('G1 가로 3줄(연·월·일)이 있다',(await q('.sjrow'))===3,String(await q('.sjrow')));
+ const rc=await rows();
+ ok('G2 월 줄은 12칸',rc[1]===12,JSON.stringify(rc));
+ ok('G3 일 줄은 그 달 날수만큼',rc[2]>=28&&rc[2]<=31,JSON.stringify(rc));
+ /* 🔒 옛 세로 3열은 지웠다 — 같은 일을 두 UI 가 하면 어느 쪽이 진짜인지 모른다 */
+ ok('G4 옛 세로 3열 목록은 없다',(await q('.sajucols'))===0,String(await q('.sajucols')));
+ /* 🔒 칸 안에 간지와 십신이 들어간다 — 로한이 요구한 「정보를 매칭」 */
+ const cell=await p.evaluate(()=>{
+   const c=document.querySelector('#v-saju .sjrow .sjc');
+   return {gz:(c.querySelector('.cg')||{}).textContent||'',si:(c.querySelector('.cs')||{}).textContent||''};});
+ ok('G5 칸 안에 간지가 있다',/^[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]$/.test(cell.gz),JSON.stringify(cell));
+ ok('G6 칸 안에 십신이 있다',/·/.test(cell.si),JSON.stringify(cell));
+ /* 캐스케이드가 실제로 흘러야 한다 — 연을 고르면 그 해의 월, 월을 고르면 그 달의 일 */
+ await p.evaluate(()=>sjPick('2024'));await p.waitForTimeout(350);
+ ok('G7 연을 고르면 단위가 연운이 된다',(await p.evaluate(()=>SJ.unit))==='year');
+ ok('G8 월 줄이 그 해로 바뀐다',/2024년/.test(await p.$eval('#v-saju',e=>e.textContent)));
+ await p.evaluate(()=>sjPick('2024-02'));await p.waitForTimeout(350);
+ const rc2=await rows();
+ ok('G9 2024년 2월을 고르면 일 줄이 29칸(윤년)',rc2[2]===29,JSON.stringify(rc2));
+ await p.evaluate(()=>sjPick('2024-02-07'));await p.waitForTimeout(350);
+ ok('G10 일을 고르면 단위가 일운이 된다',(await p.evaluate(()=>SJ.unit))==='day');
+ ok('G11 고른 기간의 해석 버튼이 한 곳에 있다',(await q('.sjnow .bub'))===1,String(await q('.sjnow .bub')));
+ /* 🔒 오늘 칸은 표시된다 — 어디가 지금인지 모르면 격자가 달력 구실을 못 한다 */
+ ok('G12 오늘 칸이 표시된다',(await q('.sjc.now'))>=1,String(await q('.sjc.now')));
  await p.evaluate(()=>sjSetUnit('month'));await p.waitForTimeout(350);
 
  /* ── H) 개입 기록 저장 ── */

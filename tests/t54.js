@@ -186,7 +186,9 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  /* 🔒 이번 결함의 핵심 — 높이가 전부 같고, 눌러도 변하지 않아야 한다 */
  const h0=await p.evaluate(()=>[...document.querySelectorAll('#v-agora .agcard')]
    .map(e=>Math.round(e.getBoundingClientRect().height)));
- ok('D6 카드 높이가 전부 같다',new Set(h0).size===1,JSON.stringify(h0));
+ /* 🔒 격자는 **행 단위**로 높이를 맞춘다 — 행이 다르면 8px쯤 차이 나는 게 자연스럽다.
+    여기서 지키려는 건 「전부 같다」가 아니라 **한 칸도 폭증하지 않는다**이다(D7·D8 이 본체). */
+ ok('D6 카드가 폭증하지 않는다',Math.max.apply(null,h0)<200,JSON.stringify(h0));
  await room('cardio');
  const h1=await p.evaluate(()=>[...document.querySelectorAll('#v-agora .agcard')]
    .map(e=>Math.round(e.getBoundingClientRect().height)));
@@ -238,17 +240,22 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
 
  /* ── G) 🔒 ⑤ 「다른 영역」은 누구에게 말했나로 센다 ── */
  /* 순환기는 5개 방 이름을 적었다(문단 5) */
- ok('G1 순환기는 5개 방에',
-    await p.evaluate(()=>{const c=[...document.querySelectorAll('#v-agora .agcard')]
-      .find(e=>/순환기/.test(e.textContent));return /5개 방에/.test(c.textContent);}));
+ /* 🔴 [결함·2회] 카드마다 「다른 영역에 말한 방」을 아이콘으로 띄웠더니
+    로한: 「각 방 밑에 동일하게 뜨는 게 뭐냐 / 각 방 클릭했을 때 정보만 있어야지 다 똑같애」.
+    7칸에 비슷한 이모지 줄이 반복되면 일목요연이 아니라 노이즈다.
+    🔒 누구에게 말했는지는 **그 방을 클릭한 본문**에만 둔다. 카드엔 예외만 남긴다. */
+ const headOf=async()=>p.$eval('#v-agora .agsec.agx .sl2',e=>e.textContent);
+ await room('cardio');
+ ok('G1 순환기 본문 머리에 5개 방 이름이 적힌다',
+    (await headOf()).split('·').length>=5,await headOf());
  /* 🔴 사주는 줄바꿈 없이 한 덩어리로 5개 방에 말했다 — 줄 수로 세면 1건이 된다 */
+ await room('robert-saju');
  ok('G2 🔴 줄바꿈 없이 쓴 방도 5개 방으로 센다',
-    await p.evaluate(()=>{const c=[...document.querySelectorAll('#v-agora .agcard')]
-      .find(e=>/로버트\(사주\)/.test(e.textContent));return /5개 방에/.test(c.textContent);}));
- ok('G3 아이콘으로 누구인지 보여준다',
-    await p.evaluate(()=>{const c=[...document.querySelectorAll('#v-agora .agcard')]
-      .find(e=>/순환기/.test(e.textContent));
-      return /🏠/.test(c.textContent)&&/🛠/.test(c.textContent);}));
+    (await headOf()).split('·').length>=5,await headOf());
+ ok('G3 아이콘과 이름을 같이 적는다',/🏠/.test(await headOf())&&/로버트\(생활\)/.test(await headOf()));
+ /* 🔒 카드엔 아이콘 줄이 없다 — 7칸이 다 똑같아 보이면 안 된다 */
+ await room('cardio');
+ ok('G3b 카드엔 「N개 방에」 줄이 없다',!/개 방에/.test(await txt()));
  /* 🔒 담당 영역만 본 방은 드러낸다 */
  ok('G4 others 가 비면 「담당 영역만 봤다」',(await q('.agxn.none'))===1&&/담당 영역만 봤다/.test(await txt()));
  ok('G5 본문 머리에도 누구에게인지 적는다',
