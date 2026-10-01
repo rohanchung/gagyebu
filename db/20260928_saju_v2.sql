@@ -204,10 +204,17 @@ create policy own_saju_notes on public.saju_notes for all to authenticated
 -- ══════════ 5. 중계 함수 ══════════
 -- 🔒 편의가 아니라 **권한·순서 강제**가 목적이다. 방은 테이블을 직접 만지지 않는다.
 
+-- 🔴 [결함·중대 · 2026-10-01 수정] 처음엔 auth.users 를 그냥 읽었다.
+--    authenticated 롤에는 그 권한이 없어 **브라우저에서 부르면 늘 실패**한다(42501).
+--    방(MCP)은 수퍼유저라 돌아갔고 드라이런도 수퍼유저로 돌려 못 봤다 — 같은 결함이 아고라에서도 터졌다.
 create or replace function public.saju_uid() returns uuid
-language sql stable set search_path = public as $$
-  select id from auth.users order by created_at limit 1
-$$;
+language plpgsql stable set search_path = public as $$
+declare u uuid := auth.uid();
+begin
+  if u is not null then return u; end if;   -- 앱(로그인 세션)
+  select id into u from auth.users order by created_at limit 1;  -- 방(MCP, 세션 없음)
+  return u;
+end $$;
 
 -- 로버트: 아직 예측을 안 쓴 기간
 create or replace function public.saju_pending(p_period text default 'month', p_ahead int default 3)

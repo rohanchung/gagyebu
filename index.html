@@ -805,9 +805,13 @@ textarea.mla.same{background:#f2f9f4}
 .agsec{margin-top:9px;border-top:1px solid var(--line);padding-top:7px}
 .agsec .sl2{font-size:10.5px;font-weight:800;color:var(--muted);margin-bottom:3px}
 .agsec .sv2{font-size:12px;line-height:1.75;color:#33425e}
-.agsec.x{background:var(--warn-bg);border:1px solid #f0dfae;border-radius:9px;
+/* 🔴 [결함] 처음엔 이 클래스를 .x 로 썼다 — **모달 닫기 버튼의 전역 클래스**다.
+   .x{display:inline-flex;width:30px;height:30px} 를 그대로 받아 칸이 30px 상자로 쪼그라들고
+   내용이 넘쳐 화면이 겹쳤다. 내 규칙은 배경·테두리만 덮었을 뿐 display·width 는 안 건드렸다.
+   🔒 한 글자 클래스는 전역과 부딪친다. 접두어를 붙인다. */
+.agsec.agx{background:var(--warn-bg);border:1px solid #f0dfae;border-radius:9px;
   padding:8px 10px;border-top:0;margin-top:9px}
-.agsec.x .sl2{color:#8a6d16}
+.agsec.agx .sl2{color:#8a6d16}
 .agpick{font-size:11px;color:var(--muted);margin-bottom:11px}
 /* 토론 — 🔒 들여쓰기 1단까지. 트리로 쌓으면 일목요연이 깨진다 */
 .agtalk{border-left:3px solid #9aa6b6;padding-left:11px;margin-bottom:12px}
@@ -6937,12 +6941,17 @@ function agLoad(){
     .then(function(){AG.loading=false;renderAgora();agLoadFacts();});
 }
 /* 📊 🔒 파생이다 — DB 함수가 계산한다. 앱이 따로 세지 않는다(같은 질문에 답하는 함수는 하나) */
+/* 🔴 [결함] 처음엔 실패를 **조용히 삼켰다**(`if(r.error)return`) — 화면엔 「불러오는 중…」이
+   영원히 떠 있고 로한은 느린 건지 깨진 건지 알 수 없었다. 실제로 로한 화면이 그 상태였다.
+   🔒 숨기면 거짓말이다. 실패는 실패라고 적고, 왜인지와 무엇이 없는지를 말한다. */
 function agLoadFacts(){
-  if(!USER||!SB.rpc)return;
+  if(!USER||!SB.rpc){AG.facts={ym:agYm(),d:null,err:'로그인 전이라 숫자를 못 가져온다'};return;}
   var ym=agYm();
   SB.rpc('agora_facts',{p_ym:ym}).then(function(r){
-    if(r&&r.error)return;
-    AG.facts={ym:ym,d:(r&&r.data)||null};renderAgora();}).catch(function(){});
+    if(r&&r.error)throw r.error;
+    AG.facts={ym:ym,d:(r&&r.data)||null};renderAgora();})
+   .catch(function(e){
+    AG.facts={ym:ym,d:null,err:(e&&e.message)||String(e)};renderAgora();});
 }
 
 function renderAgora(){
@@ -6977,6 +6986,12 @@ function agRoster(ym){
 }
 /* 📊 이 달의 숫자 — 🔒 파생. 저장하지 않는다 */
 function agFactsHtml(ym){
+  /* 🔒 「불러오는 중」과 「못 가져왔다」를 가른다 — 둘을 같게 보이면 영원히 기다리게 된다 */
+  if(AG.facts&&AG.facts.ym===ym&&AG.facts.err)
+    return '<div class="emrnotice emrbad">⚠ <b>이 달의 숫자를 못 가져왔다</b> — '+mdEsc(AG.facts.err)
+      +'<div class="mut" style="font-size:10.5px;margin-top:4px">'
+      +'방들은 <code>agora_facts()</code> 로 같은 숫자를 받는다. 이게 막히면 '
+      +'<b>방마다 다른 숫자를 들고 오게 된다</b> — 그때는 토론이 아니다.</div></div>';
   if(!AG.facts||AG.facts.ym!==ym||!AG.facts.d)
     return '<div class="agtally">📊 이 달의 숫자를 불러오는 중…</div>';
   var d=AG.facts.d;
@@ -7047,7 +7062,7 @@ function agFull(ym,slug){
   /* 🔒 「다른 영역에 하는 말」이 아고라의 값어치다 — 눈에 띄게 둔다 */
   if(stNorm2(r.others)){
     var tg2=agXTargets(r);
-    out+='<div class="agsec x"><div class="sl2">⚖ 다른 영역에 하는 말'
+    out+='<div class="agsec agx"><div class="sl2">⚖ 다른 영역에 하는 말'
       +(tg2.length?' <span style="font-weight:600">— '
          +mdEsc(tg2.map(function(x){return x.icon+' '+x.name;}).join(' · '))+'</span>':'')
       +'</div><div class="sv2">'+mdRender(r.others)+'</div></div>';
@@ -9146,13 +9161,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.25';
+var APP_VERSION='4.26';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.26',date:'2026-10-01',note:'<b>🔴 아고라가 실제 화면에서 깨졌다 — 원인 둘 다 내가 못 보던 자리였다.</b> 로한: 「푸쉬 이후에 완전히 깨져버리는 상황」 · 🔴 <b>[결함] 「다른 영역에 하는 말」 칸이 94px 상자로 쪼그라들어 글자가 겹쳤다</b> — 그 칸에 <code>class="agsec x"</code> 를 줬는데 <code>.x</code> 는 <b>모달 닫기 버튼의 전역 클래스</b>다(<code>display:inline-flex;width:30px;height:30px</code>). 내 규칙은 배경·테두리만 덮었을 뿐 display·width 는 안 건드려서 그대로 받았다 → <code>.agx</code> 로 바꿨다. 🔒 <b>한 글자 클래스는 전역과 부딪친다</b> · v4.23부터 있던 결함인데 <code>&lt;details&gt;</code> 가 접혀 있어 안 보였다 · 🔴 <b>[결함·중대] 브라우저에서 RPC 가 전부 실패하고 있었다</b> — <code>agora_uid()</code>·<code>saju_uid()</code> 가 <code>auth.users</code> 를 읽는데 <b>authenticated 롤엔 그 권한이 없다</b>(42501). 방(MCP)은 수퍼유저라 돌아갔고 <b>롤백 드라이런도 수퍼유저로 돌려서 못 봤다</b> · coalesce 는 두 인자를 다 평가할 수 있어 plpgsql 로 갈랐다 — auth.uid() 가 있으면 auth.users 를 아예 안 건드린다. security definer 는 쓰지 않았다 · 🔒 <b>중계 함수 드라이런은 authenticated 롤로 돌린다</b>(6/6 재검증) · 🔴 <b>[결함] facts 실패를 조용히 삼켰다</b> — 화면엔 「불러오는 중…」이 영원히 떠 있어 로한은 느린 건지 깨진 건지 몰랐다. <b>숨기면 거짓말이다</b> → 실패를 적고, 막히면 방마다 다른 숫자를 들고 오게 된다고 말한다 · ⚠️ t54 가 못 잡은 이유 — <b>칸의 개수만 세고 폭을 안 쟀다</b>. 🔒 칸은 존재가 아니라 <b>치수</b>로 잰다 (E6 신설: 일부러 깨뜨려 빨개지는 것까지 확인했다) · 선택자가 어긋나면 터지지 말고 실패하게 고쳤다 — 터지면 뒤 검사가 통째로 가려진다 · t54 77 → 78건'},
   {v:'4.25',date:'2026-10-01',note:'<b>🏛 아고라 — 클릭하면 화면이 깨지던 것 + 🔴 사실 묶음이 거짓이었다.</b> 첫 세션(2026-09)에 5방이 실제로 평가를 올렸고, 그 데이터로 재현해서 결함 6건을 잡았다 · 🔴 <b>[결함·중대] agora_facts 가 「로그 0건」을 내놨는데 거짓이었다</b> — <code>data-&gt;logs</code> 는 <b>존재하지 않는 키</b>다. 타임로그는 <code>data-&gt;timelog</code> 고 9월에 <b>23일분</b>이 있었다. 식단(<code>data-&gt;meals</code>) 28일분은 칸 자체가 없었고, 고정비는 <b>앱에 없는 기능</b>인데 「0건」으로 내놨다 · 🔒 설계 §6 은 「방마다 다른 숫자를 들고 오면 토론이 아니다」라서 facts 를 한 곳에 뒀다. <b>그 한 곳이 틀리니 다섯 방이 전부 같이 틀렸다</b> — 수연은 <b>없는 기능을 등록하라</b> 요구했고, 순환기는 「로그 0 vs 식단 28 = 입력 비용 문제」를 핵심 논거로 삼았고, 사주는 「취약일을 걸 대상이 없다」고 했다 · 🔒 <b>jsonb 는 없는 키를 null 로 주고 count 가 0 으로 바꾼다</b> — 「0」과 「그런 것이 없다」가 같은 모양으로 나온다. 0단계 드라이런 18건은 잠금만 봤고 값은 안 봤다. <b>파생 함수는 키 존재부터 검산한다</b> · 🔴 <b>[결함] 격자 카드를 누르면 화면이 깨졌다</b>(로한 발견) — <code>&lt;details&gt;</code> 로 펼쳤더니 같은 행의 <b>빈 칸 두 개가 함께 1000px 늘어났다</b>(실측 92px → 1082px, grid stretch) · 원인은 CSS 가 아니라 <b>구조 오판</b>이다 — 「총평 한 줄 + 짧은 4칸」을 가정했는데 방들은 <b>보고서</b>를 쓴다(실측 own 2,000자 · others 1,399자 · 총평 258자) → <b>EMR 패턴</b>으로 바꿨다: 격자는 고정 높이로 <b>고르는 곳</b>, 본문은 <b>전체 폭</b> · 🔴 <b>[결함] 총평 258자가 2줄로 잘려 펼쳐도 못 읽었다</b> → 카드에선 2줄, 본문에선 전문 · 🔴 <b>[결함] 마크다운이 글자로 보였다</b> — <code>mdEsc</code> 만 써서 화면에 <code>**</code> 가 52개. <code>mdRender</code> 로 바꿨다(대댓글도 574~797자짜리 보고서다) · 🔴 <b>[결함] 「다른 영역에 하는 말」을 줄 수로 셌다</b> — 사주방은 줄바꿈 없이 5개 방에 말했는데 「1건」, 순환기는 14줄로 5개 방에 말했는데 「14건」. 글의 모양이 방마다 다르니 줄·문단은 척도가 못 된다 → <b>누구에게 말했나</b>를 센다. 카드에 아이콘으로 띄운다(🏠📖🛠 · FM 원칙) · 제작방 9월 평가 제출 + 대댓글 3건(사주의 timing 지적은 틀렸다고 검산해 답했다 — 9월 예측을 9/28 에 신고했으니 mid 가 맞고, prior 는 10월 예측을 9월에 잠글 때다) · t54 58 → 77건(펼침 폭증·총평 전문·마크다운·누구에게 셈을 좌표로 박았다)'},
   {v:'4.24',date:'2026-09-30',note:'<b>🏛 아고라 — 7방 지침 배포 + 사실 묶음 결함 수정.</b> ⚠️ <b>[결함] agora_facts 가 예산을 늘 null 로 내놨다</b> — <code>data-&gt;budgets-&gt;ym</code> 을 읽었는데 그런 구조가 아니다. 앱은 <code>budgetsOf(m) = DB.budgetsM[m] || DB.budgets</code>(월 확정본이 없으면 기준 한 벌)다. 방들이 <b>「예산이 없다」고 읽을 판</b>이었다 — 방별 지침을 쓰려고 실측하다 잡았다 · 🔒 <b>예산 대비 판정은 DB 에서 하지 않는다</b> — 앱이 이미 한다(원칙 2: 같은 질문에 답하는 함수는 하나). 원자료(예산 한 벌 + 과목별 지출)만 주고 판단은 방이 한다. 양쪽이 각자 계산하면 어긋난다 · facts 에 <code>예산확정</code>·<code>예산합계</code>·<code>과목별지출</code>·<code>고정비</code>·<code>부채</code>·<code>단어</code>·<code>사주예측</code> 추가 · 화면에 <b>수입</b> 칸 추가(적자가 보이게) · 🔴 <b>그래서 드러난 9월</b> — 수입 3,342,106 / 지출 3,858,012 <b>적자 515,906</b> · 예산 합계 1,030,000 인데 <b>예산에 없는 과목 지출이 1,630,428</b>(이자비용 595,901 · 의료 353,000 · 비즈니스 214,880 · 4대보험 329,383 · AI 구독 4건 137,264) · <b>선물은 예산 0 원인데 703,590 지출</b>(9/6 결혼식 — 생활방이 「경조사 시 조정」으로 둔 0 이었다) · <b>통신비는 예산 85,000 인데 지출 0 건</b>(9월 통신비 거래 누락 — 전에도 보고된 건이다) · 고정비 0건 · 9월 예산 확정본 없음 · 핸드오프 8건 — 공통 <code>agora-charter</code> + 방별 7건(각 방 slug·담당·복붙 SQL·그 방이 볼 실측). 🔒 방별 지침에 <b>의견을 대신 써 주지 않았다</b> — 사실만 준다. 판단은 방의 일이다 · t54 58건 유지(숫자 칸 10개로)'},
   {v:'4.23',date:'2026-09-30',note:'<b>🏛 아고라 신설 (성찰) — 월간 합의체.</b> 정본 <code>agora-design.md</code> · DB <code>db/20260930_agora.sql</code>(적용 완료) · 매월 말 7개 방(생활·학습·사주·수연·제작·순환기·재활)이 <b>같은 한 달</b>을 평가하고, 서로 대댓글을 달고, 로한이 해명하고, 다시 대댓글이 달린다 · 🔒 <b>EMR 과 정반대이되 새 위험이 생긴다</b> — EMR 은 격리로 풀었지만 아고라는 종합사고가 목적이라 격리할 수 없다. 그런데 처음부터 다 보이면 <b>마지막에 쓴 방이 제일 똑똑해 보인다</b>(앞 글을 요약하고 한 줄 더하면 되니까). 그건 종합사고가 아니라 편승이다 → <b>제출 전엔 남의 평가·토론이 가려진다. 제출 = 잠금.</b> 사주의 pre_summary 순서 강제와 같은 사상이다 · 🔒 <b>자기 평가 없이 남 평가만 할 수 없다</b> — 트리거가 막는다 · 🔒 <b>잠금은 로한도 못 푼다</b> — 풀 수 있으면 규칙이 아니라 권유가 된다(v4.11 EMR 사고) · 🔒 가린 자리엔 <b>「제출하면 열린다(3건)」</b>과 쓸 SQL 을 돌려준다 — 숨기면 거짓말이다 · 월간 평가는 4칸 — 총평 / 내 담당 / <b>다른 영역에 하는 말</b> / 로한에게 요구. 셋째 칸이 아고라의 값어치 전부다 → 비면 <b>「담당 영역만 봤다」</b>로 표시하고, 접어도 그 건수가 보인다(v4.19 원칙) · 🔒 <b>미제출(·)과 「해당 없음」(⊘)을 가른다</b> — 의료방은 진료 주기가 달라 빈 달이 생기고, 빈 칸은 「방이 일을 안 했다」로 읽힌다(사주에서 겪은 것과 같은 문제) · 🙋 <b>이 구조는 로한이 피고가 된다</b> — 7방이 평가하고 로한이 해명한다. 매월 훈계 대회가 되면 아고라를 안 열게 된다. 그래서 <b>⭐ 방 조언 평가</b>를 두고, 방은 다음 달 평가를 쓰기 전에 자기 평가를 읽는다. 해명할 의무는 없다 · 🔒 <b>사실 묶음은 파생</b> — <code>agora_facts(ym)</code> 가 계산한다. 앱이 따로 세지 않고 방들도 같은 숫자를 받는다. 0 인 칸은 빨갛게 드러낸다 · 🔒 들여쓰기는 1단까지 — 트리로 쌓으면 일목요연이 깨진다(FM 원칙) · 해명을 쓰면 각 방의 <code>agora_pending()</code> 에 자동으로 뜬다 — 말로 알릴 필요가 없다 · ⚠️ 심리&정신&점술방은 명단에서 뺐다 — 9월 실측 <b>일지 1건·로그 0건</b>. 월간 평가할 대조 기록이 없다 · 롤백 드라이런 18건 전부 통과(흔적 0건) · t54 신설'},

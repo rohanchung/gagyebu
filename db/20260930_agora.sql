@@ -169,10 +169,19 @@ create policy own_agora_posts on public.agora_posts for all to authenticated
 
 -- ══════════ 7. 중계 함수 ══════════
 -- 방은 MCP 로 로그인 세션 없이 부르므로 auth.uid() 가 null 이다 — emr_problem_id 와 같은 처리.
+-- 🔴 [결함·중대] 처음엔 coalesce(auth.uid(), (select id from auth.users ...)) 였다.
+--    authenticated 롤에는 auth.users 권한이 없다 → 브라우저에서 부르는 RPC 가 **전부 실패**했다
+--    (42501 permission denied for table users). MCP 는 수퍼유저라 성공했고, 드라이런도 수퍼유저로 돌려 못 봤다.
+-- 🔒 coalesce 는 두 인자를 다 평가할 수 있다 → plpgsql 로 가른다. security definer 는 필요 없다.
+-- 🔒 앞으로 중계 함수 드라이런은 **authenticated 롤로** 돌린다.
 create or replace function public.agora_uid() returns uuid
-language sql stable set search_path = public as $$
-  select coalesce(auth.uid(), (select id from auth.users order by created_at limit 1))
-$$;
+language plpgsql stable set search_path = public as $$
+declare u uuid := auth.uid();
+begin
+  if u is not null then return u; end if;   -- 앱(로그인 세션)
+  select id into u from auth.users order by created_at limit 1;  -- 방(MCP, 세션 없음)
+  return u;
+end $$;
 
 -- 📊 사실 묶음 — 🔒 **파생이다. 저장하지 않는다.** 방마다 다른 숫자를 들고 오면 토론이 아니다.
 -- ⚠️ [결함·수정 2026-09-30] 처음엔 data->'budgets'->ym 을 읽었다 — 그런 구조가 아니다.

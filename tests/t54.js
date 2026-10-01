@@ -217,7 +217,18 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  const srcLen=POSTS.find(x=>x.id==='p-suyeon').summary.length;
  ok('E3 긴 총평이 원문 그대로 다 보인다 ('+srcLen+'자)',sm.fullLen===srcLen,sm.fullLen+' vs '+srcLen);
  ok('E4 4칸이 전부 나온다',/내 담당 영역/.test(t)&&/다른 영역에 하는 말/.test(t)&&/로한에게 요구하는 것/.test(t));
- ok('E5 「다른 영역에 하는 말」은 눈에 띄게 둔다',(await q('.agsec.x'))===1,String(await q('.agsec.x')));
+ ok('E5 「다른 영역에 하는 말」은 눈에 띄게 둔다',(await q('.agsec.agx'))===1,String(await q('.agsec.agx')));
+ /* 🔴 [결함] 이 칸에 class="agsec x" 를 줬더니 **모달 닫기 버튼의 전역 .x**
+    (display:inline-flex;width:30px;height:30px)를 받아 94px 상자로 쪼그라들고 화면이 겹쳤다.
+    t54 는 **개수만 세고 폭을 안 재서** 못 잡았다 — 로한이 클릭 한 번에 찾았다.
+    🔒 칸은 존재가 아니라 **치수**로 잰다. 한 글자 클래스는 전역과 부딪친다. */
+ const secW=await p.evaluate(()=>{
+   const f=document.querySelector('#v-agora .agfull');
+   const ss=[...document.querySelectorAll('#v-agora .agfull .sv2')];
+   return {full:Math.round(f.getBoundingClientRect().width),
+     sv:ss.map(e=>Math.round(e.getBoundingClientRect().width))};});
+ ok('E6 🔴 모든 칸이 본문 폭을 채운다 (한 칸만 쪼그라들지 않는다)',
+    secW.sv.length>=2&&secW.sv.every(w=>w>secW.full*0.8),JSON.stringify(secW));
 
  /* ── F) 🔒 ④ 마크다운을 렌더한다 ── */
  await room('cardio'); t=await txt();
@@ -241,8 +252,9 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  /* 🔒 담당 영역만 본 방은 드러낸다 */
  ok('G4 others 가 비면 「담당 영역만 봤다」',(await q('.agxn.none'))===1&&/담당 영역만 봤다/.test(await txt()));
  ok('G5 본문 머리에도 누구에게인지 적는다',
-    await p.evaluate(()=>/다른 영역에 하는 말[\s\S]{0,80}제작방/.test(
-      document.querySelector('#v-agora .agsec.x').textContent)));
+    /* 🔒 선택자가 어긋나면 **터지지 말고 실패**해야 한다 — 터지면 뒤 검사가 통째로 가려진다 */
+    await p.evaluate(()=>{const x=document.querySelector('#v-agora .agsec.agx');
+      return !!x&&/다른 영역에 하는 말[\s\S]{0,80}제작방/.test(x.textContent);}));
 
  /* ── H) 🔒 ⑦ 토론 — 들여쓰기 1단까지 ── */
  t=await txt();
