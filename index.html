@@ -938,6 +938,15 @@ textarea.mla.same{background:#f2f9f4}
 .sjc .cf.bad{color:var(--neg)}.sjc .cf.good{color:#8a6d12}.sjc .cf.neu{color:#b9c0cc}
 .sjsj{font-size:8.5px;font-weight:800;color:#a32d2d}
 /* 고른 칸의 명리 해석 — 캐스케이드 바로 아래 한 줄 */
+/* 고른 칸의 해석 — 🔒 💬 를 없애고 **바로 펼친다**(로한 지시). 이미 칸을 눌러 골랐는데
+   한 번 더 누르게 할 이유가 없다. */
+.sjread{font-size:12.5px;line-height:1.85;white-space:pre-wrap;color:#33425e;
+  background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-top:6px}
+.sjread.none{color:var(--muted);font-size:11.5px;line-height:1.6;background:var(--soft);border-style:dashed}
+/* 총운 💬 모달 — 원국 해석 + 인생 총운을 한 곳에 */
+.sjmseg+.sjmseg{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.sjmh{font-size:12.5px;font-weight:800;margin-bottom:6px}
+.sjmb{font-size:13px;line-height:1.85;white-space:pre-wrap;color:#33425e}
 .sjnow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11.5px;
   background:var(--soft);border-radius:8px;padding:6px 9px;margin-top:7px}
 .sjnow b{font-family:var(--serif);font-size:13px}
@@ -6647,11 +6656,28 @@ function dayVerdict(ft){
 function dayVerdictBadge(ft){var v=dayVerdict(ft);return '<span class="fbadge '+v.k+'">'+v.mark+'</span>';}
 function sajuEsc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function rmk(key){return (DB.saju.readings&&DB.saju.readings[key])?' 💬':'';}
+/* 🔒 ① 「인생 총운」은 맨 아래 긴 섹션이 아니라 **총운 말머리 💬** 안에 있다.
+   로한: 「인생 총운 내용은 맨 상단 총운 말머리 풍선 모달로 옮기고」.
+   평생 한 번 쓰는 글이 매번 화면 끝을 차지할 이유가 없다. */
 function sajuRead(key,title){var r=(DB.saju.readings||{})[key];
+  if(key==='natal')return sajuNatalModal(title,r);
   openModal('<div class="mtop"><h3>'+title+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +(r?'<div style="font-size:13px;line-height:1.7;white-space:pre-wrap">'+sajuEsc(r.text)+'</div><div class="mut" style="margin-top:10px;font-size:10px">Claude 해석 · 저장 '+(r.savedAt||'')+'</div>'
       :'<div class="mut" style="padding:10px 0;line-height:1.6">아직 저장된 해석이 없습니다.<br>Claude에게 <b>"'+title+' 평가해줘"</b>라고 요청하면, 해석 후 여기에 저장할 수 있습니다.</div>')
    +'</div>');}
+function sajuNatalModal(title,r){
+  var S=DB.saju, life=(S.readings||{})['life-overview'];
+  var seg=function(h,txt,when){return '<div class="sjmseg"><div class="sjmh">'+h+'</div>'
+    +'<div class="sjmb">'+sajuEsc(txt)+'</div>'
+    +(when?'<div class="mut" style="font-size:10px;margin-top:6px">저장 '+mdEsc(when)+'</div>':'')+'</div>';};
+  var body='';
+  if(r)body+=seg('원국 해석',r.text,r.savedAt);
+  if(S.story)body+=seg('🧭 인생 총운',S.story,'');
+  else if(life)body+=seg('🧭 인생 총운',life.text,life.savedAt);
+  if(!body)body='<div class="mut" style="padding:10px 0;line-height:1.6">아직 저장된 해석이 없다.<br>'
+    +'Claude 에게 <b>「원국 해석해줘」</b> 또는 <b>「인생 총운 스토리 써줘」</b> 라고 하면 여기 저장된다.</div>';
+  openModal('<div class="mtop"><h3>'+mdEsc(title)+'</h3><span class="x" onclick="closeModal()">×</span></div>'+body);
+}
 function bub(key,title){var has=DB.saju.readings&&DB.saju.readings[key];return '<span class="bub'+(has?' on':'')+'" onclick="event.stopPropagation();sajuRead(\''+key+'\',\''+(''+title).replace(/'/g,'')+'\')" title="해석">💬</span>';}
 /* 🔒 v4.27 — sajuPickYear/sajuPickMonth 를 지웠다. 기간 선택은 sjPick() 한 곳이다.
    두 벌로 두면 어느 쪽이 '지금 고른 기간'인지 화면과 코드가 서로 다르게 답한다(원칙 2). */
@@ -6661,7 +6687,9 @@ function bub(key,title){var has=DB.saju.readings&&DB.saju.readings[key];return '
       사주는 같은 **시간축**을 나눴 본다 — 로버트(예측) → 로한(행동) → 수연(검수).
       좌우로 놓으면 「두 AI 가 사주를 봐준다」로 오해된다.
    🔒 2단(실제 기록)은 **파생**이다. 거래·학습·건강은 이미 app_state 에 있다 — 복사하지 않는다. */
-var SJ={fc:null,ev:{},notes:[],err:'',loading:false,unit:'month',open:{}};
+/* 🔒 기본은 **오늘(일)** — 들어오면 오늘 칸이 골라져 있고 그 날 해석이 바로 보인다.
+   로한: 「디폴트 값은 오늘로 하면 되고 안그러냐」. 맞다. */
+var SJ={fc:null,ev:{},notes:[],err:'',loading:false,unit:'day',open:{}};
 var SJ_AREAS=['사업','재물','공부','관계','건강','주의'];
 /* 🔒 평가 대상과 관찰 대상을 가른다(설계 §6).
    일지가 월 1~2건이라 관계·사업은 대조할 기록이 없다 — 예측은 하되 판정하지 않는다 */
@@ -6697,6 +6725,11 @@ function sjYMD(){
   return {y:y,m:m,d:d};
 }
 function sjSetUnit(u){SJ.unit=u;DB.ui=DB.ui||{};DB.ui.sjSel='';save();renderSaju();}
+/* 🔒 예측·검증은 **월·연 단위**다 — 일 예측은 쓰지 않는다.
+   로한: 「예측검증은 10월에 검증이니 월간 누를 때 내용이 뜨게」.
+   날짜를 눌러도 그 날이 속한 달의 예측을 보여준다. 빈 칸으로 두면 고른 의미가 없다. */
+function sjBoxSel(){var v=sjSel();return (SJ.unit==='day')?v.slice(0,7):v;}
+function sjBoxUnit(){return (SJ.unit==='year')?'year':'month';}
 function sjPick(v){
   DB.ui=DB.ui||{};DB.ui.sjSel=v;
   SJ.unit=(v.length===4)?'year':(v.length===7?'month':'day');
@@ -6715,7 +6748,7 @@ function sjCascade(){
   var ig=DB.saju.ilgan, t=todayStr(), P=sjYMD(), v=sjSel();
   var curY=+t.slice(0,4);
   var out='<div class="sec sjcas"><div class="bkhd"><span class="subhd2">🗓 명리 시간축</span>'
-    +'<span class="mut" style="font-size:10.5px">칸을 고르면 위 「예측과 검증」이 그 기간으로 바뀐다</span></div>';
+    +'<span class="mut" style="font-size:10.5px">칸을 고르면 아래 「예측과 검증」이 그 기간으로 바뀐다 · 기본값은 오늘</span></div>';
 
   /* 연 — 올해 기준 앞뒤 */
   var ys='';
@@ -6761,15 +6794,21 @@ function sjCascade(){
   out+='<div class="sjlab">일運 <span class="mut" style="font-weight:600">'+P.y+'-'
      +String(P.m).padStart(2,'0')+'</span></div><div class="sjrow">'+ds+'</div>';
 
-  /* 고른 칸의 해석 — 💬 는 여기 한 곳에만 둔다(칸마다 넣으면 격자가 안 읽힌다) */
-  var lbl,key2,gz2;
+  /* 🔒 ④ 고른 칸의 해석은 **바로 여기 펼친다**. 💬 를 없앴다.
+     로한: 「날짜를 누르면 말풍선 아이콘 없애버리고 그 날짜의 내용과 말풍선 내용이 한번에 뜨게」.
+     맞다 — 이미 칸을 눌러 고른 뒤에 한 번 더 누르게 할 이유가 없다. */
+  var lbl,key2,gz2,fl2=null;
   if(SJ.unit==='year'){key2='year:'+v;gz2=seunGZ(+v);lbl=v+'년 세운';}
   else if(SJ.unit==='month'){key2='month:'+v;gz2=sjPillars(P.y,P.m,15).month;lbl=v+' 월운';}
-  else {key2='day:'+v;gz2=dayFlags(P.y,P.m,P.d||1).gz;lbl=v+' 일진';}
+  else {var dfx=dayFlags(P.y,P.m,P.d||1);gz2=dfx.gz;key2='day:'+v;lbl=v+' 일진';fl2=dfx;}
+  var rd=(DB.saju.readings||{})[key2];
   out+='<div class="sjnow">고른 기간 <b>'+mdEsc(gz2)+'</b> <span class="mut">'+mdEsc(lbl)
      +' · '+sipsin(ig,gz2[0])+'·'+jiSipsin(ig,gz2[1])+'</span>'
-     +bub(key2,lbl+' '+gz2)
-     +'<span class="mut" style="font-size:10px;margin-left:auto">💬 를 누르면 그 기간 해석을 보고 쓴다</span></div>';
+     +(fl2&&fl2.flags.length?'<span class="mut">· '+mdEsc(fl2.flags.map(function(f){return f.d;}).join('·'))+'</span>':'')
+     +(fl2?dayVerdictBadge(fl2):'')+'</div>'
+     +(rd?'<div class="sjread">'+sajuEsc(rd.text)
+          +'<div class="mut" style="font-size:10px;margin-top:8px">Claude 해석 · 저장 '+mdEsc(rd.savedAt||'')+'</div></div>'
+        :'<div class="sjread none">이 기간 해석이 아직 없다 — Claude 에게 <b>「'+mdEsc(lbl)+' 평가해줘」</b> 라고 하면 여기 저장된다.</div>');
   return out+'</div>';
 }
 function sjLoad(){
@@ -6839,7 +6878,8 @@ function sjState(v){
 function sjBox(){
   if(SJ.fc===null)return '<div class="sec"><h4>🔮 예측과 검증</h4>'
     +'<div class="mut" style="font-size:11.5px;padding:8px 0">불러오는 중…</div></div>';
-  var v=sjSel(), r=sjRange(v), td=todayStr();
+  /* 🔒 일을 골랐으면 그 날이 속한 달을 본다(sjBoxSel) */
+  var v=sjBoxSel(), r=sjRange(v), td=todayStr();
   var fs2=sjFcOf(v), f=fs2[0]||null, ev=f?(SJ.ev[f.id]||[]):[];
   var ended=(r[1]<td), started=(r[0]<=td);
 
@@ -6930,9 +6970,9 @@ function sjBox(){
     }
   }
 
-  var st2=sjState(v);
   return '<div class="sec">'
-   +'<div class="bkhd"><span class="subhd2">🔮 예측과 검증</span>'
+   +'<div class="bkhd"><span class="subhd2">🔮 예측과 검증 <span class="mut" style="font-size:11.5px">'
+     +mdEsc(v)+(SJ.unit==='day'?' <span style="font-size:10.5px">(고른 날이 속한 달)</span>':'')+'</span></span>'
      +'<span class="seg sjunit"><button class="'+(SJ.unit==='year'?'on':'')+'" onclick="sjSetUnit(\'year\')">연운</button>'
      +'<button class="'+(SJ.unit==='month'?'on':'')+'" onclick="sjSetUnit(\'month\')">월운</button>'
      +'<button class="'+(SJ.unit==='day'?'on':'')+'" onclick="sjSetUnit(\'day\')">일운</button></span></div>'
@@ -7350,15 +7390,17 @@ function renderSaju(){
      같은 일(기간 고르기)을 두 UI 가 하고 있었다 → sjCascade() 하나로 합쳤다. */
   document.getElementById('v-saju').innerHTML=''
    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">'
-   +'<div class="sec" style="flex:2;min-width:340px;margin-bottom:0"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span>'+bub('natal','총운(원국) 해석')+'</h4>'+wonguk
+   +'<div class="sec" style="flex:2;min-width:340px;margin-bottom:0"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span>'+bub('natal','🔮 총운 · 인생 총운')+'</h4>'+wonguk
    +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span></div></div>'
    +'<div class="sec" style="flex:1.5;min-width:300px;margin-bottom:0"><h4>대운 흐름</h4><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">'+daeun+'</div></div>'
    +'</div>'
-   /* 🔒 v4.20 — 명식·대운(공통 기준) 바로 아래가 이 페이지의 본문이다.
-      아래 세운·월별 격자는 **명리 참고표**로 내려간다 */
-   +sjBox()
+   /* 🔒 v4.29 — 읽는 순서대로 쌓는다(로한 지시).
+      ① 총운·대운(평생 안 바뀌는 기준)  ② 🗓 시간축에서 **고르고**  ③ 그 기간의 예측·검증.
+      전엔 예측·검증이 시간축보다 위에 있어 **고르고 나서 위로 올라가 봐야** 했다.
+      🔒 「🧭 인생 총운」 긴 섹션은 지웠다 — 총운 말머리 💬 안으로 들어갔다.
+         평생 한 번 쓰는 글이 매번 화면 끝을 차지할 이유가 없다. */
    +sjCascade()
-   +'<div class="sec"><h4>🧭 인생 총운</h4><div style="font-size:13.5px;line-height:1.85;white-space:pre-wrap;color:#33425e">'+(S.story?sajuEsc(S.story):'<span class="mut">아직 스토리 없음 — "인생 총운 스토리 써줘" 하면 Claude가 작성·저장.</span>')+'</div></div>';
+   +sjBox();
 }
 
 /* ====== 목표·루틴 엔진 (v6.0) ======
@@ -9297,13 +9339,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.28';
+var APP_VERSION='4.29';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.29',date:'2026-10-02',note:'<b>🔮 사주 — 배치와 기본값을 바로잡았다.</b> 로한: 「꼭 이렇게 내가 ui를 다 지적해야하냐?? 디폴트 값은 오늘로 하면 되고 안그러냐」 — <b>맞다. 내가 정했어야 했다</b> · ① <b>「🧭 인생 총운」 긴 섹션을 지우고 총운 말머리 💬 안으로</b> 넣었다. 평생 한 번 쓰는 글이 매번 화면 끝을 차지할 이유가 없다 — 모달에서 <b>원국 해석 + 인생 총운</b>을 같이 본다 · ② <b>🗓 명리 시간축을 총운·대운 바로 밑으로</b> 올렸다. 전엔 예측·검증이 시간축보다 위에 있어서 <b>고르고 나서 위로 올라가 봐야</b> 했다 → 읽는 순서대로 쌓는다: 총운·대운(안 바뀌는 기준) → 고른다 → 그 기간의 예측·검증 · ③ <b>예측·검증이 고른 기간을 따라간다</b> — 일을 눌러도 <b>그 날이 속한 달</b>의 예측이 뜨고(10월을 보면 10월 검증), 머리에 어느 기간인지 적는다. 일 단위 예측은 쓰지 않으니 빈 칸으로 두지 않는다 · ④ <b>💬 를 없애고 해석을 바로 펼친다</b> — 칸을 눌러 이미 골랐는데 한 번 더 누르게 할 이유가 없다. 고른 날의 간지·특이일·길흉 배지와 해석 본문이 <b>한 번에</b> 뜬다 · 🔒 <b>기본값은 오늘</b>(일 단위) — 들어오면 오늘 칸이 골라져 있고 그 날 해석이 보인다 · t53 59 → 66건(네 가지를 좌표로 박았다 — 대운 → 시간축 → 예측검증 순서까지 잰다)'},
   {v:'4.28',date:'2026-10-01',note:'<b>🗣 아고라 토론을 수신자 기준으로 갈랐다.</b> 로한: 「학습을 눌렀으면 다른 방애들이 학습방에 이야기한 것들만 떠야지. 수신자 기준으로 정리하라」 · ⚠️ <b>[결함] 토론이 고른 방과 상관없이 그 달 것 전부 떴다</b> — 방을 고르는 화면인데 아래가 안 바뀌니 <b>고른 의미가 없었다</b> · 🔒 그 방 화면엔 <b>그 방에 온 말</b>만 둔다: ① 뿌리가 그 방 평가인 글타래 전부(받은 말 + 거기 달린 답) ② target 이 그 방인 ⭐ 로한의 평가 · 「누구에게 한 말인가」는 바로 위 글이 아니라 <b>그 타래가 누구 평가에서 시작했나</b>로 정한다 (<code>agRoot()</code> 가 parent 를 타고 올라간다 · 데이터가 깨져 순환이 생겨도 걸음 수로 막는다) · 🔴 <b>[결함] 미제출 방은 고를 수조차 없었다</b> — 그런데 9월 생활방이 바로 그 경우다. 본인은 안 썼는데 <b>다섯 방이 생활방을 지목했다</b>. 자기에게 온 말을 정작 읽어야 할 방이 못 봤다 → 미제출 카드도 누를 수 있고, 본문엔 「아직 내지 않았다」고 적되 온 말은 보여준다 · 🆕 <b>「이 방을 지목한 평가」</b> — 지목은 타래가 아니라 <b>남의 평가 본문(others)</b> 안에 있어서 타래만 모아선 영영 안 보인다. 지목한 방을 칩으로 모아 누르면 그 평가로 간다 · 토론 머리에 <b>「🗣 📖 로버트(학습)에 온 말 4건」</b>을 적는다 — 지금 누구 화면인지 숨기지 않는다 · t54 79 → 86건(방을 바꾸면 남의 타래가 사라지는지까지 좌표로 잰다)'},
   {v:'4.27',date:'2026-10-01',note:'<b>🗓 사주 — 연·월·일을 가로 캐스케이드 하나로 합쳤다 + 아고라 카드 정리.</b> 로한: 「예측과 검증에 월별이 있는데 내려보면 연도별 세운·월별·특이일이 또 있다. 차라리 합쳐서 세로가 아닌 가로로. 2019|2020|2021 밑에 1월|2월|3월 밑에 1일|2일|3일, 그 안에 정관겁재든 지금 들어가 있는 정보를 매칭하면 되잖아」 · ⚠️ <b>[결함] 기간 고르는 UI 가 두 벌이었다</b> — 예측칸의 12칸과 아래 3열 세로 목록이 따로 놀아 <b>같은 일을 두 번 골라야 했다</b>. 어느 쪽이 「지금 고른 기간」인지 화면과 코드가 서로 다르게 답했다(원칙 2) · 🔒 <code>sjCascade()</code> 하나로 합쳤다 — <b>연 13칸 → 월 12칸 → 일 31칸</b> 가로 3줄. 칸 안에 <b>간지와 십신</b>이 들어간다(2020 庚子 편관·정인) · 연 고르면 그 해 월이, 월 고르면 그 달 일이 바뀐다 · 오늘 칸은 금색 밑줄 · 삼재는 연 칸에 표시 · 일 칸엔 吉凶平 · 연·월 칸엔 예측 상태(●◐○·) · 💬 해석 버튼은 <b>고른 기간 한 곳에만</b> 둔다 — 칸마다 넣으면 격자가 안 읽힌다 · 🔒 줄마다 가로 스크롤을 허용한다(달력류라 자연스럽다) — <b>페이지 가로 스크롤은 0</b>(360~1500px 확인) · <code>sajuPickYear/sajuPickMonth</code> 와 <code>.sajucols</code> 3열을 지웠다 · 「일운」 단위 추가 · ⚠️ <b>[결함·2회] 아고라 카드마다 아이콘 줄이 떴다</b> — 로한: 「각 방 밑에 동일하게 뜨는 게 뭐냐 / 각 방 클릭했을 때 정보만 있어야지 다 똑같애」. 맞다 — 7칸에 비슷한 이모지가 반복되면 <b>일목요연이 아니라 노이즈</b>다. 누구에게 말했는지는 <b>그 방을 클릭한 본문</b>에만 둔다. 🔒 카드엔 <b>예외만</b> 남긴다 — 다른 영역에 한마디도 안 한 방(「담당 영역만 봤다」). 있는 것은 당연하니 적지 않고 없는 것만 드러낸다 · 🙋 <b>「로한에게 요구하는 것」에 파란 컬러 블록</b>(로한 요청) — 「다른 영역」(노랑)과 색으로 가른다. 내가 할 일이 모이는 칸이다 · t53 49 → 59건 · t54 78 → 79건'},
   {v:'4.26',date:'2026-10-01',note:'<b>🔴 아고라가 실제 화면에서 깨졌다 — 원인 둘 다 내가 못 보던 자리였다.</b> 로한: 「푸쉬 이후에 완전히 깨져버리는 상황」 · 🔴 <b>[결함] 「다른 영역에 하는 말」 칸이 94px 상자로 쪼그라들어 글자가 겹쳤다</b> — 그 칸에 <code>class="agsec x"</code> 를 줬는데 <code>.x</code> 는 <b>모달 닫기 버튼의 전역 클래스</b>다(<code>display:inline-flex;width:30px;height:30px</code>). 내 규칙은 배경·테두리만 덮었을 뿐 display·width 는 안 건드려서 그대로 받았다 → <code>.agx</code> 로 바꿨다. 🔒 <b>한 글자 클래스는 전역과 부딪친다</b> · v4.23부터 있던 결함인데 <code>&lt;details&gt;</code> 가 접혀 있어 안 보였다 · 🔴 <b>[결함·중대] 브라우저에서 RPC 가 전부 실패하고 있었다</b> — <code>agora_uid()</code>·<code>saju_uid()</code> 가 <code>auth.users</code> 를 읽는데 <b>authenticated 롤엔 그 권한이 없다</b>(42501). 방(MCP)은 수퍼유저라 돌아갔고 <b>롤백 드라이런도 수퍼유저로 돌려서 못 봤다</b> · coalesce 는 두 인자를 다 평가할 수 있어 plpgsql 로 갈랐다 — auth.uid() 가 있으면 auth.users 를 아예 안 건드린다. security definer 는 쓰지 않았다 · 🔒 <b>중계 함수 드라이런은 authenticated 롤로 돌린다</b>(6/6 재검증) · 🔴 <b>[결함] facts 실패를 조용히 삼켰다</b> — 화면엔 「불러오는 중…」이 영원히 떠 있어 로한은 느린 건지 깨진 건지 몰랐다. <b>숨기면 거짓말이다</b> → 실패를 적고, 막히면 방마다 다른 숫자를 들고 오게 된다고 말한다 · ⚠️ t54 가 못 잡은 이유 — <b>칸의 개수만 세고 폭을 안 쟀다</b>. 🔒 칸은 존재가 아니라 <b>치수</b>로 잰다 (E6 신설: 일부러 깨뜨려 빨개지는 것까지 확인했다) · 선택자가 어긋나면 터지지 말고 실패하게 고쳤다 — 터지면 뒤 검사가 통째로 가려진다 · t54 77 → 78건'},

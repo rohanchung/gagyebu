@@ -187,7 +187,10 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('G9 2024년 2월을 고르면 일 줄이 29칸(윤년)',rc2[2]===29,JSON.stringify(rc2));
  await p.evaluate(()=>sjPick('2024-02-07'));await p.waitForTimeout(350);
  ok('G10 일을 고르면 단위가 일운이 된다',(await p.evaluate(()=>SJ.unit))==='day');
- ok('G11 고른 기간의 해석 버튼이 한 곳에 있다',(await q('.sjnow .bub'))===1,String(await q('.sjnow .bub')));
+ /* 🔒 v4.29 — 💬 를 없앴다. 로한: 「날짜를 누르면 말풍선 아이콘 없애버리고
+    그 날짜의 내용과 말풍선 내용이 한번에 뜨게」. 칸을 눌러 골랐는데 또 누를 이유가 없다. */
+ ok('G11 캐스케이드에 💬 버튼이 없다',(await q('.sjcas .bub'))===0,String(await q('.sjcas .bub')));
+ ok('G11b 고른 기간의 해석이 바로 펼쳐진다',(await q('.sjread'))===1,String(await q('.sjread')));
  /* 🔒 오늘 칸은 표시된다 — 어디가 지금인지 모르면 격자가 달력 구실을 못 한다 */
  ok('G12 오늘 칸이 표시된다',(await q('.sjc.now'))>=1,String(await q('.sjc.now')));
  await p.evaluate(()=>sjSetUnit('month'));await p.waitForTimeout(350);
@@ -235,6 +238,37 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  /* 🔒 「잠김」이라고 하면 서버가 본 것처럼 읽힌다 */
  ok('K3 「잠김」이라고 하지 않는다',!/잠김/.test(t),t.slice(0,0));
  ok('K4 그래도 예측은 보인다',/겁재의 달/.test(t));
+
+ /* ── L) 🔴 v4.29 배치·기본값 — 로한: 「꼭 이렇게 내가 ui를 다 지적해야하냐」 ──
+    기본값과 순서는 내가 정했어야 했다. 네 가지를 좌표로 박는다. */
+ await p.evaluate(()=>{DB.ui=DB.ui||{};delete DB.ui.sjSel;SJ.unit='day';renderSaju();});
+ await p.waitForTimeout(350);
+ /* ④ 기본값은 오늘 */
+ const td=await p.evaluate(()=>todayStr());
+ ok('L1 기본값이 오늘이다',(await p.evaluate(()=>sjSel()))===td,td);
+ /* ③ 예측·검증은 그 날이 속한 **달** — 일 예측은 쓰지 않는다 */
+ ok('L2 날짜를 골라도 예측칸은 그 달을 본다',
+    (await p.evaluate(()=>sjBoxSel()))===td.slice(0,7),await p.evaluate(()=>sjBoxSel()));
+ ok('L3 어느 기간을 보는지 머리에 적는다',/고른 날이 속한 달/.test(await txt()));
+ /* ② 읽는 순서 — 총운·대운 → 시간축 → 예측·검증 */
+ const ord=await p.evaluate(()=>{
+   const c=document.querySelector('#v-saju .sjcas'), f=document.querySelector('#v-saju .sjflow');
+   const d=[...document.querySelectorAll('#v-saju .sec')].find(e=>/대운 흐름/.test(e.textContent));
+   if(!c||!f||!d)return null;
+   return {daeun:Math.round(d.getBoundingClientRect().top),
+     cas:Math.round(c.getBoundingClientRect().top),fc:Math.round(f.getBoundingClientRect().top)};});
+ ok('L4 대운 → 시간축 → 예측검증 순서다',
+    ord&&ord.daeun<ord.cas&&ord.cas<ord.fc,JSON.stringify(ord));
+ /* ① 인생 총운은 맨 아래 섹션이 아니라 총운 💬 모달 안 */
+ ok('L5 맨 아래 인생 총운 섹션이 없다',!/🧭 인생 총운/.test(await txt()));
+ await p.evaluate(()=>{DB.saju.story='인생 총운 스토리 본문이다.';
+   DB.saju.readings=DB.saju.readings||{};DB.saju.readings['natal']={text:'원국 해석 본문.',savedAt:'2026-08-13'};
+   sajuRead('natal','총운');});
+ await p.waitForTimeout(300);
+ const mt=await p.evaluate(()=>document.getElementById('modal').textContent);
+ ok('L6 총운 💬 모달에 원국과 인생 총운이 같이 뜬다',
+    /원국 해석 본문/.test(mt)&&/인생 총운 스토리 본문/.test(mt),mt.slice(0,60));
+ await p.evaluate(()=>closeModal());await p.waitForTimeout(200);
 
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
