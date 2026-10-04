@@ -281,7 +281,7 @@ function init({session,users}){
 
  /* ── I) 판 CRUD ── */
  await p.click('#bNew');
- ok('I0b 자유 판에서 연 새 판 창에 종류 6개가 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).length))===6);
+ ok('I0b 자유 판에서 연 새 판 창에 종류 7개가 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).length))===7);
  ok('I0 새 판 = 종류 고르기(기본 자유 연습)',/자유 연습/.test(await p.textContent('#mask'))&&/분리각 훈련/.test(await p.textContent('#mask'))&&await p.$eval('[data-kind="free"]',e=>e.classList.contains('on')));
  await p.fill('#mIn','옆돌리기');await p.click('.modal .btns .primary');await wait(200);
  ok('I1 새 판 탭',(await p.textContent('#tabs')).includes('🎱 옆돌리기')&&(await p.textContent('#bName'))==='옆돌리기');
@@ -378,7 +378,7 @@ function init({session,users}){
  /* ── U) 🔁 원쿠션 · 투쿠션 훈련 (v3) — ① 지점 찾기 · ② 답 보기 ──
     아버지: "적구를 아무 곳에 두고, 1적구를 맞히고 어디를 맞아야 2적구로 가는지" · "두께도 말해 주면 좋겠다" */
  await p.click('#bNew');
- ok('U-1 새 판 카드 6장(자유·분리각·원쿠션·투쿠션·🎯 지점 찍기·✖ X법) · 어느 판에서 열어도 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).map(e=>e.dataset.kind).join()))==='free,sep,cush1,cush2,bpick,bx');
+ ok('U-1 새 판 카드 7장(자유·분리각·원쿠션·투쿠션·🎯 지점 찍기·✖ X법·↗ 평행법) · 어느 판에서 열어도 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).map(e=>e.dataset.kind).join()))==='free,sep,cush1,cush2,bpick,bx,bcorner');
  await p.click('[data-kind="cush1"]');
  ok('U0 이름도 원쿠션',/^원쿠션 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));
  await p.click('.modal .btns .primary');await wait(250);
@@ -850,7 +850,7 @@ function init({session,users}){
  /* ⑥ 기록 화면 · 실력 추이 · 다시 불러오기 */
  await p.click('#bLog');await wait(200);await p.click('#vAtt');await wait(250);
  const qlg=await p.textContent('#logBody');
- ok('Q35 시도 기록: 🎯 쿠션 지점 요약 · 줄마다 정답/오답',/🎯 쿠션 지점/.test(qlg)&&/정답률/.test(qlg)&&/⭕ 정답/.test(qlg)&&/❌ 오답/.test(qlg)&&/✖ X법 · 원쿠션 · 고른 지점 위 40/.test(qlg),qlg.slice(0,400));
+ ok('Q35 시도 기록: 🎯 쿠션 지점 요약 · 줄마다 정답/오답',/🎯 쿠션 지점/.test(qlg)&&/정답률/.test(qlg)&&/⭕ 정답/.test(qlg)&&/❌ 오답/.test(qlg)&&/✖ X법 작도 · 원쿠션 · 고른 지점 위 40/.test(qlg),qlg.slice(0,400));
  await p.click('#vTrend');await wait(300);
  const qtr=await p.textContent('#logBody');
  ok('Q36 실력 추이: 🎯 구역 · 정답률 그래프 · 배치별 표',/🎯 쿠션 지점 \(\d+번 판정\)/.test(qtr)&&/날짜별 정답률/.test(qtr)&&/원쿠션 · 긴 쿠션/.test(qtr),qtr.slice(0,300));
@@ -863,6 +863,47 @@ function init({session,users}){
  await p.click('#bSim');await wait(100);
  await p.click('#mBall');await drag(2,3,2.5,3.2);
  ok('Q39 공을 옮기면 판정 줄이 사라진다',!(await p.isVisible('#bankBar'))&&await p.evaluate(()=>SIMV===null));
+
+ /* ── Q2) ↗ 구석 평행법 (투쿠션 · v3.3.3) ──
+    아버지: 흰·빨강 가운데 점 → 구석 선, 흰 공에서 그 선과 평행하게 → 첫 쿠션 지점. "핵심은 1쿠션 지점 · 맞다/안 맞다" */
+ await p.click('#bNew');await p.click('[data-kind="bcorner"]');
+ ok('QC0 이름도 평행법',/^평행법 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));
+ await p.click('.modal .btns .primary');await wait(300);
+ ok('QC1 ↗ 판: 탭 ↗ · 선 긋기 모드 · 늘 투쿠션(전환 버튼 없음)',(await p.$eval('#tabs button.on',e=>e.textContent)).startsWith('↗ ')&&
+   (await p.evaluate(()=>[kind(),ST.draft.bstyle,ST.draft.ncush,MODE].join()))==='bank,corner,2,xline'&&!(await p.isVisible('#ncush'))&&/가운데 점 → 구석 선/.test(await p.textContent('#hint')));
+ let cs=await solOf();
+ ok('QC2 새 판 배치는 구석(붙은 두 쿠션) 길 답이 있다',cs.some(r=>{const k=r.key.split('|')[0].split('>');return k.length===2&&((k[0]==='T'||k[0]==='B')!==(k[1]==='T'||k[1]==='B'));}),cs);
+ /* 아버지 그림과 비슷한 배치: 흰 (5.3,1.6) · 빨강 (6.7,2.7) → 위 → 오른쪽 */
+ await p.evaluate(()=>{ST.balls.w={x:5.3,y:1.6};ST.balls.r={x:6.7,y:2.7};ST.draft.xl=[];ST.draft.cpts=[];renderAll();});
+ ok('QC3 가운데 점 · 구석 표시',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='가운데')));
+ const BRc=await p.evaluate(()=>BR);
+ await drag(6.0,2.15,8-BRc-0.01,BRc+0.01);
+ const l0=await p.evaluate(()=>ST.draft.xl[0]);
+ ok('QC4 선 끝이 가운데 점 · 구석에 붙는다',l0&&l0.a.x===6&&l0.a.y===2.15&&Math.abs(l0.b.x-(8-BRc))<1e-3&&Math.abs(l0.b.y-BRc)<1e-3,l0);
+ /* 흰 공에서 대충 평행하게(1~2° 틀어지게) 위로 */
+ await drag(5.3,1.6,6.55,0.35);
+ const l1=await p.evaluate(()=>ST.draft.xl[1]),pc=await p.evaluate(()=>ST.draft.cpts.map(q=>railId(q)+railVal(q)).join());
+ ok('QC5 ∥ 평행으로 맞춰지고 끝이 쿠션(공 중심선)까지 · 그 끝 = 첫 쿠션 지점 위 66.5',l1&&Math.abs(l1.b.y-BRc)<1e-3&&pc==='T66.5'&&/∥ 평행 → 위 쿠션 66\.5/.test(await p.textContent('#toast')),[l1,pc]);
+ const nC=await p.evaluate(()=>window.__T.bb_attempts.length);
+ await p.keyboard.press('Enter');await wait(80);
+ ok('QC6 지점 하나로 판정 · ⭕ (위 → 오른쪽 → 빨간 공)',/⭕ 정답! 위 [\d.]+ → 오른쪽 [\d.]+ → 빨간 공 ①/.test(await p.textContent('#hint')),await p.textContent('#hint'));
+ await waitAns();await wait(150);
+ const cb=await p.textContent('#bankBar');
+ ok('QC7 정답 칸: 평행법 66.5 · 실제와 비교',/평행법 66\.5/.test(cb),cb);
+ ok('QC8 판 위: 평행법 작도(가운데 점 · 구석 · 평행선) 말풍선',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='평행법 66.5')));
+ ok('QC9 말풍선 글자가 칸 안',!(await fits()).length,await fits());
+ const ca=await p.evaluate(()=>window.__T.bb_attempts[window.__T.bb_attempts.length-1]);
+ ok('QC10 기록: 방식 corner · 첫 지점 하나 · 정답은 구석 길',(await p.evaluate(()=>window.__T.bb_attempts.length))===nC+1&&ca.sim.style==='corner'&&ca.sim.dad.length===1&&ca.sim.best&&ca.sim.best.actR.join()==='T,R'&&ca.sim.x[0].v===66.5,ca.sim&&{s:ca.sim.style,best:ca.sim.best,x:ca.sim.x});
+ /* 선 끝(쿠션 위)을 눌러도 지점 */
+ await p.evaluate(()=>{ST.draft.cpts=[];clearSim();renderAll();});
+ await click(l1.b.x,l1.b.y);await wait(80);
+ ok('QC11 쿠션에 닿은 선 끝을 누르면 그 지점',(await p.evaluate(()=>ST.draft.cpts.map(q=>railId(q)+railVal(q)).join()))==='T66.5');
+ /* 찍기로도 하나만 */
+ await p.click('#mCpt');await click(3,0.06);
+ ok('QC12 지점 찍기도 하나만(다시 찍으면 바뀜)',(await p.evaluate(()=>ST.draft.cpts.map(q=>railId(q)+railVal(q)).join()))==='T30');
+ await p.click('#bNewQ');await wait(250);
+ cs=await solOf();
+ ok('QC13 🎲 새 배치도 구석 길 답',cs.some(r=>{const k=r.key.split('|')[0].split('>');return k.length===2&&((k[0]==='T'||k[0]==='B')!==(k[1]==='T'||k[1]==='B'));}),cs);
 
  /* ── K) 한 화면 · 실버 UX 치수 ──
     🔒 v1.1: 화면 전체(2560×1440)로 쟀더니 통과했지만, 실제 브라우저 창은 탭·주소창을 빼면 ~1300 이라

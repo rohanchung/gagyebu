@@ -10,7 +10,7 @@
  *      물리 엔진 쿠션 모델 교체(physics.js v3.3)
  */
 'use strict';
-var APP_VER='3.3.2';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.3.3';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
@@ -28,8 +28,11 @@ var BNAME={w:'흰 공',y:'노란 공',r:'빨간 공 ①',r2:'빨간 공 ②'};
 var KINDS={free:{ic:'🎱',name:'자유 연습'},sep:{ic:'📐',name:'분리각 훈련'},cush:{ic:'🔁',name:'원·투쿠션 훈련'},bank:{ic:'🎯',name:'쿠션 지점'}};
 /* v3: 🔁 원쿠션 판 · 🔁² 투쿠션 판 — 같은 kind(cush), 쿠션 수는 판마다 고정(draft.ncush) */
 /* v3.3: 🎯 쿠션 지점 찍기 · ✖ X법 작도 — 같은 kind(bank), 방식은 판마다 고정(draft.bstyle) */
-function kindIc(b){return b&&b.kind==='cush'?(b.draft&&b.draft.ncush===2?'🔁²':'🔁'):b&&b.kind==='bank'?(b.draft&&b.draft.bstyle==='x'?'✖':'🎯'):KINDS[(b&&b.kind)||'free'].ic;}
-function kindName(b){return b&&b.kind==='cush'?(b.draft&&b.draft.ncush===2?'투쿠션 훈련':'원쿠션 훈련'):b&&b.kind==='bank'?(b.draft&&b.draft.bstyle==='x'?'X법 작도':'쿠션 지점 찍기'):KINDS[(b&&b.kind)||'free'].name;}
+/* v3.3.3: ↗ 구석 평행법(투쿠션) — bstyle corner. 아버지: 흰·빨강 가운데 점 → 구석 선과 평행하게 흰 공에서 → 첫 쿠션 지점 */
+var BSTY={pick:{ic:'🎯',name:'쿠션 지점 찍기'},x:{ic:'✖',name:'X법 작도'},corner:{ic:'↗',name:'구석 평행법'}};
+function bsty(s){return BSTY[s]||BSTY.pick;}
+function kindIc(b){return b&&b.kind==='cush'?(b.draft&&b.draft.ncush===2?'🔁²':'🔁'):b&&b.kind==='bank'?bsty(b.draft&&b.draft.bstyle).ic:KINDS[(b&&b.kind)||'free'].ic;}
+function kindName(b){return b&&b.kind==='cush'?(b.draft&&b.draft.ncush===2?'투쿠션 훈련':'원쿠션 훈련'):b&&b.kind==='bank'?bsty(b.draft&&b.draft.bstyle).name:KINDS[(b&&b.kind)||'free'].name;}
 /* ⚙ 테이블 감각 — 당구장마다 천·쿠션이 다르다. 표준(보통)에서 한 칸씩만 움직인다 */
 var FEELS={cloth:{slow:{muR:0.013},mid:{muR:0.010},fast:{muR:0.0075}},
            cush:{weak:{eC:0.80},mid:{eC:0.86},strong:{eC:0.92}},
@@ -179,7 +182,7 @@ function createBoard(name,balls,draft,silent,from,kd){
     if(r.error||!r.data){reveal();toast('⚠ 새 판을 만들지 못했습니다');return;}
     var b=normBoard(r.data);BOARDS.push(b);
     logEvent(from?'board.copy':'board.create',b.id,from?{from:from,name:name}:{name:name,kind:b.kind});
-    MODE=b.kind==='sep'?'pobj':b.kind==='cush'?'cpt':b.kind==='bank'?(b.draft.bstyle==='x'?'xline':'cpt'):'ball';
+    MODE=b.kind==='sep'?'pobj':b.kind==='cush'?'cpt':b.kind==='bank'?(b.draft.bstyle!=='pick'?'xline':'cpt'):'ball';
     switchBoard(b.id);
     if(!silent)toast(from?'‘'+name+'’(으)로 복제했습니다':kindIc(b)+' 새 판 ‘'+name+'’을 만들었습니다');
   });
@@ -216,8 +219,8 @@ function switchBoard(id){
   CUR=id;pref('board',id);
   var b=curBoard();ST={balls:clone(b.balls),draft:clone(b.draft)};
   UNDO=[];REDO=[];SEL=null;HOVER=null;DRAG=null;
-  var OK={sep:{ball:1,pobj:1,pcue:1},free:{ball:1,draw:1,edit:1},cush:{ball:1,cpt:1},bank:{ball:1,cpt:1,xline:1}},FIRST={sep:'pobj',free:'ball',cush:'cpt',bank:b.draft.bstyle==='x'?'xline':'cpt'};
-  if(!OK[b.kind][MODE]||(MODE==='xline'&&b.draft.bstyle!=='x'))MODE=FIRST[b.kind];
+  var OK={sep:{ball:1,pobj:1,pcue:1},free:{ball:1,draw:1,edit:1},cush:{ball:1,cpt:1},bank:{ball:1,cpt:1,xline:1}},FIRST={sep:'pobj',free:'ball',cush:'cpt',bank:b.draft.bstyle!=='pick'?'xline':'cpt'};
+  if(!OK[b.kind][MODE]||(MODE==='xline'&&b.draft.bstyle==='pick'))MODE=FIRST[b.kind];
   if(MODE==='draw'&&!ST.draft[LAYER].length)MODE='ball';
   hidePop();renderAll();reveal();
 }
@@ -236,20 +239,21 @@ function newBoard(){
     '<button type="button" data-kind="cush1"><b>🔁 원쿠션 훈련</b><span>1적구를 맞히고 쿠션 한 번 → 2적구. 어디를 맞아야 하는지·두께를 찾는다</span></button>'+
     '<button type="button" data-kind="cush2"><b>🔁² 투쿠션 훈련</b><span>1적구 → 쿠션 두 번 → 2적구. 두 쿠션 지점과 두께를 찾는다</span></button>'+
     '<button type="button" data-kind="bpick"><b>🎯 쿠션 지점 찍기</b><span>흰 공·빨간 공을 놓고, 흰 공이 맞을 쿠션 지점을 찍는다(원쿠션 1개 · 투쿠션 2개) → ⭕/❌ 와 정답</span></button>'+
-    '<button type="button" data-kind="bx"><b>✖ X법 작도</b><span>포토샵처럼 선을 긋고, 두 선이 엇갈린 X 를 누르면 그 아래 쿠션 지점이 답 → ⭕/❌ 와 정답</span></button></div>'+
+    '<button type="button" data-kind="bx"><b>✖ X법 작도</b><span>포토샵처럼 선을 긋고, 두 선이 엇갈린 X 를 누르면 그 아래 쿠션 지점이 답 → ⭕/❌ 와 정답</span></button>'+
+    '<button type="button" data-kind="bcorner"><b>↗ 구석 평행법 (투쿠션)</b><span>흰·빨강 가운데 점 → 구석 선, 흰 공에서 그 선과 평행하게 → 첫 쿠션 지점 → ⭕/❌ 와 정답</span></button></div>'+
     '<p style="margin:.9rem 0 .3rem;font-weight:700">판 이름</p>';
   modal({title:'＋ 새 판 만들기',html:html,input:{value:'판 '+(BOARDS.length+1),max:30},noFocus:true,
     buttons:[{label:'취소',value:null},{label:'만들기',value:'ok',cls:'primary'}],
     onOpen:function(m){m.querySelectorAll('[data-kind]').forEach(function(x){x.addEventListener('click',function(){
       pick=x.dataset.kind;m.querySelectorAll('[data-kind]').forEach(function(y){y.classList.toggle('on',y===x);});
-      var inp=$('mIn');if(/^(판|분리각|쿠션|원쿠션|투쿠션|지점|X법) \d+$/.test(inp.value))inp.value=({sep:'분리각 ',cush1:'원쿠션 ',cush2:'투쿠션 ',bpick:'지점 ',bx:'X법 '}[pick]||'판 ')+(BOARDS.length+1);});});}
+      var inp=$('mIn');if(/^(판|분리각|쿠션|원쿠션|투쿠션|지점|X법|평행법) \d+$/.test(inp.value))inp.value=({sep:'분리각 ',cush1:'원쿠션 ',cush2:'투쿠션 ',bpick:'지점 ',bx:'X법 ',bcorner:'평행법 '}[pick]||'판 ')+(BOARDS.length+1);});});}
   }).then(function(r){
     if(r.value!=='ok')return;var n=(r.text||'').trim()||('판 '+(BOARDS.length+1));
     var dr=emptyDraft(),kd=pick;
     if(pick==='cush1'||pick==='cush2'){kd='cush';dr.ncush=pick==='cush2'?2:1;dr.ctype='after';}   /* 주 훈련 = 1적구 뒤 쿠션 */
     var bl=defaultBalls();
-    if(pick==='bpick'||pick==='bx'){kd='bank';dr.bstyle=pick==='bx'?'x':'pick';dr.ncush=1;dr.reds=['r'];   /* 🎯 흰 공 하나 · 빨간 공 하나 무작위 */
-      var lay=bankLayout(1,['r'],PH.SPEED[2],null);if(lay){bl.w=lay.w;bl.r=lay.r;}bl.cue='w';}
+    if(pick==='bpick'||pick==='bx'||pick==='bcorner'){kd='bank';dr.bstyle={bpick:'pick',bx:'x',bcorner:'corner'}[pick];dr.ncush=pick==='bcorner'?2:1;dr.reds=['r'];   /* 🎯 흰 공 하나 · 빨간 공 하나 무작위 */
+      var lay=bankLayout(dr.ncush,['r'],PH.SPEED[2],null,pick==='bcorner');if(lay){bl.w=lay.w;bl.r=lay.r;}bl.cue='w';}
     createBoard(n,bl,dr,false,null,kd);
   });
 }
@@ -415,8 +419,9 @@ function aimInfo(){
 function aimText(){
   var ai=aimInfo(),K=kind(),d=ST.draft;
   if(K==='bank'){
-    if(!d.cpts.length)return d.bstyle==='x'?'✖ 선을 긋고, 엇갈린 X 를 누르세요'+(d.ncush===2?' (지점 2개)':''):'📍 흰 공이 맞을 쿠션 지점을 찍어 주세요'+(d.ncush===2?' (2개, 순서대로)':'');
-    return '고른 지점: '+d.cpts.map(function(p){return RNM[railId(p)]+' '+railVal(p);}).join(' → ')+(d.cpts.length<d.ncush?' · 1개 더 찍어 주세요':'');
+    if(!d.cpts.length&&d.bstyle==='corner')return '↗ 가운데 점 → 구석 선, 흰 공에서 평행선을 그으세요';
+    if(!d.cpts.length)return d.bstyle!=='pick'?'✖ 선을 긋고, 엇갈린 X 를 누르세요'+(d.ncush===2?' (지점 2개)':''):'📍 흰 공이 맞을 쿠션 지점을 찍어 주세요'+(d.ncush===2?' (2개, 순서대로)':'');
+    return '고른 지점: '+d.cpts.map(function(p){return RNM[railId(p)]+' '+railVal(p);}).join(' → ')+(d.cpts.length<bankNeed(d)?' · 1개 더 찍어 주세요':'');
   }
   if(K==='cush'&&!cushAfter()){
     if(!d.cpts.length)return '📍 수구가 맞힐 쿠션 지점을 찍어 주세요'+(d.ncush===2?' (2개)':'');
@@ -630,10 +635,10 @@ function buildCushProblem(){
 }
 function newProblem(){
   var K=kind(),tok=++QTOKEN,tries=0;
-  if(K==='bank'){var bd=ST.draft,lay=bankLayout(bd.ncush,bd.reds,speedMs(),bd.tip);
+  if(K==='bank'){var bd=ST.draft,lay=bankLayout(bd.ncush,bd.reds,speedMs(),bd.tip,bd.bstyle==='corner');
     if(!lay){toast('⚠ 배치를 못 만들었습니다 — 다시 눌러 보세요');return;}
     pushUndo();bankReds().forEach(function(n){ST.balls[n]=lay[n];});ST.balls.w=lay.w;bd.cpts=[];bd.xl=[];
-    MODE=bd.bstyle==='x'?'xline':'cpt';saveSoon();renderAll();toast('🎲 새 배치 — '+(bd.ncush===2?'투쿠션':'원쿠션')+'으로 맞혀 보세요');return;}
+    MODE=bd.bstyle!=='pick'?'xline':'cpt';saveSoon();renderAll();toast('🎲 새 배치 — '+(bd.ncush===2?'투쿠션':'원쿠션')+'으로 맞혀 보세요');return;}
   pushUndo();
   var d=ST.draft;d.predObj=null;d.predCue=null;d.cpts=[];d.predict=[];d.actual=[];resetTries();
   var cue=ST.balls.cue;
@@ -1079,8 +1084,9 @@ function bankSolveAsync(s,prog,done){
   })();
 }
 /* 보여 줄 정답 — 고른 쿠션 위에서 고른 곳에 가장 가까운 범위, 없으면 가장 넓은 범위 */
-function bankPick(sol,dad){
-  var rs=sol.ranges;if(!rs.length)return null;var d0=dad&&dad[0];
+function bankPick(sol,dad,corner){
+  var rs=sol.ranges;if(corner){var cr=rs.filter(function(r){return adjR(r.actR[0],r.actR[1]);});if(cr.length)rs=cr;}   /* 평행법 판은 구석 길을 먼저 */
+  if(!rs.length)return null;var d0=dad&&dad[0];
   var same=d0?rs.filter(function(r){return r.rail===d0.r;}):[];
   var gap=function(r){return d0.v<r.from?r.from-d0.v:d0.v>r.to?d0.v-r.to:0;};
   if(same.length)return same.reduce(function(m,r){var a=gap(r),b=gap(m);return a<b||(a===b&&r.items.length>m.items.length)?r:m;});
@@ -1089,6 +1095,7 @@ function bankPick(sol,dad){
 /* X법(거울) 이론값 — 공 중심선 기준. 원쿠션은 X 작도와 똑같은 답이다 */
 function bankTheory(bl,r){var sp=sysPath(bl.w,bl[r.target],r.actR);
   return sp?sp.slice(1,1+r.actR.length).map(function(q,k){return {r:r.actR[k],v:cval(q,r.actR[k])};}):null;}
+function thName(rs){return rs.length===1?'X법':adjR(rs[0],rs[1])?'평행법':'거울';}
 function bankAnswer(I,pick,th,sol){
   if(!pick)return {text:'💡 이 속도·당점으로는 '+(I.n===2?'투':'원')+'쿠션으로 맞히는 길이 없습니다 — 공을 옮기거나 속도를 바꿔 보세요',err:null,none:true};
   var c=pick.center,d0=I.dad[0],t='💡 정답 '+RNM[pick.rail]+' '+(pick.from===pick.to?pick.from:pick.from+' ~ '+pick.to)+(pick.items.length>2?' (가운데 '+c.v+')':'');
@@ -1097,15 +1104,16 @@ function bankAnswer(I,pick,th,sol){
   var err=null;
   if(d0&&d0.r===pick.rail){err=d0.v-c.v;if(Math.abs(err)>=0.5)t+=' · 고르신 곳은 가운데보다 '+Math.abs(err)+' '+(err<0?'작은':'큰')+' 수';}
   else if(d0)t+=' · 고르신 '+RNM[d0.r]+' 쿠션이 아니라 '+RNM[pick.rail]+' 쿠션';
-  if(th){var dv=c.v-th[0].v;t+=' · X법 '+th.map(function(x){return x.v;}).join(' → ')+(Math.abs(dv)>=0.5?' → 실제는 X법보다 '+Math.abs(dv)+' '+(dv>0?'큰':'작은')+' 수':' (실제와 같음)');}
+  if(th){var dv=c.v-th[0].v,tn=thName(pick.actR);t+=' · '+tn+' '+th.map(function(x){return x.v;}).join(' → ')+(Math.abs(dv)>=0.5?' → 실제는 '+tn+'보다 '+Math.abs(dv)+' '+(dv>0?'큰':'작은')+' 수':' (실제와 같음)');}
   if(I.n===2&&I.dad[1]&&I.act[1])t+=' · ② 예측 '+RNM[I.dad[1].r]+' '+I.dad[1].v+' / 실제 '+RNM[I.act[1].r]+' '+I.act[1].v;
   if(sol.ranges.length>1)t+=' · 다른 길 '+(sol.ranges.length-1)+'가지 더';
   return {text:t,err:err,parts:t.replace(/^💡 /,'').split(' · ')};
 }
+function bankNeed(d){return d.bstyle==='corner'?1:d.ncush;}   /* ↗ 평행법은 첫 쿠션 지점만(아버지: "핵심은 1쿠션 지점") */
 function bankJudge(){
   var d=ST.draft,N=d.ncush;
-  if(d.cpts.length<N){modal({title:N===2?'쿠션 지점을 2개 찍어 주세요':'쿠션 지점을 찍어 주세요',
-    body:(d.bstyle==='x'?'두 선이 엇갈린 노란 ✖ 를 누르면 그 아래 쿠션 지점이 정해집니다. [📍 지점 찍기]로 바로 찍어도 됩니다.':'흰 공이 맞을 쿠션을 누르세요.')+(N===2?' 첫 번째 · 두 번째 순서대로 찍습니다.':''),
+  if(d.cpts.length<bankNeed(d)){modal({title:bankNeed(d)===2?'쿠션 지점을 2개 찍어 주세요':'쿠션 지점을 찍어 주세요',
+    body:d.bstyle==='corner'?'흰·빨강 가운데 점에서 구석까지 선을 긋고, 흰 공에서 그 선과 평행하게 쿠션까지 그으면 첫 쿠션 지점이 정해집니다. [📍 지점 찍기]로 바로 찍어도 됩니다.':(d.bstyle!=='pick'?'두 선이 엇갈린 노란 ✖ 를 누르면 그 아래 쿠션 지점이 정해집니다. [📍 지점 찍기]로 바로 찍어도 됩니다.':'흰 공이 맞을 쿠션을 누르세요.')+(N===2?' 첫 번째 · 두 번째 순서대로 찍습니다.':''),
     buttons:[{label:'알겠습니다',value:1,cls:'primary'}]});return;}
   var ai=aimInfo();if(!ai)return;
   clearSim();hidePop();
@@ -1114,7 +1122,7 @@ function bankJudge(){
   renderAll();
   var snap={balls:clone(ST.balls),reds:bankReds().slice(),N:N,tip:d.tip?clone(d.tip):{x:0,y:0},V:speedMs()},dr=clone(d),bid=CUR;
   bankSolveAsync(snap,function(i,n){if(SIMV&&SIMV.bank&&SIMV.bank.id===id){SIMV.bank.prog=Math.round(i/n*100);renderBankBar();}},function(sol){
-    var pick=bankPick(sol,info.dad),th=pick?bankTheory(snap.balls,pick):null,ans=bankAnswer(info,pick,th,sol);
+    var pick=bankPick(sol,info.dad,d.bstyle==='corner'),th=pick?bankTheory(snap.balls,pick):null,ans=bankAnswer(info,pick,th,sol);
     bankRecord(bid,snap,dr,info,pick,th,ans,res,sol);
     if(SIMV&&SIMV.bank&&SIMV.bank.id===id){SIMV.bank.sol=sol;SIMV.bank.pick=pick;SIMV.bank.th=th;SIMV.bank.ans=ans;renderBankBar();renderTable();}
   });
@@ -1183,16 +1191,20 @@ function bankMirror(){
     buttons:[{label:'닫기',value:null,cls:'primary'}]});
 }
 /* 🎲 배치 — 거꾸로 만든다: 흰 공에서 아무 쿠션 지점으로 굴려 보고, N번째 쿠션 뒤 길 위에 빨간 공을 놓는다(답이 반드시 있다) */
-function bankLayout(N,reds,V,tip){
+function adjR(a,b){return !!a&&!!b&&((a==='T'||a==='B')!==(b==='T'||b==='B'));}
+/* 두 쿠션 사이 구석 — 공 중심선 기준 */
+function cornerOf(r1,r2){return {x:(r1==='L'||r2==='L')?BR:W-BR,y:(r1==='T'||r2==='T')?BR:H-BR};}
+function bankLayout(N,reds,V,tip,corner){
   reds=reds&&reds.length?reds:['r'];var R0=2*BR;
   for(var t=0;t<150;t++){
     var c=rpos(0.45),rr=['T','B','L','R'][Math.floor(Math.random()*4)],mx=(rr==='T'||rr==='B')?W:H,
         q=toCenter(railPt(rr,Math.round(rnd(0.5,mx-0.5)*20)/2)),dir={x:q.x-c.x,y:q.y-c.y},L=Math.hypot(dir.x,dir.y);if(L<1)continue;dir={x:dir.x/L,y:dir.y/L};
-    var res=PH.simulate({balls:{w:{x:c.x*DM,y:c.y*DM}},cue:'w',dir:dir,V:V,tip:tip||{x:0,y:0},params:feelParams()}),E=res.events,cc=0,tN=null,tNx=null;
+    var res=PH.simulate({balls:{w:{x:c.x*DM,y:c.y*DM}},cue:'w',dir:dir,V:V,tip:tip||{x:0,y:0},params:feelParams()}),E=res.events,cc=0,tN=null,tNx=null,sides=[];
     for(var i=0;i<E.length;i++){var e=E[i];if(e.ball!=='w')continue;
-      if(e.type==='cushion'){cc++;if(cc===N)tN=e.t;else if(cc===N+1){tNx=e.t;break;}}
+      if(e.type==='cushion'){cc++;sides.push(e.side);if(cc===N)tN=e.t;else if(cc===N+1){tNx=e.t;break;}}
       if(e.type==='stop'&&tN!=null){tNx=e.t;break;}}
     if(tN==null)continue;
+    if(corner&&!adjR(sides[0],sides[1]))continue;   /* ↗ 구석 평행법: 붙은 두 쿠션(구석)으로 가는 길만 */
     var F=res.frames,P=F.map(function(f){return {t:f.t,x:f.p.w[0]/DM,y:f.p.w[1]/DM};});
     var before=P.filter(function(p){return p.t<=tN;});
     var cands=P.filter(function(p){return p.t>tN+0.05&&(tNx==null||p.t<tNx-0.05)&&p.x>0.4&&p.x<W-0.4&&p.y>0.4&&p.y<H-0.4&&Math.hypot(p.x-c.x,p.y-c.y)>0.6&&
@@ -1230,8 +1242,27 @@ function xTargets(){
   var out=[];
   liveBalls().forEach(function(n){var b=ST.balls[n];out.push({x:b.x,y:b.y,k:'ball'},{x:b.x,y:BR,k:'foot'},{x:b.x,y:H-BR,k:'foot'},{x:BR,y:b.y,k:'foot'},{x:W-BR,y:b.y,k:'foot'});});
   xIsects().forEach(function(q){out.push({x:q.x,y:q.y,k:'x'});});
+  if(ST.draft.bstyle==='corner'){var w0=ST.balls.w;
+    bankReds().forEach(function(n){var r0=ST.balls[n];out.push({x:(w0.x+r0.x)/2,y:(w0.y+r0.y)/2,k:'mid'});});
+    [['T','L'],['T','R'],['B','L'],['B','R']].forEach(function(p){var q=cornerOf(p[0],p[1]);out.push({x:q.x,y:q.y,k:'corner'});});}
   return out;
 }
+/* ∥ 흰 공에서 긋는 선이 이미 그은 선과 3° 안이면 정확히 평행으로 · 끝은 공 중심선(쿠션)까지 */
+function xParallel(a,b){
+  var w0=ST.balls.w;if(dist(a,w0)>1e-6)return null;
+  var dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy);if(L<0.3)return null;
+  var best=null;(ST.draft.xl||[]).forEach(function(l){var ex=l.b.x-l.a.x,ey=l.b.y-l.a.y,El=Math.hypot(ex,ey);if(El<1e-6)return;
+    var c=(dx*ex+dy*ey)/(L*El),s=(dx*ey-dy*ex)/(L*El),ang=Math.abs(Math.atan2(s,c));
+    var sg=ang>Math.PI/2?-1:1;if(sg<0)ang=Math.PI-ang;
+    if(ang<3*Math.PI/180&&(!best||ang<best.ang))best={ang:ang,ux:sg*ex/El,uy:sg*ey/El};});
+  if(!best)return null;
+  /* 공 중심선 사각형에 닿는 곳까지 */
+  var ts=[];if(best.ux>1e-9)ts.push((W-BR-a.x)/best.ux);if(best.ux<-1e-9)ts.push((BR-a.x)/best.ux);if(best.uy>1e-9)ts.push((H-BR-a.y)/best.uy);if(best.uy<-1e-9)ts.push((BR-a.y)/best.uy);
+  var t=Math.min.apply(null,ts.filter(function(x){return x>0;}));if(!isFinite(t))return null;
+  return {x:x4(a.x+best.ux*t),y:x4(a.y+best.uy*t),k:'par'};
+}
+/* 쿠션(공 중심선) 위 점 → 쿠션 지점 */
+function cLineCpt(q){var r=onCLine(q);if(!r)return null;var v=Math.round((r==='T'||r==='B'?q.x:q.y)*20)/2;return railPt(r,clamp(v,0,(r==='T'||r==='B')?W*10:H*10));}
 function x4(v){return Math.round(v*1e4)/1e4;}
 function snapX(p){
   var k=pxK()/S,r=Math.max(BR*1.2,22*k),best=null;
@@ -1434,7 +1465,7 @@ function renderTable(){
 }
 /* 🎯 판 아래층: 공 중심선(✖ 작도 중) · 아버지 선 · 고른 지점과 예상 길 */
 function bankSvg(k){
-  var d=ST.draft,h=[],xs=d.bstyle==='x';
+  var d=ST.draft,h=[],xs=d.bstyle!=='pick';
   var ln=function(p,q,col,w,dash,op){return '<line x1="'+p.x*S+'" y1="'+p.y*S+'" x2="'+q.x*S+'" y2="'+q.y*S+'" stroke="'+col+'" stroke-width="'+w+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+(op?' opacity="'+op+'"':'')+' vector-effect="non-scaling-stroke" pointer-events="none"/>';};
   if(xs&&MODE==='xline'){
     /* 공 중심선 — 공 중심은 쿠션에서 반지름만큼 안쪽에서 튕긴다. 수직선은 여기까지 */
@@ -1444,7 +1475,8 @@ function bankSvg(k){
       h.push('<circle cx="'+q.x*S+'" cy="'+q.y*S+'" r="'+6*k+'" fill="none" stroke="#fff" stroke-width="'+2*k+'" opacity=".75" pointer-events="none"/>');});});
   }
   if(xs)(d.xl||[]).forEach(function(l){h.push(ln(l.a,l.b,'#11482a',8,null,0.6),ln(l.a,l.b,'#ffd23f',4));});
-  if(xs&&DRAG&&DRAG.type==='xl'&&DRAG.moved)h.push(ln(DRAG.a,DRAG.b,'#11482a',8,null,0.6),ln(DRAG.a,DRAG.b,'#ffd23f',4,'10 6'));
+  if(xs&&DRAG&&DRAG.type==='xl'&&DRAG.moved){h.push(ln(DRAG.a,DRAG.b,'#11482a',8,null,0.6),ln(DRAG.a,DRAG.b,DRAG.par?'#ff9f1a':'#ffd23f',4,'10 6'));
+    if(DRAG.par)h.push(bubble(DRAG.b.x*S,DRAG.b.y*S,'∥ 평행','#7a4b00',k,DRAG.b.y<H/2?true:'up'));}
   if(d.cpts.length){var pts=[ST.balls.w].concat(d.cpts.map(toCenter)).map(function(q){return q.x*S+','+q.y*S;}).join(' ');
     h.push('<polyline points="'+pts+'" fill="none" stroke="#fff" stroke-width="9" opacity=".7" vector-effect="non-scaling-stroke" pointer-events="none"/>');
     h.push('<polyline points="'+pts+'" fill="none" stroke="#1650d8" stroke-width="5" stroke-dasharray="12 8" vector-effect="non-scaling-stroke" pointer-events="none"/>');}
@@ -1462,6 +1494,8 @@ function bankAnsSvg(k){
   B.sol.ranges.forEach(function(r){if(r!==B.pick)h.push(band(r,false));});
   var pk=B.pick;if(!pk)return h.join('');
   h.push(band(pk,true));
+  /* 🔒 이론값 말풍선이 아버지가 찍은 지점 말풍선과 같은 자리에 겹쳤다(평행법 66.5 아래 66.5) → 한 줄 더 안쪽으로 */
+  var thB=function(q,r,t){var rp=toRail(q,r),dy=r==='T'?36*k:r==='B'?-36*k:36*k;return bubble(rp.x*S,rp.y*S+dy,t,'#1a1a1a',k,r==='B'?'up':true);};
   var ln=function(p,q,w,dash){return '<line x1="'+p.x*S+'" y1="'+p.y*S+'" x2="'+q.x*S+'" y2="'+q.y*S+'" stroke="#1a1a1a" stroke-width="'+(w+3)+'" opacity=".5" vector-effect="non-scaling-stroke" pointer-events="none"/>'+
     '<line x1="'+p.x*S+'" y1="'+p.y*S+'" x2="'+q.x*S+'" y2="'+q.y*S+'" stroke="#fff" stroke-width="'+w+'"'+(dash?' stroke-dasharray="'+dash+'"':'')+' vector-effect="non-scaling-stroke" pointer-events="none"/>';};
   var A=ST.balls.w,T=ST.balls[pk.target],r=pk.actR[0];
@@ -1472,10 +1506,18 @@ function bankAnsSvg(k){
     if(Math.abs(den)>1e-9){var t=((T.x-A.x)*(A1.y-T.y)-(T.y-A.y)*(A1.x-T.x))/den,X={x:A.x+(T1.x-A.x)*t,y:A.y+(T1.y-A.y)*t},XF=ft(X);
       h.push(ln(A,A1,2,'5 6'),ln(T,T1,2,'5 6'),ln(A,T1,2.5,'10 7'),ln(T,A1,2.5,'10 7'),ln(X,XF,3));
       h.push('<circle cx="'+X.x*S+'" cy="'+X.y*S+'" r="'+8*k+'" fill="#fff" stroke="#1a1a1a" stroke-width="'+3*k+'" pointer-events="none"/>');
-      var rp=toRail(XF,r);h.push(bubble(rp.x*S,rp.y*S,'X법 '+cval(XF,r),'#1a1a1a',k,r==='B'?'up':true));}
+      h.push(thB(XF,r,'X법 '+cval(XF,r)));}
+  }else if(adjR(pk.actR[0],pk.actR[1])){
+    /* ↗ 구석 평행법: 흰·빨강 가운데 점 M → 구석 K, 흰 공에서 M→K 와 평행 → 첫 쿠션 지점(= 거울 두 번과 같은 답) */
+    var M={x:(A.x+T.x)/2,y:(A.y+T.y)/2},Kc=cornerOf(pk.actR[0],pk.actR[1]),sp3=sysPath(A,T,pk.actR);
+    h.push(ln(A,T,1.5,'4 6'),ln(M,Kc,2.5,'10 7'));
+    if(sp3){h.push(ln(A,sp3[1],3),ln(sp3[1],sp3[2],1.5,'4 6'),ln(sp3[2],T,1.5,'4 6'));
+      h.push(thB(sp3[1],pk.actR[0],'평행법 '+cval(sp3[1],pk.actR[0])));}
+    h.push('<circle cx="'+M.x*S+'" cy="'+M.y*S+'" r="'+8*k+'" fill="#fff" stroke="#1a1a1a" stroke-width="'+3*k+'" pointer-events="none"/>');
+    h.push('<rect x="'+(Kc.x*S-8*k)+'" y="'+(Kc.y*S-8*k)+'" width="'+16*k+'" height="'+16*k+'" fill="#fff" stroke="#1a1a1a" stroke-width="'+3*k+'" pointer-events="none"/>');
   }else if(B.th){
     var sp=sysPath(A,T,pk.actR);if(sp){for(var i=0;i<sp.length-1;i++)h.push(ln(sp[i],sp[i+1],2.5,'10 7'));
-      sp.slice(1,3).forEach(function(q,j){var rr=pk.actR[j],rp2=toRail(q,rr);h.push(bubble(rp2.x*S,rp2.y*S,'거울 '+cval(q,rr),'#1a1a1a',k,rr==='B'?'up':true));});}
+      sp.slice(1,3).forEach(function(q,j){h.push(thB(q,pk.actR[j],'거울 '+cval(q,pk.actR[j])));});}
   }
   /* 정답 말풍선 — 쿠션 바깥(나무) 쪽 */
   var mid=(pk.from+pk.to)/20,mp=r==='T'?{x:mid,y:0}:r==='B'?{x:mid,y:H}:r==='L'?{x:0,y:mid}:{x:W,y:mid};
@@ -1485,12 +1527,17 @@ function bankAnsSvg(k){
 /* 🎯 위층: 고른 지점 말풍선 · ✖ 엇갈린 곳(누를 수 있음) · 붙을 곳 미리보기 */
 function bankTopSvg(k){
   var d=ST.draft,h=[];
-  if(d.bstyle==='x'&&MODE==='xline'&&!SIMV){
+  if(d.bstyle!=='pick'&&MODE==='xline'&&!SIMV){
     xIsects().forEach(function(q){h.push('<circle cx="'+q.x*S+'" cy="'+q.y*S+'" r="'+15*k+'" fill="#ffd23f" stroke="#11482a" stroke-width="'+3*k+'" pointer-events="none"/>'+
       '<text x="'+q.x*S+'" y="'+(q.y*S+7*k)+'" text-anchor="middle" font-size="'+20*k+'" font-weight="900" fill="#11482a" pointer-events="none">✖</text>');});
+    if(d.bstyle==='corner'){var w0=ST.balls.w;
+      bankReds().forEach(function(n){var r0=ST.balls[n],m={x:(w0.x+r0.x)/2,y:(w0.y+r0.y)/2};
+        h.push('<circle cx="'+m.x*S+'" cy="'+m.y*S+'" r="'+9*k+'" fill="#fff" stroke="#11482a" stroke-width="'+3*k+'" pointer-events="none"/>'+tag(m.x*S,m.y*S-14*k,'가운데',k));});
+      [['T','L'],['T','R'],['B','L'],['B','R']].forEach(function(p){var q=cornerOf(p[0],p[1]);
+        h.push('<rect x="'+(q.x*S-8*k)+'" y="'+(q.y*S-8*k)+'" width="'+16*k+'" height="'+16*k+'" fill="#fff" stroke="#11482a" stroke-width="'+3*k+'" opacity=".85" pointer-events="none"/>');});}
     if(HOVER&&!DRAG&&HOVER.k)h.push('<circle cx="'+HOVER.x*S+'" cy="'+HOVER.y*S+'" r="'+11*k+'" fill="none" stroke="#ff9f1a" stroke-width="'+4*k+'" pointer-events="none"/>');
   }
-  d.cpts.forEach(function(p,i){h.push(bubble(p.x*S,p.y*S,(d.ncush===2?(i?'② ':'① '):'')+railVal(p),'#1650d8',k));});
+  d.cpts.forEach(function(p,i){h.push(bubble(p.x*S,p.y*S,(bankNeed(d)===2?(i?'② ':'① '):'')+railVal(p),'#1650d8',k));});
   return h.join('');
 }
 function renderSeq(){
@@ -1520,8 +1567,9 @@ function renderHint(){
     edit:'지금: 🖐 동그라미를 끌어 옮기기 · 누르면 지우기 · 선을 누르면 점 추가',
     pobj:'지금: ① 1적구(빨간 공 ①)가 갈 방향을 클릭하세요',
     pcue:'지금: ② 수구가 맞은 뒤 갈 방향을 클릭하세요 → [▶ 정답 보기]',
-    xline:'지금: ✖ 선을 끌어서 그으세요(공 가운데·수직점에 붙습니다) → 엇갈린 노란 ✖ 를 누르면 쿠션 지점'+(ST.draft.ncush===2?' (2개)':''),
-    cpt:kind()==='bank'?'지금: 📍 흰 공이 맞을 쿠션 지점을 찍고 [▶ 판정]'+(ST.draft.ncush===2?' — 투쿠션: ① 첫 쿠션 ② 둘째 쿠션 순서대로':''):cushAfter()?'지금: 📍 2적구로 가려면 수구가 맞아야 할 쿠션 지점을 찍고('+ST.draft.ncush+'개) 📏 두께를 골라 [▶ 쳐 보기]'
+    xline:ST.draft.bstyle==='corner'?'지금: ↗ ① 흰·빨강 가운데 점 → 구석 선 ② 흰 공에서 평행하게 쿠션까지(∥ 저절로 맞춤) → 첫 쿠션 지점 → [▶ 판정]'
+      :'지금: ✖ 선을 끌어서 그으세요(공 가운데·수직점에 붙습니다) → 엇갈린 노란 ✖ 를 누르면 쿠션 지점'+(ST.draft.ncush===2?' (2개)':''),
+    cpt:kind()==='bank'?'지금: 📍 흰 공이 맞을 쿠션 지점을 찍고 [▶ 판정]'+(ST.draft.bstyle==='corner'?' — 투쿠션: 첫 쿠션 지점 하나만':ST.draft.ncush===2?' — 투쿠션: ① 첫 쿠션 ② 둘째 쿠션 순서대로':''):cushAfter()?'지금: 📍 2적구로 가려면 수구가 맞아야 할 쿠션 지점을 찍고('+ST.draft.ncush+'개) 📏 두께를 골라 [▶ 쳐 보기]'
                    :'지금: 📍 수구로 맞힐 쿠션 지점을 찍고 [▶ 쳐 보기]'+(ST.draft.ncush===2?' (두 번째 지점은 예측 — 안 찍어도 됨)':'')
   }[MODE];
   el.textContent=t||'';
@@ -1539,9 +1587,11 @@ function renderSimBtn(){
 function renderTools(){
   var K=kind();
   ['free','sep','cush','bank'].forEach(function(x){document.body.classList.toggle('k-'+x,K===x);});
-  $('mXl').classList.toggle('hide',!(K==='bank'&&ST.draft.bstyle==='x'));
+  $('mXl').classList.toggle('hide',!(K==='bank'&&ST.draft.bstyle!=='pick'));
   $('bNewQ').innerHTML='<span class="ic">🎲</span> '+(K==='bank'?'새 배치':'새 문제');
   if(K==='bank'){var nr=bankReds().length;$('bRedAdd').disabled=nr>=2;$('bRedDel').disabled=nr<=1;}
+  $('ncush').classList.toggle('hide',K==='bank'&&ST.draft.bstyle==='corner');   /* ↗ 평행법 판은 늘 투쿠션 */
+  $('mXl').innerHTML='<span class="ic">'+(K==='bank'&&ST.draft.bstyle==='corner'?'↗':'✖')+'</span> '+(K==='bank'&&ST.draft.bstyle==='corner'?'선 긋기':'X 선 긋기');
   var on=!!(SET&&SET.board===CUR);$('setChip').classList.toggle('hide',!on);$('bSet10').classList.toggle('hide',on);
   if(on)$('setNo').textContent=SET.i+' / '+SET.n;
   $('bNextT').classList.toggle('hide',on);   /* 세트 중엔 [다음 문제 ▶] 하나만 — [다음 두께]와 헷갈린다 */
@@ -1671,7 +1721,7 @@ function onDown(e){
   }else if(MODE==='cpt'){
     /* 📍 쿠션 지점 — 원쿠션 1개 · 투쿠션 2개. 다 찍었는데 또 누르면 처음부터 다시 */
     pushUndo();var rp=snapRail(p),cs=ST.draft.cpts;
-    if(cs.length>=ST.draft.ncush)cs.length=0;
+    if(cs.length>=(kind()==='bank'?bankNeed(ST.draft):ST.draft.ncush))cs.length=0;
     cs.push(rp);saveSoon();renderAll();
   }else if(MODE==='xline'){
     var q0=snapX(p);DRAG={type:'xl',a:q0,b:q0,moved:false,x0:e.clientX,y0:e.clientY,p0:p};svg().setPointerCapture(e.pointerId);e.preventDefault();
@@ -1698,7 +1748,7 @@ function onMove(e){
   }
   if(DRAG&&DRAG.type==='xl'){
     if(!DRAG.moved&&Math.hypot(e.clientX-DRAG.x0,e.clientY-DRAG.y0)<6)return;
-    DRAG.moved=true;DRAG.b=snapX(p);renderTable();return;
+    DRAG.moved=true;DRAG.b=snapX(p);var pp=xParallel(DRAG.a,DRAG.b);DRAG.par=!!pp;if(pp)DRAG.b=pp;renderTable();return;
   }
   if(MODE==='xline'){HOVER=snapX(p);renderTable();return;}
   if(MODE==='draw'){HOVER=snapPt(p);renderTable();}
@@ -1711,12 +1761,21 @@ function onUp(e){
   try{svg().releasePointerCapture(e.pointerId);}catch(x){}
   if(d.type==='ball'){if(d.moved){UNDO.push(d.start);REDO=[];if(kind()==='cush')resetTries();saveSoon();renderAll();}return;}
   if(d.type==='xl'){
-    if(d.moved&&dist(d.a,d.b)>0.08){pushUndo();var xl=ST.draft.xl||(ST.draft.xl=[]);xl.push({a:{x:x4(d.a.x),y:x4(d.a.y)},b:{x:x4(d.b.x),y:x4(d.b.y)}});saveSoon();renderAll();return;}
+    if(d.moved&&dist(d.a,d.b)>0.08){pushUndo();var xl=ST.draft.xl||(ST.draft.xl=[]);xl.push({a:{x:x4(d.a.x),y:x4(d.a.y)},b:{x:x4(d.b.x),y:x4(d.b.y)}});
+      /* ↗ 흰 공에서 평행으로 쿠션까지 그었으면 그 끝이 첫 쿠션 지점 */
+      var pc=d.par?cLineCpt(d.b):null;
+      if(pc){ST.draft.cpts=[pc];toast('∥ 평행 → '+RNM[railId(pc)]+' 쿠션 '+railVal(pc)+' · [▶ 판정] 또는 Enter');}
+      saveSoon();renderAll();return;}
     /* 누르기만 했다 — 엇갈린 X 위면 그 아래 쿠션 지점으로 */
     var kk=pxK()/S,hit=null;xIsects().forEach(function(q){var dd=dist(d.p0,q);if(dd<Math.max(BR*1.3,24*kk)&&(!hit||dd<hit.d))hit={q:q,d:dd};});
-    if(hit){pushUndo();var cs=ST.draft.cpts,cp=xToCpt(hit.q);if(cs.length>=ST.draft.ncush)cs.length=0;cs.push(cp);saveSoon();renderAll();
+    if(hit){pushUndo();var cs=ST.draft.cpts,cp=xToCpt(hit.q);if(cs.length>=bankNeed(ST.draft))cs.length=0;cs.push(cp);saveSoon();renderAll();
       toast('✖ → '+RNM[railId(cp)]+' 쿠션 '+railVal(cp)+(cs.length<ST.draft.ncush?' · 두 번째 지점도 정해 주세요':' · [▶ 판정]을 누르세요'));}
-    else{renderTable();toast('선은 누른 채로 끌어서 긋습니다');}
+    else{
+      /* 쿠션(공 중심선)에 닿은 선 끝을 누르면 그 지점 */
+      var eh=null;(ST.draft.xl||[]).forEach(function(l){[l.a,l.b].forEach(function(q){if(!onCLine(q))return;var dd=dist(d.p0,q);if(dd<Math.max(BR*1.3,24*kk)&&(!eh||dd<eh.d))eh={q:q,d:dd};});});
+      var ec=eh?cLineCpt(eh.q):null;
+      if(ec){pushUndo();var cs2=ST.draft.cpts;if(cs2.length>=bankNeed(ST.draft))cs2.length=0;cs2.push(ec);saveSoon();renderAll();toast('📍 '+RNM[railId(ec)]+' 쿠션 '+railVal(ec));}
+      else{renderTable();toast('선은 누른 채로 끌어서 긋습니다');}}
     return;
   }
   if(d.type==='pt'){
@@ -1742,7 +1801,7 @@ function delPoint(){
 function setMode(m){MODE=m;SEL=null;HOVER=null;hidePop();if(SIMV&&!SIMV.playing)clearSim();renderAll();}
 function doneDraw(){setMode(ST.draft[LAYER].length?'edit':'ball');}
 function clearLayer(){
-  if(kind()==='bank'){var bd=ST.draft;if(!bd.cpts.length&&!(bd.xl||[]).length)return;pushUndo();bd.cpts=[];bd.xl=[];MODE=bd.bstyle==='x'?'xline':'cpt';saveSoon();renderAll();return;}
+  if(kind()==='bank'){var bd=ST.draft;if(!bd.cpts.length&&!(bd.xl||[]).length)return;pushUndo();bd.cpts=[];bd.xl=[];MODE=bd.bstyle!=='pick'?'xline':'cpt';saveSoon();renderAll();return;}
   if(kind()==='cush'){if(!ST.draft.cpts.length)return;pushUndo();ST.draft.cpts=[];MODE='cpt';saveSoon();renderAll();return;}
   if(kind()==='sep'){if(!(ST.draft.predObj||ST.draft.predCue))return;pushUndo();ST.draft.predObj=null;ST.draft.predCue=null;MODE='pobj';saveSoon();renderAll();return;}
   if(!ST.draft[LAYER].length)return;
@@ -1877,12 +1936,12 @@ function renderAttempts(){
   A.forEach(function(a,i){
     var s=a.sim||{},cond;
     if(a.kind==='sep')cond='두께 '+(s.thick?s.thick+'/8 '+(s.side==='R'?'오른쪽':'왼쪽'):'—');
-    else if(a.kind==='bank')cond=(s.style==='x'?'✖ X법':'🎯 찍기')+' · '+(s.n===2?'투쿠션':'원쿠션')+' · 고른 지점 '+(s.dad&&s.dad.length?cushTxt(s.dad):'—');
+    else if(a.kind==='bank')cond=bsty(s.style).ic+' '+bsty(s.style).name+' · '+(s.n===2?'투쿠션':'원쿠션')+' · 고른 지점 '+(s.dad&&s.dad.length?cushTxt(s.dad):'—');
     else if(a.kind==='cush')cond=(s.ctype==='after'?'1적구 뒤 '+s.thick+'/8':'쿠션 먼저')+' · '+(s.n===2?'투쿠션':'원쿠션')+' · 찍은 지점 '+((s.dad||[]).join(' → ')||'—');
     else cond=s.first?BNAME[s.first.ball]+' '+thickTxt(s.first.thick):(railSeq(a.predict||[]).join(' → ')||'—');
     cond+=' · '+esc(tipDesc(a.tip)[0])+' · '+(a.kmh!=null?a.kmh+'km/h':a.speed?'속도 '+a.speed:'—');
     var real=a.kind==='bank'?(s.result==='hit'?'<span class="tag hit">⭕ 정답</span>':'<span class="tag miss">❌ 오답</span>')+(s.err!=null?' 가운데와 '+Math.abs(s.err):''):a.kind==='cush'&&s.triesN!=null?(s.solvedBy==='self'?'<span class="tag hit">⭕ '+s.triesN+'번 만에</span>':'<span class="tag none">답 봄 ('+s.triesN+'번 시도)</span>'):a.kind==='cush'?((s.err||[]).some(function(x){return x!=null;})?(s.ctype==='after'?'예측 오차 ':'계산과 차이 ')+s.err.map(function(x){return x==null?'—':x;}).join(', '):'<span class="tag none">—</span>'):a.kind==='sep'?(s.eObj!=null||s.eCue!=null?'1적구 '+(s.eObj==null?'—':s.eObj+'°')+' · 수구 '+(s.eCue==null?'—':s.eCue+'°'):'<span class="tag none">예측 없음</span>'):resTag(a.result);
-    h.push('<tr class="click" data-i="'+i+'"><td class="num">'+fmtDT(a.created_at)+'</td><td>'+(a.kind==='bank'?(s.style==='x'?'✖':'🎯'):(KINDS[a.kind]||KINDS.free).ic)+' '+esc(boardName(a.board_id))+'</td>'+
+    h.push('<tr class="click" data-i="'+i+'"><td class="num">'+fmtDT(a.created_at)+'</td><td>'+(a.kind==='bank'?bsty(s.style).ic:(KINDS[a.kind]||KINDS.free).ic)+' '+esc(boardName(a.board_id))+'</td>'+
       '<td>'+cond+'</td><td>'+simTag(a)+'</td><td class="num">'+real+'</td><td>'+esc(a.memo||'')+'</td></tr>');
   });
   h.push('</table>');
@@ -1931,7 +1990,7 @@ function replay(a,alive){
   if(a.kind==='sep'||a.kind==='cush'){d.thick=s.thick||4;d.side=s.side||'L';}
   if(a.kind==='cush'){d.ctype=s.ctype||'first';d.ncush=s.n||1;d.cpts=clone(s.cpts||[]);}
   if(a.kind==='bank'){d.bstyle=s.style||'pick';d.ncush=s.n||1;d.reds=clone(s.reds||['r']);d.cpts=clone(s.cpts||[]);d.xl=clone(s.xl||[]);ST.balls.cue='w';}
-  ST.draft=d;LAYER='predict';MODE={sep:'pobj',cush:'cpt',bank:d.bstyle==='x'?'xline':'cpt'}[kind()]||'edit';saveSoon();closeLog();toast('🔁 그때 조건을 불러왔습니다');
+  ST.draft=d;LAYER='predict';MODE={sep:'pobj',cush:'cpt',bank:d.bstyle!=='pick'?'xline':'cpt'}[kind()]||'edit';saveSoon();closeLog();toast('🔁 그때 조건을 불러왔습니다');
 }
 function delAttempt(a){
   confirmBox('🗑 이 기록을 지울까요?','휴지통으로 옮깁니다. '+KEEP_DAYS+'일 안에는 다시 살릴 수 있습니다.','지우기',true).then(function(ok){
@@ -2161,14 +2220,15 @@ function bankTrend(L,full,half){
     '<div class="stat"><div class="k">정답률</div><div class="v">'+pct(ok,L.length)+'</div></div>'+
     '<div class="stat"><div class="k">정답 가운데와 평균 차이 <small>(같은 쿠션 '+E.length+'번)</small></div><div class="v">'+(E.length?r1(mean(E.map(Math.abs))):'—')+'</div></div>'+
     '<div class="stat"><div class="k">✖ X법 정답률 <small>('+L.filter(function(a){return a.sim.style==='x';}).length+'번)</small></div><div class="v">'+pct(L.filter(function(a){return a.sim.style==='x'&&a.sim.result==='hit';}).length,L.filter(function(a){return a.sim.style==='x';}).length)+'</div></div>'+
-    '<div class="stat"><div class="k">🎯 찍기 정답률 <small>('+L.filter(function(a){return a.sim.style!=='x';}).length+'번)</small></div><div class="v">'+pct(L.filter(function(a){return a.sim.style!=='x'&&a.sim.result==='hit';}).length,L.filter(function(a){return a.sim.style!=='x';}).length)+'</div></div></div>');
+    '<div class="stat"><div class="k">🎯 찍기 · ↗ 평행법 정답률 <small>('+L.filter(function(a){return a.sim.style==='pick';}).length+' · '+L.filter(function(a){return a.sim.style==='corner';}).length+'번)</small></div><div class="v">'+pct(L.filter(function(a){return a.sim.style==='pick'&&a.sim.result==='hit';}).length,L.filter(function(a){return a.sim.style==='pick';}).length)+' · '+pct(L.filter(function(a){return a.sim.style==='corner'&&a.sim.result==='hit';}).length,L.filter(function(a){return a.sim.style==='corner';}).length)+'</div></div></div>');
   var weak=[];
   if(E.length>=3){var m=mean(E);weak.push(Math.abs(m)>=0.5?'<p>📍 쿠션 지점을 보통 <b>'+r1(Math.abs(m))+' '+(m<0?'작은':'큰')+' 수</b>로 봅니다 <small>('+E.length+'번)</small></p>':'<p>📍 쿠션 지점을 고르게 봅니다 <small>('+E.length+'번)</small></p>');}
   if(cor.length>=3){var mc=mean(cor);weak.push('<p>🪞 지금 테이블 감각·속도에선 실제 정답이 X법보다 평균 <b>'+r1(Math.abs(mc))+' '+(mc>0?'큰':'작은')+' 수</b>입니다 <small>('+cor.length+'번 — X법 답에 이만큼 더하면 됩니다)</small></p>');}
   /* 배치별: 원쿠션 장쿠션(위·아래) · 원쿠션 단쿠션(왼쪽·오른쪽) · 투쿠션 */
   var G=[['원쿠션 · 긴 쿠션(위·아래)',function(s){return s.n!==2&&s.best&&(s.best.rail==='T'||s.best.rail==='B');}],
          ['원쿠션 · 짧은 쿠션(왼쪽·오른쪽)',function(s){return s.n!==2&&s.best&&(s.best.rail==='L'||s.best.rail==='R');}],
-         ['투쿠션',function(s){return s.n===2;}]].map(function(g){
+         ['투쿠션 · 구석(평행법)',function(s){return s.n===2&&s.best&&adjR(s.best.actR[0],s.best.actR[1]);}],
+         ['투쿠션 · 마주 보는 쿠션',function(s){return s.n===2&&s.best&&!adjR(s.best.actR[0],s.best.actR[1]);}]].map(function(g){
     var R=L.filter(function(a){return g[1](a.sim);}),e=R.map(function(a){return a.sim.err;}).filter(function(x){return x!=null;});
     return {name:g[0],n:R.length,ok:R.filter(function(a){return a.sim.result==='hit';}).length,e:e.length?r1(mean(e.map(Math.abs))):null,sg:e.length?mean(e):null};});
   var cand=G.filter(function(g){return g.n>=3;}).sort(function(x,y){return x.ok/x.n-y.ok/y.n;});
@@ -2305,7 +2365,7 @@ function bind(){
   $('lBoard').addEventListener('change',loadLog);
   ['mBall','mDraw','mEdit','mObj','mCue','mCpt','mXl'].forEach(function(id){$(id).addEventListener('click',function(){setMode(this.dataset.m);});});
   $('ncush').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ncush===+b.dataset.n)return;pushUndo();ST.draft.ncush=+b.dataset.n;ST.draft.cpts=[];
-    if(kind()==='bank')MODE=ST.draft.bstyle==='x'?'xline':'cpt';saveSoon();renderAll();toast(+b.dataset.n===2?'투쿠션 — 쿠션 지점 2개를 순서대로':'원쿠션 — 쿠션 지점 1개');});
+    if(kind()==='bank')MODE=ST.draft.bstyle!=='pick'?'xline':'cpt';saveSoon();renderAll();toast(+b.dataset.n===2?'투쿠션 — 쿠션 지점 2개를 순서대로':'원쿠션 — 쿠션 지점 1개');});
   $('bRedAdd').addEventListener('click',function(){bankRed(true);});
   $('bRedDel').addEventListener('click',function(){bankRed(false);});
   $('ctype').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ctype===b.dataset.ct)return;pushUndo();ST.draft.ctype=b.dataset.ct;ST.draft.cpts=[];resetTries();MODE='cpt';saveSoon();renderAll();});
