@@ -763,7 +763,7 @@ function init({session,users}){
  ok('Q7 판정 즉시 ⭕ · 정답 줄은 계산 중',/⭕ 정답! 위 [\d.]+ → 빨간 공 ①/.test(await p.textContent('#hint'))&&await p.isVisible('#bankBar'),await p.textContent('#hint'));
  ok('Q8 정답 계산 끝',await waitAns());
  let qb=await p.textContent('#bankBar');
- ok('Q9 정답 줄: 정답 범위 · X법 40 · 실제와 비교',/💡 정답 위 [\d.]+( ~ [\d.]+)?/.test(qb)&&/X법 40/.test(qb)&&await p.isVisible('#bPlay')&&await p.isVisible('#bMirror')&&await p.isVisible('#bNextB'),qb);
+ ok('Q9 정답 칸(오른쪽 패널): 정답 범위 · X법 40 · 실제와 비교',await p.evaluate(()=>!!document.querySelector('.side #bankBar'))&&/정답 위 [\d.]+( ~ [\d.]+)?/.test(qb)&&/X법 40/.test(qb)&&await p.isVisible('#bPlay')&&await p.isVisible('#bMirror')&&await p.isVisible('#bNextB'),qb);
  await wait(150);
  const qa=await p.evaluate(()=>window.__T.bb_attempts[window.__T.bb_attempts.length-1]);
  ok('Q10 판정 = 기록 한 줄 (정답·X법 포함)',(await p.evaluate(()=>window.__T.bb_attempts.length))===nQ+1&&qa.kind==='bank'&&qa.sim.result==='hit'&&qa.sim.best&&qa.sim.best.rail==='T'&&qa.sim.x&&qa.sim.x[0].v===40&&qa.sim.style==='pick'&&qa.sim.paths.w.length>3,qa&&qa.sim&&{r:qa.sim.result,best:qa.sim.best,x:qa.sim.x});
@@ -776,6 +776,14 @@ function init({session,users}){
  await p.keyboard.press('Enter');await wait(80);
  ok('Q14 Enter = 판정 · ❌ 와 이유',/❌ /.test(await p.textContent('#hint')),await p.textContent('#hint'));
  await waitAns();qb=await p.textContent('#bankBar');
+ /* 🔒 v3.3.1 마우스로 버튼을 누른 뒤에도 Enter = 판정(초점이 버튼에 남아 그 버튼을 또 눌렀다) */
+ await p.click('#mCpt');await wait(60);
+ ok('Q14b 도구 버튼을 마우스로 누른 뒤 → 초점 안 남음',await p.evaluate(()=>!document.activeElement||document.activeElement.tagName!=='BUTTON'));
+ await p.keyboard.press('Enter');await wait(80);
+ ok('Q14c 그다음 Enter = 판정',/❌ /.test(await p.textContent('#hint'))&&await p.isVisible('#bankBar'),await p.textContent('#hint'));
+ const tb=await p.evaluate(()=>{const t=document.querySelector('.tblwrap').getBoundingClientRect();return Math.round(t.height);});
+ ok('Q14d 판정해도 당구대 크기 그대로(정답은 오른쪽)',await p.evaluate(()=>document.getElementById('routeBar').classList.contains('hide')),tb);
+ await waitAns();
  ok('Q15 고르신 곳은 가운데보다 N 작은 수',new RegExp('가운데보다 '+(qT.c-15)+' 작은 수').test(qb),qb);
  await wait(150);
  ok('Q16 오답도 기록(차이 = 고른 곳 - 가운데)',await p.evaluate(c=>{const a=window.__T.bb_attempts[window.__T.bb_attempts.length-1];return a.sim.result==='miss'&&a.sim.err===15-c;},qT.c));
@@ -805,6 +813,15 @@ function init({session,users}){
  await p.click('#bNextB');await wait(200);
  qs=await solOf();
  ok('Q25 🎲 새 배치(투쿠션) — 지점 비움 · 답이 있다',(await p.evaluate(()=>ST.draft.cpts.length))===0&&qs.length>=1&&qs.every(r=>r.key.split('|')[0].split('>').length===2),qs);
+ /* 🔒 v3.3.1 모달: 바깥 클릭으로 안 꺼짐 · ✕ 닫기 · Esc */
+ await p.click('#bSet');await wait(120);
+ await p.mouse.click(8,8);await wait(80);
+ ok('Q25b 모달 바깥을 눌러도 안 꺼짐',await p.isVisible('#mask'));
+ ok('Q25c 모달마다 잘 보이는 ✕ 닫기',await p.isVisible('#mask .mx')&&/닫기/.test(await p.textContent('#mask .mx'))&&(await p.$eval('#mask .mx',e=>e.getBoundingClientRect().height))>=40);
+ await p.click('#mask .mx');await wait(80);
+ ok('Q25d ✕ 누르면 꺼짐',!(await p.isVisible('#mask')));
+ await p.click('#bNew');await wait(100);await p.keyboard.press('Escape');await wait(80);
+ ok('Q25e Esc 로 꺼짐(새 판 안 만들어짐)',!(await p.isVisible('#mask')));
  /* ⑤ ✖ X법 판 — 선 두 개를 긋고 X 를 누른다 */
  await p.click('#bNew');await p.click('[data-kind="bx"]');
  ok('Q26 이름도 X법',/^X법 \d+$/.test(await p.inputValue('#mIn')));

@@ -10,7 +10,7 @@
  *      물리 엔진 쿠션 모델 교체(physics.js v3.3)
  */
 'use strict';
-var APP_VER='3.3.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.3.1';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
@@ -94,7 +94,8 @@ function modal(o){
   return new Promise(function(res){
     var m=$('mask');
     var btns=o.buttons||[{label:'확인',value:true,cls:'primary'}];
-    m.innerHTML='<div class="modal'+(o.wide?' wide':'')+'" role="dialog" aria-modal="true"><h2>'+esc(o.title||'')+'</h2>'+
+    /* 🔒 v3.3.1 로한: 바깥을 누르면 꺼지는 건 안 된다(실수로 닫힌다) · 모달마다 잘 보이는 ✕ · Esc 로 닫기 */
+    m.innerHTML='<div class="modal'+(o.wide?' wide':'')+'" role="dialog" aria-modal="true"><div class="mhead"><h2>'+esc(o.title||'')+'</h2><button type="button" class="mx" aria-label="닫기"><span class="ic">✕</span> 닫기</button></div>'+
       (o.html!=null?'<div class="body">'+o.html+'</div>':(o.body?'<div class="body">'+esc(o.body)+'</div>':''))+
       (o.input?'<input type="'+(o.input.type||'text')+'" id="mIn" maxlength="'+(o.input.max||40)+'" autocomplete="'+(o.input.ac||'off')+'" value="'+esc(o.input.value||'')+'" placeholder="'+esc(o.input.placeholder||'')+'">':'')+
       (o.input2?'<input type="'+(o.input2.type||'text')+'" id="mIn2" placeholder="'+esc(o.input2.placeholder||'')+'" autocomplete="'+(o.input2.ac||'off')+'">':'')+
@@ -112,7 +113,8 @@ function modal(o){
     }
     document.addEventListener('keydown',key,true);
     m.querySelectorAll('.btns button').forEach(function(b){b.addEventListener('click',function(){done(btns[+b.dataset.i].value);});});
-    m.onclick=function(e){if(e.target===m&&!o.sticky)done(null);};
+    m.onclick=null;
+    m.querySelector('.mx').addEventListener('click',function(){done(null);});
     if(o.onOpen)o.onOpen(m,done);
     setTimeout(function(){if(inp&&!o.noFocus){inp.focus();inp.select();}else{var f=m.querySelector('.btns button.primary')||m.querySelector('.btns button');if(f)f.focus();}},30);
   });
@@ -1098,7 +1100,7 @@ function bankAnswer(I,pick,th,sol){
   if(th){var dv=c.v-th[0].v;t+=' · X법 '+th.map(function(x){return x.v;}).join(' → ')+(Math.abs(dv)>=0.5?' → 실제는 X법보다 '+Math.abs(dv)+' '+(dv>0?'큰':'작은')+' 수':' (실제와 같음)');}
   if(I.n===2&&I.dad[1]&&I.act[1])t+=' · ② 예측 '+RNM[I.dad[1].r]+' '+I.dad[1].v+' / 실제 '+RNM[I.act[1].r]+' '+I.act[1].v;
   if(sol.ranges.length>1)t+=' · 다른 길 '+(sol.ranges.length-1)+'가지 더';
-  return {text:t,err:err};
+  return {text:t,err:err,parts:t.replace(/^💡 /,'').split(' · ')};
 }
 function bankJudge(){
   var d=ST.draft,N=d.ncush;
@@ -1134,8 +1136,10 @@ function bankRecord(bid,snap,dr,I,pick,th,ans,res,sol){
 function renderBankBar(){
   var el=$('bankBar'),B=SIMV&&SIMV.bank;
   el.classList.toggle('hide',!B);if(!B){el.innerHTML='';return;}
-  el.innerHTML='<span class="rdesc">'+(B.ans?esc(B.ans.text):'💡 정답 범위 계산 중… '+(B.prog||0)+'%')+'</span>'+
-    '<button id="bPlay">▶ 굴려 보기</button>'+(B.pick?'<button id="bMirror">🪞 거울 그림</button>':'')+'<button id="bNextB" class="primary">🎲 새 배치</button>';
+  /* 🔒 v3.3.1 로한: 당구대 위 줄에 띄우면 판이 작아진다 → 오른쪽 패널 빈 아래 칸에 */
+  var P=B.ans?(B.ans.parts||[B.ans.text]):null;
+  el.innerHTML='<h3>💡 정답</h3><div class="btxt">'+(P?(B.ans.none?'<p>'+esc(B.ans.text.replace(/^💡 /,''))+'</p>':P.map(function(x,i){return '<p'+(i?'':' class="b1"')+'>'+esc(x)+'</p>';}).join('')):'<p>계산 중… '+(B.prog||0)+'%</p>')+'</div>'+
+    '<div class="bbtn"><button id="bPlay">▶ 굴려 보기</button>'+(B.pick?'<button id="bMirror">🪞 거울 그림</button>':'')+'<button id="bNextB" class="primary">🎲 새 배치</button></div>';
   $('bPlay').addEventListener('click',bankPlay);
   if(B.pick)$('bMirror').addEventListener('click',bankMirror);
   $('bNextB').addEventListener('click',newProblem);
@@ -2342,6 +2346,9 @@ function bind(){
   $('tipClr').addEventListener('click',function(){setTip(null);});
   $('spd').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;pushUndo();ST.draft.speed=+b.dataset.s;ST.draft.kmh=null;saveSoon();renderAll();});
   $('kmh').addEventListener('change',function(){var v=this.value===''?null:Math.round(parseFloat(this.value)*10)/10;if(v!==null&&(isNaN(v)||v<=0))v=null;pushUndo();ST.draft.kmh=v;saveSoon();renderAll();});
+  /* 🔒 v3.3.1 로한: "엔터 쳐도 판정이 돼야지" — 마우스로 누른 버튼에 초점이 남아 Enter 가 그 버튼을 또 눌렀다.
+     마우스로 누른 앱 버튼은 초점을 놓는다(Tab 으로 고른 버튼은 그대로 — 그 버튼만 누른다) */
+  document.addEventListener('mouseup',function(e){var b=e.target.closest&&e.target.closest('#app button');if(b&&e.detail>0)setTimeout(function(){if(document.activeElement===b)b.blur();},0);});
   /* 키보드 — Enter: 긋는 중이면 긋기 끝, 아니면 ▶ */
   document.addEventListener('keydown',function(e){
     if($('app').classList.contains('hide')||!$('mask').classList.contains('hide')||!$('logv').classList.contains('hide'))return;

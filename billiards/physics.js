@@ -158,6 +158,6 @@ function simulate(opt){
   }
 }
 
-var API={VERSION:'3.3.0',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
+var API={VERSION:'3.3.1',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;else root.BBPhys=API;
 })(this);
