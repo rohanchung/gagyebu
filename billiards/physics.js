@@ -4,7 +4,7 @@
  *   · 큐 타격: 조준 방향·속도·당점 → 처음 속도와 회전(밀기·끌기·좌우)
  *   · 천 위: 미끄러짐(슬라이딩) → 구름(롤링). 밀기·끌기로 휘는 궤적이 여기서 저절로 나온다
  *   · 공끼리: 두께에 따라 갈라진다(마찰 없는 순간 충돌). 회전은 그대로 남아 이후 궤적을 휜다
- *   · 쿠션: 반발 + 좌우 회전에 의한 반사각 변화(쿠션 마찰)
+ *   · 쿠션: v3.3 충격량 적분 — 쿠션 코 높이 · 쿠션 마찰 · 눌린 만큼 천 마찰 · 속도별 반발
  *
  * 좌표: 미터. x 오른쪽, y 아래(화면과 같다). 그래서 z 는 **테이블 안쪽(아래)** 이고 "위"는 -z 다.
  *       외적은 이 오른손 좌표계로 그대로 쓴다 — 부호를 손으로 맞추지 않는다(틀리기 쉽다).
@@ -22,14 +22,15 @@ var DEF={
   muR:0.010,    /* 구름 저항 — 🔒 "보통 속도(3단) = 2쿠션" 으로 속도표와 함께 맞춘다 */
   muSp:0.022,   /* 좌우 회전이 천에서 줄어드는 정도 */
   eB:0.94,      /* 공-공 반발 */
-  eC:0.78,      /* 쿠션 반발 */
+  eC:0.86,      /* 쿠션 반발(1 m/s 로 들어올 때) */
+  eV:0.03,      /* 들어오는 속도 1 m/s 마다 반발이 줄어드는 양 — 세게 칠수록 쿠션이 더 먹는다 */
   muC:0.18,     /* 쿠션 마찰(좌우 회전이 반사각을 바꾸는 정도) */
-  kC:0.4,       /* 쿠션이 구름 회전을 되돌리는 정도(0 = 그대로 멈춤 회전, 1 = 완전 반전) */
+  cushH:0.63,   /* 쿠션 코 높이 ÷ 공 지름 — 공 중심보다 위(표준 62~64%) */
   dt:0.0004, tMax:30, fps:60
 };
-/* 속도 단계(m/s) — 🔒 3단 = 보통 = 1.6 m/s. 아버지: "보통 속도면 어느 방향이든 2쿠션"
-   1.6 에서 짧은 방향·긴 방향·대각선 모두 정확히 2쿠션이다(tests/b02 가 잠근다) */
-var SPEED=[0.75,1.1,1.6,2.2,3.0];
+/* 속도 단계(m/s) — 🔒 3단 = 보통 = 1.85 m/s (v3.3 쿠션 모델로 다시 맞춤 · 예전 1.6). 아버지: "보통 속도면 어느 방향이든 2쿠션"
+   3단에서 짧은 방향·긴 방향·대각선 모두 정확히 2쿠션이다(tests/b02 가 잠근다) */
+var SPEED=[0.85,1.25,1.85,2.55,3.45];
 
 function cross(a,b){return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];}
 function len2(x,y){return Math.sqrt(x*x+y*y);}
@@ -118,33 +119,45 @@ function simulate(opt){
   var stops={};ids.forEach(function(id){stops[id]=[B[id].x,B[id].y];});
   return {frames:frames,events:events,stops:stops,T:t,P:P};
 
-  function cushion(b,hit,n,side){
+  /* 🔒 v3.3 쿠션 = 충격량 적분 모델(Mathavan 외 2010 방식)
+     · 쿠션 코는 공 중심보다 높다(cushH × 지름) → 쿠션이 공을 **비스듬히 아래로** 민다
+     · 그래서 접점이 둘: 쿠션 접점(마찰 muC) + 바닥 접점(눌린 만큼 천 마찰 muS)
+     · 충격을 잘게 나눠 쌓는다: 압축(들어오는 속도가 0 될 때까지) → 복원(압축 일의 e² 만큼)
+       → 반사각·회전 변화·되튐 뒤 휘어 나감이 따로 손대지 않아도 나온다(예전 kC 보정 없앰)
+     · 세게 칠수록 쿠션이 덜 튕겨 준다: e = eC - eV × (들어오는 속도 - 1 m/s) */
+  function cushion(b,hit,n2,side){
     if(!hit)return;
-    var vn=b.v[0]*n[0]+b.v[1]*n[1];                 /* 들어올 때 음수 */
-    var Jn=-(1+P.eC)*vn;
-    b.v[0]+=Jn*n[0];b.v[1]+=Jn*n[1];
-    /* 쿠션 접점 r = -R n 의 미끄럼(평면 성분) → 마찰 충격 */
-    var rc=[-R*n[0],-R*n[1],0], wr=cross(b.w,rc);
-    var sx=b.v[0]+wr[0], sy=b.v[1]+wr[1];
-    var sn=sx*n[0]+sy*n[1];sx-=sn*n[0];sy-=sn*n[1];   /* 접선 성분만 */
-    var sl=len2(sx,sy);
-    if(sl>1e-6){
-      var jt=Math.min(P.muC*Math.abs(Jn), sl/3.5);
-      var Jt=[-jt*sx/sl,-jt*sy/sl,0];
-      b.v[0]+=Jt[0];b.v[1]+=Jt[1];
-      var dw=cross(rc,Jt);
-      b.w[0]+=dw[0]*slideK;b.w[1]+=dw[1]*slideK;b.w[2]+=dw[2]*slideK;
+    var st=2*P.cushH-1, ct=Math.sqrt(1-st*st);
+    var n=[n2[0],n2[1],0], nI=[ct*n[0],ct*n[1],st], rI=[-R*nI[0],-R*nI[1],-R*nI[2]], rC=[0,0,R];
+    var v=[b.v[0],b.v[1],0], w=b.w;
+    function at(r){var c=cross(w,r);return [v[0]+c[0],v[1]+c[1],v[2]+c[2]];}
+    var vn0=-(v[0]*n[0]+v[1]*n[1]);
+    var e=Math.max(0.4,Math.min(0.98,P.eC-P.eV*(vn0-1)));
+    var vI=at(rI),vn=vI[0]*nI[0]+vI[1]*nI[1]+vI[2]*nI[2];
+    if(vn<0){
+      var dP=-vn*(1+e)/(ct*ct)/120, Wc=0, Wr=0, ph=0;
+      for(var k=0;k<2000;k++){
+        vI=at(rI);vn=vI[0]*nI[0]+vI[1]*nI[1]+vI[2]*nI[2];
+        if(!ph&&vn>=0)ph=1;
+        if(ph&&Wr>=e*e*Wc)break;
+        if(ph)Wr+=vn*dP;else Wc+=-vn*dP;
+        /* 쿠션 접점: 수직 충격 + 미끄럼 반대 마찰 */
+        var J=[dP*nI[0],dP*nI[1],dP*nI[2]], sx=vI[0]-vn*nI[0], sy=vI[1]-vn*nI[1], sz=vI[2]-vn*nI[2], sl=Math.sqrt(sx*sx+sy*sy+sz*sz);
+        if(sl>1e-9){var jt=Math.min(P.muC*dP,sl/3.5);J[0]-=jt*sx/sl;J[1]-=jt*sy/sl;J[2]-=jt*sz/sl;}
+        /* 바닥 접점: 아래로 눌린 만큼 받치고, 그 힘으로 천 마찰 */
+        var Nd=Math.max(0,J[2]), JC=[0,0,-Nd];
+        if(Nd>0){var vC=at(rC),cl=len2(vC[0],vC[1]);if(cl>1e-9){var j2=Math.min(P.muS*Nd,cl/3.5);JC[0]-=j2*vC[0]/cl;JC[1]-=j2*vC[1]/cl;}}
+        v[0]+=J[0]+JC[0];v[1]+=J[1]+JC[1];v[2]=0;   /* 공은 바닥을 떠나지 않는다 */
+        var t1=cross(rI,J),t2=cross(rC,JC);
+        w[0]+=(t1[0]+t2[0])*slideK;w[1]+=(t1[1]+t2[1])*slideK;w[2]+=(t1[2]+t2[2])*slideK;
+      }
+      b.v=[v[0],v[1]];b.w=w;
     }
-    /* 쿠션 코는 공 중심보다 높다 → 쿠션 쪽으로 구르던 회전을 일부 되돌린다.
-       이게 없으면 반발 뒤에 옛 회전이 브레이크가 돼 한 번 튕기고 거의 멈춘다(첫 판 실측) */
-    var rvx=-R*b.w[1], rvy=R*b.w[0], rn=rvx*n[0]+rvy*n[1], rn2=-P.kC*rn;
-    rvx+=(rn2-rn)*n[0];rvy+=(rn2-rn)*n[1];
-    b.w[1]=-rvx/R;b.w[0]=rvy/R;
     if(side==='L')b.x=R;else if(side==='R')b.x=P.L-R;else if(side==='T')b.y=R;else b.y=P.W-R;
     emit({t:t,type:'cushion',ball:b.id,side:side,x:b.x,y:b.y});
   }
 }
 
-var API={VERSION:'3.2.0',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
+var API={VERSION:'3.3.0',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;else root.BBPhys=API;
 })(this);

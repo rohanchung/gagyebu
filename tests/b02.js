@@ -51,6 +51,17 @@ const byS=P.SPEED.map(V=>cush(1.12,0.56,0,-1,V));
 ok('P14 속도가 오르면 쿠션 수가 줄지 않는다',byS.every((n,i)=>i===0||n>=byS[i-1]),byS);
 ok('P15 1단은 3단보다 적게 · 5단은 많이',byS[0]<byS[2]&&byS[4]>byS[2],byS);
 
+/* 🔒 v3.3 쿠션 모델(쿠션 코가 공 중심보다 높다 · 충격량 적분) */
+function rebound(V,ang){const a=ang*Math.PI/180;
+  const r=P.simulate({balls:{c:{x:0.6,y:0.7}},cue:'c',dir:{x:Math.sin(a),y:-Math.cos(a)},V,tip:{x:0,y:0}});
+  const c=r.events.find(e=>e.type==='cushion');const f=r.frames.find(f=>f.t>c.t+0.4);
+  const f0=r.frames.filter(f=>f.t<c.t).pop(),f1=r.frames.find(f=>f.t>c.t+0.01);
+  return {chord:deg(Math.atan2(f.p.c[0]-c.x,f.p.c[1]-c.y)),vin:(c.y-f0.p.c[1])/(c.t-f0.t),vout:(f1.p.c[1]-c.y)/(f1.t-c.t)};}
+const rb=rebound(P.SPEED[2],45);
+ok('P19 구르는 공은 쿠션 뒤 거울(45°)보다 넓게 휘어 나간다',rb.chord>47&&rb.chord<60,rb);
+const soft=rebound(P.SPEED[0],0),hard=rebound(P.SPEED[4],0);
+ok('P20 세게 칠수록 쿠션 반발이 줄어든다',Math.abs(hard.vout/hard.vin)<Math.abs(soft.vout/soft.vin),[soft,hard]);
+
 /* 멈춤 · 네 공 */
 const four=P.simulate({balls:{w:{x:0.56,y:0.84},y:{x:0.56,y:0.28},r:{x:1.68,y:0.56},r2:{x:1.12,y:0.56}},cue:'w',dir:{x:1,y:-0.2},V:P.SPEED[4],tip:{x:0.3,y:-0.3}});
 ok('P16 5단 · 네 공도 결국 모두 멈춘다',four.T<P.DEF.tMax&&['w','y','r','r2'].every(id=>four.events.some(e=>e.type==='stop'&&e.ball===id)||four.frames[0].p[id][0]===four.stops[id][0]),four.T);

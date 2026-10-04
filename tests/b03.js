@@ -27,6 +27,9 @@ const FIX={bb_events:[],
       {kmh:null,tip:null,cpts:[],memo:'',side:'L',ctype:'first',ncush:1,speed:3,thick:4,actual:[],predCue:null,predObj:null,predict:[{ref:'cue'},{x:3.49,y:3.2},{x:4.75,y:4,rail:true}]}),
     B('b-sep','분리각 2','sep',{r:{x:6,y:2},w:{x:2,y:3},y:{x:2,y:1},r2:{x:4,y:2},cue:'w'},{thick:4,side:'L',speed:3}),
     B('b-cush','쿠션 3','cush',{r:{x:6,y:2},w:{x:2,y:3},y:{x:2,y:1},r2:{x:4,y:2},cue:'w'},{ctype:'after',ncush:2,cpts:[{x:3,y:0,rail:true}],thick:2.5,side:'R'}),
+    /* v3.3 🎯 쿠션 지점 판 — ✖ X법 · 투쿠션 · 빨간 공 둘 · 그은 선 2개 · 지점 1개 */
+    B('b-bank','X법 5','bank',{r:{x:6,y:3},w:{x:2,y:3},y:{x:2,y:1},r2:{x:4,y:1.5},cue:'w'},{bstyle:'x',ncush:2,reds:['r','r2'],cpts:[{x:4,y:0,rail:true}],
+      xl:[{a:{x:2,y:3},b:{x:6,y:0.117}},{a:{x:6,y:3},b:{x:2,y:0.117}}],speed:3}),
     B('b-gone','지운 판','free',{r:{x:6,y:2},w:{x:2,y:3},y:{x:2,y:1},cue:'w'},{},'2026-09-26T08:31:47.351+00:00')],
   bb_attempts:[
     /* v1 옛 시도: kind free · sim null · 결과 없음 · 조준점에 ref */
@@ -60,10 +63,10 @@ const FIX={bb_events:[],
     return null;
   };
   ok('M0 실제 모양 기록으로 시작 — 오류 없이 뜸',!(await inv('시작'))&&!errs.length,errs);
-  ok('M1 옛 판·빨강 ② 없는 판도 4구로 불러옴',await p.evaluate(()=>BOARDS.length===4&&BOARDS.every(b=>b.balls.r2&&KINDS[b.kind])));
+  ok('M1 옛 판·빨강 ② 없는 판도 4구로 불러옴',await p.evaluate(()=>BOARDS.length===5&&BOARDS.every(b=>b.balls.r2&&KINDS[b.kind])));
   /* 판마다 한 번씩 열어 그려 본다 */
-  for(const id of ['b-old','b-free','b-sep','b-cush']){await p.evaluate(id=>switchBoard(id),id);await wait(80);}
-  ok('M2 네 판 모두 열림(옛 판 · 1/16 두께 2.5/8 · 투쿠션 지점 1개)',!errs.length,errs);
+  for(const id of ['b-old','b-free','b-sep','b-cush','b-bank']){await p.evaluate(id=>switchBoard(id),id);await wait(80);}
+  ok('M2 다섯 판 모두 열림(옛 판 · 1/16 두께 2.5/8 · 투쿠션 지점 1개 · ✖ X법 투쿠션)',!errs.length,errs);
   await p.click('#bLog');await wait(250);await p.click('#vAtt');await wait(200);
   ok('M3 기록 화면: 옛 시도(sim 없음) 표시',(await p.$$('#logBody tr.click')).length===2&&!errs.length,errs);
   await p.click('#logBody tr.click >> nth=0');await wait(100);
