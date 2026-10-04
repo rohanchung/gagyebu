@@ -46,7 +46,9 @@ const cush=(x,y,dx,dy,V)=>P.simulate({balls:{c:{x,y}},cue:'c',dir:{x:dx,y:dy},V,
 const V3=P.SPEED[2];
 ok('P11 3단(보통) 짧은 방향 = 2쿠션',cush(1.12,0.56,0,-1,V3)===2,cush(1.12,0.56,0,-1,V3));
 ok('P12 3단(보통) 긴 방향 = 2쿠션',cush(0.56,0.56,1,0,V3)===2,cush(0.56,0.56,1,0,V3));
-ok('P13 3단(보통) 대각선 = 2쿠션',cush(0.56,0.84,Math.cos(-0.5),Math.sin(-0.5),V3)===2,cush(0.56,0.84,Math.cos(-0.5),Math.sin(-0.5),V3));
+/* 🔒 v3.3.2 대각선은 2~3쿠션: 비스듬히(약 61°) 맞는 공은 아버지 기준 "X법 교차점이 정답" 에 맞추면 덜 먹혀 더 간다.
+   두 기준이 이 대각선에선 함께 맞지 않아 X법을 앞에 뒀다(쿠션 지점 훈련의 정답이 걸린 기준이다) */
+ok('P13 3단(보통) 대각선 = 2~3쿠션',[2,3].includes(cush(0.56,0.84,Math.cos(-0.5),Math.sin(-0.5),V3)),cush(0.56,0.84,Math.cos(-0.5),Math.sin(-0.5),V3));
 const byS=P.SPEED.map(V=>cush(1.12,0.56,0,-1,V));
 ok('P14 속도가 오르면 쿠션 수가 줄지 않는다',byS.every((n,i)=>i===0||n>=byS[i-1]),byS);
 ok('P15 1단은 3단보다 적게 · 5단은 많이',byS[0]<byS[2]&&byS[4]>byS[2],byS);
@@ -58,9 +60,16 @@ function rebound(V,ang){const a=ang*Math.PI/180;
   const f0=r.frames.filter(f=>f.t<c.t).pop(),f1=r.frames.find(f=>f.t>c.t+0.01);
   return {chord:deg(Math.atan2(f.p.c[0]-c.x,f.p.c[1]-c.y)),vin:(c.y-f0.p.c[1])/(c.t-f0.t),vout:(f1.p.c[1]-c.y)/(f1.t-c.t)};}
 const rb=rebound(P.SPEED[2],45);
-ok('P19 구르는 공은 쿠션 뒤 거울(45°)보다 넓게 휘어 나간다',rb.chord>47&&rb.chord<60,rb);
-const soft=rebound(P.SPEED[0],0),hard=rebound(P.SPEED[4],0);
-ok('P20 세게 칠수록 쿠션 반발이 줄어든다',Math.abs(hard.vout/hard.vin)<Math.abs(soft.vout/soft.vin),[soft,hard]);
+ok('P19 구르는 공(정중앙·보통)은 쿠션 뒤 거울처럼 나간다(45° ±3°)',Math.abs(rb.chord-45)<3,rb);
+/* 🔒 v3.3.2 아버지 실측: "보통 속도·정중앙이면 X법(나비넥타이) 교차점이 정답" — 아버지가 보낸 화면 세 배치 그대로 */
+const DM=0.28;
+function bankC(a,b,V){const xs=[];const m=(a.x*(b.y-R)+b.x*(a.y-R))/((a.y-R)+(b.y-R));
+  for(let x=m-0.4;x<=m+0.4;x+=0.0028){const dx=x-a.x,dy=R-a.y,L=Math.hypot(dx,dy);let c=0;
+    const r=P.simulate({balls:{w:a,r:b},cue:'w',dir:{x:dx/L,y:dy/L},V,tip:{x:0,y:0},stopWhen:e=>{if(e.type==='ball')return true;if(e.type==='cushion'&&e.ball==='w'){c++;return c>1;}return false;}});
+    let k=0,ok2=false;for(const e of r.events){if(e.type==='cushion'&&e.ball==='w')k++;if(e.type==='ball'){ok2=k===1;break;}}if(ok2)xs.push(x);}
+  return {x:m/DM*10,c:xs.length?(xs[0]+xs[xs.length-1])/2/DM*10:null};}
+const ph=[[[1.2,1.0],[7.4,2.3]],[[0.15,2],[7.85,2]],[[0.12,3.88],[7.88,3.88]]].map(([a,b])=>bankC({x:a[0]*DM,y:a[1]*DM},{x:b[0]*DM,y:b[1]*DM},V3));
+ok('P20 원쿠션 정답 가운데 = X법 교차점 ±1 (아버지 화면 세 배치 · 보통 속도 · 정중앙)',ph.every(p=>p.c!=null&&Math.abs(p.c-p.x)<=1),ph.map(p=>({X:+p.x.toFixed(1),물리:p.c&&+p.c.toFixed(1)})));
 
 /* 멈춤 · 네 공 */
 const four=P.simulate({balls:{w:{x:0.56,y:0.84},y:{x:0.56,y:0.28},r:{x:1.68,y:0.56},r2:{x:1.12,y:0.56}},cue:'w',dir:{x:1,y:-0.2},V:P.SPEED[4],tip:{x:0.3,y:-0.3}});

@@ -25,12 +25,13 @@ var DEF={
   eC:0.86,      /* 쿠션 반발(1 m/s 로 들어올 때) */
   eV:0.03,      /* 들어오는 속도 1 m/s 마다 반발이 줄어드는 양 — 세게 칠수록 쿠션이 더 먹는다 */
   muC:0.18,     /* 쿠션 마찰(좌우 회전이 반사각을 바꾸는 정도) */
+  kN:1, kT:1,   /* 쿠션을 떠날 때 구름을 나가는 속도에 맞추는 몫(0~1) — 쿠션 방향 · 쿠션 따라 · 아버지 기준(X법)으로 맞춘다 */
   cushH:0.63,   /* 쿠션 코 높이 ÷ 공 지름 — 공 중심보다 위(표준 62~64%) */
   dt:0.0004, tMax:30, fps:60
 };
-/* 속도 단계(m/s) — 🔒 3단 = 보통 = 1.85 m/s (v3.3 쿠션 모델로 다시 맞춤 · 예전 1.6). 아버지: "보통 속도면 어느 방향이든 2쿠션"
-   3단에서 짧은 방향·긴 방향·대각선 모두 정확히 2쿠션이다(tests/b02 가 잠근다) */
-var SPEED=[0.85,1.25,1.85,2.55,3.45];
+/* 속도 단계(m/s) — 🔒 3단 = 보통 = 2.0 m/s (v3.3.2 아버지 X법 기준으로 다시 맞춤 · 예전 1.6 → 1.85). 아버지: "보통 속도면 어느 방향이든 2쿠션"
+   3단에서 짧은 방향·긴 방향은 정확히 2쿠션, 대각선은 2~3쿠션(tests/b02 P13 설명) */
+var SPEED=[0.92,1.35,2.0,2.75,3.7];
 
 function cross(a,b){return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];}
 function len2(x,y){return Math.sqrt(x*x+y*y);}
@@ -151,6 +152,15 @@ function simulate(opt){
         var t1=cross(rI,J),t2=cross(rC,JC);
         w[0]+=(t1[0]+t2[0])*slideK;w[1]+=(t1[1]+t2[1])*slideK;w[2]+=(t1[2]+t2[2])*slideK;
       }
+      /* 🔒 v3.3.2 쿠션을 떠날 때의 구름 — 적분 모델만으론 들어올 때의 구름이 그대로 남아(쿠션 쪽 + 쿠션을 따라),
+         떠난 뒤 천에서 다시 붙으며 거울보다 크게 휘어 나갔다. 아버지 실측 "보통 속도·정중앙이면 X법 교차점이 정답" 과 5~9 차이.
+         → 수평 회전을 '나가는 속도에 맞는 구름' 쪽으로 맞춘다. 쿠션 방향(kN)과 쿠션을 따라가는 방향(kT)을 따로:
+           kN 이 작으면 정면으로 받은 공의 구름이 브레이크로 남는다(실제로 그렇다 — "보통 속도 = 어느 방향이든 2쿠션" 이 여기서 나온다)
+           kT 가 크면 쿠션이 늦춘 만큼 쿠션을 따라가는 구름도 맞춰져, 떠난 뒤 옆으로 더 달려 나가지 않는다. 좌우 회전 w[2] 는 그대로
+           kN 은 비스듬할수록 크게(sin² 입사각): 정면은 브레이크가 남고, 비스듬히 스친 공은 거울처럼 나간다 */
+      var rvx=-R*w[1],rvy=R*w[0],tx=-n[1],ty=n[0],s2=1-vn0*vn0/Math.max(1e-9,b.v[0]*b.v[0]+b.v[1]*b.v[1]);
+      var an=(v[0]-rvx)*n[0]+(v[1]-rvy)*n[1],at=(v[0]-rvx)*tx+(v[1]-rvy)*ty,kn=Math.min(1,P.kN*s2);
+      rvx+=kn*an*n[0]+P.kT*at*tx;rvy+=kn*an*n[1]+P.kT*at*ty;w[1]=-rvx/R;w[0]=rvy/R;
       b.v=[v[0],v[1]];b.w=w;
     }
     if(side==='L')b.x=R;else if(side==='R')b.x=P.L-R;else if(side==='T')b.y=R;else b.y=P.W-R;
@@ -158,6 +168,6 @@ function simulate(opt){
   }
 }
 
-var API={VERSION:'3.3.1',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
+var API={VERSION:'3.3.2',DEF:DEF,SPEED:SPEED,strike:strike,simulate:simulate};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;else root.BBPhys=API;
 })(this);
