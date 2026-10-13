@@ -68,7 +68,14 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  await p.evaluate(()=>{document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');gotoTab('study');setStTab('word');});
  await p.waitForTimeout(300);
  const btns=await p.evaluate(()=>[...document.querySelectorAll('.gmode button')].map(x=>x.textContent));
- ok('D1 문법 모드 4개',btns.length===4&&['조사','접속사','부사','문장'].every(k=>btns.some(t=>t.includes(k))),JSON.stringify(btns));
+ /* v4.30 — 문형·유의표현이 늘었다. 이 fixture 에는 그 데이터가 없으니 **off 로 그려져야** 한다.
+    🔒 아예 안 그리면 "그런 드릴이 없다"로 읽힌다 — 있는데 재료가 없는 것과 다르다(빈 서랍 금지의 반대쪽) */
+ ok('D1 문법 모드 6개',btns.length===6
+    &&['조사','접속사','부사','문형','유의표현','문장'].every(k=>btns.some(t=>t.includes(k))),JSON.stringify(btns));
+ const offb=await p.evaluate(()=>[...document.querySelectorAll('.gmode button')]
+   .filter(x=>x.disabled).map(x=>x.textContent));
+ ok('D1b 재료 없는 문형·유의표현은 눌리지 않는다',offb.length===2
+    &&offb.some(t=>t.includes('문형'))&&offb.some(t=>t.includes('유의표현')),JSON.stringify(offb));
  for(const m of ['gpart','gadv']){
    await p.evaluate(mm=>stDrillStart(mm,2),m);await p.waitForTimeout(200);
    const view=await p.evaluate(()=>({gbl:!!document.querySelector('#v-study .gbl'),star:!!document.querySelector('#v-study .gslot'),n:document.querySelectorAll('#v-study .stdopt button').length}));

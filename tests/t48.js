@@ -36,7 +36,21 @@ const sents=[
  {id:'x2',src:'접속사 p230',ja:'雨が 降って いました。 そこで、 タクシーで 帰りました。',ko:'…',
   slots:[{kind:'conj',target:'そこで',opts:['それに','でも','すると'],why:'결과'}]},
  {id:'x3',src:'부사 p206',ja:'バスが なかなか 来ません。',ko:'…',
-  slots:[{kind:'adv',target:'なかなか',opts:['ぜんぜん','けっして','ほとんど'],why:'부정과 함께'}]}];
+  slots:[{kind:'adv',target:'なかなか',opts:['ぜんぜん','けっして','ほとんど'],why:'부정과 함께'}]},
+ /* 📖 v4.30 스피드체크북 — 실제로 들어간 행 그대로.
+    🔴 f1 은 첫 등장 か 가 단어 かいぎ 안이다. 추측 규칙은 여기서 틀린다 → nth 가 자리를 못박는다 */
+ {id:'f1',src:'sc:32-34',ja:'かいぎは 何時に 始まるか 知って いますか。',ko:'회의는 몇 시에 시작되는지 알고 있습니까?',
+  slots:[{kind:'form',target:'か',nth:2,opts:['し','から','まで'],why:'〜か (문형 001)'}]},
+ {id:'f2',src:'sc:35-47',ja:'私が やろう。',ko:'내가 할게.',
+  slots:[{kind:'form',target:'ろう',opts:['かも','たら','とき'],why:'〜(よ)う (문형 020)'}]},
+ /* 🔁 유의표현 — y1·y2 는 **같은 표현에 짝이 둘**이다(책이 그렇게 싣고 있다) */
+ {id:'y1',src:'sc:17-24',ja:'あいさつしました',ko:'인사했습니다',
+  syn:'「おはようございます」と 言いました',synKo:'안녕하세요라고 말했습니다'},
+ {id:'y2',src:'sc:17-24',ja:'あいさつしました',ko:'인사했습니다',
+  syn:'「こんにちは」と 言いました',synKo:'안녕하세요라고 말했습니다'},
+ {id:'y3',src:'sc:17-24',ja:'あぶないです',ko:'위험합니다',syn:'きけんです',synKo:'위험합니다'},
+ {id:'y4',src:'sc:17-24',ja:'うそです',ko:'거짓말입니다',syn:'ほんとうじゃ ありません',synKo:'사실이 아닙니다'},
+ {id:'y5',src:'sc:17-24',ja:'きそく',ko:'규칙',syn:'ルール',synKo:'규칙'}];
 
 const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCards:{},
  rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},ui:{month:'2026-09'},
@@ -160,10 +174,84 @@ const EXP={
  ok('E5 라운드로빈 — 앞 3문항이 서로 다른 문장',new Set(rr.slice(0,3)).size===3,JSON.stringify(rr));
  ok('E6 6문항을 다 쓴다(슬롯을 버리지 않는다)',rr.length===6,JSON.stringify(rr));
  /* 같은 문장이 두 번 나와도 **다른 자리**를 묻는다 */
- const qq=await p.evaluate(()=>stGramPick('gpart',6).filter(i=>i.s.id==='x1').map(i=>stGMkQ(i.s,'gpart',i).ja));
- ok('E7 같은 문장이 다시 나오면 다른 자리를 가린다',new Set(qq).size===qq.length&&qq.length>=2,JSON.stringify(qq));
+ /* 🔒 **6 같은 숫자에 기대지 않는다.** 예문이 늘면 라운드로빈이 x1 을 한 번만 집어
+    "자리가 겹치지 않는다"를 증명하지 못한 채 빨개진다(v4.30 에 실제로 그랬다).
+    묻는 건 "같은 문장이 다시 나올 때 다른 자리냐"이므로 **슬롯을 전부 꺼내** 본다. */
+ const qq=await p.evaluate(()=>stGramPick('gpart',stGramItems('gpart').length)
+   .filter(i=>i.s.id==='x1').map(i=>stGMkQ(i.s,'gpart',i).ja));
+ ok('E7 같은 문장이 다시 나오면 다른 자리를 가린다',
+    new Set(qq).size===qq.length&&qq.length===3,JSON.stringify(qq));
  const box=await p.evaluate(()=>{renderStudy();return document.getElementById('v-study').innerHTML;});
  ok('E8 화면 숫자가 문항 수다(예문 수가 아니다)',/조사 채우기/.test(box)&&/6문항/.test(box),'');
+
+ /* ── F) v4.30 📖 문형 108항목 · 🔁 유의표현 ──
+    🔒 데이터는 들어왔는데 꺼낼 입구가 없으면 없는 것과 같다. 입구가 있는지부터 본다. */
+ const reg=await p.evaluate(()=>({modes:ST_GMODES.map(m=>m.k),kind:ST_GKIND.gform,
+   label:stModeLabel('gform'),slabel:stModeLabel('gsyn')}));
+ ok('F1 문형·유의표현 모드가 등록돼 있다',
+    reg.modes.includes('gform')&&reg.modes.includes('gsyn')&&reg.kind==='form'
+    &&reg.label==='문형 채우기'&&reg.slabel==='유의표현',JSON.stringify(reg));
+
+ const gi=await p.evaluate(()=>({
+   form:stGramItems('gform').map(i=>i.s.id),
+   syn:stGramItems('gsyn').map(i=>i.s.id),
+   f1part:stGramItems('gpart').filter(i=>i.s.id==='f1').map(i=>!!i.cand.manual)}));
+ ok('F2 문형 문항은 문형 슬롯만',gi.form.length===2
+    &&gi.form.includes('f1')&&gi.form.includes('f2')
+    &&!gi.form.includes('x1'),JSON.stringify(gi.form));
+ /* 🔒 조사 엔진은 교재 띄어쓰기 기준이라 책 예문에서 엉뚱한 자리를 가렸다 →
+    책 슬롯은 조사 엔진이 **집어가지 않는다**. 자동 후보로 나오는 건 상관없다(공용 풀) */
+ ok('F3 책 문형 슬롯이 조사 엔진에 끼어들지 않는다',
+    gi.f1part.every(m=>m===false),JSON.stringify(gi.f1part));
+ ok('F4 유의표현 문항 5건',gi.syn.length===5&&gi.syn.includes('y1'),JSON.stringify(gi.syn));
+
+ /* 🔴 핵심 — nth 가 없으면 단어 かいぎ 의 か 를 가린다. 그러면 정답이 없는 문항이 된다 */
+ const mk=await p.evaluate(()=>({
+   withNth:stGMkQ(stSentById('f1'),'gform').ja,
+   noNth:stGMask(stSentById('f1').ja,'か'),
+   plain:stGMkQ(stSentById('f2'),'gform').ja}));
+ ok('F5 nth 가 책이 묻는 자리를 가린다',
+    mk.withNth.indexOf('始まる（　）')>=0&&mk.withNth.indexOf('（　）いぎ')<0,mk.withNth);
+ ok('F6 nth 가 없으면 예전 그대로(첫 등장)',mk.noNth.indexOf('（　）いぎ')===0,mk.noNth);
+ ok('F7 모호하지 않은 문형은 nth 없이도 맞는 자리',mk.plain==='私が や（　）。',mk.plain);
+
+ /* 🔴 핵심 — 같은 표현에 짝이 둘인 항목을 보기에 같이 올리면 정답이 둘이 된다 */
+ const sq=await p.evaluate(()=>{
+   const out=[];
+   for(let k=0;k<30;k++){const q=stSynQ(stSentById('y1'));out.push({ans:q.ans,opts:q.opts});}
+   return out;});
+ ok('F8 유의표현 정답은 그 짝이다',
+    sq.every(q=>q.ans==='「おはようございます」と 言いました'&&q.opts.length===4
+      &&q.opts.includes(q.ans)),JSON.stringify(sq[0]));
+ ok('F9 같은 표현의 다른 짝은 보기에 안 올라온다(30회 반복)',
+    sq.every(q=>!q.opts.includes('「こんにちは」と 言いました')),
+    JSON.stringify(sq.find(q=>q.opts.includes('「こんにちは」と 言いました'))||''));
+
+ /* 화면 — 유의표현은 빈칸이 아니다. 채점 전에 짝의 한국어 뜻이 보이면 답이 적혀 있는 셈이다 */
+ await p.evaluate(()=>{gotoTab('study');setStTab('word');stDrillStart('gsyn',3);});
+ await p.waitForTimeout(250);
+ const sv=await p.evaluate(()=>{const h=document.getElementById('v-study').innerHTML;
+   return {hint:/같은 뜻이 되는 것을 골라라/.test(h),blank:/gbl/.test(h),
+           n:document.querySelectorAll('#v-study .stdopt button').length,
+           why:/stdopt/.test(h)&&/gwhy/.test(h)};});
+ ok('F10 유의표현 화면 — 빈칸이 아니고 보기 4개',
+    sv.hint&&!sv.blank&&sv.n===4,JSON.stringify(sv));
+ ok('F11 채점 전에는 해설이 없다',!sv.why,JSON.stringify(sv));
+ for(let k=0;k<3;k++){
+   await p.evaluate(()=>{const b=document.querySelector('#v-study .stdopt button');b&&b.click();});
+   await p.waitForTimeout(140);
+   await p.evaluate(()=>{const b=[...document.querySelectorAll('#v-study button')].find(x=>/다음|결과/.test(x.textContent));b&&b.click();});
+   await p.waitForTimeout(140);}
+ const srec=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
+ ok('F12 끝까지 풀면 기록이 남는다',srec&&srec.mode==='gsyn'&&srec.n===3,JSON.stringify(srec));
+ await p.evaluate(()=>stDrillClose&&stDrillClose());await p.waitForTimeout(150);
+
+ const gb=await p.evaluate(()=>{renderStudy();
+   return [...document.querySelectorAll('.gmode button')]
+     .map(x=>({t:x.textContent,off:x.disabled}));});
+ ok('F13 두 모드가 숫자와 함께 눌리는 상태로 뜬다',
+    gb.some(b=>/문형 채우기/.test(b.t)&&/2문항/.test(b.t)&&!b.off)
+    &&gb.some(b=>/유의표현/.test(b.t)&&/5문항/.test(b.t)&&!b.off),JSON.stringify(gb));
 
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);

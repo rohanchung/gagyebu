@@ -4910,12 +4910,20 @@ function stDrillResult(){
 /* v4.13 — 학습방 v18: 부사(gadv)·조사(gpart) 모드.
    ⚠️ 사실관계: 부사 슬롯은 '출제 경로가 없어 죽어 있던' 게 아니라 **접속사 채우기에 섞여** 나가고 있었다(stGSlot 이 conj·adv 를 같이 받았다).
       부사만 따로 연습할 수 없던 것이 정확한 문제다 → 둘로 가른다 */
+/* v4.30 — 스피드체크북 문형 108항목(140문항)·유의표현 115쌍이 들어왔다.
+   🔒 **꺼낼 입구가 없으면 들어온 데이터는 없는 것과 같다.** 모드를 둘 더 낸다.
+   🔒 문형(form)은 조사 엔진에 태우지 않는다 — 조사 엔진은 교재 띄어쓰기 기준으로 어절을 찾는데
+      책 예문은 쉼표가 어절 안에 있어(「つかれたから、ちょっと」) 29개 중 9개가 엉뚱한 자리를 가렸다.
+      책이 묻는 자리는 데이터가 들고 있으니 일반 슬롯 경로로 보낸다.
+   🔒 유의표현은 정답이 문장 **밖**이라 빈칸 채우기가 아니다 — slots 가 아니라 syn 필드로 따로 돈다. */
 var ST_GMODES=[
   {k:'gpart',label:'조사 채우기',  hint:'もんだい1 · 조사'},
   {k:'gconj',label:'접속사 채우기',hint:'もんだい3 · 문장 흐름'},
   {k:'gadv', label:'부사 채우기',  hint:'もんだい1·3 · 부사'},
+  {k:'gform',label:'문형 채우기',  hint:'문형 108항목'},
+  {k:'gsyn', label:'유의표현',     hint:'もんだい4 · 같은 뜻'},
   {k:'gord', label:'문장 만들기',  hint:'もんだい2 · 어순'}];
-var ST_GKIND={gconj:'conj',gadv:'adv'};
+var ST_GKIND={gconj:'conj',gadv:'adv',gform:'form'};
 function stGModeOK(k){return ST_GMODES.some(function(m){return m.k===k;});}
 /* 🔒 이 드릴이 문법인지 단어인지 묻는 함수는 **이것 하나다.** 곳곳에서 mode 문자열을 비교하면
    모드를 하나 추가할 때 빼먹는 자리가 반드시 생긴다. */
@@ -4940,6 +4948,26 @@ function stGSlots(s,kind){
   });
 }
 function stGSlot(s,kind){return stGSlots(s,kind)[0]||null;}
+/* ── v4.30 🔁 유의표현 (もんだい4) ──
+   🔒 「이 표현과 같은 뜻」을 묻는다. 정답은 문장 안이 아니라 **다른 표현**이라 slots 로 못 쓴다.
+   🔒 오답은 다른 항목의 짝에서 빌리되, **같은 ja 를 가진 항목은 뺀다** —
+      책에는 한 표현에 짝이 둘인 것이 있다(あいさつしました ↔ 「おはようございます」/「こんにちは」).
+      그 둘을 보기에 같이 올리면 정답이 둘이 된다. 틀린 문항은 없느니만 못하다(v3.5). */
+function stSynOK(s){return !!(s&&stNorm(s.ja)&&stNorm(s.syn));}
+function stSynPool(){return stSents().filter(stSynOK);}
+function stSynQ(s){
+  var all=stSynPool();
+  var cand=all.filter(function(x){
+    return x.id!==s.id&&x.ja!==s.ja&&x.syn!==s.syn
+      &&String(s.ja).indexOf(x.syn)<0&&String(x.syn).indexOf(s.ja)<0;
+  }).map(function(x){return x.syn;});
+  var uniq=[];
+  stGShuffle(cand).forEach(function(x){if(uniq.indexOf(x)<0&&uniq.length<3)uniq.push(x);});
+  if(uniq.length<3)return null;
+  return {ans:s.syn, ja:s.ja, syn:true,
+          why:String(s.synKo||'')+(stNorm(s.ko)?' ( '+s.ko+' )':''),
+          opts:stGShuffle([s.syn].concat(uniq))};
+}
 /* ── v4.13 🎯 조사 — 수동 슬롯 우선 + 자동 후보(보수 규칙) ──
    학습방 v17: "문장 안의 모든 조사를 자동으로". 🔴 실측(예문 39개): '어절이 조사로 끝나면' 규칙은 후보 120개 중
    **39개가 틀린 문항**이었다 — この·その·いつも·とても·でも·それから·だから·では·やっと·姉妹かも…
@@ -5003,7 +5031,16 @@ function stGTokens(s){
 }
 /* 🔒 가리기는 **어절 경계 우선**이다. 단순 첫 등장 치환을 쓰면 틀린 자리를 가린다 —
    「では」를 물을 때 같은 문장에 「それでは」가 있으면 그 안쪽이 먼저 걸린다. */
-function stGMask(ja,target){
+/* v4.30 🔒 nth(몇 번째 등장) 를 받는다 — 어절 머리 규칙도 첫 등장 규칙도 **틀린 자리**를 가리는 예문이 있다.
+   「かいぎは 何時に 始まるか 知って いますか。」가 묻는 건 「始まるか」인데 첫 등장은 단어 かいぎ 안이다.
+   추측으로 맞히려 들지 않고, 몇 번째 등장인지 데이터가 말하게 한다. 없으면 예전 그대로다. */
+function stGMask(ja,target,nth){
+  var _n=+nth||0;
+  if(_n>0){
+    var _s=String(ja||''), _at=-1, _k=0;
+    while(_k<_n){ _at=_s.indexOf(target,_at+1); if(_at<0)break; _k++; }
+    if(_at>=0)return _s.slice(0,_at)+'（　）'+_s.slice(_at+String(target).length);
+  }
   var parts=String(ja||'').split(/(\s+)/), hit=false;
   for(var i=0;i<parts.length;i++){
     if(!hit&&parts[i].indexOf(target)===0){parts[i]=parts[i].replace(target,'（　）');hit=true;}
@@ -5022,6 +5059,7 @@ function stGramPool(mode){
   return stSents().filter(function(s){
     if(!stNorm(s.ja))return false;
     if(ST_GKIND[mode])return stGSlots(s,ST_GKIND[mode]).length>0;
+    if(mode==='gsyn')return stSynOK(s);
     if(mode==='gpart')return stGParticles(s).length>0;
     return stGTokens(s).length>=4;          /* gord — 4어절이 안 되면 어순 문제가 안 된다 */
   }).slice().sort(function(a,b){
@@ -5036,9 +5074,10 @@ function stGMkQ(s,mode,it){
   if(ST_GKIND[mode]){
     var sl=(it&&it.slot)||stGSlot(s,ST_GKIND[mode]);
     if(!sl)return null;
-    return {ans:sl.target, ja:stGMask(s.ja,sl.target), why:String(sl.why||''),
+    return {ans:sl.target, ja:stGMask(s.ja,sl.target,sl.nth), why:String(sl.why||''),
             opts:stGShuffle([sl.target].concat(sl.opts.slice(0,3)))};
   }
+  if(mode==='gsyn')return stSynQ(s);
   if(mode==='gpart')return stGPartQ(s,it&&it.cand);
   var t=stGTokens(s), max=t.length-4;
   var st=Math.floor(Math.random()*(max+1));
@@ -5055,6 +5094,7 @@ function stGramItems(mode){
   var out=[];
   stGramPool(mode).forEach(function(s){
     if(ST_GKIND[mode])stGSlots(s,ST_GKIND[mode]).forEach(function(sl){out.push({s:s,slot:sl});});
+    else if(mode==='gsyn')out.push({s:s});       /* 유의표현 — 한 짝이 한 문항이다 */
     else if(mode==='gpart')stGParticles(s).forEach(function(c){out.push({s:s,cand:c});});
     else out.push({s:s});                      /* gord — 한 문장이 한 문항이다 */
   });
@@ -5085,8 +5125,10 @@ function stGramQ(D,i){return (D.qs&&D.qs[i])||null;}
 function stGramWhyBlocked(mode){
   var n=stGramItems(mode).length;
   if(!stSents().length)return '예문이 없다 — 학습방에서 올린다.';
+  /* 🔒 모드 이름을 손으로 적지 않는다 — 모드를 늘릴 때 빠뜨리는 자리가 반드시 생긴다(v4.13 교훈) */
   if(!n)return ST_GKIND[mode]
-    ? (mode==='gadv'?'부사':'접속사')+' 문항이 없다. 예문에 slots(kind:'+ST_GKIND[mode]+') 와 오답 3개가 필요하다.'
+    ? stModeLabel(mode)+' 문항이 없다. 예문에 slots(kind:'+ST_GKIND[mode]+') 와 오답 3개가 필요하다.'
+    : mode==='gsyn'?'유의표현이 없다 — 예문에 syn(짝이 되는 표현)이 필요하다.'
     : mode==='gpart'?'조사를 가릴 수 있는 예문이 없다.':'4어절 이상인 예문이 없다.';
   if(n<4&&mode!=='gord')return '예문이 '+n+'개뿐이다 — 4지선다는 되지만 세트가 너무 짧다.';
   return '';
@@ -5240,7 +5282,12 @@ function stGramRun(){
   /* 문제 본문 */
   var qhtml;
   /* 🔒 '빈칸 채우기냐 어순이냐'로 가른다 — mode 문자열 하나와 비교하면 모드를 늘릴 때 새 모드가 어순 화면으로 빠져 멈춘다 */
-  if(D.mode!=='gord'){
+  if(q.syn){
+    /* 🔒 여기서 한국어 뜻(s.ko)을 보여줘도 정답은 새지 않는다 — 보기가 전부 일본어다.
+       새는 건 synKo 뿐이라 그건 채점 후 해설에만 둔다. */
+    qhtml='<div class="gja">'+mdEsc(q.ja)+'</div>'
+      +'<div class="stdhint">같은 뜻이 되는 것을 골라라</div>';
+  }else if(D.mode!=='gord'){
     qhtml='<div class="gja">'+mdEsc(q.ja).replace('（　）','<span class="gbl">（　）</span>')+'</div>';
   }else{
     var slots=q.win.map(function(_,k){
@@ -5278,7 +5325,10 @@ function stGramRun(){
    +bar
    +'<div class="stdq">'+qhtml+body+'</div>'
    +'<div class="mut" style="font-size:10.5px">'
-   +(D.mode==='gpart'
+   +(D.mode==='gsyn'
+     ? '보기는 다른 항목의 짝에서 빌린다 — 🔒 <b>같은 표현을 가진 항목은 뺀다</b>. '
+        +'책에는 짝이 둘인 표현이 있어(あいさつしました) 그대로 섞으면 정답이 둘이 된다.'
+     : D.mode==='gpart'
      ? '조사 앞 말이 명사로 확인된 자리만 가린다 — この·それから 같은 건 조사가 아니다. '
         +'🔒 は·が·も, に·へ 는 서로 오답에 넣지 않는다(바꿔도 맞는 문장이 많다).'
      : D.mode!=='gord'
@@ -9339,13 +9389,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.29';
+var APP_VERSION='4.30';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.30',date:'2026-10-13',note:'<b>📚 스피드체크북을 다 넣었다 — 문형 108항목 · 유의표현 115쌍.</b> 로한: 「책에서 배우는 주요 단어들은 다 모아놓은 것 같으니까 학습 드릴에 반영해버려」 → 단어 439개(581 → <b>1,020개</b>)에 이어 <b>문항 255건</b>(예문 61 → <b>316개</b>) · ① <b>📖 문형 채우기</b> — 문형 001~108 의 책 예문과 책 해설을 그대로 쓴다. 오답은 <b>같은 종류의 다른 문형</b>에서 빌리고, <b>오답이 예문 안에 들어 있으면 뺀다</b>(정답이 둘이 되니까) · ② <b>🔁 유의표현</b> — 「이 표현과 같은 뜻」을 묻는다. 정답이 문장 <b>밖</b>이라 빈칸 채우기가 아니다 → slots 가 아닌 syn 필드로 돈다. 🔒 보기는 다른 항목의 짝에서 빌리되 <b>같은 표현을 가진 항목은 뺀다</b> — 책에는 짝이 둘인 표현이 있어(あいさつしました) 그대로 섞으면 정답이 둘이 된다 · ③ 🔴 <b>조사 엔진에 태우지 않았다.</b> 조사 엔진은 교재 띄어쓰기로 어절을 찾는데 이 책 예문은 쉼표가 어절 안에 있어(「つかれたから、ちょっと」) <b>29개 중 9개가 엉뚱한 자리를 가렸다</b> → 책 문형은 일반 슬롯 경로로 보낸다 · ④ 🔴 <b>가리는 자리를 데이터가 못박는다(nth).</b> 「かいぎは 何時に 始まるか…」가 묻는 건 「始まるか」인데 첫 등장 か 는 단어 かいぎ 안이다 — 추측 규칙으로는 못 맞힌다. 140행을 전수 검사해 어긋나는 <b>2건</b>에만 nth 를 박았다 · 🔒 <b>기존 배열에 뒤로 붙였다</b>(61 + 255 = 316, 건수가 안 맞으면 전체 롤백) — 학습방이 올린 건 하나도 안 지웠다 · t47 D1b · t48 F절 13건 추가'},
   {v:'4.29',date:'2026-10-02',note:'<b>🔮 사주 — 배치와 기본값을 바로잡았다.</b> 로한: 「꼭 이렇게 내가 ui를 다 지적해야하냐?? 디폴트 값은 오늘로 하면 되고 안그러냐」 — <b>맞다. 내가 정했어야 했다</b> · ① <b>「🧭 인생 총운」 긴 섹션을 지우고 총운 말머리 💬 안으로</b> 넣었다. 평생 한 번 쓰는 글이 매번 화면 끝을 차지할 이유가 없다 — 모달에서 <b>원국 해석 + 인생 총운</b>을 같이 본다 · ② <b>🗓 명리 시간축을 총운·대운 바로 밑으로</b> 올렸다. 전엔 예측·검증이 시간축보다 위에 있어서 <b>고르고 나서 위로 올라가 봐야</b> 했다 → 읽는 순서대로 쌓는다: 총운·대운(안 바뀌는 기준) → 고른다 → 그 기간의 예측·검증 · ③ <b>예측·검증이 고른 기간을 따라간다</b> — 일을 눌러도 <b>그 날이 속한 달</b>의 예측이 뜨고(10월을 보면 10월 검증), 머리에 어느 기간인지 적는다. 일 단위 예측은 쓰지 않으니 빈 칸으로 두지 않는다 · ④ <b>💬 를 없애고 해석을 바로 펼친다</b> — 칸을 눌러 이미 골랐는데 한 번 더 누르게 할 이유가 없다. 고른 날의 간지·특이일·길흉 배지와 해석 본문이 <b>한 번에</b> 뜬다 · 🔒 <b>기본값은 오늘</b>(일 단위) — 들어오면 오늘 칸이 골라져 있고 그 날 해석이 보인다 · t53 59 → 66건(네 가지를 좌표로 박았다 — 대운 → 시간축 → 예측검증 순서까지 잰다)'},
   {v:'4.28',date:'2026-10-01',note:'<b>🗣 아고라 토론을 수신자 기준으로 갈랐다.</b> 로한: 「학습을 눌렀으면 다른 방애들이 학습방에 이야기한 것들만 떠야지. 수신자 기준으로 정리하라」 · ⚠️ <b>[결함] 토론이 고른 방과 상관없이 그 달 것 전부 떴다</b> — 방을 고르는 화면인데 아래가 안 바뀌니 <b>고른 의미가 없었다</b> · 🔒 그 방 화면엔 <b>그 방에 온 말</b>만 둔다: ① 뿌리가 그 방 평가인 글타래 전부(받은 말 + 거기 달린 답) ② target 이 그 방인 ⭐ 로한의 평가 · 「누구에게 한 말인가」는 바로 위 글이 아니라 <b>그 타래가 누구 평가에서 시작했나</b>로 정한다 (<code>agRoot()</code> 가 parent 를 타고 올라간다 · 데이터가 깨져 순환이 생겨도 걸음 수로 막는다) · 🔴 <b>[결함] 미제출 방은 고를 수조차 없었다</b> — 그런데 9월 생활방이 바로 그 경우다. 본인은 안 썼는데 <b>다섯 방이 생활방을 지목했다</b>. 자기에게 온 말을 정작 읽어야 할 방이 못 봤다 → 미제출 카드도 누를 수 있고, 본문엔 「아직 내지 않았다」고 적되 온 말은 보여준다 · 🆕 <b>「이 방을 지목한 평가」</b> — 지목은 타래가 아니라 <b>남의 평가 본문(others)</b> 안에 있어서 타래만 모아선 영영 안 보인다. 지목한 방을 칩으로 모아 누르면 그 평가로 간다 · 토론 머리에 <b>「🗣 📖 로버트(학습)에 온 말 4건」</b>을 적는다 — 지금 누구 화면인지 숨기지 않는다 · t54 79 → 86건(방을 바꾸면 남의 타래가 사라지는지까지 좌표로 잰다)'},
   {v:'4.27',date:'2026-10-01',note:'<b>🗓 사주 — 연·월·일을 가로 캐스케이드 하나로 합쳤다 + 아고라 카드 정리.</b> 로한: 「예측과 검증에 월별이 있는데 내려보면 연도별 세운·월별·특이일이 또 있다. 차라리 합쳐서 세로가 아닌 가로로. 2019|2020|2021 밑에 1월|2월|3월 밑에 1일|2일|3일, 그 안에 정관겁재든 지금 들어가 있는 정보를 매칭하면 되잖아」 · ⚠️ <b>[결함] 기간 고르는 UI 가 두 벌이었다</b> — 예측칸의 12칸과 아래 3열 세로 목록이 따로 놀아 <b>같은 일을 두 번 골라야 했다</b>. 어느 쪽이 「지금 고른 기간」인지 화면과 코드가 서로 다르게 답했다(원칙 2) · 🔒 <code>sjCascade()</code> 하나로 합쳤다 — <b>연 13칸 → 월 12칸 → 일 31칸</b> 가로 3줄. 칸 안에 <b>간지와 십신</b>이 들어간다(2020 庚子 편관·정인) · 연 고르면 그 해 월이, 월 고르면 그 달 일이 바뀐다 · 오늘 칸은 금색 밑줄 · 삼재는 연 칸에 표시 · 일 칸엔 吉凶平 · 연·월 칸엔 예측 상태(●◐○·) · 💬 해석 버튼은 <b>고른 기간 한 곳에만</b> 둔다 — 칸마다 넣으면 격자가 안 읽힌다 · 🔒 줄마다 가로 스크롤을 허용한다(달력류라 자연스럽다) — <b>페이지 가로 스크롤은 0</b>(360~1500px 확인) · <code>sajuPickYear/sajuPickMonth</code> 와 <code>.sajucols</code> 3열을 지웠다 · 「일운」 단위 추가 · ⚠️ <b>[결함·2회] 아고라 카드마다 아이콘 줄이 떴다</b> — 로한: 「각 방 밑에 동일하게 뜨는 게 뭐냐 / 각 방 클릭했을 때 정보만 있어야지 다 똑같애」. 맞다 — 7칸에 비슷한 이모지가 반복되면 <b>일목요연이 아니라 노이즈</b>다. 누구에게 말했는지는 <b>그 방을 클릭한 본문</b>에만 둔다. 🔒 카드엔 <b>예외만</b> 남긴다 — 다른 영역에 한마디도 안 한 방(「담당 영역만 봤다」). 있는 것은 당연하니 적지 않고 없는 것만 드러낸다 · 🙋 <b>「로한에게 요구하는 것」에 파란 컬러 블록</b>(로한 요청) — 「다른 영역」(노랑)과 색으로 가른다. 내가 할 일이 모이는 칸이다 · t53 49 → 59건 · t54 78 → 79건'},
