@@ -1297,6 +1297,9 @@ textarea.mla.same{background:#f2f9f4}
 .pill.snk.manual{background:#fdf6e3;color:#8a6d1f;border:1px solid #e6c86a}
 .pill.snk.pre_restore{background:#fdeeee;color:#a52a2a;border:1px solid #e0a0a0}
 .pill.snk.pre_overwrite{background:#fdf0e0;color:#8a5a1f;border:1px solid #e8c9a0}
+.pill.snk.pre_discard{background:#fdf0e0;color:#8a5a1f;border:1px solid #e8c9a0}
+/* 🔒 못 보낸 변경은 **눈에 띄어야 한다** — 조용한 회색으로 두면 또 모르고 지나간다 */
+.pill.snk.pending{background:#fde2e2;color:#9a2020;border:1px solid #f0b5b5;font-weight:800}
 @media(max-width:900px){.snaprow{font-size:11.5px;gap:7px}.snaprow .mut{flex-basis:100%;order:9}}
 .logtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .logtabs button{flex:1;min-width:76px;padding:9px 6px;border-radius:8px;border:1px solid var(--line);background:var(--soft);color:var(--muted);font-size:12px;cursor:pointer;font-weight:600}
@@ -1497,6 +1500,7 @@ function save(){ if(!USER||!DB)return; netSnapTouch(); SAVE_DIRTY=true; saveBadg
   clearTimeout(saveTimer); saveTimer=setTimeout(doSave,400); }
 function doSave(){
   if(!USER||!DB)return;
+  pendWrite();   /* 🔒 v4.31 보내기 **전에** 로컬에 박는다 — 서버에 닿지 못해도 남아 있어야 한다 */
   var stamp=new Date().toISOString(), payload=JSON.stringify(DB);   /* 저장에 성공하면 이게 다음 병합의 기준본이다 */
   var q=SB.from('app_state').update({data:DB,updated_at:stamp}).eq('user_id',USER.id);
   if(LAST_SYNC)q=q.eq('updated_at',LAST_SYNC);
@@ -1506,7 +1510,7 @@ function doSave(){
     syncConflict(stamp);
   },function(e){ saveFail(e); });
 }
-function syncOK(stamp){ LAST_SYNC=stamp; SAVE_TRIES=0; SAVE_DIRTY=false;
+function syncOK(stamp){ LAST_SYNC=stamp; SAVE_TRIES=0; SAVE_DIRTY=false; pendClear();
   saveBadge('✓ 저장됨 '+String(stamp).slice(11,16),'ok');
   setTimeout(function(){ if(!SAVE_DIRTY)saveBadge('',''); },2500); }
 function saveFail(e){
@@ -1801,7 +1805,13 @@ function syncConflictAsk(stamp){
     if(confirm(msg)){
       syncSnapBefore(sdata,srv,function(){ forceSave(new Date().toISOString()); });
     }
-    else { SAVE_DIRTY=false; location.reload(); }   /* 사용자가 명시적으로 버리기를 고른 것이다 — beforeunload 가 막지 않게 한다 */
+    else {
+      /* 🔒 v4.31 — 버리기를 골랐어도 **내 화면을 먼저 스냅샷으로 남긴다.**
+         v1.8 은 「덮어쓰기」쪽만 서버본을 남겼다 — 잃는 쪽을 안 지키는 비대칭이었다.
+         2026-10-13 에 날아간 가계부가 이 경로를 지났을 수 있고, 흔적이 하나도 없었다. */
+      SAVE_DIRTY=false;   /* 명시적으로 버리기를 고른 것이다 — beforeunload 가 막지 않게 한다 */
+      snapDiscardBefore(function(){ location.reload(); });
+    }
   },function(e){ saveFail(e); });
 }
 /* 🔒 덮어쓰기 직전 서버본을 스냅샷으로. 실패해도 저장은 진행한다 — 막으면 로한이 갇힌다. */
@@ -1812,6 +1822,17 @@ function syncSnapBefore(sdata,srv,done){
     SB.from('app_state_snap').insert({user_id:USER.id,day:todayStr(),kind:'pre_overwrite',
       note:'덮어쓰기 직전 서버본 ('+String(srv).replace('T',' ').slice(0,16)+')',
       bytes:_b.length,data:sdata}).then(function(){ done(); },function(){ done(); });
+  }catch(e){ done(); }
+}
+/* 🔒 버리기 직전 **내 화면**을 스냅샷으로. 실패해도 새로고침은 진행한다 — 막으면 로한이 갇힌다.
+   올리고 나서 pending 을 지운다 — 안 지우면 다음 접속에 같은 것을 또 건져 올려 두 벌이 된다. */
+function snapDiscardBefore(done){
+  var b=''; try{ b=JSON.stringify(DB); }catch(e){}
+  try{
+    SB.from('app_state_snap').insert({user_id:USER.id,day:todayStr(),kind:'pre_discard',
+      note:'버리기 직전 내 화면 ('+new Date().toISOString().replace('T',' ').slice(0,16)+')',
+      bytes:b.length,data:DB})
+     .then(function(){ pendClear(); done(); },function(){ done(); });
   }catch(e){ done(); }
 }
 function forceSave(stamp){
@@ -1843,6 +1864,60 @@ function localBakList(){
 }
 
 
+/* ══════ v4.31 🛟 저장되지 않은 변경을 로컬에 붙잡아 둔다 (rb_pending) ══════
+   🔴 사고(2026-10-13): 10월분 국민연금·건강보험·140만원 이체를 입력했는데
+      **서버 스냅샷 55개 전부에 한 건도 없었다.** 서버는 그 입력을 본 적이 없다.
+      그런데 로컬에도 없었다 — localBackup() 은 **접속 직후 하루 1회**라 입력한 것을 안 남긴다.
+   🔴 v4.13 의 3자 병합도, 낙관적 잠금도 **저장 요청이 서버에 닿은 뒤**의 장치다.
+      닿지 못한 입력 · 충돌창에서 버린 입력 · 그냥 창을 닫은 입력은 **아무것도 지키지 않았다.**
+   🔒 그래서 원인을 가리지 않는 그물을 하나 깐다 — 저장을 보내기 **직전**에 지금 상태를
+      localStorage 에 박고, 저장이 확인되면 지운다. 남아 있다 = 저장되지 않은 변경이 있다.
+   🔒 **자동으로 DB 를 덮지 않는다.** 그게 v3.6 에 단어 96건을 두 번 날린 짓이다.
+      다음 접속 때 📀 스냅샷으로 올려 영구 보존만 하고, 되돌릴지는 로한이 고른다. */
+var PEND_KEY='rb_pending';
+/* alert 는 HTML 이 아니라 평문이다 — 줄바꿈은 개행 문자로만 된다 */
+var NL='\n', NL2='\n\n';
+function pendWrite(){
+  try{
+    var s=JSON.stringify({at:new Date().toISOString(),
+      ver:(typeof APP_VERSION!=='undefined'?APP_VERSION:''),data:DB});
+    if(s.length>4500000)return;
+    try{ localStorage.setItem(PEND_KEY,s); }
+    catch(e1){
+      /* 🔒 자리가 없으면 **옛 복원지점을 줄여서라도 미저장분을 지킨다.**
+         어제 사본보다 방금 입력이 중하다 — 사본은 서버에도 있고 방금 입력은 여기밖에 없다. */
+      var ks=localBakList(); if(!ks.length)return;
+      try{ localStorage.removeItem(ks[ks.length-1].k); }catch(e2){}
+      try{ localStorage.setItem(PEND_KEY,s); }catch(e3){}
+    }
+  }catch(e){}
+}
+function pendClear(){ try{ localStorage.removeItem(PEND_KEY); }catch(e){} }
+function pendRead(){ try{ var v=localStorage.getItem(PEND_KEY); return v?JSON.parse(v):null; }catch(e){ return null; } }
+/* 접속 직후 — 못 보낸 변경이 있으면 서버 스냅샷으로 건져 올린다.
+   🔒 서버본과 내용이 같으면 그냥 지운다(저장은 됐고 확인 응답만 못 받은 경우다).
+   🔒 올리기가 실패하면 **지우지 않는다** — 다음 접속에 다시 시도한다. */
+function pendRescue(srvData){
+  var p=pendRead(); if(!p||!p.data)return;
+  var same=false;
+  try{ same=stableStr(p.data)===stableStr(srvData); }catch(e){}
+  if(same){ pendClear(); return; }
+  var when=String(p.at||'').replace('T',' ').slice(0,16);
+  var b=''; try{ b=JSON.stringify(p.data); }catch(e){}
+  SB.from('app_state_snap').insert({user_id:USER.id,day:todayStr(),kind:'pending',
+    note:'저장 못 한 변경 ('+when+')',bytes:b.length,data:p.data})
+   .then(function(r){
+     if(r&&r.error)return;
+     pendClear(); snapPrune();
+     try{ logAct('🛟 저장되지 않은 변경을 📀 스냅샷으로 건져 올렸다 · '+when); save(); }catch(e){}
+     saveBadge('🛟 못 보낸 변경을 스냅샷으로 건졌다','bad');
+     alert('⚠️ 지난번에 저장되지 않은 변경이 있었다.'+NL2
+      +'입력 시각: '+when+NL2
+      +'날리지 않고 📀 스냅샷(「못보낸변경」)으로 올려뒀다.'+NL
+      +'🪶 로그 탭 → 📀 스냅샷 에서 내용을 보고 복원할지 정하면 된다.');
+   },function(){});
+}
+
 /* ====== 📀 스냅샷 (v1.2) ======
    로한 제안: "JSON을 내 하드에만 두지 말고 Supabase 다른 쪽에도 두는 게 낫지 않냐" — 맞다. 단 층이 다르다.
    ・ 이 스냅샷 = **논리적 사고** 방어. 코드 버그 / 다른 기기 덮어쓰기 / 실수로 지움.
@@ -1851,9 +1926,13 @@ function localBakList(){
      ⚠ 같은 Supabase 프로젝트 안에 있으므로 **이 테이블은 물리적 사고를 못 막는다.** 둘 다 있어야 한다.
    테이블: public.app_state_snap (RLS: user_id = auth.uid())
    kind: auto(하루 1개, 부분 유니크 인덱스로 강제) / manual(사용자 지점) / pre_restore(복원 직전 자동)
-         / pre_overwrite(v1.8 — 동기화 충돌에서 '내 화면으로 덮어쓰기'를 고른 직전의 **서버본**) */
+         / pre_overwrite(v1.8 — 동기화 충돌에서 '내 화면으로 덮어쓰기'를 고른 직전의 **서버본**)
+         / pre_discard(v4.31 — 충돌에서 '버린다'를 고른 직전의 **내 화면**. v1.8 은 이쪽을 안 남겼다)
+         / pending(v4.31 — 서버에 못 보낸 변경을 로컬에서 건져 올린 것. 상한 없음) */
 var SNAP_DONE=false;
-var SNAP_LIMIT={auto:30,manual:15,pre_restore:10,pre_overwrite:10};
+/* 🔒 pending(못 보낸 변경)은 **사고의 유일한 증거**다. 상한으로 지우지 않는다 —
+   다른 종류와 같은 10 을 주면 조용히 밀려나 사라진다. 지우는 건 로한이 한다. */
+var SNAP_LIMIT={auto:30,manual:15,pre_restore:10,pre_overwrite:10,pre_discard:15,pending:999};
 function snapInsert(kind,note){
   var s=''; try{ s=JSON.stringify(DB); }catch(e){}
   return SB.from('app_state_snap').insert({user_id:USER.id,day:todayStr(),kind:kind,note:note||null,bytes:s.length,data:DB});
@@ -1885,7 +1964,9 @@ function snapManual(){
     alert('현재 상태를 스냅샷으로 남겼다.'); snapRender(); snapPrune();
   },function(e){ alert('스냅샷 저장 실패: '+((e&&e.message)||'')); });
 }
-function snapKindLabel(k){ return k==='auto'?'자동':(k==='manual'?'수동':(k==='pre_restore'?'복원직전':(k==='pre_overwrite'?'덮어쓰기직전':k))); }
+var SNAP_LABEL={auto:'자동',manual:'수동',pre_restore:'복원직전',
+  pre_overwrite:'덮어쓰기직전',pre_discard:'버리기직전',pending:'못보낸변경'};
+function snapKindLabel(k){ return SNAP_LABEL[k]||k; }
 function snapRender(){
   var el=document.getElementById('snaplist'); if(!el)return;
   el.innerHTML='<span class="mut" style="font-size:11.5px">불러오는 중…</span>';
@@ -9389,13 +9470,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.30';
+var APP_VERSION='4.31';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.31',date:'2026-10-14',note:'<b>🛟 [중대] 저장되지 않은 변경을 잃지 않는다 — 10월 가계부가 날아갔다.</b> 로한: 「어제 가계부 13일거까지 써놨던게 날라갔다」 · <b>실측</b>: 10/08~13 거래 <b>0건</b>(마지막이 10-07), 매월 5일에 빠짐없이 찍히던 <b>10월분 국민연금 140,220·건강보험 122,020 이 통째로 없다</b>, 140만원 카뱅 이체도 없다 · 🔴 <b>스냅샷 55개를 다 뒤졌는데 어디에도 없었다</b> — 서버는 그 입력을 본 적이 없다. localStorage 에도 없었다: <code>localBackup()</code> 은 <b>접속 직후 하루 1회</b>라 입력한 것을 안 남긴다 · 🔴 <b>원인을 특정하지 못했다.</b> 저장이 못 닿았는지, 충돌창에서 버렸는지, 창을 닫았는지 가릴 증거가 없다. v4.13 의 3자 병합도 낙관적 잠금도 <b>저장 요청이 서버에 닿은 뒤</b>의 장치다 — 닿지 못한 입력은 아무것도 지키지 않았다 · ⚠️ <b>내 책임이 섞여 있다</b>: 10/13 에 단어·문항을 넣느라 <code>app_state.data</code> 를 MCP 로 <b>네 번</b> 직접 UPDATE 했다. <code>app_state_bump</code> 트리거가 그때마다 <code>updated_at</code> 을 올리니, 열려 있던 로한의 탭은 저장할 때마다 충돌로 떨어진다. 작업 끝나고 「새로고침하라」도 안 말했다 · <b>그래서 원인을 가리지 않는 그물을 깐다</b> · ① 🛟 <b>저장을 보내기 직전에 로컬에 박는다</b>(<code>rb_pending</code>) — 저장이 <b>확인되면</b> 지운다. 남아 있다는 건 「저장되지 않은 변경이 있다」는 뜻이다 · ② <b>다음 접속에 서버 📀 스냅샷으로 건져 올린다</b>(<code>kind:pending</code>, <b>상한 없음</b> — 사고의 유일한 증거를 상한으로 밀어내지 않는다). 🔒 <b>자동으로 DB 를 덮지 않는다</b> — 그게 v3.6 에 단어 96건을 두 번 날린 짓이다. 보존만 하고 되돌릴지는 로한이 고른다 · ③ 🔴 <b>충돌창에서 「버린다」를 골라도 내 화면을 먼저 남긴다</b>(<code>pre_discard</code>). v1.8 은 「덮어쓰기」쪽 서버본만 남겼다 — <b>잃는 쪽을 안 지키는 비대칭</b>이었고, 날아간 가계부가 이 경로를 지났을 수 있는데 흔적이 하나도 없었다 · ④ 자리가 없으면 <b>옛 복원지점을 줄여서라도 미저장분을 지킨다</b> — 어제 사본은 서버에도 있고 방금 입력은 거기밖에 없다 · 📄 <b>data-safety.md</b> 신설(정본) — 데이터가 사는 네 층과 <b>내가 app_state 를 직접 건드릴 때의 절차</b>를 박았다 · t55 20건 신설(저장 실패 시 잔류 · 건지기 · 자동 덮어쓰기 금지 · 버리기 직전 보존)'},
   {v:'4.30',date:'2026-10-13',note:'<b>📚 스피드체크북을 다 넣었다 — 문형 108항목 · 유의표현 115쌍.</b> 로한: 「책에서 배우는 주요 단어들은 다 모아놓은 것 같으니까 학습 드릴에 반영해버려」 → 단어 439개(581 → <b>1,020개</b>)에 이어 <b>문항 255건</b>(예문 61 → <b>316개</b>) · ① <b>📖 문형 채우기</b> — 문형 001~108 의 책 예문과 책 해설을 그대로 쓴다. 오답은 <b>같은 종류의 다른 문형</b>에서 빌리고, <b>오답이 예문 안에 들어 있으면 뺀다</b>(정답이 둘이 되니까) · ② <b>🔁 유의표현</b> — 「이 표현과 같은 뜻」을 묻는다. 정답이 문장 <b>밖</b>이라 빈칸 채우기가 아니다 → slots 가 아닌 syn 필드로 돈다. 🔒 보기는 다른 항목의 짝에서 빌리되 <b>같은 표현을 가진 항목은 뺀다</b> — 책에는 짝이 둘인 표현이 있어(あいさつしました) 그대로 섞으면 정답이 둘이 된다 · ③ 🔴 <b>조사 엔진에 태우지 않았다.</b> 조사 엔진은 교재 띄어쓰기로 어절을 찾는데 이 책 예문은 쉼표가 어절 안에 있어(「つかれたから、ちょっと」) <b>29개 중 9개가 엉뚱한 자리를 가렸다</b> → 책 문형은 일반 슬롯 경로로 보낸다 · ④ 🔴 <b>가리는 자리를 데이터가 못박는다(nth).</b> 「かいぎは 何時に 始まるか…」가 묻는 건 「始まるか」인데 첫 등장 か 는 단어 かいぎ 안이다 — 추측 규칙으로는 못 맞힌다. 140행을 전수 검사해 어긋나는 <b>2건</b>에만 nth 를 박았다 · 🔒 <b>기존 배열에 뒤로 붙였다</b>(61 + 255 = 316, 건수가 안 맞으면 전체 롤백) — 학습방이 올린 건 하나도 안 지웠다 · t47 D1b · t48 F절 13건 추가'},
   {v:'4.29',date:'2026-10-02',note:'<b>🔮 사주 — 배치와 기본값을 바로잡았다.</b> 로한: 「꼭 이렇게 내가 ui를 다 지적해야하냐?? 디폴트 값은 오늘로 하면 되고 안그러냐」 — <b>맞다. 내가 정했어야 했다</b> · ① <b>「🧭 인생 총운」 긴 섹션을 지우고 총운 말머리 💬 안으로</b> 넣었다. 평생 한 번 쓰는 글이 매번 화면 끝을 차지할 이유가 없다 — 모달에서 <b>원국 해석 + 인생 총운</b>을 같이 본다 · ② <b>🗓 명리 시간축을 총운·대운 바로 밑으로</b> 올렸다. 전엔 예측·검증이 시간축보다 위에 있어서 <b>고르고 나서 위로 올라가 봐야</b> 했다 → 읽는 순서대로 쌓는다: 총운·대운(안 바뀌는 기준) → 고른다 → 그 기간의 예측·검증 · ③ <b>예측·검증이 고른 기간을 따라간다</b> — 일을 눌러도 <b>그 날이 속한 달</b>의 예측이 뜨고(10월을 보면 10월 검증), 머리에 어느 기간인지 적는다. 일 단위 예측은 쓰지 않으니 빈 칸으로 두지 않는다 · ④ <b>💬 를 없애고 해석을 바로 펼친다</b> — 칸을 눌러 이미 골랐는데 한 번 더 누르게 할 이유가 없다. 고른 날의 간지·특이일·길흉 배지와 해석 본문이 <b>한 번에</b> 뜬다 · 🔒 <b>기본값은 오늘</b>(일 단위) — 들어오면 오늘 칸이 골라져 있고 그 날 해석이 보인다 · t53 59 → 66건(네 가지를 좌표로 박았다 — 대운 → 시간축 → 예측검증 순서까지 잰다)'},
   {v:'4.28',date:'2026-10-01',note:'<b>🗣 아고라 토론을 수신자 기준으로 갈랐다.</b> 로한: 「학습을 눌렀으면 다른 방애들이 학습방에 이야기한 것들만 떠야지. 수신자 기준으로 정리하라」 · ⚠️ <b>[결함] 토론이 고른 방과 상관없이 그 달 것 전부 떴다</b> — 방을 고르는 화면인데 아래가 안 바뀌니 <b>고른 의미가 없었다</b> · 🔒 그 방 화면엔 <b>그 방에 온 말</b>만 둔다: ① 뿌리가 그 방 평가인 글타래 전부(받은 말 + 거기 달린 답) ② target 이 그 방인 ⭐ 로한의 평가 · 「누구에게 한 말인가」는 바로 위 글이 아니라 <b>그 타래가 누구 평가에서 시작했나</b>로 정한다 (<code>agRoot()</code> 가 parent 를 타고 올라간다 · 데이터가 깨져 순환이 생겨도 걸음 수로 막는다) · 🔴 <b>[결함] 미제출 방은 고를 수조차 없었다</b> — 그런데 9월 생활방이 바로 그 경우다. 본인은 안 썼는데 <b>다섯 방이 생활방을 지목했다</b>. 자기에게 온 말을 정작 읽어야 할 방이 못 봤다 → 미제출 카드도 누를 수 있고, 본문엔 「아직 내지 않았다」고 적되 온 말은 보여준다 · 🆕 <b>「이 방을 지목한 평가」</b> — 지목은 타래가 아니라 <b>남의 평가 본문(others)</b> 안에 있어서 타래만 모아선 영영 안 보인다. 지목한 방을 칩으로 모아 누르면 그 평가로 간다 · 토론 머리에 <b>「🗣 📖 로버트(학습)에 온 말 4건」</b>을 적는다 — 지금 누구 화면인지 숨기지 않는다 · t54 79 → 86건(방을 바꾸면 남의 타래가 사라지는지까지 좌표로 잰다)'},
@@ -11503,8 +11585,13 @@ function enter(){
     document.getElementById('loginErr').innerHTML='이 계정은 로한북 계정이 아닙니다. <a href="billiards/">당구 연습장으로 가기</a>'; return; }
   document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){
     /* 🔒 v4.13 병합 기준본 = 서버에서 받은 **원본**(마이그레이션 전). 마이그레이션도 '내가 바꾼 것'으로 쳐야 병합 때 살아남는다 */
+    /* 🔒 v4.31 — migrateDB 가 d 를 직접 고칠 수 있으니 **비교용 원본을 먼저 뜬다** */
+    var srvRaw=null; try{ srvRaw=JSON.parse(JSON.stringify(d)); }catch(e){}
     syncSetBase(d);
     DB=migrateDB(d);
+    /* 🔒 저장 못 한 변경이 남아 있으면 **무엇보다 먼저** 건져 올린다.
+       아래 save() 들이 돌면 pendWrite 가 덮어써서 증거가 사라진다 */
+    try{ pendRescue(srvRaw); }catch(e){}
     /* v4.12 — 타임로그에 안 남은 옛 뽀모를 한 번 남긴다. 남긴 게 있을 때만 저장한다(아무것도 안 했는데 쓰면 다른 탭과 헛된 충돌이 난다) */
     try{ if(stPomoBackfill())save(); }catch(e){}
     /* v4.15 — 겹친 id 를 갈랍으면 바로 쓴다. 안 쓰면 다음 병합에서 그만큼 사라진다 */

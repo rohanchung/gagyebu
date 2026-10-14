@@ -22,7 +22,7 @@ HTML="${HTML:-$(cd .. && pwd)/work.html}"
 
 # ── 영역 → 테스트 (t22·t23 은 데이터층이라 어디서든 잘 깨진다) ──
 case "${1:-all}" in
-  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t43 t44 t45 t46 t47 t48 t49 t50 t51 t52 t53 t54 b01 b02 b03 t14 t18 t19 t20 t21" ;;
+  all)   T="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t43 t44 t45 t46 t47 t48 t49 t50 t51 t52 t53 t54 t55 b01 b02 b03 t14 t18 t19 t20 t21" ;;
   emr)   T="t43 t44 t14 t22 t_reg" ;;
   money) T="t_reg t50 t51 t20 t21 t25 t26 t27 t28 t31 t32 t37 t40 t41 t22" ;;
   goal)  T="t_reg t24 t30 t36 t42 t45 t47 t48 t49 t22" ;;
