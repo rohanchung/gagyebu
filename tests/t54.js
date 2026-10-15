@@ -109,9 +109,23 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  const b=await chromium.launch({executablePath:process.env.CHROME||(fs.existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
  try{
  const c=await b.newContext({viewport:{width:1500,height:1100}});
- await c.addInitScript(({st,mem,posts,facts})=>{
+/* 📢 v4.32 공지 — 🔒 전체 공지와 한 방 공지를 **가른다.**
+   한 방만 알 것을 전체로 띄우면 나머지 방이 상관없는 공지에 「반영했다」를 적고,
+   그러면 로한이 보는 숫자가 다시 거짓이 된다. */
+const NOTICES=[
+ {id:'n1',title:'카드 결제일이 바뀌었다',body:'삼성 탭탭오 결제일을 25일 → 5일로 바꿨다.',
+  targets:[],effective:'2026-10-01',until:null,closed_at:null,created_at:'2026-10-01T00:00:00Z'},
+ {id:'n2',title:'심초음파 일정',body:'12월 진료 때 같이 본다.',
+  targets:['cardio'],effective:'2026-10-02',until:null,closed_at:null,created_at:'2026-10-02T00:00:00Z'},
+ /* 🔒 닫힌 공지는 더 챌지 않는다 */
+ {id:'n3',title:'지난 공지',body:'끝났다.',targets:[],effective:'2026-09-01',until:null,
+  closed_at:'2026-09-20T00:00:00Z',created_at:'2026-09-01T00:00:00Z'}];
+const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준으로 바꿨다',
+  acked_at:'2026-10-03T00:00:00Z'}];
+
+ await c.addInitScript(({st,mem,posts,facts,notices,acks})=>{
    const store={v:JSON.parse(JSON.stringify(st))};window.__ins=[];window.__upd=[];window.__rpc=[];
-   const tbl={agora_members:mem,agora_posts:posts};
+   const tbl={agora_members:mem,agora_posts:posts,agora_notices:notices,agora_acks:acks};
    let _m=null,_p=null;
    function mk(name){
      const q={
@@ -131,8 +145,11 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
        return Promise.resolve({data:(fn==='agora_facts'&&args.p_ym==='2026-09')?facts:null,error:null});},
      auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),
        onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};
- },{st:STATE,mem:MEM,posts:POSTS,facts:FACTS});
+ },{st:STATE,mem:MEM,posts:POSTS,facts:FACTS,notices:NOTICES,acks:ACKS});
  const p=await c.newPage(),errs=[];
+ /* 🔒 15일 미만이면 차례는 **지난 달 월말** — 픽스처가 2026-09 월말이라 10/5 로 고정한다.
+    고정하지 않으면 15일 이후에 돌릴 때 기본이 (이번달, 중간) 으로 바뀌어 전부 빨개진다. */
+ await p.clock.setFixedTime(new Date('2026-10-05T09:00:00'));
  p.on('pageerror',e=>errs.push(e.message));
  p.on('dialog',d=>d.accept());
  await p.route('https://**/*',r=>r.abort());
@@ -154,7 +171,11 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
       return ms.indexOf('agora')===ms.indexOf('journal')+1;}));
  ok('A3 VIEW_RENDER 에 등록됐다',await p.evaluate(()=>typeof VIEW_RENDER.agora==='function'));
  let t=await txt();
- ok('A4 목적을 한 줄로 말한다',/같은 한 달을, 일곱 개의 눈으로/.test(t));
+ ok('A4 목적을 한 줄로 말한다',/같은 기간을, 일곱 개의 눈으로/.test(t));
+ /* 🕐 v4.32 — 기본값이 「오늘의 차례」다. 10/5 니까 지난 달 월말이어야 한다 */
+ const turn=await p.evaluate(()=>({ym:agYm(),ph:agPhase(),t:agTurn()}));
+ ok('A5 기본값이 오늘의 차례다 — 10/5 면 지난 달 월말',
+    turn.ym==='2026-09'&&turn.ph==='full',JSON.stringify(turn));
 
  /* ── B) 🔒 ①⑥ 명단 — 미제출을 숨기지 않는다 ── */
  ok('B1 활동 중인 방 7개가 모두 뜬다',(await q('.agro'))===7,String(await q('.agro')));
@@ -352,7 +373,14 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  /* 🔒 사실 묶음은 달마다 다시 가져온다 — 9월 숫자를 8월에 보여주면 거짓말이다 */
  ok('M4 8월 숫자는 9월 것을 재사용하지 않는다',(await q('.agf'))===0&&/불러오는 중/.test(t),String(await q('.agf')));
  await pick('2026-07'); t=await txt();
- ok('M5 평가 없는 달은 어떻게 시작하는지 알려준다',/월간 평가 남겨/.test(t)&&/agora_review/.test(t));
+ /* 🔒 v4.32 — 안내가 **단계에 맞는 함수**를 적어야 한다.
+    중간평가에 agora_review 를 적어 주면 방이 own 을 쓰다가 거절된다 */
+ ok('M5 평가 없는 기간은 어떻게 시작하는지 알려준다',/월말평가 남겨/.test(t)&&/agora_review/.test(t));
+ await p.evaluate(()=>agSetPhase('mid')); await p.waitForTimeout(450); t=await txt();
+ ok('M5b 중간평가 안내는 agora_mid 를 적는다',
+    /중간평가 남겨/.test(t)&&/agora_mid/.test(t)&&!/agora_review[(]/.test(t),'');
+ ok('M5c 중간은 세 칸이라고 말한다',/세 칸/.test(t));
+ await p.evaluate(()=>agSetPhase('full')); await p.waitForTimeout(450);
 
  /* ── N) 좁은 화면 — FM 원칙: 방이 늘어도 표로 본다 ── */
  await pick('2026-09');
@@ -370,6 +398,59 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
       !bad.over&&!bad.hscroll&&bad.tallest<220,JSON.stringify(bad));
  }
  await p.setViewportSize({width:1500,height:1100});
+
+ /* ══ N) 📢 공지 — 로한이 한 번 적으면 일곱 방이 읽는다 ══ */
+ await p.evaluate(()=>{AG.nt=null;agLoadNotices();}); await p.waitForTimeout(500);
+ t=await txt();
+ ok('N1 공지 띠가 뜬다',/공지/.test(t)&&(await q('.agnt'))===1,String(await q('.agnt')));
+ /* 🔒 닫힌 공지는 세지 않는다 */
+ ok('N2 유효한 공지만 센다(닫힌 것 제외)',(await q('.agntr'))===2,String(await q('.agntr')));
+ ok('N3 공지 제목과 내용이 보인다',/카드 결제일이 바뀌었다/.test(t)&&/25일/.test(t));
+ /* 🔒 반영 수를 숫자로 적는다 — 전체 공지는 7방, 한 방 공지는 1방이 분모다 */
+ ok('N4 전체 공지는 7방이 분모다',t.indexOf('1/7 반영')>=0,'');
+ ok('N5 한 방 공지는 그 방만 분모다',t.indexOf('0/1 반영')>=0,'');
+ /* 🔒 미확인 방을 **이름으로** 적는다 — 숫자만 보여주면 누구를 챌지 알 수 없다 */
+ ok('N6 미확인 방 이름을 적는다',/미확인/.test(t)&&/순환기/.test(t));
+ ok('N7 반영한 내용을 적는다(「읽었음」이 아니다)',/예산 비교를 월 기준으로 바꿨다/.test(t));
+ ok('N8 확인 안 하면 평가를 못 쓴다고 말한다',/평가·대댓글을 쓸 수 없다/.test(t));
+ /* 쓰기 모달 — 로한만 */
+ await p.evaluate(()=>agNoticeModal()); await p.waitForTimeout(250);
+ const nm=await p.evaluate(()=>{
+   const m=document.getElementById('modal')||document.querySelector('.modal');
+   const h=(m&&m.innerHTML)||document.body.innerHTML;
+   return {열렸다:/공지 쓰기/.test(h), 제목칸:!!document.getElementById('agNtT'),
+     내용칸:!!document.getElementById('agNtB'), 끝날짜:!!document.getElementById('agNtU'),
+     대상칸:document.querySelectorAll('.agntc').length};});
+ ok('N9 공지 쓰기 모달이 열린다',nm.열렸다&&nm.제목칸&&nm.내용칸,JSON.stringify(nm));
+ ok('N10 대상을 방마다 고를 수 있다(안 고르면 전체)',nm.대상칸===7,String(nm.대상칸));
+ ok('N11 언제까지 칸이 있다(비우면 계속)',nm.끝날짜,String(nm.끝날짜));
+ /* 저장이 **중계 함수**로 가는가 — 🔒 테이블 직접 insert 는 트리거 검사를 건너뛴다 */
+ await p.evaluate(()=>{document.getElementById('agNtT').value='테스트';
+   document.getElementById('agNtB').value='내용이다';
+   document.querySelectorAll('.agntc')[0].checked=true; agNoticeSave();});
+ await p.waitForTimeout(350);
+ const nrpc=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='agora_notice'));
+ ok('N12 공지는 agora_notice() 로 보낸다',nrpc.length===1,JSON.stringify(nrpc[0]||{}));
+ ok('N13 고른 대상이 그대로 간다',
+    nrpc.length===1&&Array.isArray(nrpc[0].args.p_targets)&&nrpc[0].args.p_targets.length===1,
+    JSON.stringify((nrpc[0]||{}).args||{}));
+ const nins=await p.evaluate(()=>window.__ins.filter(x=>x.t==='agora_notices'));
+ ok('N14 🔒 테이블에 직접 insert 하지 않는다',nins.length===0,JSON.stringify(nins));
+
+ /* ══ O) 🕐 단계가 글을 가른다 ══ */
+ const po=await p.evaluate(()=>{
+   const full=agOf('2026-09','review').length;
+   agSetPhase('mid');
+   const mid=agOf('2026-09','review').length;
+   agSetPhase('full');
+   return {full:full,mid:mid};});
+ /* 🔒 phase 가 없는 옛 글은 full 이다 — 중간으로 넘기면 하나도 안 보여야 한다 */
+ ok('O1 옛 글(phase 없음)은 월말로 센다',po.full===5,String(po.full));
+ ok('O2 중간으로 넘기면 옛 글이 안 섞인다',po.mid===0,String(po.mid));
+ await p.waitForTimeout(400);
+ const fr=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='agora_facts'));
+ ok('O3 facts 에 단계를 넘긴다',fr.some(x=>x.args.p_phase==='mid')&&fr.some(x=>x.args.p_phase==='full'),
+    JSON.stringify(fr.map(x=>x.args.p_phase)));
 
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
