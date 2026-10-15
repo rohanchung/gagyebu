@@ -38,14 +38,14 @@ function init({session,users}){
     }
     return q;
   }
-  window.supabase={createClient:()=>({from,auth:{
+  window.supabase={createClient:(u,k,o)=>{window.__ccOpt=o;return {from,auth:{
     getSession:()=>Promise.resolve({data:{session:cur}}),
     signInWithPassword:({email,password})=>{const u=users[email];
       if(!u||u.pw!==password)return Promise.resolve({data:{},error:{message:'Invalid login credentials'}});
       cur={user:u.user};return Promise.resolve({data:{user:u.user,session:cur},error:null});},
-    signOut:()=>{window.__out++;cur=null;return Promise.resolve({})},
+    signOut:(o)=>{window.__out++;window.__outArg=o;cur=null;return Promise.resolve({})},
     updateUser:()=>Promise.resolve({data:{},error:null}),
-    onAuthStateChange:(cb)=>{window.__authCb=cb;return {data:{subscription:{unsubscribe(){}}}};}}})};
+    onAuthStateChange:(cb)=>{window.__authCb=cb;return {data:{subscription:{unsubscribe(){}}}};}}};}};
 }
 
 (async()=>{
@@ -73,6 +73,9 @@ function init({session,users}){
   await p.fill('#email','rohan@test');await p.fill('#pw','pw-ro-1');await p.click('#loginBtn');await wait(200);
   ok('A5 로한 계정 → 막힘',/당구 연습장 계정이 아닙니다/.test(await p.textContent('#loginErr'))&&(await p.evaluate(()=>window.__out))===1);
   ok('A6 로한 계정 → 앱 안 열림',!(await p.isVisible('#app')));
+  /* 🔒 v3.5.1 동시 접속: 로그인 자리를 로한북과 나누고, 문지기는 이 브라우저만 로그아웃 */
+  ok('A6b 로그인 자리 = sb-billiards-auth (로한북과 따로)',(await p.evaluate(()=>window.__ccOpt&&window.__ccOpt.auth&&window.__ccOpt.auth.storageKey))==='sb-billiards-auth');
+  ok('A6c 문지기 로그아웃은 이 브라우저만(scope local)',(await p.evaluate(()=>window.__outArg&&window.__outArg.scope))==='local');
   await p.fill('#email','dad@test');await p.fill('#pw','pw-dad-1');await p.press('#pw','Enter');await wait(400);
   ok('A7 아버지 → 입장',await p.isVisible('#app'));
   const T=await p.evaluate(()=>window.__T);

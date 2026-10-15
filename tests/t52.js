@@ -15,7 +15,7 @@ async function open(b,user){
      then(a){return Promise.resolve({data:[],error:null}).then(a)}};
    window.supabase={createClient:()=>({from:()=>q,auth:{
      getSession:()=>Promise.resolve({data:{session:{user}}}),
-     signOut:()=>{window.__out++;return Promise.resolve({})},
+     signOut:(o)=>{window.__out++;window.__outArg=o;return Promise.resolve({})},
      onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};},{user});
  const p=await c.newPage(),errs=[];
  p.on('pageerror',e=>errs.push(e.message));
@@ -37,6 +37,7 @@ async function open(b,user){
      err:document.getElementById('loginErr').textContent,
      href:(document.querySelector('#loginErr a')||{}).getAttribute&&document.querySelector('#loginErr a').getAttribute('href')}));
    ok('A1 로그아웃 호출',s.out===1,s.out);
+   ok('A1b 이 브라우저만 로그아웃(scope local) — 아버지 다른 기기 로그인은 그대로',(await p.evaluate(()=>window.__outArg&&window.__outArg.scope))==='local');
    ok('A2 앱 화면 안 켜짐',!s.app);
    ok('A3 로그인 화면 그대로',s.login!=='none',s.login);
    ok('A4 가계부를 불러오지 않는다',s.loaded===0,s.loaded);

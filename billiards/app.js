@@ -10,10 +10,15 @@
  *      물리 엔진 쿠션 모델 교체(physics.js v3.3)
  */
 'use strict';
-var APP_VER='3.5.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.6.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
-var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+/* 🔒 v3.5.1 로그인 자리를 로한북과 나눈다 — 같은 주소(rohanchung.github.io)라 같은 브라우저에선 로그인 한 칸을 같이 써서,
+   한쪽이 들어오면 다른 쪽 문지기가 로그아웃시켰다(그것도 모든 기기에서). 아버지의 예전 로그인은 새 자리로 옮긴다 */
+var BB_KEY='sb-billiards-auth',SB_OLD_KEY='sb-ytkbrdgbklnijbwkvino-auth-token';
+(function(){try{var v=localStorage.getItem(SB_OLD_KEY);if(!v||localStorage.getItem(BB_KEY))return;var s=JSON.parse(v),u=s&&(s.user||(s.currentSession&&s.currentSession.user));
+  if(u&&u.app_metadata&&u.app_metadata.app==='billiards'){localStorage.setItem(BB_KEY,v);localStorage.removeItem(SB_OLD_KEY);}}catch(e){}})();
+var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{storageKey:BB_KEY}});
 var PH=window.BBPhys;
 
 var S=100;                 /* 다이아 1칸 = 화면 단위 100 */
@@ -149,7 +154,7 @@ function doLogin(){
 }
 /* 🔒 문지기 — billiards 표식이 없는 계정(로한)은 들이지 않는다 */
 function enter(u){
-  if(!isBB(u)){USER=null;SB.auth.signOut();showLogin('이 계정은 당구 연습장 계정이 아닙니다.');return;}
+  if(!isBB(u)){USER=null;SB.auth.signOut({scope:'local'});   /* 🔒 이 브라우저에서만 — 로한의 다른 기기 로그인은 그대로 */showLogin('이 계정은 당구 연습장 계정이 아닙니다.');return;}
   USER=u;$('pw').value='';
   /* 🔒 앱은 판을 불러와 그린 뒤에 보인다(reveal). 먼저 보이면 판 종류가 정해지기 전이라 모든 도구가 한꺼번에 보였다가 바뀌었다 */
   $('login').classList.add('hide');$('boot').classList.remove('hide');
@@ -217,7 +222,7 @@ function switchBoard(id){
   if(saveTimer)flush();
   clearSim();QTOKEN++;
   if(SET&&SET.board!==id){SET=null;toast('판을 바꿔서 10문제 풀기를 멈췄습니다');}
-  CUR=id;pref('board',id);
+  CUR=id;pref('board',id);ZOOM.s=1;applyVB();
   var b=curBoard();ST={balls:clone(b.balls),draft:clone(b.draft)};
   UNDO=[];REDO=[];SEL=null;HOVER=null;DRAG=null;
   var OK={sep:{ball:1,pobj:1,pcue:1},free:{ball:1,draw:1,edit:1},cush:{ball:1,cpt:1},bank:{ball:1,cpt:1,xline:1},chalk:{ball:1,cline:1,cdot:1,cpen:1,ctext:1,cerase:1}},FIRST={chalk:'cpen',sep:'pobj',free:'ball',cush:'cpt',bank:b.draft.bstyle!=='pick'?'xline':'cpt'};
@@ -324,7 +329,7 @@ var MOB=false,PORT=false;
 function layoutMode(){
   var w=window.innerWidth,h=window.innerHeight,m=w<900||h<520,pt=m&&h>w,ch=m!==MOB||pt!==PORT,de=document.documentElement;
   MOB=m;PORT=pt;de.classList.toggle('mob',m);de.classList.toggle('port',pt);if(!m)de.classList.remove('sheet');
-  if(ch){$('tbl').setAttribute('viewBox',pt?'-94 -94 588 988':'-94 -94 988 588');
+  if(ch){ZOOM.s=1;applyVB();   /* 확대는 화면 모드가 바뀌면 처음으로 */
     if(pt)$('gRot').setAttribute('transform','translate(400,0) rotate(90)');else $('gRot').removeAttribute('transform');
     $('gStatic').innerHTML='';}
   return ch;
@@ -1432,7 +1437,7 @@ function chalkDown(e,p){
   else if(MODE==='cerase'){DRAG={type:'erase',start:snap(),hit:chalkErase(p)};if(DRAG.hit)renderTable();}
   else if(MODE==='cline'){var q0=snapX(p);DRAG={type:'cl',a:q0,b:q0,moved:false,x0:e.clientX,y0:e.clientY};}
   else return;
-  svg().setPointerCapture(e.pointerId);e.preventDefault();
+  cap(e);e.preventDefault();
 }
 function chalkMove(e,p){
   if(DRAG.type==='pen'){var pts=DRAG.it.pts,l=pts[pts.length-1];if(Math.hypot(p.x-l[0],p.y-l[1])>=0.012){pts.push([r2(p.x),r2(p.y)]);renderTable();}return true;}
@@ -1462,6 +1467,74 @@ function renderChalkSide(){
   $('ccol').innerHTML=CCOL.map(function(x){return '<button type="button" data-cc="'+x[0]+'" class="'+(c===x[0]?'on':'')+'" title="'+x[1]+'"><i style="background:'+x[0]+'"></i>'+x[1]+'</button>';}).join('');
   $('cwid').innerHTML=[[1,'가늘게'],[2,'굵게']].map(function(x){return '<button type="button" data-cw="'+x[0]+'" class="'+((d.cw||1)===x[0]?'on':'')+'">'+x[1]+'</button>';}).join('');
   $('cballs').innerHTML=CBALL.map(function(x){var on=(d.cb||[]).indexOf(x[0])>=0;return '<button type="button" data-cb="'+x[0]+'" class="'+(on?'on':'')+'">'+x[1]+(on?'':' <small>(빼 둠)</small>')+'</button>';}).join('');
+}
+/* ═════════ ✍ S펜 · 손가락 (v3.6) ═════════
+   아버지: 갤럭시 S펜. 손가락으로 그리기는 어렵다.
+   · 펜을 한 번이라도 쓰면(PENSEEN) — 펜 = 쓰기·긋기·찍기 · 손가락 = 공 옮기기 모드에선 공, 그 밖엔 화면 옮기기
+   · 두 손가락 = 언제나 확대·옮기기(1~4배) · 확대하면 [🔍 원래 크기]
+   · 손바닥: 펜이 닿아 있는 동안 손가락은 무시 · S펜 옆 버튼을 누른 채 문지르면(칠판) 지우개
+   · ⚙ 설정 "손가락으로도 그리기" — 펜이 없는 기기 */
+var PENSEEN=pref('penseen')==='1', PENMODE=pref('penmode')||'auto', ZOOM={s:1,cx:0,cy:0};
+var TOUCH={}, PINCH=null, PAN=null, PENDOWN=false;
+function baseVB(){return PORT?[-94,-94,588,988]:[-94,-94,988,588];}
+function applyVB(){var b=baseVB(),s=ZOOM.s;
+  if(s<=1.001){ZOOM={s:1,cx:b[0]+b[2]/2,cy:b[1]+b[3]/2};}
+  var w=b[2]/ZOOM.s,h=b[3]/ZOOM.s;
+  ZOOM.cx=clamp(ZOOM.cx,b[0]+w/2,b[0]+b[2]-w/2);ZOOM.cy=clamp(ZOOM.cy,b[1]+h/2,b[1]+b[3]-h/2);
+  $('tbl').setAttribute('viewBox',(ZOOM.cx-w/2)+' '+(ZOOM.cy-h/2)+' '+w+' '+h);
+  $('bZoom').classList.toggle('hide',ZOOM.s<=1.001);
+}
+function zoomReset(){ZOOM.s=1;applyVB();renderTable();}
+/* 화면 점 → 바깥 svg 좌표(돌리기 전) */
+function svgPt(x,y){var s=svg(),p=s.createSVGPoint();p.x=x;p.y=y;var m=s.getScreenCTM();return m?p.matrixTransform(m.inverse()):{x:0,y:0};}
+function cap(e){try{svg().setPointerCapture(e.pointerId);}catch(x){}}
+/* 손가락이 그리기를 맡는가 */
+function fingerDraws(){return PENMODE==='finger'||!PENSEEN;}
+function cancelDrag(){
+  if(!DRAG)return;var d=DRAG;DRAG=null;
+  if(d.type==='pen'){var i=ST.draft.items.indexOf(d.it);if(i>=0)ST.draft.items.splice(i,1);}
+  else if(d.start&&d.moved!==false)restore(d.start);
+  renderAll();
+}
+function tblDown(e){
+  if(!ST)return;
+  if(e.pointerType==='pen'){
+    if(!PENSEEN){PENSEEN=true;pref('penseen','1');toast('✍ S펜을 알아봤습니다 — 펜으로 쓰고, 손가락으로는 화면을 옮기세요');}
+    PENDOWN=true;
+    /* S펜 옆 버튼(2) · 지우개 끝(5) → 칠판 지우개 */
+    if((e.button===2||e.button===5)&&kind()==='chalk'){var p=evPt(e);DRAG={type:'erase',start:snap(),hit:chalkErase(p)};cap(e);e.preventDefault();if(DRAG.hit)renderTable();return;}
+    onDown(e);return;
+  }
+  if(e.pointerType!=='touch'){onDown(e);return;}
+  if(PENDOWN)return;                                  /* 손바닥 */
+  TOUCH[e.pointerId]={x:e.clientX,y:e.clientY};cap(e);
+  var ids=Object.keys(TOUCH);
+  if(ids.length>=2){                                  /* 두 손가락 → 확대 */
+    cancelDrag();PAN=null;
+    var a=TOUCH[ids[0]],b=TOUCH[ids[1]],mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    PINCH={d0:Math.hypot(a.x-b.x,a.y-b.y)||1,s0:ZOOM.s,p0:svgPt(mx,my),ids:[ids[0],ids[1]]};e.preventDefault();return;
+  }
+  if(MODE!=='ball'&&!fingerDraws()){PAN={x:e.clientX,y:e.clientY};e.preventDefault();return;}   /* 그리기 모드 + 펜 쓰는 분 → 화면 옮기기 */
+  onDown(e);
+}
+function tblMove(e){
+  if(e.pointerType==='touch'&&TOUCH[e.pointerId]){TOUCH[e.pointerId]={x:e.clientX,y:e.clientY};
+    if(PINCH){var a=TOUCH[PINCH.ids[0]],b=TOUCH[PINCH.ids[1]];if(!a||!b)return;
+      var d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      ZOOM.s=clamp(PINCH.s0*d/PINCH.d0,1,4);applyVB();
+      /* 두 손가락 가운데 아래의 당구대 자리가 그대로 따라오게 */
+      var q=svgPt(mx,my);ZOOM.cx+=PINCH.p0.x-q.x;ZOOM.cy+=PINCH.p0.y-q.y;applyVB();renderTable();e.preventDefault();return;}
+    if(PAN){var p1=svgPt(PAN.x,PAN.y),p2=svgPt(e.clientX,e.clientY);ZOOM.cx+=p1.x-p2.x;ZOOM.cy+=p1.y-p2.y;PAN={x:e.clientX,y:e.clientY};applyVB();renderTable();e.preventDefault();return;}
+  }
+  onMove(e);
+}
+function tblUp(e){
+  if(e.pointerType==='pen')PENDOWN=false;
+  if(e.pointerType==='touch'&&TOUCH[e.pointerId]){delete TOUCH[e.pointerId];
+    if(PINCH){if(Object.keys(TOUCH).length<2)PINCH=null;return;}
+    if(PAN){PAN=null;return;}
+  }
+  onUp(e);
 }
 /* ═════════ 그리기 ═════════ */
 function staticTable(){
@@ -1892,9 +1965,9 @@ function onDown(e){
   if(kind()==='chalk'&&MODE!=='ball'){chalkDown(e,p);return;}
   if(MODE==='ball'){
     var n=ballHit(p);
-    if(!n&&kind()==='chalk'){var ti=textAt(p);if(ti>=0){var it0=ST.draft.items[ti];DRAG={type:'ctxt',i:ti,dx:p.x-it0.p.x,dy:p.y-it0.p.y,start:snap(),moved:false};svg().setPointerCapture(e.pointerId);e.preventDefault();}return;}
+    if(!n&&kind()==='chalk'){var ti=textAt(p);if(ti>=0){var it0=ST.draft.items[ti];DRAG={type:'ctxt',i:ti,dx:p.x-it0.p.x,dy:p.y-it0.p.y,start:snap(),moved:false};cap(e);e.preventDefault();}return;}
     if(!n)return;
-    DRAG={type:'ball',n:n,moved:false,start:snap()};svg().setPointerCapture(e.pointerId);e.preventDefault();
+    DRAG={type:'ball',n:n,moved:false,start:snap()};cap(e);e.preventDefault();
   }else if(MODE==='draw'){
     var q=snapPt(p),path=ST.draft[LAYER];
     pushUndo();
@@ -1904,11 +1977,11 @@ function onDown(e){
     path.push(q);saveSoon();renderSeq();renderTools();renderSide();renderTable();
   }else if(MODE==='edit'){
     var i=handleAt(p);
-    if(i!==null){DRAG={type:'pt',i:i,moved:false,start:snap(),x0:e.clientX,y0:e.clientY};svg().setPointerCapture(e.pointerId);e.preventDefault();return;}
+    if(i!==null){DRAG={type:'pt',i:i,moved:false,start:snap(),x0:e.clientX,y0:e.clientY};cap(e);e.preventDefault();return;}
     var sg=segHit(p,ST.draft[LAYER]);
     if(sg){pushUndo();var np=snapPt(p);if(np.ref)np={x:np.x,y:np.y};
       ST.draft[LAYER].splice(sg.i+1,0,np);SEL=sg.i+1;
-      DRAG={type:'pt',i:sg.i+1,moved:false,start:null,x0:e.clientX,y0:e.clientY};svg().setPointerCapture(e.pointerId);
+      DRAG={type:'pt',i:sg.i+1,moved:false,start:null,x0:e.clientX,y0:e.clientY};cap(e);
       saveSoon();renderSeq();renderTools();renderSide();renderTable();e.preventDefault();return;}
     SEL=null;renderTable();
   }else if(MODE==='cpt'){
@@ -1917,7 +1990,7 @@ function onDown(e){
     if(cs.length>=(kind()==='bank'?bankNeed(ST.draft):ST.draft.ncush))cs.length=0;
     cs.push(rp);saveSoon();renderAll();
   }else if(MODE==='xline'){
-    var q0=snapX(p);DRAG={type:'xl',a:q0,b:q0,moved:false,x0:e.clientX,y0:e.clientY,p0:p};svg().setPointerCapture(e.pointerId);e.preventDefault();
+    var q0=snapX(p);DRAG={type:'xl',a:q0,b:q0,moved:false,x0:e.clientX,y0:e.clientY,p0:p};cap(e);e.preventDefault();
   }else if(MODE==='pobj'||MODE==='pcue'){
     pushUndo();var pt={x:r2(p.x),y:r2(p.y)};
     if(MODE==='pobj'){ST.draft.predObj=pt;MODE='pcue';}
@@ -2505,6 +2578,8 @@ function feelHtml(){
     FEEL_UI.map(function(f){var cur=FEEL[f[0]]||'mid';return '<div style="display:flex;align-items:center;gap:.5rem;margin:.35rem 0"><b style="width:9rem">'+f[1]+'</b>'+
       f[2].map(function(v,i){return '<button type="button" data-f="'+f[0]+':'+v+'" class="'+(cur===v?'on':'')+'" style="flex:1">'+f[3][i]+'</button>';}).join('')+'</div>';}).join('')+
     '<p id="feelNow" style="margin:.6rem 0 0;font-weight:700"></p>'+
+    '<h3 style="margin:.9rem 0 .3rem">✍ 펜과 손가락</h3><div style="display:flex;gap:.5rem;flex-wrap:wrap">'+
+    [['auto','자동 — S펜을 쓰면 손가락은 화면 옮기기'],['finger','손가락으로도 그리기']].map(function(x){return '<button type="button" data-pen="'+x[0]+'" class="'+(PENMODE===x[0]?'on':'')+'" style="flex:1;white-space:normal">'+x[1]+'</button>';}).join('')+'</div>'+
     '<h3 style="margin:.9rem 0 .3rem">💡 원·투쿠션 힌트</h3><div style="display:flex;gap:.5rem">'+
     [['dir','방향만'],['size','방향 + 대략 크기'],['none','힌트 없음']].map(function(x){return '<button type="button" data-hint="'+x[0]+'" class="'+(HINT===x[0]?'on':'')+'" style="flex:1">'+x[1]+'</button>';}).join('')+'</div>';
 }
@@ -2516,6 +2591,8 @@ function openSettings(){
         var kv=x.dataset.f.split(':');FEEL[kv[0]]=kv[1];pref('feel',JSON.stringify(FEEL));clearSim();
         m.querySelectorAll('[data-f^="'+kv[0]+':"]').forEach(function(y){y.classList.toggle('on',y===x);});now();
         logEvent('feel.change',null,{text:feelText()});});});
+      m.querySelectorAll('[data-pen]').forEach(function(x){x.addEventListener('click',function(){PENMODE=x.dataset.pen;pref('penmode',PENMODE);
+        m.querySelectorAll('[data-pen]').forEach(function(y){y.classList.toggle('on',y===x);});});});
       m.querySelectorAll('[data-hint]').forEach(function(x){x.addEventListener('click',function(){HINT=x.dataset.hint;pref('hint',HINT);
         m.querySelectorAll('[data-hint]').forEach(function(y){y.classList.toggle('on',y===x);});});});
     },
@@ -2525,7 +2602,7 @@ function openSettings(){
     {label:'닫기',value:null,cls:'primary'}]}).then(function(r){
     if(r.value==='pw')changePw();
     else if(r.value==='out')confirmBox('🚪 나갈까요?','다음에 들어올 때 아이디와 비밀번호를 다시 넣어야 합니다.','나가기',true).then(function(ok){
-      if(!ok)return;(saveTimer?flush():Promise.resolve()).then(function(){SB.auth.signOut().then(function(){location.reload();});});
+      if(!ok)return;(saveTimer?flush():Promise.resolve()).then(function(){SB.auth.signOut({scope:'local'}).then(   /* 이 기기만 나간다 — PC 에서 나가도 폰은 그대로 */function(){location.reload();});});
     });
   });
 }
@@ -2595,8 +2672,9 @@ function bind(){
     if(b.dataset.lr){if(d.side===b.dataset.lr)return;pushUndo();d.side=b.dataset.lr;}else{pushUndo();d.thick=+b.dataset.t;}
     d.predObj=null;d.predCue=null;if(kind()==='cush')d.cpts=[];MODE=kind()==='cush'?'cpt':'pobj';saveSoon();renderAll();});
   var s=svg();
-  s.addEventListener('pointerdown',onDown);s.addEventListener('pointermove',onMove);
-  s.addEventListener('pointerup',onUp);s.addEventListener('pointercancel',onUp);s.addEventListener('pointerleave',onLeave);
+  s.addEventListener('pointerdown',tblDown);s.addEventListener('pointermove',tblMove);
+  s.addEventListener('pointerup',tblUp);s.addEventListener('pointercancel',tblUp);
+  $('bZoom').addEventListener('click',zoomReset);s.addEventListener('pointerleave',onLeave);
   s.addEventListener('contextmenu',function(e){e.preventDefault();});
   /* 당점 */
   $('tipGuide').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;GUIDE=b.dataset.g;pref('guide',GUIDE);renderSide();});

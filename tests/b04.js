@@ -101,6 +101,69 @@ const DAD={id:'dad',email:'dad@test',app_metadata:{provider:'email',app:'billiar
   ok('M18 PC(2560×1300): 폰 모드 아님 · 당구대 안 돎 · 폰 전용 버튼 숨김',await p.evaluate(()=>!document.documentElement.classList.contains('mob')&&!document.getElementById('gRot').getAttribute('transform')&&
     getComputedStyle(document.getElementById('bSheet')).display==='none'&&getComputedStyle(document.getElementById('bBoardMenu')).display==='none'));
   await c.close();}
+ /* ── ✍ S펜 · 손가락 (v3.6) — 펜·손가락 이벤트를 직접 만들어 넣는다 ── */
+ {const c=await b.newContext({viewport:{width:384,height:824},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+  await c.addInitScript(init,{session:{user:DAD},users:{}});
+  const p=await c.newPage(),errs=[];p.on('pageerror',e=>errs.push(e.message));await p.route('https://**/*',r=>r.abort());await p.goto(URL);await wait(500);
+  await p.evaluate(()=>{const d=Object.assign(emptyDraft(),{});BOARDS.push(normBoard({id:'pc',name:'칠판',kind:'chalk',balls:defaultBalls(),draft:d,sort:9}));switchBoard('pc');setMode('cpen');});
+  /* 당구대 좌표 → 화면 · 이벤트 만들기 */
+  const ev=(type,id,pt,x,y,btn)=>p.evaluate(([type,id,pt,x,y,btn])=>{const s=document.getElementById('tbl'),q=s.createSVGPoint();q.x=x*100;q.y=y*100;const r=q.matrixTransform(document.getElementById('gRot').getScreenCTM());
+    s.dispatchEvent(new PointerEvent(type,{pointerId:id,pointerType:pt,clientX:r.x,clientY:r.y,button:type==='pointermove'?-1:(btn||0),buttons:type==='pointerup'?0:(btn===2?2:1),bubbles:true,cancelable:true,isPrimary:true}));},[type,id,pt,x,y,btn]);
+  const stroke=async(id,pt,pts,btn)=>{await ev('pointerdown',id,pt,pts[0][0],pts[0][1],btn);for(const q of pts.slice(1))await ev('pointermove',id,pt,q[0],q[1],btn);await ev('pointerup',id,pt,pts[pts.length-1][0],pts[pts.length-1][1],btn);await wait(60);};
+  const items=()=>p.evaluate(()=>ST.draft.items.length);
+  await stroke(1,'touch',[[2,1],[2.4,1.3],[2.8,1.5]]);
+  ok('S1 펜을 쓰기 전엔 손가락으로도 그려진다',(await items())===1);
+  await stroke(2,'pen',[[3,1],[3.5,1.4],[4,1.6]]);
+  ok('S2 S펜으로 쓰기 · 펜을 알아봄(기억)',(await items())===2&&await p.evaluate(()=>PENSEEN&&localStorage.getItem('bb.penseen')==='1')&&/S펜을 알아봤습니다/.test(await p.textContent('#toast')));
+  await stroke(3,'touch',[[5,2],[5.5,2.4],[6,2.6]]);
+  ok('S3 펜을 쓴 뒤 손가락 한 개 = 그리지 않음(화면 옮기기)',(await items())===2);
+  /* 손바닥: 펜이 닿아 있는 동안 손가락 무시 */
+  await ev('pointerdown',4,'pen',1,3);await ev('pointerdown',5,'touch',6,3);await ev('pointermove',4,'pen',1.5,3.2);await ev('pointermove',5,'touch',6.5,3.3);await ev('pointerup',5,'touch',6.5,3.3);await ev('pointerup',4,'pen',1.5,3.2);await wait(60);
+  ok('S4 손바닥(펜이 닿아 있을 때 손가락) 무시 · 펜 획만',(await items())===3);
+  /* 두 손가락 확대 */
+  await ev('pointerdown',6,'touch',3.5,1.8);await ev('pointerdown',7,'touch',4.5,2.2);
+  for(let i=1;i<=6;i++){await ev('pointermove',6,'touch',3.5-i*0.15,1.8-i*0.05);await ev('pointermove',7,'touch',4.5+i*0.15,2.2+i*0.05);}
+  await ev('pointerup',6,'touch',2.6,1.5);await ev('pointerup',7,'touch',5.4,2.5);await wait(80);
+  const z=await p.evaluate(()=>({s:ZOOM.s,vb:document.getElementById('tbl').getAttribute('viewBox')}));
+  ok('S5 두 손가락으로 벌리면 확대 · [🔍 원래 크기] 보임 · 획은 안 생김',z.s>1.3&&await p.isVisible('#bZoom')&&(await items())===3,z);
+  /* 확대한 채로 펜: 누른 자리 = 당구대 좌표 */
+  await stroke(8,'pen',[[4,2],[4.2,2.1]]);
+  ok('S6 확대한 채로 펜 — 그은 자리가 맞다',await p.evaluate(()=>{const it=ST.draft.items[ST.draft.items.length-1];return Math.abs(it.pts[0][0]-4)<0.03&&Math.abs(it.pts[0][1]-2)<0.03;}));
+  /* 손가락 한 개 = 화면 옮기기 */
+  const c0=await p.evaluate(()=>[ZOOM.cx,ZOOM.cy]);
+  await stroke(9,'touch',[[4,2],[4,1.6],[4,1.2]]);
+  const c1=await p.evaluate(()=>[ZOOM.cx,ZOOM.cy]);
+  ok('S7 확대 중 손가락 한 개로 끌면 화면이 옮겨진다',Math.hypot(c1[0]-c0[0],c1[1]-c0[1])>10&&(await items())===4,[c0,c1]);
+  await p.click('#bZoom');await wait(60);
+  ok('S8 [🔍 원래 크기]',await p.evaluate(()=>ZOOM.s===1&&document.getElementById('tbl').getAttribute('viewBox')==='-94 -94 588 988')&&!(await p.isVisible('#bZoom')));
+  /* S펜 옆 버튼 = 지우개 */
+  await stroke(10,'pen',[[3,1.05],[3.6,1.45]],2);
+  ok('S9 S펜 옆 버튼을 누른 채 문지르면 지우개',(await items())===3);
+  /* 공 옮기기 모드에선 손가락으로 공을 옮긴다 */
+  await p.evaluate(()=>setMode('ball'));
+  const w0=await p.evaluate(()=>ST.balls.w);
+  await stroke(11,'touch',[[w0.x,w0.y],[w0.x+0.3,w0.y-0.2],[w0.x+0.6,w0.y-0.4]]);
+  ok('S10 펜을 쓴 뒤에도 공 옮기기 모드에선 손가락으로 공을 옮긴다',await p.evaluate(w=>Math.abs(ST.balls.w.x-(w.x+0.6))<0.05,w0));
+  /* 설정: 손가락으로도 그리기 */
+  await p.evaluate(()=>setMode('cpen'));
+  await p.click('#bSet');await wait(100);await p.click('[data-pen="finger"]');await p.click('#mask .mx');await wait(60);
+  await stroke(12,'touch',[[5,3],[5.5,3.2]]);
+  ok('S11 설정 "손가락으로도 그리기" → 손가락으로 그려진다 · 기억',(await items())===4&&await p.evaluate(()=>localStorage.getItem('bb.penmode')==='finger'));
+  /* 다른 판으로 가면 확대가 풀린다 */
+  await ev('pointerdown',13,'touch',3,1.5);await ev('pointerdown',14,'touch',4,2);await ev('pointermove',14,'touch',5,2.5);await ev('pointerup',14,'touch',5,2.5);await ev('pointerup',13,'touch',3,1.5);
+  await p.evaluate(()=>switchBoard(BOARDS[0].id));await wait(60);
+  ok('S12 판을 바꾸면 확대가 풀린다',await p.evaluate(()=>ZOOM.s===1));
+  ok('S13 에러 없음',!errs.length,errs);
+  await c.close();}
+ /* 🔒 v3.5.1 동시 접속: 예전 같은 칸에 있던 아버지 로그인은 당구 칸으로 옮기고, 로한 로그인은 건드리지 않는다 */
+ for(const [who,u,moved] of [['아버지',DAD,true],['로한',{id:'rohan',app_metadata:{provider:'email'}},false]]){
+  const c=await b.newContext({viewport:{width:1400,height:900}});
+  await c.addInitScript(({u})=>{if(!sessionStorage.getItem('seeded')){sessionStorage.setItem('seeded','1');localStorage.setItem('sb-ytkbrdgbklnijbwkvino-auth-token',JSON.stringify({access_token:'x',user:u}));}},{u});
+  await c.addInitScript(init,{session:{user:DAD},users:{}});
+  const p=await c.newPage();await p.route('https://**/*',r=>r.abort());await p.goto(URL);await wait(300);
+  const s=await p.evaluate(()=>({old:localStorage.getItem('sb-ytkbrdgbklnijbwkvino-auth-token'),neu:localStorage.getItem('sb-billiards-auth')}));
+  ok('M19 '+who+' 예전 로그인 → '+(moved?'당구 칸으로 옮김(다시 로그인 안 해도 됨)':'로한북 칸에 그대로'),moved?(!s.old&&/"app":"billiards"/.test(s.neu||'')):(!!s.old&&!s.neu),s);
+  await c.close();}
  }finally{await b.close();}
  let f=0;R.forEach(r=>{console.log((r.v?'✓':'✗')+' '+r.n+(r.v?'':'  → '+JSON.stringify(r.x)));if(!r.v)f++;});
  if(f){console.log('실패 '+f+'건');process.exit(1);}
