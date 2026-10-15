@@ -10,7 +10,7 @@
  *      물리 엔진 쿠션 모델 교체(physics.js v3.3)
  */
 'use strict';
-var APP_VER='3.7.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.7.1';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 /* 🔒 v3.5.1 로그인 자리를 로한북과 나눈다 — 같은 주소(rohanchung.github.io)라 같은 브라우저에선 로그인 한 칸을 같이 써서,
@@ -63,6 +63,10 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function r2(v){return Math.round(v*100)/100;}
 function pref(k,v){try{if(v===undefined)return localStorage.getItem('bb.'+k);localStorage.setItem('bb.'+k,v);}catch(e){return null;}}
 function isBB(u){return !!(u&&u.app_metadata&&u.app_metadata.app==='billiards');}
+/* 🔒 v3.7.1 로한: "내 계정은 당구장에 들어갈 수 있어야 테스트한다" — 로한 계정도 입장(시험용). DB(bb_is_me)도 로한 uid 를 허용.
+   판·기록은 본인 것만 보인다(로한 ↔ 아버지 안 섞임). 아버지 계정의 로한북 차단은 그대로 */
+var ROHAN_UID='1f3a300f-9189-47c0-b750-cca6efc9dd1f';
+function isRohan(u){return !!(u&&u.id===ROHAN_UID);}
 function fmtTime(d){d=new Date(d);var h=d.getHours(),m=d.getMinutes();return (h<12?'오전 ':'오후 ')+((h%12)||12)+':'+(m<10?'0':'')+m;}
 function fmtDate(d){d=new Date(d);return (d.getMonth()+1)+'월 '+d.getDate()+'일 ('+'일월화수목금토'[d.getDay()]+')';}
 function fmtDT(d){return fmtDate(d)+' '+fmtTime(d);}
@@ -154,8 +158,9 @@ function doLogin(){
 }
 /* 🔒 문지기 — billiards 표식이 없는 계정(로한)은 들이지 않는다 */
 function enter(u){
-  if(!isBB(u)){USER=null;SB.auth.signOut({scope:'local'});   /* 🔒 이 브라우저에서만 — 로한의 다른 기기 로그인은 그대로 */showLogin('이 계정은 당구 연습장 계정이 아닙니다.');return;}
+  if(!isBB(u)&&!isRohan(u)){USER=null;SB.auth.signOut({scope:'local'});   /* 🔒 이 브라우저에서만 — 로한의 다른 기기 로그인은 그대로 */showLogin('이 계정은 당구 연습장 계정이 아닙니다.');return;}
   USER=u;$('pw').value='';
+  $('testChip').classList.toggle('hide',!isRohan(u));   /* 🧪 시험용(로한) 표시 */
   /* 🔒 앱은 판을 불러와 그린 뒤에 보인다(reveal). 먼저 보이면 판 종류가 정해지기 전이라 모든 도구가 한꺼번에 보였다가 바뀌었다 */
   $('login').classList.add('hide');$('boot').classList.remove('hide');
   loadBoards();

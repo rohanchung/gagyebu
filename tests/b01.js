@@ -7,7 +7,8 @@ const fs=require('fs'),path=require('path');
 const FILE=path.join(__dirname,'..','billiards','index.html');
 const URL='file:///'+FILE.replace(/\\/g,'/').replace(/^\//,'');
 const DAD={id:'dad',email:'dad@test',app_metadata:{provider:'email',app:'billiards'}};
-const ROHAN={id:'rohan',email:'rohan@test',app_metadata:{provider:'email'}};
+const ROHAN={id:'1f3a300f-9189-47c0-b750-cca6efc9dd1f',email:'rohan@test',app_metadata:{provider:'email'}};
+const OTHER={id:'other',email:'other@test',app_metadata:{provider:'email'}};
 
 function init({session,users}){
   /* 🔒 새로고침 때 앱이 처음 보이는 순간을 찍어 둔다 — 그때 이미 판 종류·탭·당구대가 다 그려져 있어야 한다 */
@@ -63,26 +64,34 @@ function init({session,users}){
  }
  try{
  /* ── A) 로그인 ── */
- {const users={'dad@test':{pw:'pw-dad-1',user:DAD},'rohan@test':{pw:'pw-ro-1',user:ROHAN}};
+ {const users={'dad@test':{pw:'pw-dad-1',user:DAD},'rohan@test':{pw:'pw-ro-1',user:ROHAN},'other@test':{pw:'pw-ot-1',user:OTHER}};
   const {c,p,errs}=await open({session:null,users});
   ok('A1 로그인 화면',await p.isVisible('#login')&&!(await p.isVisible('#app')));
   ok('A2 가입 버튼 없음',!(await p.$('text=가입')));
   await p.fill('#email','dad@test');await p.fill('#pw','wrong');await p.click('#loginBtn');await wait(200);
   ok('A3 틀린 비번 → 한국어 안내',/맞지 않습니다/.test(await p.textContent('#loginErr')),await p.textContent('#loginErr'));
   await p.click('#pwEye');ok('A4 비밀번호 보기',(await p.getAttribute('#pw','type'))==='text');
-  await p.fill('#email','rohan@test');await p.fill('#pw','pw-ro-1');await p.click('#loginBtn');await wait(200);
-  ok('A5 로한 계정 → 막힘',/당구 연습장 계정이 아닙니다/.test(await p.textContent('#loginErr'))&&(await p.evaluate(()=>window.__out))===1);
-  ok('A6 로한 계정 → 앱 안 열림',!(await p.isVisible('#app')));
+  await p.fill('#email','other@test');await p.fill('#pw','pw-ot-1');await p.click('#loginBtn');await wait(200);
+  ok('A5 당구 계정도 로한도 아닌 계정 → 막힘',/당구 연습장 계정이 아닙니다/.test(await p.textContent('#loginErr'))&&(await p.evaluate(()=>window.__out))===1);
+  ok('A6 그 계정 → 앱 안 열림',!(await p.isVisible('#app')));
   /* 🔒 v3.5.1 동시 접속: 로그인 자리를 로한북과 나누고, 문지기는 이 브라우저만 로그아웃 */
   ok('A6b 로그인 자리 = sb-billiards-auth (로한북과 따로)',(await p.evaluate(()=>window.__ccOpt&&window.__ccOpt.auth&&window.__ccOpt.auth.storageKey))==='sb-billiards-auth');
   ok('A6c 문지기 로그아웃은 이 브라우저만(scope local)',(await p.evaluate(()=>window.__outArg&&window.__outArg.scope))==='local');
   await p.fill('#email','dad@test');await p.fill('#pw','pw-dad-1');await p.press('#pw','Enter');await wait(400);
-  ok('A7 아버지 → 입장',await p.isVisible('#app'));
+  ok('A7 아버지 → 입장 · 시험용 표시 없음',await p.isVisible('#app')&&!(await p.isVisible('#testChip')));
   const T=await p.evaluate(()=>window.__T);
   ok('A8b 첫 실행에 불러오는 중 글자가 남지 않음',!/불러오는/.test(await p.textContent('#saveSt')),await p.textContent('#saveSt'));
   ok('A8 첫 판 자동 생성',T.bb_boards.length===1&&T.bb_boards[0].name==='판 1',T.bb_boards);
   ok('A9 로그인 후 비밀번호 칸 비움',(await p.inputValue('#pw'))==='');
   ok('A10 에러 없음',!errs.length,errs);
+  await c.close();}
+ /* 🔒 v3.7.1 로한 계정 → 당구 연습장 입장(시험용) · 로그아웃 안 시킴 · 🧪 표시 */
+ {const users={'rohan@test':{pw:'pw-ro-1',user:ROHAN}};
+  const {c,p,errs}=await open({session:null,users});
+  await p.fill('#email','rohan@test');await p.fill('#pw','pw-ro-1');await p.press('#pw','Enter');await wait(400);
+  ok('A11 로한 계정 → 입장 · 로그아웃 안 함 · 🧪 시험용(로한) 표시',await p.isVisible('#app')&&(await p.evaluate(()=>window.__out))===0&&await p.isVisible('#testChip'));
+  ok('A12 로한도 첫 판 자동 생성',(await p.evaluate(()=>window.__T.bb_boards.length))===1);
+  ok('A13 에러 없음',!errs.length,errs);
   await c.close();}
 
  /* ── 본 시험: 이미 로그인된 아버지 ── */

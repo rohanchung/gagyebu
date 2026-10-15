@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" data-ver="3.7.0">
+<html lang="ko" data-ver="3.7.1">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- 🔒 버전 꼬리표(?v=) — 없으면 GitHub Pages 캐시 때문에 새 index.html 에 옛 app.js 가 붙어 돈다
      (실제로 "불러오는 중" 화면이 안 꺼지고 그 아래 앱이 떴다). 세 곳(html data-ver · 두 src · APP_VER/PH.VERSION)을 같이 올린다 — b01 이 확인 -->
-<script src="physics.js?v=3.7.0"></script>
+<script src="physics.js?v=3.7.1"></script>
 <!--
   🎱 아버지 당구 연습장 — 로한북과 완전히 별개인 앱. (2026-09-26 v1 · v2 4구 훈련)
   🔒 v2: 3구가 아니라 **4구**다(흰·노랑·빨강 ①②). 중대 규격. 물리 시뮬레이션은 physics.js
@@ -81,6 +81,8 @@ body:has(#app:not(.hide)) #boot,body:has(#login:not(.hide)) #boot{display:none!i
 .save{font-weight:700;color:var(--green)}
 .setchip{display:inline-flex;align-items:center;gap:.4rem;font-weight:800;font-size:1.1rem;padding:.1rem .2rem .1rem .7rem;border-radius:.6rem;background:#fff3cf;border:2px solid #e6c46a}
 .save.bad{color:var(--warn)}
+.testchip{font-weight:800;padding:.2rem .6rem;border-radius:.6rem;background:#e8f0ff;border:2px solid #9db6f5;color:#0d3aa3;white-space:nowrap}
+html.mob .testchip{font-size:.8rem;padding:.1rem .4rem}
 
 /* ── 작업판 ──
    🔒 한 화면에 전부 들어간다(스크롤 없음). 당구대는 "남은 자리"를 채운다 —
@@ -338,6 +340,8 @@ html.mob:not(.port) .routebar{order:3;position:absolute;left:.4rem;right:9rem;bo
 <div id="app" class="hide">
   <header class="top">
     <div class="brand">🎱 당구 연습장</div>
+    <!-- 🧪 v3.7.1 로한 계정으로 들어왔을 때 — 아버지 판과 따로 저장되는 시험용 -->
+    <span id="testChip" class="testchip hide" title="로한 계정 — 판·기록이 아버지와 따로 저장됩니다">🧪 시험용(로한)</span>
     <!-- 🔒 탭은 들어가는 만큼 전부 — 넘치는 판만 [판 목록 (외 N개)] 로 (로한: "판들을 최대한 여러 개 띄우자") -->
     <div class="tabzone">
       <nav id="tabs"></nav>
@@ -487,7 +491,7 @@ html.mob:not(.port) .routebar{order:3;position:absolute;left:.4rem;right:9rem;bo
           </div>
           <div class="row" data-k="free cush" style="margin-top:.3rem"><button id="bScan" data-k="free">🎯 맞는 범위</button><button id="bAnswer" data-k="cush">💡 답 보기</button><button id="bRoutes" data-k="cush">🔍 모든 길</button></div>
         </section>
-        <!-- 🎯 v3.7.0 정답 칸: 판정 뒤 정답 범위 · X법 · [▶ 굴려 보기] [🪞 거울 그림] [🎲 새 배치] — 오른쪽 빈 아래 칸 -->
+        <!-- 🎯 v3.7.1 정답 칸: 판정 뒤 정답 범위 · X법 · [▶ 굴려 보기] [🪞 거울 그림] [🎲 새 배치] — 오른쪽 빈 아래 칸 -->
         <section class="box bankbox hide" id="bankBar"></section>
         <div class="recrow">
           <button id="bRec" class="primary"><span class="ic">✅</span> 이 시도 기록하기</button>
@@ -520,7 +524,7 @@ html.mob:not(.port) .routebar{order:3;position:absolute;left:.4rem;right:9rem;bo
 <div id="mask" class="hide"></div>
 <div id="toast" class="hide"></div>
 
-<script src="app.js?v=3.7.0"></script>
+<script src="app.js?v=3.7.1"></script>
 
 </body>
 </html>
