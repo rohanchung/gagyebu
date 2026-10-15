@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" data-ver="3.3.3">
+<html lang="ko" data-ver="3.4.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- 🔒 버전 꼬리표(?v=) — 없으면 GitHub Pages 캐시 때문에 새 index.html 에 옛 app.js 가 붙어 돈다
      (실제로 "불러오는 중" 화면이 안 꺼지고 그 아래 앱이 떴다). 세 곳(html data-ver · 두 src · APP_VER/PH.VERSION)을 같이 올린다 — b01 이 확인 -->
-<script src="physics.js?v=3.3.3"></script>
+<script src="physics.js?v=3.4.0"></script>
 <!--
   🎱 아버지 당구 연습장 — 로한북과 완전히 별개인 앱. (2026-09-26 v1 · v2 4구 훈련)
   🔒 v2: 3구가 아니라 **4구**다(흰·노랑·빨강 ①②). 중대 규격. 물리 시뮬레이션은 physics.js
@@ -158,7 +158,7 @@ body:has(#app:not(.hide)) #boot,body:has(#login:not(.hide)) #boot{display:none!i
 .kindpick button b{font-size:1.25rem}
 .kindpick button span{font-weight:400;font-size:.92rem}
 /* 판 종류에 따라 보이는 도구 — data-k="free sep cush" 중 지금 종류가 없으면 숨긴다 (🎱 자유 · 📐 분리각 · 🔁 원·투쿠션) */
-body.k-free [data-k]:not([data-k~="free"]),body.k-sep [data-k]:not([data-k~="sep"]),body.k-cush [data-k]:not([data-k~="cush"]),body.k-bank [data-k]:not([data-k~="bank"]){display:none!important}
+body.k-free [data-k]:not([data-k~="free"]),body.k-sep [data-k]:not([data-k~="sep"]),body.k-cush [data-k]:not([data-k~="cush"]),body.k-bank [data-k]:not([data-k~="bank"]),body.k-chalk [data-k]:not([data-k~="chalk"]){display:none!important}
 .kindpick button.on{background:#eef6f0;color:var(--ink);border-color:var(--green)}
 
 /* 점 지우기 떠 있는 버튼 */
@@ -221,8 +221,22 @@ tr.worst td{background:#fff3cf;font-weight:800}
 .mini{width:100%;height:auto;display:block;margin-bottom:.8rem}
 
 /* 원·투쿠션 판은 도구줄 버튼이 가장 많다(종류 4개가 올라와 있다) — 늘 좁은 여백 */
-body.k-cush .tools button,body.k-bank .tools button{padding:.25rem .55rem;gap:.25rem}
-body.k-cush .tools .lbl,body.k-bank .tools .lbl{display:none}
+body.k-cush .tools button,body.k-bank .tools button,body.k-chalk .tools button{padding:.25rem .55rem;gap:.25rem}
+body.k-cush .tools .lbl,body.k-bank .tools .lbl,body.k-chalk .tools .lbl{display:none}
+/* 🧑‍🏫 칠판 */
+.ccol{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.ccol button{justify-content:flex-start}
+.ccol i{display:inline-block;width:1.3rem;height:1.3rem;border-radius:50%;border:2px solid #333;flex:none}
+.cballs{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.cballs button{white-space:normal;line-height:1.15}
+.cballs small{font-weight:400}
+.album{display:grid;grid-template-columns:repeat(auto-fill,minmax(20rem,1fr));gap:.8rem}
+.acard{border:2px solid var(--line);border-radius:.8rem;padding:.5rem;display:flex;flex-direction:column;gap:.35rem}
+.acard .mini{margin:0}
+.atitle{display:flex;flex-direction:column}
+.atitle small{color:var(--sub)}
+.abtn{display:flex;gap:.35rem}
+.abtn button{flex:1}
 /* 좁은 창(125% 배율 노트북 등): 도구줄이 두 줄로 접히지 않게 여백만 줄인다 */
 @media (max-width:1700px){
   .tools button{padding:.25rem .55rem;gap:.25rem}
@@ -286,7 +300,7 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl{display:none}
       <button id="bCopy"><span class="ic">📄</span> 복제</button>
       <button id="bDel" class="danger"><span class="ic">🗑</span> 이 판 지우기</button>
       <!-- v2.3 🎲 문제 모드 -->
-      <button id="bNewQ"><span class="ic">🎲</span> 새 문제</button>
+      <button id="bNewQ" data-k="free sep cush bank"><span class="ic">🎲</span> 새 문제</button>
       <button id="bSet10" data-k="sep cush"><span class="ic">📝</span> 10문제 풀기</button>
       <span id="setChip" class="setchip hide">📝 <b id="setNo"></b> <button id="bSetStop">그만하기</button></span>
       <div class="hint" id="hint"></div>
@@ -304,6 +318,12 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl{display:none}
             <button id="mEdit" data-m="edit" data-k="free"><span class="ic">🖐</span> 선 고치기</button>
             <button id="mObj" data-m="pobj" data-k="sep"><span class="ic">🔴</span> ① 1적구 방향</button>
             <button id="mCue" data-m="pcue" data-k="sep"><span class="ic">⚪</span> ② 수구 방향</button>
+            <!-- 🧑‍🏫 v3.4 칠판 -->
+            <button id="mCl" data-m="cline" data-k="chalk"><span class="ic">／</span> 선</button>
+            <button id="mCd" data-m="cdot" data-k="chalk"><span class="ic">•</span> 점</button>
+            <button id="mCp" data-m="cpen" data-k="chalk"><span class="ic">✍</span> 펜</button>
+            <button id="mCt" data-m="ctext" data-k="chalk"><span class="ic">🅰</span> 글씨</button>
+            <button id="mCe" data-m="cerase" data-k="chalk"><span class="ic">🧽</span> 지우개</button>
             <button id="mXl" data-m="xline" data-k="bank"><span class="ic">✖</span> X 선 긋기</button>
             <button id="mCpt" data-m="cpt" data-k="cush bank"><span class="ic">📍</span> 쿠션 지점 찍기</button>
           </span>
@@ -357,7 +377,22 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl{display:none}
           <h3>📏 두께 <small>— 1적구(빨간 공 ①)의 어디를</small></h3>
           <div class="thk" id="thk"></div>
         </section>
-        <section class="box">
+        <!-- 🧑‍🏫 칠판: 색 · 굵기 · 공 놓기/빼기 · 보관 -->
+        <section class="box" data-k="chalk">
+          <h3>🎨 색 <small>— 선·점·펜·글씨</small></h3>
+          <div class="ccol" id="ccol"></div>
+          <h3 style="margin-top:.5rem">✍ 펜 굵기</h3>
+          <div class="row" id="cwid"></div>
+        </section>
+        <section class="box" data-k="chalk">
+          <h3>⚪ 공 <small>— 눌러서 놓기·빼기</small></h3>
+          <div class="cballs" id="cballs"></div>
+        </section>
+        <section class="box" data-k="chalk">
+          <h3>💾 보관 <small>— 칠판은 저절로 저장됩니다</small></h3>
+          <div class="row"><button id="bCSave" class="primary">📸 보관하기</button><button id="bAlbum">🖼 앨범</button></div>
+        </section>
+        <section class="box" data-k="free sep cush bank">
           <h3>🎯 당점 <small>— 원을 클릭하세요</small></h3>
           <div class="row" id="tipGuide">
             <button data-g="cross">십자</button><button data-g="c12">12시</button><button data-g="c16">16방향</button>
@@ -368,12 +403,12 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl{display:none}
           </div>
           <div id="tipTxt"></div><div id="tipTxt2"></div>
         </section>
-        <section class="box">
+        <section class="box" data-k="free sep cush bank">
           <h3>💨 속도 <small>— 3 보통 = 2쿠션</small></h3>
           <div class="spd" id="spd"></div>
           <div class="kmh" data-k="free"><span>또는</span><input id="kmh" type="number" min="0" max="99" step="0.5" inputmode="decimal" placeholder="숫자"><b>km/h</b></div>
         </section>
-        <section class="box">
+        <section class="box" data-k="free sep cush bank">
           <h3 data-k="free">▶ 조준 · 시뮬레이션</h3>
           <div class="aimtxt" data-k="free cush bank" id="aimTxt"></div>
           <div class="simrow">
@@ -382,7 +417,7 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl{display:none}
           </div>
           <div class="row" data-k="free cush" style="margin-top:.3rem"><button id="bScan" data-k="free">🎯 맞는 범위</button><button id="bAnswer" data-k="cush">💡 답 보기</button><button id="bRoutes" data-k="cush">🔍 모든 길</button></div>
         </section>
-        <!-- 🎯 v3.3.3 정답 칸: 판정 뒤 정답 범위 · X법 · [▶ 굴려 보기] [🪞 거울 그림] [🎲 새 배치] — 오른쪽 빈 아래 칸 -->
+        <!-- 🎯 v3.4.0 정답 칸: 판정 뒤 정답 범위 · X법 · [▶ 굴려 보기] [🪞 거울 그림] [🎲 새 배치] — 오른쪽 빈 아래 칸 -->
         <section class="box bankbox hide" id="bankBar"></section>
         <div class="recrow">
           <button id="bRec" class="primary"><span class="ic">✅</span> 이 시도 기록하기</button>
@@ -415,7 +450,7 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl{display:none}
 <div id="mask" class="hide"></div>
 <div id="toast" class="hide"></div>
 
-<script src="app.js?v=3.3.3"></script>
+<script src="app.js?v=3.4.0"></script>
 
 </body>
 </html>

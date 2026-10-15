@@ -10,7 +10,7 @@
  *      물리 엔진 쿠션 모델 교체(physics.js v3.3)
  */
 'use strict';
-var APP_VER='3.3.3';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.4.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
@@ -25,7 +25,7 @@ var SPEEDS=['아주 약하게','약하게','보통','세게','아주 세게'];
 var ALLB=['w','y','r','r2'];
 var BCOL={w:'#fbfbf5',y:'#f5c400',r:'#d8231b',r2:'#d8231b'};
 var BNAME={w:'흰 공',y:'노란 공',r:'빨간 공 ①',r2:'빨간 공 ②'};
-var KINDS={free:{ic:'🎱',name:'자유 연습'},sep:{ic:'📐',name:'분리각 훈련'},cush:{ic:'🔁',name:'원·투쿠션 훈련'},bank:{ic:'🎯',name:'쿠션 지점'}};
+var KINDS={free:{ic:'🎱',name:'자유 연습'},sep:{ic:'📐',name:'분리각 훈련'},cush:{ic:'🔁',name:'원·투쿠션 훈련'},bank:{ic:'🎯',name:'쿠션 지점'},chalk:{ic:'🧑‍🏫',name:'당구 칠판'}};
 /* v3: 🔁 원쿠션 판 · 🔁² 투쿠션 판 — 같은 kind(cush), 쿠션 수는 판마다 고정(draft.ncush) */
 /* v3.3: 🎯 쿠션 지점 찍기 · ✖ X법 작도 — 같은 kind(bank), 방식은 판마다 고정(draft.bstyle) */
 /* v3.3.3: ↗ 구석 평행법(투쿠션) — bstyle corner. 아버지: 흰·빨강 가운데 점 → 구석 선과 평행하게 흰 공에서 → 첫 쿠션 지점 */
@@ -67,7 +67,7 @@ function normA(a){while(a>180)a-=360;while(a<-180)a+=360;return a;}
 /* 초구 기본 배치(4구) — 빨강 ①은 풋 스팟, ②는 센터, 흰·노랑은 헤드 쪽 */
 function defaultBalls(){return {w:{x:2,y:3},y:{x:2,y:1},r:{x:6,y:2},r2:{x:4,y:2},cue:'w'};}
 function emptyDraft(){return {predict:[],actual:[],tip:null,speed:3,kmh:null,memo:'',thick:4,side:'L',predObj:null,predCue:null,
-  ctype:'first',ncush:1,cpts:[],bstyle:'pick',reds:['r'],xl:[]};}   /* 🔁 ctype: first = 쿠션 먼저(빈쿠션) · after = 1적구 뒤 쿠션 · cpts = 아버지가 찍은 쿠션 지점
+  ctype:'first',ncush:1,cpts:[],bstyle:'pick',reds:['r'],xl:[],items:[],cb:['w','y','r','r2'],ccol:'#ffffff',cw:1};}   /* 🧑‍🏫 items 점·펜·글씨 · cb 놓인 공 · ccol 색 · cw 굵기 */   /* 🔁 ctype: first = 쿠션 먼저(빈쿠션) · after = 1적구 뒤 쿠션 · cpts = 아버지가 찍은 쿠션 지점
                                                                     🎯 bstyle: pick 찍기 · x X법 · reds 놓인 빨간 공 · xl 아버지가 그은 선 */
 function normBoard(b){
   var d=defaultBalls(),bl=b.balls||{};
@@ -85,6 +85,7 @@ function cushAfter(){return kind()==='cush'&&ST.draft.ctype==='after';}
 /* 분리각 = 수구·1적구 · 쿠션 먼저 = 수구·목표(빨강 ①) · 1적구 뒤 쿠션 = 수구·빨강 ①·② · 자유 = 넷 */
 function liveBalls(){var K=kind();
   if(K==='bank')return ['w'].concat(ST.draft.reds||['r']);
+  if(K==='chalk')return ST.draft.cb||ALLB;
   if(K==='sep'||(K==='cush'&&!cushAfter()))return [ST.balls.cue,'r'];
   if(K==='cush')return [ST.balls.cue,'r','r2'];
   return ALLB;}
@@ -182,7 +183,7 @@ function createBoard(name,balls,draft,silent,from,kd){
     if(r.error||!r.data){reveal();toast('⚠ 새 판을 만들지 못했습니다');return;}
     var b=normBoard(r.data);BOARDS.push(b);
     logEvent(from?'board.copy':'board.create',b.id,from?{from:from,name:name}:{name:name,kind:b.kind});
-    MODE=b.kind==='sep'?'pobj':b.kind==='cush'?'cpt':b.kind==='bank'?(b.draft.bstyle!=='pick'?'xline':'cpt'):'ball';
+    MODE=b.kind==='sep'?'pobj':b.kind==='cush'?'cpt':b.kind==='bank'?(b.draft.bstyle!=='pick'?'xline':'cpt'):b.kind==='chalk'?'cpen':'ball';
     switchBoard(b.id);
     if(!silent)toast(from?'‘'+name+'’(으)로 복제했습니다':kindIc(b)+' 새 판 ‘'+name+'’을 만들었습니다');
   });
@@ -219,7 +220,7 @@ function switchBoard(id){
   CUR=id;pref('board',id);
   var b=curBoard();ST={balls:clone(b.balls),draft:clone(b.draft)};
   UNDO=[];REDO=[];SEL=null;HOVER=null;DRAG=null;
-  var OK={sep:{ball:1,pobj:1,pcue:1},free:{ball:1,draw:1,edit:1},cush:{ball:1,cpt:1},bank:{ball:1,cpt:1,xline:1}},FIRST={sep:'pobj',free:'ball',cush:'cpt',bank:b.draft.bstyle!=='pick'?'xline':'cpt'};
+  var OK={sep:{ball:1,pobj:1,pcue:1},free:{ball:1,draw:1,edit:1},cush:{ball:1,cpt:1},bank:{ball:1,cpt:1,xline:1},chalk:{ball:1,cline:1,cdot:1,cpen:1,ctext:1,cerase:1}},FIRST={chalk:'cpen',sep:'pobj',free:'ball',cush:'cpt',bank:b.draft.bstyle!=='pick'?'xline':'cpt'};
   if(!OK[b.kind][MODE]||(MODE==='xline'&&b.draft.bstyle==='pick'))MODE=FIRST[b.kind];
   if(MODE==='draw'&&!ST.draft[LAYER].length)MODE='ball';
   hidePop();renderAll();reveal();
@@ -240,13 +241,14 @@ function newBoard(){
     '<button type="button" data-kind="cush2"><b>🔁² 투쿠션 훈련</b><span>1적구 → 쿠션 두 번 → 2적구. 두 쿠션 지점과 두께를 찾는다</span></button>'+
     '<button type="button" data-kind="bpick"><b>🎯 쿠션 지점 찍기</b><span>흰 공·빨간 공을 놓고, 흰 공이 맞을 쿠션 지점을 찍는다(원쿠션 1개 · 투쿠션 2개) → ⭕/❌ 와 정답</span></button>'+
     '<button type="button" data-kind="bx"><b>✖ X법 작도</b><span>포토샵처럼 선을 긋고, 두 선이 엇갈린 X 를 누르면 그 아래 쿠션 지점이 답 → ⭕/❌ 와 정답</span></button>'+
+    '<button type="button" data-kind="chalk"><b>🧑‍🏫 당구 칠판</b><span>공·선·점·펜·글씨로 자유롭게 썼다 지웠다(기록용) · 자동 저장 · 📸 보관하기 → 🖼 앨범</span></button>'+
     '<button type="button" data-kind="bcorner"><b>↗ 구석 평행법 (투쿠션)</b><span>흰·빨강 가운데 점 → 구석 선, 흰 공에서 그 선과 평행하게 → 첫 쿠션 지점 → ⭕/❌ 와 정답</span></button></div>'+
     '<p style="margin:.9rem 0 .3rem;font-weight:700">판 이름</p>';
   modal({title:'＋ 새 판 만들기',html:html,input:{value:'판 '+(BOARDS.length+1),max:30},noFocus:true,
     buttons:[{label:'취소',value:null},{label:'만들기',value:'ok',cls:'primary'}],
     onOpen:function(m){m.querySelectorAll('[data-kind]').forEach(function(x){x.addEventListener('click',function(){
       pick=x.dataset.kind;m.querySelectorAll('[data-kind]').forEach(function(y){y.classList.toggle('on',y===x);});
-      var inp=$('mIn');if(/^(판|분리각|쿠션|원쿠션|투쿠션|지점|X법|평행법) \d+$/.test(inp.value))inp.value=({sep:'분리각 ',cush1:'원쿠션 ',cush2:'투쿠션 ',bpick:'지점 ',bx:'X법 ',bcorner:'평행법 '}[pick]||'판 ')+(BOARDS.length+1);});});}
+      var inp=$('mIn');if(/^(판|분리각|쿠션|원쿠션|투쿠션|지점|X법|평행법|칠판) \d+$/.test(inp.value))inp.value=({sep:'분리각 ',cush1:'원쿠션 ',cush2:'투쿠션 ',bpick:'지점 ',bx:'X법 ',bcorner:'평행법 ',chalk:'칠판 '}[pick]||'판 ')+(BOARDS.length+1);});});}
   }).then(function(r){
     if(r.value!=='ok')return;var n=(r.text||'').trim()||('판 '+(BOARDS.length+1));
     var dr=emptyDraft(),kd=pick;
@@ -254,6 +256,7 @@ function newBoard(){
     var bl=defaultBalls();
     if(pick==='bpick'||pick==='bx'||pick==='bcorner'){kd='bank';dr.bstyle={bpick:'pick',bx:'x',bcorner:'corner'}[pick];dr.ncush=pick==='bcorner'?2:1;dr.reds=['r'];   /* 🎯 흰 공 하나 · 빨간 공 하나 무작위 */
       var lay=bankLayout(dr.ncush,['r'],PH.SPEED[2],null,pick==='bcorner');if(lay){bl.w=lay.w;bl.r=lay.r;}bl.cue='w';}
+    if(pick==='chalk')kd='chalk';
     createBoard(n,bl,dr,false,null,kd);
   });
 }
@@ -1003,6 +1006,7 @@ function judgeSep(res,ai){
 function runSim(){
   if(SIMV&&SIMV.playing){SIMV.t=SIMV.T;return;}          /* 굴러가는 중에 다시 누르면 끝으로 */
   if(kind()==='bank'){bankJudge();return;}
+  if(kind()==='chalk')return;   /* 🧑‍🏫 칠판은 굴리지 않는다 */
   var sv=computeSim();
   if(!sv){modal({title:kind()==='sep'?'두께를 계산할 수 없습니다':'먼저 조준선을 그어 주세요',
     body:kind()==='sep'?'수구와 1적구를 조금 떨어뜨려 놓아 주세요.':'[✏️ 선 긋기]를 누르고 내 공에서 첫 선을 그으면, 그 방향이 조준입니다.',
@@ -1282,6 +1286,155 @@ function xToCpt(q){
   var v=Math.round((r==='T'||r==='B'?q.x:q.y)*20)/2;
   return railPt(r,clamp(v,0,(r==='T'||r==='B')?W*10:H*10));
 }
+/* ═════════ 🧑‍🏫 당구 칠판 (v3.4) ═════════
+   아버지: "칠판처럼 자유롭게 썼다 지웠다 — 기록용". 판정·정답 없음.
+   공 4개(흰·노랑·빨강①②) 놓기/빼기 · ／ 선(쿠션 지점 판과 같은 자석) · • 점(숫자 없음) · ✍ 펜 · 🅰 글씨 · 🧽 지우개
+   그림은 draft.items(점·펜·글씨) + draft.xl(선)에 — 자동 저장 · 되돌리기는 다른 판과 같다
+   📸 보관하기 = bb_attempts(kind 'chalk') 한 줄 · 🖼 앨범에서 보고 → 불러와 이어 그리기 → 지우기(휴지통) */
+var CCOL=[['#ffffff','흰색'],['#ffd23f','노랑'],['#ff4a3d','빨강'],['#4da3ff','파랑']];
+var CBALL=[['w','⚪ 흰 공'],['y','🟡 노란 공'],['r','🔴 빨간 공 ①'],['r2','🔴 빨간 공 ②']];
+function isChalk(){return kind()==='chalk';}
+function chalkCol(){return ST.draft.ccol||CCOL[0][0];}
+/* 그림 한 벌 → SVG (k = 화면 1px 이 몇 단위인가) */
+function chalkItemsSvg(items,xl,k,mini){
+  var h=[],q=function(v){return (v*S).toFixed(1);};
+  (xl||[]).forEach(function(l){var c=l.c||'#ffd23f';
+    h.push('<line x1="'+q(l.a.x)+'" y1="'+q(l.a.y)+'" x2="'+q(l.b.x)+'" y2="'+q(l.b.y)+'" stroke="#0b2e1a" stroke-width="'+(mini?9:8)+'" opacity=".55" stroke-linecap="round"'+(mini?'':' vector-effect="non-scaling-stroke"')+' pointer-events="none"/>'+
+      '<line x1="'+q(l.a.x)+'" y1="'+q(l.a.y)+'" x2="'+q(l.b.x)+'" y2="'+q(l.b.y)+'" stroke="'+c+'" stroke-width="'+(mini?5:4)+'" stroke-linecap="round"'+(mini?'':' vector-effect="non-scaling-stroke"')+' pointer-events="none"/>');});
+  (items||[]).forEach(function(it){
+    if(it.t==='pen'&&it.pts.length){var pts=it.pts.map(function(p){return q(p[0])+','+q(p[1]);}).join(' '),w=it.w===2?8:4;
+      if(it.pts.length===1)pts+=' '+q(it.pts[0][0]+0.001)+','+q(it.pts[0][1]);
+      h.push('<polyline points="'+pts+'" fill="none" stroke="#0b2e1a" stroke-width="'+(w+3)+'" opacity=".45" stroke-linecap="round" stroke-linejoin="round"'+(mini?'':' vector-effect="non-scaling-stroke"')+' pointer-events="none"/>'+
+        '<polyline points="'+pts+'" fill="none" stroke="'+it.c+'" stroke-width="'+w+'" stroke-linecap="round" stroke-linejoin="round"'+(mini?'':' vector-effect="non-scaling-stroke"')+' pointer-events="none"/>');}
+    else if(it.t==='dot')h.push('<circle cx="'+q(it.p.x)+'" cy="'+q(it.p.y)+'" r="'+(10*k)+'" fill="'+it.c+'" stroke="#0b2e1a" stroke-width="'+(2.5*k)+'" pointer-events="none"/>');
+    else if(it.t==='text'){var fs=26*k;
+      h.push('<text x="'+q(it.p.x)+'" y="'+q(it.p.y)+'" font-size="'+fs+'" font-weight="800" fill="'+it.c+'" stroke="#0b2e1a" stroke-width="'+(5*k)+'" paint-order="stroke" pointer-events="none">'+esc(it.s)+'</text>');}
+  });
+  return h.join('');
+}
+/* 글씨 칸(대략) — 지우개·옮기기용 */
+function textBox(it,k){var fs=26*k/S;return {x0:it.p.x,y0:it.p.y-fs,x1:it.p.x+textEm(it.s)*fs,y1:it.p.y+fs*0.25};}
+function segDist(p,a,b){var dx=b.x-a.x,dy=b.y-a.y,L=dx*dx+dy*dy,t=L?clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/L,0,1):0;return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
+/* 지우개: p 근처의 그림을 뺀다 → 지운 게 있으면 true */
+function chalkErase(p){
+  var d=ST.draft,k=pxK(),r=Math.max(0.06,22*k/S),n0=(d.items||[]).length+(d.xl||[]).length;
+  d.items=(d.items||[]).filter(function(it){
+    if(it.t==='dot')return dist(p,it.p)>r;
+    if(it.t==='text'){var b=textBox(it,k);return !(p.x>=b.x0-r&&p.x<=b.x1+r&&p.y>=b.y0-r&&p.y<=b.y1+r);}
+    if(it.t==='pen'){for(var i=0;i<it.pts.length;i++){var a={x:it.pts[i][0],y:it.pts[i][1]},b2=it.pts[i+1]?{x:it.pts[i+1][0],y:it.pts[i+1][1]}:a;if(segDist(p,a,b2)<r)return false;}return true;}
+    return true;});
+  d.xl=(d.xl||[]).filter(function(l){return segDist(p,l.a,l.b)>r;});
+  return (d.items.length+d.xl.length)!==n0;
+}
+function textAt(p){var k=pxK(),its=ST.draft.items||[];for(var i=its.length-1;i>=0;i--){var it=its[i];if(it.t!=='text')continue;var b=textBox(it,k);if(p.x>=b.x0&&p.x<=b.x1&&p.y>=b.y0&&p.y<=b.y1)return i;}return -1;}
+/* 🅰 글씨 넣기 · 고치기 */
+function chalkText(p,idx){
+  var it=idx>=0?ST.draft.items[idx]:null;
+  modal({title:it?'🅰 글씨 고치기':'🅰 글씨 넣기',input:{value:it?it.s:'',max:60,placeholder:'예: 얇게 · 오른쪽 회전'},
+    buttons:(it?[{label:'<span class="ic">🗑</span> 이 글씨 지우기',value:'del',cls:'danger'}]:[]).concat([{label:'취소',value:null},{label:it?'고치기':'넣기',value:'ok',cls:'primary'}])}).then(function(r){
+    if(r.value==='del'){pushUndo();ST.draft.items.splice(idx,1);saveSoon();renderAll();return;}
+    if(r.value!=='ok')return;var s=(r.text||'').trim();if(!s)return;
+    pushUndo();if(it){it.s=s;it.c=chalkCol();}else ST.draft.items.push({t:'text',p:{x:r2(p.x),y:r2(p.y)},s:s,c:chalkCol()});
+    saveSoon();renderAll();});
+}
+function chalkClear(){
+  var d=ST.draft;if(!(d.items||[]).length&&!(d.xl||[]).length)return;
+  confirmBox('🧹 칠판을 전부 지울까요?','선·점·펜·글씨를 모두 지웁니다(공은 그대로). [↶ 되돌리기]로 다시 살릴 수 있습니다.','전부 지우기',true).then(function(ok){
+    if(!ok)return;pushUndo();d.items=[];d.xl=[];saveSoon();renderAll();});
+}
+/* 공 놓기/빼기 */
+function chalkBall(n){
+  var d=ST.draft,cb=(d.cb||[]).slice(),i=cb.indexOf(n);pushUndo();
+  if(i>=0)cb.splice(i,1);else{cb.push(n);cb.sort(function(a,b){return ALLB.indexOf(a)-ALLB.indexOf(b);});
+    var got=cb.filter(function(x){return x!==n;}).map(function(x){return ST.balls[x];});
+    if(!apart(got,ST.balls[n],BR*2.2)){var p,t=0;do{p=rpos(0.4);t++;}while(!apart(got,p,BR*3)&&t<200);ST.balls[n]={x:r2(p.x),y:r2(p.y)};}}
+  d.cb=cb;saveSoon();renderAll();
+}
+/* 📸 보관하기 */
+function chalkSave(){
+  var d=ST.draft,b=curBoard();if(!b)return;
+  if(!(d.items||[]).length&&!(d.xl||[]).length){modal({title:'아직 그린 것이 없습니다',body:'선·점·펜·글씨로 그린 뒤에 보관해 주세요.',buttons:[{label:'알겠습니다',value:1,cls:'primary'}]});return;}
+  var now=new Date();
+  modal({title:'📸 이 칠판 보관하기',html:'<p>지금 칠판 그림을 앨범에 한 장 남깁니다. 칠판은 그대로 이어서 그릴 수 있습니다.</p><p style="font-weight:700;margin:.6rem 0 .3rem">제목</p>',
+    input:{value:fmtDate(now)+' '+fmtTime(now),max:40},input2:{placeholder:'메모 (예: 길게 빠짐 — 다음엔 얇게)'},
+    buttons:[{label:'취소',value:null},{label:'📸 보관하기',value:'ok',cls:'primary'}]}).then(function(r){
+    if(r.value!=='ok')return;
+    var row={board_id:b.id,kind:'chalk',balls:clone(ST.balls),predict:[],actual:null,tip:null,speed:null,kmh:null,result:null,memo:(r.text2||'').trim()||null,
+      sim:{v:1,kind:'chalk',title:(r.text||'').trim()||fmtDT(now),items:clone(d.items||[]),xl:clone(d.xl||[]),cb:clone(d.cb||[])}};
+    SB.from('bb_attempts').insert(row).select().single().then(function(x){
+      if(x.error||!x.data){toast('⚠ 보관하지 못했습니다 — 인터넷을 확인해 주세요');return;}
+      logEvent('attempt.save',b.id,{name:b.name,kind:'chalk'});toast('📸 앨범에 보관했습니다 — 🖼 앨범에서 볼 수 있습니다');
+    },function(){toast('⚠ 보관하지 못했습니다 — 인터넷을 확인해 주세요');});
+  });
+}
+function chalkMini(a){
+  var s=a.sim||{},bl=a.balls||defaultBalls(),h='<svg class="mini" viewBox="-94 -94 988 588" xmlns="http://www.w3.org/2000/svg">'+staticTable();
+  (s.cb||[]).forEach(function(n){if(bl[n])h+='<circle cx="'+bl[n].x*S+'" cy="'+bl[n].y*S+'" r="'+BR*S+'" fill="'+BCOL[n]+'" stroke="#222" stroke-width="2"/>';});
+  return h+chalkItemsSvg(s.items,s.xl,1.6,true)+'</svg>';
+}
+/* 🖼 앨범 */
+function chalkAlbum(){
+  SB.from('bb_attempts').select('*').is('deleted_at',null).eq('kind','chalk').order('created_at',{ascending:false}).limit(200).then(function(r){
+    var L=(r&&r.data)||[];
+    var html=L.length?'<div class="album">'+L.map(function(a,i){var s=a.sim||{};
+      return '<div class="acard">'+chalkMini(a)+'<div class="atitle"><b>'+esc(s.title||'')+'</b><small>'+fmtDT(a.created_at)+' · '+esc(boardName(a.board_id))+'</small>'+(a.memo?'<span>'+esc(a.memo)+'</span>':'')+'</div>'+
+        '<div class="abtn"><button class="primary" data-load="'+i+'">✏️ 불러와 이어 그리기</button><button class="danger" data-del="'+i+'">🗑 지우기</button></div></div>';}).join('')+'</div>'
+      :'<div class="empty">아직 보관한 그림이 없습니다.<br>칠판에 그린 뒤 [📸 보관하기]를 누르면 여기에 쌓입니다.</div>';
+    modal({title:'🖼 칠판 앨범 ('+L.length+'장)',wide:true,html:html,buttons:[{label:'닫기',value:null,cls:'primary'}],onOpen:function(m,done){
+      m.querySelectorAll('[data-load]').forEach(function(x){x.addEventListener('click',function(){var a=L[+x.dataset.load];done(null);chalkLoad(a);});});
+      m.querySelectorAll('[data-del]').forEach(function(x){x.addEventListener('click',function(){var a=L[+x.dataset.del];x.disabled=true;
+        SB.from('bb_attempts').update({deleted_at:new Date().toISOString()}).eq('id',a.id).then(function(y){
+          if(y&&y.error){toast('⚠ 지우지 못했습니다');x.disabled=false;return;}
+          logEvent('attempt.delete',a.board_id,{name:boardName(a.board_id),at:a.created_at});x.closest('.acard').remove();toast('휴지통으로 옮겼습니다 ('+KEEP_DAYS+'일 안에 되살릴 수 있습니다)');});});});
+    }});
+  });
+}
+function chalkLoad(a){
+  if(!isChalk()){var cb=BOARDS.filter(function(b){return b.id===a.board_id&&b.kind==='chalk';})[0]||BOARDS.filter(function(b){return b.kind==='chalk';})[0];if(!cb){toast('칠판 판이 없습니다');return;}switchBoard(cb.id);}
+  var s=a.sim||{};pushUndo();
+  ST.balls=Object.assign(defaultBalls(),clone(a.balls||{}));ST.draft.items=clone(s.items||[]);ST.draft.xl=clone(s.xl||[]);ST.draft.cb=clone(s.cb||ALLB);
+  saveSoon();renderAll();toast('✏️ ‘'+(s.title||'그림')+'’을 불러왔습니다 — 이어서 그리세요 (↶ 되돌리기 가능)');
+}
+/* 마우스·펜 — 칠판 모드 (onDown/onMove/onUp 에서 부른다) */
+function chalkDown(e,p){
+  var d=ST.draft;
+  if(MODE==='cpen'){DRAG={type:'pen',start:snap(),it:{t:'pen',c:chalkCol(),w:d.cw===2?2:1,pts:[[r2(p.x),r2(p.y)]]}};d.items.push(DRAG.it);}
+  else if(MODE==='cdot'){pushUndo();d.items.push({t:'dot',p:{x:r2(p.x),y:r2(p.y)},c:chalkCol()});saveSoon();renderAll();return;}
+  else if(MODE==='ctext'){chalkText(p,textAt(p));return;}
+  else if(MODE==='cerase'){DRAG={type:'erase',start:snap(),hit:chalkErase(p)};if(DRAG.hit)renderTable();}
+  else if(MODE==='cline'){var q0=snapX(p);DRAG={type:'cl',a:q0,b:q0,moved:false,x0:e.clientX,y0:e.clientY};}
+  else return;
+  svg().setPointerCapture(e.pointerId);e.preventDefault();
+}
+function chalkMove(e,p){
+  if(DRAG.type==='pen'){var pts=DRAG.it.pts,l=pts[pts.length-1];if(Math.hypot(p.x-l[0],p.y-l[1])>=0.012){pts.push([r2(p.x),r2(p.y)]);renderTable();}return true;}
+  if(DRAG.type==='erase'){if(chalkErase(p)){DRAG.hit=true;renderTable();}return true;}
+  if(DRAG.type==='cl'){if(!DRAG.moved&&Math.hypot(e.clientX-DRAG.x0,e.clientY-DRAG.y0)<6)return true;DRAG.moved=true;DRAG.b=snapX(p);renderTable();return true;}
+  if(DRAG.type==='ctxt'){var it=ST.draft.items[DRAG.i];it.p={x:r2(clamp(p.x-DRAG.dx,0,W)),y:r2(clamp(p.y-DRAG.dy,0.2,H))};DRAG.moved=true;renderTable();return true;}
+  return false;
+}
+function chalkUp(d){
+  if(d.type==='pen'){UNDO.push(d.start);if(UNDO.length>150)UNDO.shift();REDO=[];saveSoon();renderAll();return true;}
+  if(d.type==='erase'){if(d.hit){UNDO.push(d.start);REDO=[];saveSoon();}renderAll();return true;}
+  if(d.type==='cl'){if(d.moved&&dist(d.a,d.b)>0.05){pushUndo();ST.draft.xl.push({a:{x:x4(d.a.x),y:x4(d.a.y)},b:{x:x4(d.b.x),y:x4(d.b.y)},c:chalkCol()});saveSoon();}renderAll();return true;}
+  if(d.type==='ctxt'){if(d.moved){UNDO.push(d.start);REDO=[];saveSoon();}renderAll();return true;}
+  return false;
+}
+/* 칠판 그리기 — 공 아래(선 미리보기) · 공 위(그림) */
+function chalkSvg(k){
+  var h=[],d=ST.draft;
+  h.push(chalkItemsSvg(d.items,d.xl,k));
+  if(DRAG&&DRAG.type==='cl'&&DRAG.moved)h.push('<line x1="'+DRAG.a.x*S+'" y1="'+DRAG.a.y*S+'" x2="'+DRAG.b.x*S+'" y2="'+DRAG.b.y*S+'" stroke="'+chalkCol()+'" stroke-width="4" stroke-dasharray="10 6" vector-effect="non-scaling-stroke" pointer-events="none"/>');
+  if(MODE==='cline'&&HOVER&&HOVER.k&&!DRAG)h.push('<circle cx="'+HOVER.x*S+'" cy="'+HOVER.y*S+'" r="'+11*k+'" fill="none" stroke="#ff9f1a" stroke-width="'+4*k+'" pointer-events="none"/>');
+  if(MODE==='cerase'&&HOVER)h.push('<circle cx="'+HOVER.x*S+'" cy="'+HOVER.y*S+'" r="'+22*k+'" fill="rgba(255,255,255,.18)" stroke="#fff" stroke-width="'+2*k+'" stroke-dasharray="'+5*k+' '+4*k+'" pointer-events="none"/>');
+  return h.join('');
+}
+function renderChalkSide(){
+  if(!isChalk())return;var d=ST.draft,c=chalkCol();
+  $('ccol').innerHTML=CCOL.map(function(x){return '<button type="button" data-cc="'+x[0]+'" class="'+(c===x[0]?'on':'')+'" title="'+x[1]+'"><i style="background:'+x[0]+'"></i>'+x[1]+'</button>';}).join('');
+  $('cwid').innerHTML=[[1,'가늘게'],[2,'굵게']].map(function(x){return '<button type="button" data-cw="'+x[0]+'" class="'+((d.cw||1)===x[0]?'on':'')+'">'+x[1]+'</button>';}).join('');
+  $('cballs').innerHTML=CBALL.map(function(x){var on=(d.cb||[]).indexOf(x[0])>=0;return '<button type="button" data-cb="'+x[0]+'" class="'+(on?'on':'')+'">'+x[1]+(on?'':' <small>(빼 둠)</small>')+'</button>';}).join('');
+}
 /* ═════════ 그리기 ═════════ */
 function staticTable(){
   var h=[];
@@ -1319,10 +1472,10 @@ function tag(x,y,t,k){  /* 공 위 작은 글씨 */
 function ballSvg(n,b,k,big,ghost){
   var cx=b.x*S,cy=b.y*S,h='';
   if(ghost)return '<circle cx="'+cx+'" cy="'+cy+'" r="'+BR*S+'" fill="none" stroke="'+(n==='w'?'#fff':BCOL[n])+'" stroke-width="'+2.5*k+'" stroke-dasharray="'+5*k+' '+4*k+'" opacity=".8" pointer-events="none"/>';
-  if(ST.balls.cue===n)h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(BR*S+9*k)+'" fill="none" stroke="#fff" stroke-width="'+3*k+'" stroke-dasharray="'+6*k+' '+4*k+'"/>';
+  if(ST.balls.cue===n&&kind()!=='chalk')h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(BR*S+9*k)+'" fill="none" stroke="#fff" stroke-width="'+3*k+'" stroke-dasharray="'+6*k+' '+4*k+'"/>';
   h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+BR*S+'" fill="'+BCOL[n]+'" stroke="#222" stroke-width="2"'+(big?' style="cursor:grab"':'')+'/>';
   if(n==='r'||n==='r2')h+='<text x="'+cx+'" y="'+(cy+6*k)+'" text-anchor="middle" font-size="'+16*k+'" font-weight="900" fill="#fff" pointer-events="none">'+(n==='r'?'1':'2')+'</text>';
-  var lab=ST.balls.cue===n?'내 공':(kind()==='free'&&n===opp()?'상대 공':'');
+  var lab=kind()==='chalk'?'':ST.balls.cue===n?'내 공':(kind()==='free'&&n===opp()?'상대 공':'');
   if(lab)h+=tag(cx,cy-BR*S-12*k,lab,k);
   return h;
 }
@@ -1434,6 +1587,7 @@ function renderTable(){
   if(K==='bank'&&SIMV&&SIMV.bank&&!SIMV.playing)h.push(bankAnsSvg(k));
   ids.forEach(function(n){h.push(ballSvg(n,pos[n],k,MODE==='ball'&&!SIMV,false));});
   if(K==='bank')h.push(bankTopSvg(k));
+  if(K==='chalk')h.push(chalkSvg(k));
   /* 쿠션 지점 숫자 */
   if(K==='free'&&!SIMV){var col2=LAYER==='predict'?'#1650d8':'#d0231a';d[LAYER].forEach(function(p){var v=railVal(p);if(v!==null)h.push(bubble(p.x*S,p.y*S,v,col2,k));});}
   /* 미리보기 */
@@ -1461,7 +1615,7 @@ function renderTable(){
     });
   }
   $('gDyn').innerHTML=h.join('');
-  s.setAttribute('class','m-'+(MODE==='pobj'||MODE==='pcue'||MODE==='cpt'||MODE==='xline'?'draw':MODE));
+  s.setAttribute('class','m-'+(MODE==='pobj'||MODE==='pcue'||MODE==='cpt'||MODE==='xline'||MODE.charAt(0)==='c'&&MODE!=='cpt'?'draw':MODE));
 }
 /* 🎯 판 아래층: 공 중심선(✖ 작도 중) · 아버지 선 · 고른 지점과 예상 길 */
 function bankSvg(k){
@@ -1562,7 +1716,12 @@ function renderHint(){
     return;
   }
   var t={
-    ball:'지금: ✋ 공을 잡아 끌어서 옮기세요',
+    ball:kind()==='chalk'?'지금: ✋ 공이나 글씨를 잡아 끌어서 옮기세요':'지금: ✋ 공을 잡아 끌어서 옮기세요',
+    cline:'지금: ／ 선 — 누른 채로 끌어서 긋기 (공 가운데·쿠션에 붙습니다)',
+    cdot:'지금: • 점 — 누른 자리에 점',
+    cpen:'지금: ✍ 펜 — 자유롭게 쓰고 그리기',
+    ctext:'지금: 🅰 글씨 — 누른 자리에 글씨 넣기 (글씨를 누르면 고치기)',
+    cerase:'지금: 🧽 지우개 — 문지르면 그 자리 그림이 지워집니다',
     draw:'지금: ✏️ '+(LAYER==='predict'?'예측선':'실제선')+' 긋는 중 — 첫 선 = 조준 · 쿠션을 차례로 클릭 → [긋기 끝]',
     edit:'지금: 🖐 동그라미를 끌어 옮기기 · 누르면 지우기 · 선을 누르면 점 추가',
     pobj:'지금: ① 1적구(빨간 공 ①)가 갈 방향을 클릭하세요',
@@ -1577,7 +1736,7 @@ function renderHint(){
 function renderSimBtn(){
   var sep=kind()==='sep',tr=kind()!=='free';
   $('bSimT').textContent=SIMV&&SIMV.playing?'끝으로 건너뛰기':(kind()==='cush'?'쳐 보기':kind()==='bank'?'판정':tr?'정답 보기':'시뮬레이션');
-  $('bRec').classList.toggle('hide',kind()==='cush'||kind()==='bank');   /* 🔁 판은 맞히거나 답을 보면 · 🎯 판은 판정하면 저절로 기록 */
+  $('bRec').classList.toggle('hide',kind()==='cush'||kind()==='bank'||kind()==='chalk');   /* 🔁 판은 맞히거나 답을 보면 · 🎯 판은 판정하면 저절로 기록 */
   $('bSlow').classList.toggle('on',SLOW);
   /* 훈련 판은 [다음 두께 ▶]·[속도 비교]와 한 줄이라 글자를 줄인다 */
   var done=!!(SET&&SET.board===CUR&&SET.answered);   /* 세트는 정답을 보면 자동 기록 — 두 번 저장하지 않게 */
@@ -1586,7 +1745,7 @@ function renderSimBtn(){
 }
 function renderTools(){
   var K=kind();
-  ['free','sep','cush','bank'].forEach(function(x){document.body.classList.toggle('k-'+x,K===x);});
+  ['free','sep','cush','bank','chalk'].forEach(function(x){document.body.classList.toggle('k-'+x,K===x);});
   $('mXl').classList.toggle('hide',!(K==='bank'&&ST.draft.bstyle!=='pick'));
   $('bNewQ').innerHTML='<span class="ic">🎲</span> '+(K==='bank'?'새 배치':'새 문제');
   if(K==='bank'){var nr=bankReds().length;$('bRedAdd').disabled=nr>=2;$('bRedDel').disabled=nr<=1;}
@@ -1598,16 +1757,17 @@ function renderTools(){
   $('thkBox').classList.toggle('hide',K==='cush'&&!cushAfter());
   /* 1적구 뒤 쿠션: 조준 글자는 두께 버튼·판 위 말풍선과 같은 말이라 숨긴다(패널이 넘쳤다) */
   $('aimTxt').classList.toggle('hide',cushAfter());
-  ['mBall','mDraw','mEdit','mObj','mCue','mCpt','mXl'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.m===MODE);});
+  ['mBall','mDraw','mEdit','mObj','mCue','mCpt','mXl','mCl','mCd','mCp','mCt','mCe'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.m===MODE);});
+  $('mBall').innerHTML='<span class="ic">✋</span> '+(K==='chalk'?'옮기기':'공 옮기기');
   ['lPre','lAct'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.l===LAYER);});
   ['cW','cY'].forEach(function(id){$(id).classList.toggle('on',$(id).dataset.c===ST.balls.cue);});
   $('tBall').classList.toggle('hide',MODE!=='ball');
-  $('tDraw').classList.toggle('hide',MODE==='ball');
+  $('tDraw').classList.toggle('hide',MODE==='ball'&&K!=='chalk');   /* 🧑‍🏫 칠판은 [전부 지우기]가 늘 보인다 */
   $('bDone').classList.toggle('hide',MODE!=='draw');
   /* 🎯 판은 도구가 많아 글자를 줄인다(1536 노트북에서 도구줄이 두 줄로 접혔다) */
   $('mCpt').innerHTML='<span class="ic">📍</span> '+(K==='bank'?'지점 찍기':'쿠션 지점 찍기');
-  $('bClear').innerHTML='<span class="ic">🧹</span> '+(K==='free'?'선 지우기':K==='cush'?'지점 지우기':K==='bank'?'지우기':'예측 지우기');
-  $('bClear').disabled=K==='sep'?!(ST.draft.predObj||ST.draft.predCue):K==='cush'?!ST.draft.cpts.length:K==='bank'?!(ST.draft.cpts.length||(ST.draft.xl||[]).length):!ST.draft[LAYER].length;
+  $('bClear').innerHTML='<span class="ic">🧹</span> '+(K==='free'?'선 지우기':K==='cush'?'지점 지우기':K==='bank'?'지우기':K==='chalk'?'전부 지우기':'예측 지우기');
+  $('bClear').disabled=K==='sep'?!(ST.draft.predObj||ST.draft.predCue):K==='cush'?!ST.draft.cpts.length:K==='bank'?!(ST.draft.cpts.length||(ST.draft.xl||[]).length):K==='chalk'?!((ST.draft.items||[]).length||(ST.draft.xl||[]).length):!ST.draft[LAYER].length;
   $('bUndo').disabled=!UNDO.length;$('bRedo').disabled=!REDO.length;
 }
 /* 탭 — 들어가는 만큼 전부 띄우고, 넘치면 뒤에서부터 [판 목록] 으로 넘긴다(지금 판은 늘 남긴다) */
@@ -1640,7 +1800,7 @@ function renderSide(){
   document.querySelectorAll('#ncush button').forEach(function(x){x.classList.toggle('on',+x.dataset.n===d.ncush);});
   renderSimBtn();
 }
-function renderAll(){if(!ST)return;renderTabs();renderTools();renderHint();renderSeq();renderSide();renderRouteBar();renderBankBar();renderTable();}
+function renderAll(){if(!ST)return;renderTabs();renderTools();renderHint();renderSeq();renderSide();renderRouteBar();renderBankBar();renderChalkSide();renderTable();}
 
 /* ═════════ 당점 ═════════ */
 function tipDesc(t){
@@ -1699,8 +1859,11 @@ function onDown(e){
   if(e.button!==0||!ST)return;
   var p=evPt(e);hidePop();
   if(SIMV&&!SIMV.playing&&MODE!=='ball'){clearSim();renderAll();}
+  if(kind()==='chalk'&&MODE!=='ball'){chalkDown(e,p);return;}
   if(MODE==='ball'){
-    var n=ballHit(p);if(!n)return;
+    var n=ballHit(p);
+    if(!n&&kind()==='chalk'){var ti=textAt(p);if(ti>=0){var it0=ST.draft.items[ti];DRAG={type:'ctxt',i:ti,dx:p.x-it0.p.x,dy:p.y-it0.p.y,start:snap(),moved:false};svg().setPointerCapture(e.pointerId);e.preventDefault();}return;}
+    if(!n)return;
     DRAG={type:'ball',n:n,moved:false,start:snap()};svg().setPointerCapture(e.pointerId);e.preventDefault();
   }else if(MODE==='draw'){
     var q=snapPt(p),path=ST.draft[LAYER];
@@ -1746,6 +1909,8 @@ function onMove(e){
     if(!DRAG.moved)clearSim();
     DRAG.moved=true;var q=snapPt(p);ST.draft[LAYER][DRAG.i]=q;SEL=DRAG.i;renderSeq();renderTable();$('aimTxt').textContent=aimText();return;
   }
+  if(DRAG&&kind()==='chalk'&&chalkMove(e,p))return;
+  if(kind()==='chalk'){HOVER=MODE==='cline'?snapX(p):MODE==='cerase'?p:null;if(MODE==='cline'||MODE==='cerase')renderTable();return;}
   if(DRAG&&DRAG.type==='xl'){
     if(!DRAG.moved&&Math.hypot(e.clientX-DRAG.x0,e.clientY-DRAG.y0)<6)return;
     DRAG.moved=true;DRAG.b=snapX(p);var pp=xParallel(DRAG.a,DRAG.b);DRAG.par=!!pp;if(pp)DRAG.b=pp;renderTable();return;
@@ -1760,6 +1925,7 @@ function onUp(e){
   var d=DRAG;DRAG=null;
   try{svg().releasePointerCapture(e.pointerId);}catch(x){}
   if(d.type==='ball'){if(d.moved){UNDO.push(d.start);REDO=[];if(kind()==='cush')resetTries();saveSoon();renderAll();}return;}
+  if(kind()==='chalk'&&chalkUp(d))return;
   if(d.type==='xl'){
     if(d.moved&&dist(d.a,d.b)>0.08){pushUndo();var xl=ST.draft.xl||(ST.draft.xl=[]);xl.push({a:{x:x4(d.a.x),y:x4(d.a.y)},b:{x:x4(d.b.x),y:x4(d.b.y)}});
       /* ↗ 흰 공에서 평행으로 쿠션까지 그었으면 그 끝이 첫 쿠션 지점 */
@@ -1801,6 +1967,7 @@ function delPoint(){
 function setMode(m){MODE=m;SEL=null;HOVER=null;hidePop();if(SIMV&&!SIMV.playing)clearSim();renderAll();}
 function doneDraw(){setMode(ST.draft[LAYER].length?'edit':'ball');}
 function clearLayer(){
+  if(kind()==='chalk'){chalkClear();return;}
   if(kind()==='bank'){var bd=ST.draft;if(!bd.cpts.length&&!(bd.xl||[]).length)return;pushUndo();bd.cpts=[];bd.xl=[];MODE=bd.bstyle!=='pick'?'xline':'cpt';saveSoon();renderAll();return;}
   if(kind()==='cush'){if(!ST.draft.cpts.length)return;pushUndo();ST.draft.cpts=[];MODE='cpt';saveSoon();renderAll();return;}
   if(kind()==='sep'){if(!(ST.draft.predObj||ST.draft.predCue))return;pushUndo();ST.draft.predObj=null;ST.draft.predCue=null;MODE='pobj';saveSoon();renderAll();return;}
@@ -1894,7 +2061,7 @@ function simTag(a){
   return resTag(s.result);
 }
 function renderAttempts(){
-  var A=ATTS,h=[];
+  var A=ATTS.filter(function(a){return a.kind!=='chalk';}),h=[];   /* 🧑‍🏫 칠판 보관 그림은 🖼 앨범에서 */
   var F=A.filter(function(a){return a.kind==='free'||!a.kind;}),P=A.filter(function(a){return a.kind==='sep';}),C=A.filter(function(a){return a.kind==='cush';}),Bk=A.filter(function(a){return a.kind==='bank'&&a.sim;});
   if(Bk.length){var bok=Bk.filter(function(a){return a.sim.result==='hit';}).length,ber=Bk.map(function(a){return a.sim.err;}).filter(function(x){return x!=null;}).map(Math.abs);
     h.push('<h3>🎯 쿠션 지점</h3><div class="stats">'+
@@ -2010,7 +2177,7 @@ function evtText(e){
     case 'board.copy': return '‘'+p.from+'’을 복제해 ‘'+p.name+'’을 만들었습니다';
     case 'board.delete': return '‘'+p.name+'’을 휴지통으로 옮겼습니다';
     case 'board.restore': return '‘'+p.name+'’을 휴지통에서 살렸습니다';
-    case 'attempt.save': return '‘'+p.name+'’에 '+(p.kind==='sep'?'분리각 문제를':p.kind==='cush'?'쿠션 문제를':p.kind==='bank'?'쿠션 지점 판정을':'시도를')+' 기록했습니다'+(p.result==='hit'?' (⭕ 득점)':p.result==='miss'?' (❌ 실패)':p.result==='foul'?' (⚠ 파울)':'');
+    case 'attempt.save': return '‘'+p.name+'’에 '+(p.kind==='sep'?'분리각 문제를':p.kind==='cush'?'쿠션 문제를':p.kind==='bank'?'쿠션 지점 판정을':p.kind==='chalk'?'칠판 그림을':'시도를')+' 기록했습니다'+(p.result==='hit'?' (⭕ 득점)':p.result==='miss'?' (❌ 실패)':p.result==='foul'?' (⚠ 파울)':'');
     case 'attempt.delete': return '‘'+p.name+'’의 기록을 휴지통으로 옮겼습니다';
     case 'attempt.restore': return '기록을 휴지통에서 살렸습니다';
     case 'password.change': return '비밀번호를 바꿨습니다';
@@ -2097,7 +2264,7 @@ function tendency(v,wide,narrow,unit){if(v==null)return '—';var a=Math.abs(r1(
 function renderTrend(){
   CH=[];
   var full=$('logBody').clientWidth||1200,half=window.innerWidth>1300?(full-16)/2-28:full-28;full-=28;
-  var A=ATTS.slice().sort(function(a,b){return a.created_at<b.created_at?-1:1;}),h=[];
+  var A=ATTS.filter(function(a){return a.kind!=='chalk';}).sort(function(a,b){return a.created_at<b.created_at?-1:1;}),h=[];
   var P=A.filter(function(a){return a.kind==='sep'&&a.sim&&!a.sim.none;}),C=A.filter(function(a){return a.kind==='cush'&&a.sim&&!a.sim.none;}),
       F=A.filter(function(a){return (a.kind==='free'||!a.kind)&&a.sim;}),Bk=A.filter(function(a){return a.kind==='bank'&&a.sim;});
   if(!A.length){$('logBody').innerHTML='<div class="empty">아직 기록이 없습니다.<br>분리각·원투쿠션 훈련을 몇 번 풀면 여기에 실력 변화가 그려집니다.</div>';return;}
@@ -2363,7 +2530,11 @@ function bind(){
   $('bSet').addEventListener('click',openSettings);
   ['vAtt','vTrend','vEvt'].forEach(function(id){$(id).addEventListener('click',function(){LOGVIEW=this.dataset.v;loadLog();});});
   $('lBoard').addEventListener('change',loadLog);
-  ['mBall','mDraw','mEdit','mObj','mCue','mCpt','mXl'].forEach(function(id){$(id).addEventListener('click',function(){setMode(this.dataset.m);});});
+  ['mBall','mDraw','mEdit','mObj','mCue','mCpt','mXl','mCl','mCd','mCp','mCt','mCe'].forEach(function(id){$(id).addEventListener('click',function(){setMode(this.dataset.m);});});
+  $('ccol').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;ST.draft.ccol=b.dataset.cc;saveSoon();renderChalkSide();});
+  $('cwid').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;ST.draft.cw=+b.dataset.cw;saveSoon();renderChalkSide();});
+  $('cballs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;chalkBall(b.dataset.cb);});
+  $('bCSave').addEventListener('click',chalkSave);$('bAlbum').addEventListener('click',chalkAlbum);
   $('ncush').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||ST.draft.ncush===+b.dataset.n)return;pushUndo();ST.draft.ncush=+b.dataset.n;ST.draft.cpts=[];
     if(kind()==='bank')MODE=ST.draft.bstyle!=='pick'?'xline':'cpt';saveSoon();renderAll();toast(+b.dataset.n===2?'투쿠션 — 쿠션 지점 2개를 순서대로':'원쿠션 — 쿠션 지점 1개');});
   $('bRedAdd').addEventListener('click',function(){bankRed(true);});

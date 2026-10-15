@@ -281,7 +281,7 @@ function init({session,users}){
 
  /* ── I) 판 CRUD ── */
  await p.click('#bNew');
- ok('I0b 자유 판에서 연 새 판 창에 종류 7개가 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).length))===7);
+ ok('I0b 자유 판에서 연 새 판 창에 종류 8개가 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).length))===8);
  ok('I0 새 판 = 종류 고르기(기본 자유 연습)',/자유 연습/.test(await p.textContent('#mask'))&&/분리각 훈련/.test(await p.textContent('#mask'))&&await p.$eval('[data-kind="free"]',e=>e.classList.contains('on')));
  await p.fill('#mIn','옆돌리기');await p.click('.modal .btns .primary');await wait(200);
  ok('I1 새 판 탭',(await p.textContent('#tabs')).includes('🎱 옆돌리기')&&(await p.textContent('#bName'))==='옆돌리기');
@@ -378,7 +378,7 @@ function init({session,users}){
  /* ── U) 🔁 원쿠션 · 투쿠션 훈련 (v3) — ① 지점 찾기 · ② 답 보기 ──
     아버지: "적구를 아무 곳에 두고, 1적구를 맞히고 어디를 맞아야 2적구로 가는지" · "두께도 말해 주면 좋겠다" */
  await p.click('#bNew');
- ok('U-1 새 판 카드 7장(자유·분리각·원쿠션·투쿠션·🎯 지점 찍기·✖ X법·↗ 평행법) · 어느 판에서 열어도 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).map(e=>e.dataset.kind).join()))==='free,sep,cush1,cush2,bpick,bx,bcorner');
+ ok('U-1 새 판 카드 8장(자유·분리각·원쿠션·투쿠션·🎯 지점 찍기·✖ X법·🧑‍🏫 칠판·↗ 평행법) · 어느 판에서 열어도 보임',(await p.$$eval('.kindpick button',es=>es.filter(e=>e.getBoundingClientRect().width>0).map(e=>e.dataset.kind).join()))==='free,sep,cush1,cush2,bpick,bx,chalk,bcorner');
  await p.click('[data-kind="cush1"]');
  ok('U0 이름도 원쿠션',/^원쿠션 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));
  await p.click('.modal .btns .primary');await wait(250);
@@ -905,6 +905,76 @@ function init({session,users}){
  cs=await solOf();
  ok('QC13 🎲 새 배치도 구석 길 답',cs.some(r=>{const k=r.key.split('|')[0].split('>');return k.length===2&&((k[0]==='T'||k[0]==='B')!==(k[1]==='T'||k[1]==='B'));}),cs);
 
+ /* ── CH) 🧑‍🏫 당구 칠판 (v3.4) — 공·선·점·펜·글씨·지우개 · 자동 저장 · 📸 보관 · 🖼 앨범 ── */
+ await p.click('#bNew');await p.click('[data-kind="chalk"]');
+ ok('CH0 이름도 칠판',/^칠판 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));
+ await p.click('.modal .btns .primary');await wait(300);
+ ok('CH1 칠판: 탭 🧑‍🏫 · 펜 모드 · 공 4개 · 판정·당점·속도·새 문제 없음 · 색·공·보관 칸',(await p.$eval('#tabs button.on',e=>e.textContent)).startsWith('🧑‍🏫 ')&&
+   (await p.evaluate(()=>[kind(),MODE,liveBalls().join()].join()))==='chalk,cpen,w,y,r,r2'&&!(await p.isVisible('#tip'))&&!(await p.isVisible('#bSim'))&&!(await p.isVisible('#bNewQ'))&&
+   await p.isVisible('#ccol')&&await p.isVisible('#cballs')&&await p.isVisible('#bCSave')&&await p.isVisible('#mCp'));
+ ok('CH1b 칠판엔 "내 공" 표시 없음',await p.evaluate(()=>![...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='내 공')));
+ /* ✍ 펜 */
+ const pen=async(pts)=>{const s=await Promise.all(pts.map(q=>cl(q[0],q[1])));await p.mouse.move(...s[0]);await p.mouse.down();for(const q of s.slice(1)){await p.mouse.move(...q,{steps:4});}await p.mouse.up();await wait(60);};
+ await pen([[3,1],[3.5,1.4],[4,1.2],[4.5,1.6]]);
+ let ci=await p.evaluate(()=>ST.draft.items);
+ ok('CH2 펜: 한 획 · 흰색 · 점 여러 개',ci.length===1&&ci[0].t==='pen'&&ci[0].c==='#ffffff'&&ci[0].pts.length>4,ci);
+ await p.click('#ccol [data-cc="#ff4a3d"]');await p.click('#cwid [data-cw="2"]');
+ await pen([[3,2.5],[4,2.8]]);
+ ci=await p.evaluate(()=>ST.draft.items);
+ ok('CH3 색·굵기 바꾸면 다음 획부터 빨강 · 굵게',ci[1].c==='#ff4a3d'&&ci[1].w===2&&ci[0].c==='#ffffff');
+ /* • 점 */
+ await p.click('#mCd');await click(5,2);
+ ok('CH4 점: 누른 자리 · 숫자 없음',await p.evaluate(()=>{const d=ST.draft.items[2];return d.t==='dot'&&Math.abs(d.p.x-5)<0.03&&![...document.querySelectorAll('#gDyn text')].some(t=>/^\d+$/.test(t.textContent)&&t.textContent!=='1'&&t.textContent!=='2');}));
+ /* ／ 선 — 공 가운데에 붙는다 */
+ await p.click('#mCl');await drag(2.02,3.01,6.5,0.3);
+ const cxl=await p.evaluate(()=>ST.draft.xl);
+ ok('CH5 선: 공 가운데에서 · 지금 색',cxl.length===1&&cxl[0].a.x===2&&cxl[0].a.y===3&&cxl[0].c==='#ff4a3d',cxl);
+ /* 🅰 글씨 */
+ await p.click('#mCt');await click(1,0.8);await wait(80);
+ await p.fill('#mIn','얇게 · 오른쪽 회전');await p.press('#mIn','Enter');await wait(80);
+ ok('CH6 글씨 넣기',await p.evaluate(()=>ST.draft.items.some(i=>i.t==='text'&&i.s==='얇게 · 오른쪽 회전')&&[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='얇게 · 오른쪽 회전')));
+ await click(1.3,0.75);await wait(80);
+ ok('CH7 글씨를 누르면 고치기 창',/글씨 고치기/.test(await p.textContent('#mask'))&&(await p.inputValue('#mIn'))==='얇게 · 오른쪽 회전');
+ await p.fill('#mIn','얇게');await p.click('.modal .btns .primary');await wait(80);
+ ok('CH8 고치기',await p.evaluate(()=>ST.draft.items.filter(i=>i.t==='text').map(i=>i.s).join())==='얇게');
+ /* ✋ 옮기기: 글씨 끌기 */
+ await p.click('#mBall');await drag(1.1,0.75,2.1,1.75);
+ ok('CH9 옮기기로 글씨를 끌어 옮김',await p.evaluate(()=>{const t=ST.draft.items.find(i=>i.t==='text');return Math.abs(t.p.x-2)<0.06&&Math.abs(t.p.y-1.8)<0.06;}),await p.evaluate(()=>ST.draft.items.find(i=>i.t==='text').p));
+ /* 🧽 지우개 — 첫 획만 */
+ const n0=await p.evaluate(()=>ST.draft.items.length+ST.draft.xl.length);
+ await p.click('#mCe');await drag(3.5,0.9,3.5,1.6);
+ ok('CH10 지우개: 문지른 첫 획만 지움',await p.evaluate(n=>ST.draft.items.length+ST.draft.xl.length===n-1&&!ST.draft.items.some(i=>i.t==='pen'&&i.c==='#ffffff'),n0));
+ await p.click('#bUndo');await wait(60);
+ ok('CH11 되돌리기로 살아남',(await p.evaluate(()=>ST.draft.items.length+ST.draft.xl.length))===n0);
+ /* ⚪ 공 놓기/빼기 */
+ await p.click('#cballs [data-cb="y"]');await wait(60);
+ ok('CH12 노란 공 빼기 → 공 3개 · 버튼에 (빼 둠)',(await p.evaluate(()=>liveBalls().join()))==='w,r,r2'&&/빼 둠/.test(await p.textContent('#cballs [data-cb="y"]')));
+ await p.click('#cballs [data-cb="y"]');await wait(60);
+ ok('CH13 다시 놓기',(await p.evaluate(()=>liveBalls().join()))==='w,y,r,r2');
+ await p.keyboard.press('Enter');await wait(60);
+ ok('CH14 Enter 눌러도 아무 일 없음(굴리지 않음)',await p.evaluate(()=>SIMV===null));
+ await wait(900);
+ ok('CH15 자동 저장(판에 그림이 저장됨)',await p.evaluate(()=>{const b=window.__T.bb_boards.find(x=>x.id===CUR);return b&&b.draft.items.length>=3&&b.draft.xl.length===1;}));
+ /* 📸 보관하기 → 🖼 앨범 */
+ const nCH=await p.evaluate(()=>window.__T.bb_attempts.length);
+ await p.click('#bCSave');await wait(100);
+ await p.fill('#mIn2','길게 빠짐');await p.click('.modal .btns .primary');await wait(200);
+ const sv=await p.evaluate(()=>window.__T.bb_attempts[window.__T.bb_attempts.length-1]);
+ ok('CH16 보관: 칠판 그림 한 장(제목·메모·공·그림)',(await p.evaluate(()=>window.__T.bb_attempts.length))===nCH+1&&sv.kind==='chalk'&&sv.memo==='길게 빠짐'&&sv.sim.items.length>=3&&sv.sim.xl.length===1&&sv.sim.title,sv&&{k:sv.kind,m:sv.memo});
+ await p.click('#bClear');await wait(80);await p.click('.modal .btns .danger');await wait(80);
+ ok('CH17 전부 지우기(공은 그대로)',await p.evaluate(()=>ST.draft.items.length===0&&ST.draft.xl.length===0&&liveBalls().length===4));
+ await p.click('#bAlbum');await wait(200);
+ ok('CH18 앨범: 그림 한 장 · 작은 그림 · 메모',(await p.$$('#mask .acard')).length===1&&!!(await p.$('#mask .acard svg.mini'))&&/길게 빠짐/.test(await p.textContent('#mask')));
+ await p.click('#mask [data-load="0"]');await wait(150);
+ ok('CH19 불러와 이어 그리기 → 그림이 돌아옴',await p.evaluate(()=>ST.draft.items.length>=3&&ST.draft.xl.length===1));
+ /* 기록 화면엔 칠판 보관이 섞이지 않는다 */
+ await p.click('#bLog');await wait(200);await p.click('#vAtt');await wait(250);
+ ok('CH20 시도 기록에 칠판 보관 없음',await p.evaluate(()=>[...document.querySelectorAll('#logBody tr.click')].length===ATTS.filter(a=>a.kind!=='chalk').length&&ATTS.some(a=>a.kind==='chalk')));
+ await p.click('#bBack');await wait(100);
+ await p.click('#bAlbum');await wait(200);await p.click('#mask [data-del="0"]');await wait(150);
+ ok('CH21 앨범에서 지우기 → 휴지통',(await p.$$('#mask .acard')).length===0&&await p.evaluate(()=>window.__T.bb_attempts.some(a=>a.kind==='chalk'&&a.deleted_at)));
+ await p.click('#mask .mx');await wait(60);
+
  /* ── K) 한 화면 · 실버 UX 치수 ──
     🔒 v1.1: 화면 전체(2560×1440)로 쟀더니 통과했지만, 실제 브라우저 창은 탭·주소창을 빼면 ~1300 이라
        로한 화면에서 오른쪽 패널에 스크롤이 생겼다. → **실제 브라우저 창 크기**로 잰다.
@@ -924,7 +994,7 @@ function init({session,users}){
  let m;
  for(const [W,H,font,btnH] of [[2560,1300,23,56],[1920,950,15,38],[1536,730,15,38]]){
   await p.setViewportSize({width:W,height:H});await wait(200);
-  for(const md of ['ball','draw','edit','sep:ball','sep:pobj','sep:pcue','cush:ball','cush:cpt','bank:cpt','bank:xline','bank:judged']){
+  for(const md of ['ball','draw','edit','sep:ball','sep:pobj','sep:pcue','cush:ball','cush:cpt','bank:cpt','bank:xline','bank:judged','chalk:cpen','chalk:ball']){
    /* 원·투쿠션은 가장 칸이 많은 '1적구 뒤 쿠션'으로 잰다 */
    await p.evaluate(m=>{const k=m.includes(':')?m.split(':')[0]:'free';const b=BOARDS.find(x=>x.kind===k&&(m!=='bank:xline'||x.draft.bstyle==='x'));if(b.id!==CUR)switchBoard(b.id);if(k==='cush')ST.draft.ctype='after';
      /* 🎯 판정 뒤(정답 줄이 떠 있을 때)도 잰다 */
