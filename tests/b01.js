@@ -908,6 +908,22 @@ function init({session,users}){
  cs=await solOf();
  ok('QC13 🎲 새 배치도 구석 길 답',cs.some(r=>{const k=r.key.split('|')[0].split('>');return k.length===2&&((k[0]==='T'||k[0]==='B')!==(k[1]==='T'||k[1]==='B'));}),cs);
 
+ /* ── AN) 📐 각도 보기 (v3.7) — 아버지: 빨간 공① · 첫 쿠션 · 둘째 쿠션의 각도 ──
+    위 쿠션 공 중심선의 V=(4,BR) 에서 A=(2,BR+2) 로 들어오고 B=(7,BR+3) 로 나감 → 벽과 45° · 45° · 사이 90°
+    빨간 공 (2,BR+2) 에서 V 로 출발 → 쿠션에 수직인 기준선과 45° */
+ await p.evaluate(()=>{const b=BOARDS.find(x=>x.kind==='bank'&&x.draft.bstyle==='x');switchBoard(b.id);clearSim();
+   ST.balls.w={x:6,y:3.6};ST.balls.r={x:2,y:BR+2};ST.draft.reds=['r'];ST.draft.cpts=[];
+   ST.draft.xl=[{a:{x:6,y:3.6},b:{x:2,y:BR+2}},{a:{x:2,y:BR+2},b:{x:4,y:BR}},{a:{x:4,y:BR},b:{x:7,y:BR+3}}];if(!ANG){ANG=true;}setMode('xline');renderAll();});
+ const an=await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].map(t=>t.textContent).filter(s=>/°$/.test(s)));
+ ok('AN1 쿠션 지점: 벽과 45° · 45° · 사이 90° · 빨간 공에서 기준선과 45° (끝 공엔 없음)',an.filter(s=>s==='45°').length===3&&an.filter(s=>s==='90°').length===1&&an.length===4,an);
+ ok('AN2 공에서 기준선(점선) · 이어진 곳엔 X 표시 없음',await p.evaluate(()=>[...document.querySelectorAll('#gDyn line')].some(l=>l.getAttribute('stroke-dasharray')==='6 5')&&xIsects().length===0));
+ ok('AN3 이어 긋기: 선 끝에 자석',await p.evaluate(()=>{const q=snapX({x:4.03,y:BR+0.02});return q.k==='end'||q.k==='x'||(Math.abs(q.x-4)<1e-3&&Math.abs(q.y-BR)<1e-3);}));
+ await p.click('#bAng');await wait(60);
+ ok('AN4 [📐 각도] 끄면 숫자 없음 · 기억',await p.evaluate(()=>![...document.querySelectorAll('#gDyn text')].some(t=>/°$/.test(t.textContent))&&localStorage.getItem('bb.angles')==='0'));
+ await p.click('#bAng');await wait(60);
+ ok('AN5 다시 켬',await p.evaluate(()=>[...document.querySelectorAll('#gDyn text')].some(t=>t.textContent==='90°')));
+ ok('AN6 말풍선 글자가 칸 안',!(await fits()).length,await fits());
+ await p.evaluate(()=>{ST.draft.xl=[];renderAll();});
  /* ── CH) 🧑‍🏫 당구 칠판 (v3.4) — 공·선·점·펜·글씨·지우개 · 자동 저장 · 📸 보관 · 🖼 앨범 ── */
  await p.click('#bNew');await p.click('[data-kind="chalk"]');
  ok('CH0 이름도 칠판',/^칠판 \d+$/.test(await p.inputValue('#mIn')),await p.inputValue('#mIn'));

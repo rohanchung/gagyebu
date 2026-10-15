@@ -10,7 +10,7 @@
  *      물리 엔진 쿠션 모델 교체(physics.js v3.3)
  */
 'use strict';
-var APP_VER='3.6.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.7.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 /* 🔒 v3.5.1 로그인 자리를 로한북과 나눈다 — 같은 주소(rohanchung.github.io)라 같은 브라우저에선 로그인 한 칸을 같이 써서,
@@ -1268,6 +1268,7 @@ function xIsects(){
     var den=(b.x-a.x)*(d.y-c.y)-(b.y-a.y)*(d.x-c.x);if(Math.abs(den)<1e-9)continue;
     var t=((c.x-a.x)*(d.y-c.y)-(c.y-a.y)*(d.x-c.x))/den,u=((c.x-a.x)*(b.y-a.y)-(c.y-a.y)*(b.x-a.x))/den;
     if(t<-0.01||t>1.01||u<-0.01||u>1.01)continue;
+    if((t<0.02||t>0.98)&&(u<0.02||u>0.98))continue;   /* 📐 선 끝끼리 이어진 곳은 X 가 아니다(이어 긋기) */
     out.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,i:i,j:j});}
   return out;
 }
@@ -1276,6 +1277,8 @@ function xTargets(){
   var out=[];
   liveBalls().forEach(function(n){var b=ST.balls[n];out.push({x:b.x,y:b.y,k:'ball'},{x:b.x,y:BR,k:'foot'},{x:b.x,y:H-BR,k:'foot'},{x:BR,y:b.y,k:'foot'},{x:W-BR,y:b.y,k:'foot'});});
   xIsects().forEach(function(q){out.push({x:q.x,y:q.y,k:'x'});});
+  /* 📐 이미 그은 선의 끝 — 이어 긋기 */
+  (ST.draft.xl||[]).forEach(function(l){out.push({x:l.a.x,y:l.a.y,k:'end'},{x:l.b.x,y:l.b.y,k:'end'});});
   if(ST.draft.bstyle==='corner'){var w0=ST.balls.w;
     bankReds().forEach(function(n){var r0=ST.balls[n];out.push({x:(w0.x+r0.x)/2,y:(w0.y+r0.y)/2,k:'mid'});});
     [['T','L'],['T','R'],['B','L'],['B','R']].forEach(function(p){var q=cornerOf(p[0],p[1]);out.push({x:q.x,y:q.y,k:'corner'});});}
@@ -1536,6 +1539,51 @@ function tblUp(e){
   }
   onUp(e);
 }
+/* ═════════ 📐 각도 보기 (v3.7) ═════════
+   아버지(펜으로 빨간 점을 찍어 보내신 그림): 이어 그린 선의 꺾이는 곳마다 각도
+   · 쿠션 지점(선 두 개가 만나는 곳): ① 들어오는 선 ↔ 쿠션 벽 · ② 두 선 사이(안쪽) · ③ 나가는 선 ↔ 쿠션 벽
+   · 공 가운데에서 쿠션으로 가는 선: 공을 지나는 기준선(그 쿠션에 수직 = 다른 쿠션과 나란한 선)과의 각도 — 기준선도 점선으로 그린다
+   선 끝은 이미 그은 선의 끝에도 붙어서(자석) 이어 긋기 쉽다. [📐 각도]로 켜고 끈다(기억) */
+var ANG=pref('angles')!=='0';
+function samePt(a,b){return Math.abs(a.x-b.x)<2e-3&&Math.abs(a.y-b.y)<2e-3;}
+function railDir(r,toward,V){/* 쿠션 벽 방향(단위) — toward 쪽으로 */
+  if(r==='T'||r==='B')return {x:toward.x>=V.x?1:-1,y:0};return {x:0,y:toward.y>=V.y?1:-1};}
+function angDeg(u,v){var c=(u.x*v.x+u.y*v.y)/(Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y));return Math.acos(clamp(c,-1,1))*180/Math.PI;}
+function unit(a,b){var dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1;return {x:dx/L,y:dy/L};}
+/* 호 + 숫자 — V 에서 u→v 사이, 반지름 rr(화면 px) */
+function angArc(V,u,v,deg,k,rr,col){
+  var r=rr*k/S,a={x:V.x+u.x*r,y:V.y+u.y*r},b={x:V.x+v.x*r,y:V.y+v.y*r},cr=u.x*v.y-u.y*v.x;
+  var bis={x:u.x+v.x,y:u.y+v.y},bl=Math.hypot(bis.x,bis.y);if(bl<1e-6)bis={x:-u.y,y:u.x};else{bis.x/=bl;bis.y/=bl;}
+  var lp={x:V.x+bis.x*(r+26*k/S),y:V.y+bis.y*(r+26*k/S)};
+  return '<path d="M'+a.x*S+','+a.y*S+' A'+r*S+','+r*S+' 0 0 '+(cr>0?1:0)+' '+b.x*S+','+b.y*S+'" fill="none" stroke="'+col+'" stroke-width="3" vector-effect="non-scaling-stroke" pointer-events="none"/>'+
+    bubble(lp.x*S,lp.y*S+11*k*(MOB?0.72:1),Math.round(deg)+'°',col,k*0.85,'up');
+}
+function angleSvg(k){
+  if(!ANG)return '';
+  var L=(ST.draft.xl||[]),h=[],col='#c0262d',done=[];
+  var balls=liveBalls().map(function(n){return ST.balls[n];});
+  /* 끝점마다 붙은 선들 */
+  var ends=[];L.forEach(function(l,i){ends.push({p:l.a,o:l.b,i:i},{p:l.b,o:l.a,i:i});});
+  ends.forEach(function(e){
+    if(done.some(function(q){return samePt(q,e.p);}))return;
+    var at=ends.filter(function(f){return samePt(f.p,e.p);}),r=onCLine(e.p);
+    if(r&&at.length>=2){done.push(e.p);
+      /* 쿠션 지점: 처음 두 선 */
+      var V=e.p,A=at[0].o,B=at[1].o,ua=unit(V,A),ub=unit(V,B),ra=railDir(r,A,V),rb=railDir(r,B,V);
+      var da=angDeg(ua,ra),db=angDeg(ub,rb),dm=angDeg(ua,ub);
+      h.push(angArc(V,ra,ua,da,k,40,col),angArc(V,ub,rb,db,k,40,col),angArc(V,ua,ub,dm,k,26,'#7a1a1f'));
+    }
+  });
+  /* 공 가운데 → 쿠션: 기준선(쿠션에 수직)과의 각도 */
+  /* 공에서 '출발'하는 선만(아버지 그림: 빨간 공① → 첫 쿠션). 공에서 끝나는 마지막 선엔 안 붙인다 */
+  L.forEach(function(l){[[l.a,l.b]].forEach(function(pq){
+    var P=pq[0],Q=pq[1],r=onCLine(Q);if(!r||!balls.some(function(b){return samePt(b,P);}))return;
+    var n=r==='T'?{x:0,y:-1}:r==='B'?{x:0,y:1}:r==='L'?{x:-1,y:0}:{x:1,y:0},u=unit(P,Q),d=angDeg(n,u);
+    var far={x:P.x+n.x*0.9,y:P.y+n.y*0.9},bk={x:P.x-n.x*0.9,y:P.y-n.y*0.9};
+    h.push('<line x1="'+bk.x*S+'" y1="'+bk.y*S+'" x2="'+far.x*S+'" y2="'+far.y*S+'" stroke="#111" stroke-width="2.5" stroke-dasharray="6 5" opacity=".75" vector-effect="non-scaling-stroke" pointer-events="none"/>');
+    h.push(angArc(P,n,u,d,k,34,col));});});
+  return h.join('');
+}
 /* ═════════ 그리기 ═════════ */
 function staticTable(){
   var h=[];
@@ -1690,6 +1738,7 @@ function renderTable(){
   ids.forEach(function(n){h.push(ballSvg(n,pos[n],k,MODE==='ball'&&!SIMV,false));});
   if(K==='bank')h.push(bankTopSvg(k));
   if(K==='chalk')h.push(chalkSvg(k));
+  if((K==='bank'&&ST.draft.bstyle!=='pick')||K==='chalk')h.push(angleSvg(k));
   /* 쿠션 지점 숫자 */
   if(K==='free'&&!SIMV){var col2=LAYER==='predict'?'#1650d8':'#d0231a';d[LAYER].forEach(function(p){var v=railVal(p);if(v!==null)h.push(bubble(p.x*S,p.y*S,v,col2,k));});}
   /* 미리보기 */
@@ -1852,8 +1901,9 @@ function renderTools(){
   $('mXl').classList.toggle('hide',!(K==='bank'&&ST.draft.bstyle!=='pick'));
   $('bNewQ').innerHTML='<span class="ic">🎲</span> '+(K==='bank'?'새 배치':'새 문제');
   if(K==='bank'){var nr=bankReds().length;$('bRedAdd').disabled=nr>=2;$('bRedDel').disabled=nr<=1;}
-  $('ncush').classList.toggle('hide',K==='bank'&&ST.draft.bstyle==='corner');   /* ↗ 평행법 판은 늘 투쿠션 */
-  $('mXl').innerHTML='<span class="ic">'+(K==='bank'&&ST.draft.bstyle==='corner'?'↗':'✖')+'</span> '+(K==='bank'&&ST.draft.bstyle==='corner'?'선 긋기':'X 선 긋기');
+  $('ncush').classList.toggle('hide',K==='bank'&&ST.draft.bstyle==='corner');
+  $('bAng').classList.toggle('hide',K==='bank'&&ST.draft.bstyle==='pick');$('bAng').classList.toggle('on',ANG);   /* ↗ 평행법 판은 늘 투쿠션 */
+  $('mXl').innerHTML='<span class="ic">'+(K==='bank'&&ST.draft.bstyle==='corner'?'↗':'✖')+'</span> '+'선 긋기';
   var on=!!(SET&&SET.board===CUR);$('setChip').classList.toggle('hide',!on);$('bSet10').classList.toggle('hide',on);
   if(on)$('setNo').textContent=SET.i+' / '+SET.n;
   $('bNextT').classList.toggle('hide',on);   /* 세트 중엔 [다음 문제 ▶] 하나만 — [다음 두께]와 헷갈린다 */
@@ -1868,7 +1918,7 @@ function renderTools(){
   $('tDraw').classList.toggle('hide',MODE==='ball'&&K!=='chalk');   /* 🧑‍🏫 칠판은 [전부 지우기]가 늘 보인다 */
   $('bDone').classList.toggle('hide',MODE!=='draw');
   /* 🎯 판은 도구가 많아 글자를 줄인다(1536 노트북에서 도구줄이 두 줄로 접혔다) */
-  $('mCpt').innerHTML='<span class="ic">📍</span> '+(K==='bank'?'지점 찍기':'쿠션 지점 찍기');
+  $('mCpt').innerHTML='<span class="ic">📍</span> '+(K==='bank'?'지점':'쿠션 지점 찍기');   /* 🎯 판은 도구가 많다(📐 각도까지) — 1536 노트북에서 한 줄 */
   $('bClear').innerHTML='<span class="ic">🧹</span> '+(K==='free'?'선 지우기':K==='cush'?'지점 지우기':K==='bank'?'지우기':K==='chalk'?'전부 지우기':'예측 지우기');
   $('bClear').disabled=K==='sep'?!(ST.draft.predObj||ST.draft.predCue):K==='cush'?!ST.draft.cpts.length:K==='bank'?!(ST.draft.cpts.length||(ST.draft.xl||[]).length):K==='chalk'?!((ST.draft.items||[]).length||(ST.draft.xl||[]).length):!ST.draft[LAYER].length;
   $('bUndo').disabled=!UNDO.length;$('bRedo').disabled=!REDO.length;
@@ -2674,7 +2724,8 @@ function bind(){
   var s=svg();
   s.addEventListener('pointerdown',tblDown);s.addEventListener('pointermove',tblMove);
   s.addEventListener('pointerup',tblUp);s.addEventListener('pointercancel',tblUp);
-  $('bZoom').addEventListener('click',zoomReset);s.addEventListener('pointerleave',onLeave);
+  $('bZoom').addEventListener('click',zoomReset);
+  $('bAng').addEventListener('click',function(){ANG=!ANG;pref('angles',ANG?'1':'0');renderAll();toast(ANG?'📐 각도를 보여 줍니다':'📐 각도를 숨깁니다');});s.addEventListener('pointerleave',onLeave);
   s.addEventListener('contextmenu',function(e){e.preventDefault();});
   /* 당점 */
   $('tipGuide').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;GUIDE=b.dataset.g;pref('guide',GUIDE);renderSide();});
