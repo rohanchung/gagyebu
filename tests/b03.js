@@ -82,7 +82,7 @@ const FIX={bb_events:[],
 
   /* ── 무작위로 마구 눌러 보기 ── */
   const N=+process.env.STEPS||350;let bad=null;
-  const vps=[[2560,1300],[1920,950],[1536,730]];
+  const vps=[[2560,1300],[1920,950],[1536,730],[384,824],[824,384]];   /* v3.5 폰 세로·가로 */
   for(let i=0;i<N&&!bad;i++){
     const r=R();let act;
     const modal=await p.isVisible('#mask');

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" data-ver="3.4.0">
+<html lang="ko" data-ver="3.5.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- 🔒 버전 꼬리표(?v=) — 없으면 GitHub Pages 캐시 때문에 새 index.html 에 옛 app.js 가 붙어 돈다
      (실제로 "불러오는 중" 화면이 안 꺼지고 그 아래 앱이 떴다). 세 곳(html data-ver · 두 src · APP_VER/PH.VERSION)을 같이 올린다 — b01 이 확인 -->
-<script src="physics.js?v=3.4.0"></script>
+<script src="physics.js?v=3.5.0"></script>
 <!--
   🎱 아버지 당구 연습장 — 로한북과 완전히 별개인 앱. (2026-09-26 v1 · v2 4구 훈련)
   🔒 v2: 3구가 아니라 **4구**다(흰·노랑·빨강 ①②). 중대 규격. 물리 시뮬레이션은 physics.js
@@ -249,6 +249,68 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl,body.k-chalk .tools .lbl{display
   .side{overflow:visible}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* ═════════ 📱 반응형 (v3.5) — html.mob = 폰 · html.port = 폰 세로(당구대를 돌린다) ═════════
+   🔒 PC 화면은 그대로. 폰에서만: 머리줄 아이콘 · 도구줄은 아래 한 줄(옆으로 밀기) · 오른쪽 칸은 [⚙ 더보기] 서랍 */
+.mobonly{display:none}
+html.mob{font-size:16px}
+html.mob .mobonly{display:inline-flex}
+html.mob #app{height:100vh;height:100dvh}
+html.mob button{min-height:2.85rem}
+html.mob .top{padding:.25rem .4rem;gap:.3rem;flex-wrap:nowrap}
+html.mob .brand,html.mob #stepGrp{display:none}
+html.mob .top>button,html.mob .tabzone>button{font-size:0;padding:.2rem .55rem;min-width:2.85rem}
+html.mob .top>button .ic,html.mob .tabzone>button .ic{font-size:1.4rem}
+html.mob .tabzone{gap:.3rem}
+html.mob #tabs button{font-size:.95rem;padding:.2rem .5rem}
+html.mob .bbar{padding:.25rem .4rem;gap:.3rem}
+html.mob #bRename,html.mob #bCopy,html.mob #bDel,html.mob .seq{display:none}
+html.mob .bname{font-size:1rem;max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:0}
+html.mob .bbar>button{padding:.2rem .55rem}
+html.mob .hint{order:9;flex:1 1 100%;margin-left:0;min-width:0;font-size:.9rem;min-height:2.2rem;padding:.15rem .5rem}
+html.mob .save{order:8;font-size:.85rem}
+html.mob .work{display:flex;flex-direction:column;padding:0 .3rem .3rem;gap:0;min-height:0}
+html.mob .stage{flex:1;padding:.2rem;min-height:0;border-width:0;background:transparent}
+html.mob .tblwrap{order:1;margin-top:0;min-height:0}
+html.mob .routebar{order:2}
+html.mob .stage .tools{order:3;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:.3rem 0 .1rem;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+html.mob .stage .tools>*{flex:none}
+html.mob .stage .tools .sp{display:none}
+html.mob .tools button{padding:.2rem .6rem!important}
+html.mob #bSimM{background:#6a2bb0;border-color:#4a1a7a;color:#fff}
+/* 서랍: 아래에서 올라오는 오른쪽 칸 */
+html.mob .side{display:none;position:fixed;left:0;right:0;bottom:0;max-height:70vh;max-height:70dvh;overflow:auto;z-index:45;background:var(--bg);
+  padding:.5rem .6rem .8rem;border-top:3px solid var(--line);border-radius:1rem 1rem 0 0;box-shadow:0 -.5rem 1.5rem rgba(0,0,0,.25)}
+html.mob.sheet .side{display:flex}
+html.mob #bSheetX{width:100%;justify-content:center;flex:none;font-size:1.05rem}
+html.mob .bankbox{flex:none}
+html.mob .bankbox .btxt{max-height:none}
+/* 기록 · 모달 */
+html.mob #logv{padding:0 .4rem .6rem}
+html.mob .lhead{gap:.35rem}
+html.mob .lhead .grp{margin-left:0!important;flex-wrap:wrap}
+html.mob .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+html.mob .stat .v{font-size:1.35rem}
+html.mob table.t{display:block;overflow-x:auto}
+html.mob .sec2{grid-template-columns:1fr}
+html.mob .modal{padding:1rem .9rem;width:96vw}
+html.mob .modal .btns button{min-width:0;flex:1 1 auto}
+html.mob .kindpick{grid-template-columns:1fr}
+html.mob .kindpick button{min-height:0;padding:.5rem}
+html.mob .album{grid-template-columns:1fr}
+/* 📱 폰 가로: 높이가 모자라 도구줄을 오른쪽 세로 줄로 · 위 두 줄을 얇게 */
+html.mob:not(.port) .top{padding:.15rem .4rem}
+html.mob:not(.port) .top button,html.mob:not(.port) .bbar button{min-height:2.5rem}
+html.mob:not(.port) #tabs button{min-height:2.5rem}
+html.mob:not(.port) .bbar{flex-wrap:nowrap;padding:.15rem .4rem}
+html.mob:not(.port) .bname{display:none}
+html.mob:not(.port) .hint{order:0;flex:1 1 auto;min-height:2.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;line-height:2.2rem}
+html.mob:not(.port) .stage{flex-direction:row;gap:.3rem;position:relative}
+html.mob:not(.port) .tblwrap{flex:1;order:1}
+html.mob:not(.port) .stage .tools{order:2;flex-direction:column;flex-wrap:nowrap;overflow-x:hidden;overflow-y:auto;padding:0;width:8.2rem;align-items:stretch}
+html.mob:not(.port) .stage .tools .grp{flex-direction:column;align-items:stretch}
+html.mob:not(.port) .stage .tools .div{display:none}
+html.mob:not(.port) .stage .tools button{justify-content:flex-start;min-height:2.6rem;font-size:.9rem}
+html.mob:not(.port) .routebar{order:3;position:absolute;left:.4rem;right:9rem;bottom:.4rem;z-index:5}
 </style>
 </head>
 <body>
@@ -296,6 +358,7 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl,body.k-chalk .tools .lbl{display
   <div id="workv">
     <div class="bbar">
       <span class="bname" id="bName"></span>
+      <button id="bBoardMenu" class="mobonly" title="이름 바꾸기 · 복제 · 지우기"><span class="ic">⋯</span> 판</button>
       <button id="bRename"><span class="ic">✏️</span> 이름 바꾸기</button>
       <button id="bCopy"><span class="ic">📄</span> 복제</button>
       <button id="bDel" class="danger"><span class="ic">🗑</span> 이 판 지우기</button>
@@ -352,6 +415,9 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl,body.k-chalk .tools .lbl{display
             <button id="bClear" class="danger"><span class="ic">🧹</span> 선 지우기</button>
           </span>
           <button id="bCmp" data-k="cush bank"><span class="ic">💨</span> 속도 비교</button>
+          <!-- 📱 폰: 판정(▶)과 오른쪽 칸(서랍)을 도구줄에서 -->
+          <button id="bSimM" class="mobonly" data-k="free sep cush bank"><span class="ic">▶</span> <span id="bSimMT">판정</span></button>
+          <button id="bSheet" class="mobonly"><span class="ic">⚙</span> 더보기</button>
           <span class="sp"></span>
           <span class="grp">
             <button id="bUndo"><span class="ic">↶</span> 되돌리기</button>
@@ -366,12 +432,14 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl,body.k-chalk .tools .lbl{display
             <marker id="arB" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1650d8"/></marker>
             <marker id="arR" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d0231a"/></marker>
           </defs>
-          <g id="gStatic"></g><g id="gDyn"></g>
+          <!-- 📱 세로 화면이면 이 묶음만 90° 돈다(좌표는 그대로) -->
+          <g id="gRot"><g id="gStatic"></g><g id="gDyn"></g></g>
         </svg>
         </div>
       </section>
 
       <aside class="side">
+        <button id="bSheetX" class="mobonly" onclick="sheet(false)"><span class="ic">✕</span> 닫기</button>
         <!-- 📐 분리각 훈련: 두께를 버튼으로 고른다(조준은 두께에서 계산) -->
         <section class="box" data-k="sep cush" id="thkBox">
           <h3>📏 두께 <small>— 1적구(빨간 공 ①)의 어디를</small></h3>
@@ -417,7 +485,7 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl,body.k-chalk .tools .lbl{display
           </div>
           <div class="row" data-k="free cush" style="margin-top:.3rem"><button id="bScan" data-k="free">🎯 맞는 범위</button><button id="bAnswer" data-k="cush">💡 답 보기</button><button id="bRoutes" data-k="cush">🔍 모든 길</button></div>
         </section>
-        <!-- 🎯 v3.4.0 정답 칸: 판정 뒤 정답 범위 · X법 · [▶ 굴려 보기] [🪞 거울 그림] [🎲 새 배치] — 오른쪽 빈 아래 칸 -->
+        <!-- 🎯 v3.5.0 정답 칸: 판정 뒤 정답 범위 · X법 · [▶ 굴려 보기] [🪞 거울 그림] [🎲 새 배치] — 오른쪽 빈 아래 칸 -->
         <section class="box bankbox hide" id="bankBar"></section>
         <div class="recrow">
           <button id="bRec" class="primary"><span class="ic">✅</span> 이 시도 기록하기</button>
@@ -450,7 +518,7 @@ body.k-cush .tools .lbl,body.k-bank .tools .lbl,body.k-chalk .tools .lbl{display
 <div id="mask" class="hide"></div>
 <div id="toast" class="hide"></div>
 
-<script src="app.js?v=3.4.0"></script>
+<script src="app.js?v=3.5.0"></script>
 
 </body>
 </html>

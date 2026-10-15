@@ -10,7 +10,7 @@
  *      물리 엔진 쿠션 모델 교체(physics.js v3.3)
  */
 'use strict';
-var APP_VER='3.4.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
+var APP_VER='3.5.0';   /* 🔒 index.html 의 data-ver · ?v= 와 같아야 한다 */
 var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
 var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
 var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
@@ -291,6 +291,12 @@ function deleteBoard(){
     });
   });
 }
+/* 📱 폰: 머리줄이 좁아 [이름 바꾸기 · 복제 · 지우기]를 한 창에 */
+function boardMenu(){
+  var b=curBoard();if(!b)return;
+  modal({title:'⋯ ‘'+b.name+'’',buttons:[{label:'<span class="ic">✏️</span> 이름 바꾸기',value:'ren'},{label:'<span class="ic">📄</span> 복제',value:'copy'},{label:'<span class="ic">🗑</span> 이 판 지우기',value:'del',cls:'danger'},{label:'닫기',value:null,cls:'primary'}]}).then(function(r){
+    if(r.value==='ren')renameBoard();else if(r.value==='copy')copyBoard();else if(r.value==='del')deleteBoard();});
+}
 function boardList(){
   modal({title:'📂 판 목록 ('+BOARDS.length+'개)',wide:false,
     html:'<div class="list">'+BOARDS.map(function(b){
@@ -310,10 +316,29 @@ function restore(s){var o=JSON.parse(s);ST.balls=o.balls;ST.draft=o.draft;SEL=nu
 function undo(){if(!UNDO.length)return;REDO.push(snap());restore(UNDO.pop());saveSoon();renderAll();}
 function redo(){if(!REDO.length)return;UNDO.push(snap());restore(REDO.pop());saveSoon();renderAll();}
 
+/* ═════════ 📱 반응형 (v3.5) ═════════
+   폰 = 폭 900px 미만 또는 높이 520px 미만 → html.mob : 도구줄은 아래 한 줄(옆으로 밀기) · 오른쪽 칸은 [⚙ 더보기] 서랍 · 머리줄은 아이콘만
+   폰 세로 → html.port : 당구대를 시계 방향으로 90° 돌려 세로로 크게(좌표는 그대로 — 그림 묶음 #gRot 만 돈다)
+   🔒 글자는 돌리지 않는다 — 당구대 위 글자마다 TR(x,y)로 제자리에서 -90° 되돌려 늘 바로 선다 */
+var MOB=false,PORT=false;
+function layoutMode(){
+  var w=window.innerWidth,h=window.innerHeight,m=w<900||h<520,pt=m&&h>w,ch=m!==MOB||pt!==PORT,de=document.documentElement;
+  MOB=m;PORT=pt;de.classList.toggle('mob',m);de.classList.toggle('port',pt);if(!m)de.classList.remove('sheet');
+  if(ch){$('tbl').setAttribute('viewBox',pt?'-94 -94 588 988':'-94 -94 988 588');
+    if(pt)$('gRot').setAttribute('transform','translate(400,0) rotate(90)');else $('gRot').removeAttribute('transform');
+    $('gStatic').innerHTML='';}
+  return ch;
+}
+function TR(x,y){return PORT?' transform="rotate(-90 '+(+x).toFixed(1)+' '+(+y).toFixed(1)+')"':'';}
+function sheet(on){document.documentElement.classList.toggle('sheet',on==null?!document.documentElement.classList.contains('sheet'):!!on);renderSheetBtn();}
+function renderSheetBtn(){var b=$('bSheet');if(!b)return;var open=document.documentElement.classList.contains('sheet'),ans=!!(SIMV&&SIMV.bank&&SIMV.bank.ans);
+  b.innerHTML='<span class="ic">'+(open?'✕':ans?'💡':'⚙')+'</span> '+(open?'닫기':ans?'정답·더보기':'더보기');b.classList.toggle('primary',ans&&!open);}
 /* ═════════ 좌표 ═════════ */
 function svg(){return $('tbl');}
-function pxK(){var m=svg().getScreenCTM();return m&&m.a?1/m.a:1;}         /* 화면 1px = 몇 단위 */
-function evPt(e){var s=svg(),p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;var m=s.getScreenCTM();if(!m)return {x:0,y:0};p=p.matrixTransform(m.inverse());return {x:p.x/S,y:p.y/S};}
+/* 🔒 v3.5 좌표는 돌아가는 묶음(#gRot) 기준 — 세로 화면에서도 당구대 좌표 그대로 */
+function gRot(){return $('gRot');}
+function pxK(){var m=gRot().getScreenCTM();var s=m?Math.hypot(m.a,m.b):0;return s?1/s:1;}         /* 화면 1px = 몇 단위 */
+function evPt(e){var s=svg(),p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;var m=gRot().getScreenCTM();if(!m)return {x:0,y:0};p=p.matrixTransform(m.inverse());return {x:p.x/S,y:p.y/S};}
 function ballAt(k){return ST.balls[k];}
 function resolve(p){
   if(p.ref==='cue')return ballAt(ST.balls.cue);
@@ -1146,7 +1171,7 @@ function bankRecord(bid,snap,dr,I,pick,th,ans,res,sol){
 }
 /* 판정 줄 — 정답 · X법 · [▶ 굴려 보기] [🪞 거울 그림] [🎲 새 배치] */
 function renderBankBar(){
-  var el=$('bankBar'),B=SIMV&&SIMV.bank;
+  var el=$('bankBar'),B=SIMV&&SIMV.bank;renderSheetBtn();
   el.classList.toggle('hide',!B);if(!B){el.innerHTML='';return;}
   /* 🔒 v3.3.1 로한: 당구대 위 줄에 띄우면 판이 작아진다 → 오른쪽 패널 빈 아래 칸에 */
   var P=B.ans?(B.ans.parts||[B.ans.text]):null;
@@ -1306,14 +1331,17 @@ function chalkItemsSvg(items,xl,k,mini){
       if(it.pts.length===1)pts+=' '+q(it.pts[0][0]+0.001)+','+q(it.pts[0][1]);
       h.push('<polyline points="'+pts+'" fill="none" stroke="#0b2e1a" stroke-width="'+(w+3)+'" opacity=".45" stroke-linecap="round" stroke-linejoin="round"'+(mini?'':' vector-effect="non-scaling-stroke"')+' pointer-events="none"/>'+
         '<polyline points="'+pts+'" fill="none" stroke="'+it.c+'" stroke-width="'+w+'" stroke-linecap="round" stroke-linejoin="round"'+(mini?'':' vector-effect="non-scaling-stroke"')+' pointer-events="none"/>');}
-    else if(it.t==='dot')h.push('<circle cx="'+q(it.p.x)+'" cy="'+q(it.p.y)+'" r="'+(10*k)+'" fill="'+it.c+'" stroke="#0b2e1a" stroke-width="'+(2.5*k)+'" pointer-events="none"/>');
-    else if(it.t==='text'){var fs=26*k;
-      h.push('<text x="'+q(it.p.x)+'" y="'+q(it.p.y)+'" font-size="'+fs+'" font-weight="800" fill="'+it.c+'" stroke="#0b2e1a" stroke-width="'+(5*k)+'" paint-order="stroke" pointer-events="none">'+esc(it.s)+'</text>');}
+    /* 🔒 점은 공보다 작게 — 폰에선 당구대가 작아 10px 점이 공처럼 보였다 */
+    else if(it.t==='dot')h.push('<circle cx="'+q(it.p.x)+'" cy="'+q(it.p.y)+'" r="'+Math.min(10*k,BR*S*0.55)+'" fill="'+it.c+'" stroke="#0b2e1a" stroke-width="'+(2.5*k)+'" pointer-events="none"/>');
+    else if(it.t==='text'){var fs=26*k*(MOB&&!mini?0.75:1);
+      h.push('<text'+(mini?'':TR(it.p.x*S,it.p.y*S))+' x="'+q(it.p.x)+'" y="'+q(it.p.y)+'" font-size="'+fs+'" font-weight="800" fill="'+it.c+'" stroke="#0b2e1a" stroke-width="'+(5*k)+'" paint-order="stroke" pointer-events="none">'+esc(it.s)+'</text>');}
   });
   return h.join('');
 }
 /* 글씨 칸(대략) — 지우개·옮기기용 */
-function textBox(it,k){var fs=26*k/S;return {x0:it.p.x,y0:it.p.y-fs,x1:it.p.x+textEm(it.s)*fs,y1:it.p.y+fs*0.25};}
+function textBox(it,k){var fs=26*k*(MOB?0.75:1)/S,w=textEm(it.s)*fs;
+  /* 세로 화면에선 글씨가 제자리에서 -90° 돌아 당구대 좌표로는 위쪽(y 작은 쪽)으로 뻗는다 */
+  return PORT?{x0:it.p.x-fs,y0:it.p.y-w,x1:it.p.x+fs*0.25,y1:it.p.y}:{x0:it.p.x,y0:it.p.y-fs,x1:it.p.x+w,y1:it.p.y+fs*0.25};}
 function segDist(p,a,b){var dx=b.x-a.x,dy=b.y-a.y,L=dx*dx+dy*dy,t=L?clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/L,0,1):0;return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));}
 /* 지우개: p 근처의 그림을 뺀다 → 지운 게 있으면 true */
 function chalkErase(p){
@@ -1446,7 +1474,7 @@ function staticTable(){
   for(i=0;i<=W;i++){h.push(dot(i*S,-36),dot(i*S,436));h.push(num(i*S,-58,i*10),num(i*S,480,i*10));}
   for(j=0;j<=H;j++){h.push(dot(-36,j*S),dot(836,j*S));h.push(num(-68,j*S+8,j*10),num(868,j*S+8,j*10));}
   function dot(x,y){return '<circle cx="'+x+'" cy="'+y+'" r="6" fill="#f3e6c8" stroke="#1a1a1a" stroke-width="2"/>';}
-  function num(x,y,t){return '<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="25" font-weight="800" fill="#f3e6c8" font-family="inherit">'+t+'</text>';}
+  function num(x,y,t){return '<text'+TR(x,y-8)+' x="'+x+'" y="'+y+'" text-anchor="middle" font-size="25" font-weight="800" fill="#f3e6c8" font-family="inherit">'+t+'</text>';}
   return h.join('');
 }
 function pathSvg(path,color,marker,faint){
@@ -1460,21 +1488,22 @@ function pathSvg(path,color,marker,faint){
 function textEm(t){var w=0;String(t).split("").forEach(function(ch){var c=ch.charCodeAt(0);
   w+=(c>=0xAC00&&c<=0xD7A3)||(c>=0x3130&&c<=0x318F)||(c>=0x2460&&c<=0x24FF)||(c>=0x2600)?1.05:ch===" "?0.32:/[0-9]/.test(ch)?0.62:/[A-Za-z]/.test(ch)?0.64:0.5;});return w;}
 function bubble(x,y,t,color,k,below){
-  var fs=22*k, w=(textEm(t)+1)*fs, hgt=fs*1.4;
+  var fs=22*k*(MOB?0.72:1), w=(textEm(t)+1)*fs, hgt=fs*1.4;   /* 📱 폰은 당구대가 작아 말풍선도 작게 */
   var bx=x-w/2, by=y-hgt-12*k;
   if(below===true||(below!=='up'&&y<=0.01))by=y+12*k;   /* 윗쿠션이면 아래로 · below='up' 이면 늘 위 */
-  return '<g pointer-events="none"><rect x="'+bx+'" y="'+by+'" width="'+w+'" height="'+hgt+'" rx="'+6*k+'" fill="#fff" stroke="'+color+'" stroke-width="'+3*k+'"/>'+
+  return '<g pointer-events="none"'+TR(x,y)+'><rect x="'+bx+'" y="'+by+'" width="'+w+'" height="'+hgt+'" rx="'+6*k+'" fill="#fff" stroke="'+color+'" stroke-width="'+3*k+'"/>'+
     '<text x="'+x+'" y="'+(by+hgt*0.74)+'" text-anchor="middle" font-size="'+fs+'" font-weight="800" fill="'+color+'">'+esc(t)+'</text></g>';
 }
 function tag(x,y,t,k){  /* 공 위 작은 글씨 */
-  return '<text x="'+x+'" y="'+y+'" text-anchor="middle" font-size="'+17*k+'" font-weight="800" fill="#fff" stroke="#11482a" stroke-width="'+4*k+'" paint-order="stroke" pointer-events="none">'+t+'</text>';
+  return '<text'+TR(x,y-6*k)+' x="'+x+'" y="'+y+'" text-anchor="middle" font-size="'+17*k*(MOB?0.8:1)+'" font-weight="800" fill="#fff" stroke="#11482a" stroke-width="'+4*k+'" paint-order="stroke" pointer-events="none">'+t+'</text>';
 }
 function ballSvg(n,b,k,big,ghost){
   var cx=b.x*S,cy=b.y*S,h='';
   if(ghost)return '<circle cx="'+cx+'" cy="'+cy+'" r="'+BR*S+'" fill="none" stroke="'+(n==='w'?'#fff':BCOL[n])+'" stroke-width="'+2.5*k+'" stroke-dasharray="'+5*k+' '+4*k+'" opacity=".8" pointer-events="none"/>';
   if(ST.balls.cue===n&&kind()!=='chalk')h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(BR*S+9*k)+'" fill="none" stroke="#fff" stroke-width="'+3*k+'" stroke-dasharray="'+6*k+' '+4*k+'"/>';
   h+='<circle cx="'+cx+'" cy="'+cy+'" r="'+BR*S+'" fill="'+BCOL[n]+'" stroke="#222" stroke-width="2"'+(big?' style="cursor:grab"':'')+'/>';
-  if(n==='r'||n==='r2')h+='<text x="'+cx+'" y="'+(cy+6*k)+'" text-anchor="middle" font-size="'+16*k+'" font-weight="900" fill="#fff" pointer-events="none">'+(n==='r'?'1':'2')+'</text>';
+  var nf=Math.min(16*k,BR*S*1.15);   /* 공 번호는 공 안에 들어가게 */
+  if(n==='r'||n==='r2')h+='<text'+TR(cx,cy)+' x="'+cx+'" y="'+(cy+nf*0.37)+'" text-anchor="middle" font-size="'+nf+'" font-weight="900" fill="#fff" pointer-events="none">'+(n==='r'?'1':'2')+'</text>';
   var lab=kind()==='chalk'?'':ST.balls.cue===n?'내 공':(kind()==='free'&&n===opp()?'상대 공':'');
   if(lab)h+=tag(cx,cy-BR*S-12*k,lab,k);
   return h;
@@ -1528,7 +1557,7 @@ function renderTable(){
       /* 🔒 빨간 원에 숫자는 빨간 공 ①②와 똑같아 보였다 → 마름모(빗나감 짙은 회색 · 맞음 초록) */
       var col=tr.hit?'#0f8a33':'#3a3a3a',rr=15*k,cx=p.x*S,cy=p.y*S;
       h.push('<polygon points="'+cx+','+(cy-rr)+' '+(cx+rr)+','+cy+' '+cx+','+(cy+rr)+' '+(cx-rr)+','+cy+'" fill="'+col+'" stroke="#fff" stroke-width="'+2.5*k+'" pointer-events="none"/>');
-      h.push('<text x="'+p.x*S+'" y="'+(p.y*S+6*k)+'" text-anchor="middle" font-size="'+16*k+'" font-weight="900" fill="#fff" pointer-events="none">'+tr.no+'</text>');});
+      h.push('<text'+TR(p.x*S,p.y*S)+' x="'+p.x*S+'" y="'+(p.y*S+6*k)+'" text-anchor="middle" font-size="'+16*k+'" font-weight="900" fill="#fff" pointer-events="none">'+tr.no+'</text>');});
   }
   /* 시뮬레이션: 지나간 자리 + 지금 자리 */
   var pos={};ids.forEach(function(n){pos[n]=ST.balls[n];});
@@ -1675,7 +1704,8 @@ function bankAnsSvg(k){
   }
   /* 정답 말풍선 — 쿠션 바깥(나무) 쪽 */
   var mid=(pk.from+pk.to)/20,mp=r==='T'?{x:mid,y:0}:r==='B'?{x:mid,y:H}:r==='L'?{x:0,y:mid}:{x:W,y:mid};
-  h.push(bubble(mp.x*S,mp.y*S+(r==='T'?-30:r==='B'?30:0),'정답 '+(pk.from===pk.to?pk.from:pk.from+'~'+pk.to),'#0f8a33',k,r==='B'?true:'up'));
+  /* 📱 세로 화면에선 당구대 안쪽으로(바깥쪽은 화면 끝에 잘렸다) */
+  h.push(bubble(mp.x*S+(PORT&&(r==='L'||r==='R')?(r==='L'?90:-90)*k:0),mp.y*S+(PORT?(r==='T'?80*k:r==='B'?-80*k:0):(r==='T'?-30:r==='B'?30:0)),'정답 '+(pk.from===pk.to?pk.from:pk.from+'~'+pk.to),'#0f8a33',k,r==='B'?true:'up'));
   return h.join('');
 }
 /* 🎯 위층: 고른 지점 말풍선 · ✖ 엇갈린 곳(누를 수 있음) · 붙을 곳 미리보기 */
@@ -1683,7 +1713,7 @@ function bankTopSvg(k){
   var d=ST.draft,h=[];
   if(d.bstyle!=='pick'&&MODE==='xline'&&!SIMV){
     xIsects().forEach(function(q){h.push('<circle cx="'+q.x*S+'" cy="'+q.y*S+'" r="'+15*k+'" fill="#ffd23f" stroke="#11482a" stroke-width="'+3*k+'" pointer-events="none"/>'+
-      '<text x="'+q.x*S+'" y="'+(q.y*S+7*k)+'" text-anchor="middle" font-size="'+20*k+'" font-weight="900" fill="#11482a" pointer-events="none">✖</text>');});
+      '<text'+TR(q.x*S,q.y*S)+' x="'+q.x*S+'" y="'+(q.y*S+7*k)+'" text-anchor="middle" font-size="'+20*k+'" font-weight="900" fill="#11482a" pointer-events="none">✖</text>');});
     if(d.bstyle==='corner'){var w0=ST.balls.w;
       bankReds().forEach(function(n){var r0=ST.balls[n],m={x:(w0.x+r0.x)/2,y:(w0.y+r0.y)/2};
         h.push('<circle cx="'+m.x*S+'" cy="'+m.y*S+'" r="'+9*k+'" fill="#fff" stroke="#11482a" stroke-width="'+3*k+'" pointer-events="none"/>'+tag(m.x*S,m.y*S-14*k,'가운데',k));});
@@ -1735,7 +1765,7 @@ function renderHint(){
 }
 function renderSimBtn(){
   var sep=kind()==='sep',tr=kind()!=='free';
-  $('bSimT').textContent=SIMV&&SIMV.playing?'끝으로 건너뛰기':(kind()==='cush'?'쳐 보기':kind()==='bank'?'판정':tr?'정답 보기':'시뮬레이션');
+  $('bSimMT').textContent=$('bSimT').textContent=SIMV&&SIMV.playing?'끝으로 건너뛰기':(kind()==='cush'?'쳐 보기':kind()==='bank'?'판정':tr?'정답 보기':'시뮬레이션');
   $('bRec').classList.toggle('hide',kind()==='cush'||kind()==='bank'||kind()==='chalk');   /* 🔁 판은 맞히거나 답을 보면 · 🎯 판은 판정하면 저절로 기록 */
   $('bSlow').classList.toggle('on',SLOW);
   /* 훈련 판은 [다음 두께 ▶]·[속도 비교]와 한 줄이라 글자를 줄인다 */
@@ -1800,7 +1830,7 @@ function renderSide(){
   document.querySelectorAll('#ncush button').forEach(function(x){x.classList.toggle('on',+x.dataset.n===d.ncush);});
   renderSimBtn();
 }
-function renderAll(){if(!ST)return;renderTabs();renderTools();renderHint();renderSeq();renderSide();renderRouteBar();renderBankBar();renderChalkSide();renderTable();}
+function renderAll(){if(!ST)return;renderSheetBtn();renderTabs();renderTools();renderHint();renderSeq();renderSide();renderRouteBar();renderBankBar();renderChalkSide();renderTable();}
 
 /* ═════════ 당점 ═════════ */
 function tipDesc(t){
@@ -1952,7 +1982,7 @@ function onUp(e){
 function onLeave(){if(HOVER){HOVER=null;renderTable();}}
 function showPop(i){
   var q=resolve(ST.draft[LAYER][i]),s=svg(),pt=s.createSVGPoint();pt.x=q.x*S;pt.y=q.y*S;
-  var sc=pt.matrixTransform(s.getScreenCTM());
+  var sc=pt.matrixTransform(gRot().getScreenCTM());
   var pop=$('ptPop');pop.classList.remove('hide');
   var w=pop.offsetWidth,h=pop.offsetHeight;
   pop.style.left=clamp(sc.x-w/2,8,window.innerWidth-w-8)+'px';
@@ -2555,6 +2585,9 @@ function bind(){
   $('bUndo').addEventListener('click',undo);$('bRedo').addEventListener('click',redo);
   $('ptDel').addEventListener('click',delPoint);
   $('bRec').addEventListener('click',record);
+  $('bSimM').addEventListener('click',runSim);
+  $('bSheet').addEventListener('click',function(){sheet();});
+  $('bBoardMenu').addEventListener('click',boardMenu);
   $('bSim').addEventListener('click',runSim);
   $('bSlow').addEventListener('click',function(){SLOW=!SLOW;pref('slow',SLOW?'1':'0');renderSimBtn();});
   $('bNextT').addEventListener('click',nextThick);
@@ -2597,7 +2630,8 @@ function bind(){
     else if(e.key==='Escape'){SEL=null;hidePop();if(SIMV&&!SIMV.playing){clearSim();renderAll();}else renderTable();}
     else if((e.key==='Delete'||e.key==='Backspace')&&MODE==='edit'&&SEL!==null){e.preventDefault();delPoint();}
   });
-  var rt=null;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){hidePop();renderTable();if(ST)renderTabs();
+  layoutMode();
+  var rt=null;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){hidePop();if(layoutMode()&&ST)renderAll();renderTable();if(ST)renderTabs();
     if(!$('logv').classList.contains('hide')&&LOGVIEW==='trend'&&ATTS)renderTrend();},80);});
 }
 
