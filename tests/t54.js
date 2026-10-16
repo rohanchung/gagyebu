@@ -947,6 +947,71 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  ok('X8 막힌 게 풀리면 다시 불러온다',back2.mem>=7&&!back2.err,JSON.stringify(back2));
  await p.waitForTimeout(400);
 
+ /* ══ Y) 🫙 아직 안 받은 것을 「0건」이라 부르지 않는다 ══
+      🔴 AG.posts 의 처음 값이 **빈 배열**이었다. mem 은 null 로 두어 「아직 모른다」를
+         구분했는데 posts 만 받기도 전에 「0건」이라고 단정했다.
+         → 명단이 먼저 오고 글이 오는 중이면 **자리는 그려지고 아무도 말하지 않는다**.
+         로한: "이미 10월 중간은 가신들이 다 제출했는데 아무도 없잖아"
+      🔴 내가 넣은 진단 줄도 그래서 「글 0건」이라 **거짓을 말했고**, 그 거짓을 믿고
+         계정·세션을 두 번 헛짚었다. **진단이 틀리면 진단이 아니다.** */
+ const slow=await p.evaluate(async()=>{
+   window.__from=SB.from; AG_WAIT=12000;
+   let 풀기;
+   SB.from=function(t){
+     if(t==='agora_posts')return {select:function(){return {order:function(){
+       return new Promise(function(res){풀기=function(){res({data:window.__keep2,error:null});};});
+     }};}};
+     return window.__from(t);};
+   window.__keep2=AG.posts;
+   AG.mem=null; AG.posts=null; AG.loading=false; AG.err=''; agLoad();
+   await new Promise(r=>setTimeout(r,500));
+   /* 🔒 이 시점에 화면을 다시 그려 본다 — 아고라 탭을 열면 실제로 그렇게 된다 */
+   renderAgora();
+   const 중간={mem:AG.mem?AG.mem.length:null, posts:AG.posts,
+     화면:document.getElementById('v-agora').textContent,
+     자리:document.querySelectorAll('#aghall .agseat').length};
+   풀기(); await new Promise(r=>setTimeout(r,500));
+   return {중간:중간, 끝:{posts:(AG.posts||[]).length,
+     자리:document.querySelectorAll('#aghall .agseat').length}};});
+ /* 🔒 명단이 와도 글이 아직이면 회의장을 그리지 않는다 */
+ ok('Y1 명단만 왔을 땐 회의장을 그리지 않는다',
+    slow.중간.mem>0&&slow.중간.자리===0,JSON.stringify(slow.중간.mem)+'/'+slow.중간.자리);
+ /* 🔴 여기가 핵심 — 받기도 전에 0건이라 말하면 전원 미제출로 보인다 */
+ ok('Y2 🔒 아직 안 받은 글은 null 이다(0건이 아니다)',slow.중간.posts===null,
+    JSON.stringify(slow.중간.posts));
+ ok('Y3 그동안 불러오는 중이라고 말한다',/불러오는 중/.test(slow.중간.화면),'');
+ /* 🔒 글이 오면 비로소 그린다 */
+ ok('Y4 글이 오면 회의장을 그린다',slow.끝.posts>0&&slow.끝.자리===8,JSON.stringify(slow.끝));
+
+ /* 🔒 진단 줄도 「아직」과 「0건」을 가른다 */
+ const diag=await p.evaluate(()=>{
+   SB.from=window.__from;
+   AG.posts=null; AG.mem=[{slug:'suyeon',name:'수연',title:'수연',icon:'🔎',active:true,sort:1}];
+   const 아직=agNoneHtml();
+   AG.posts=[]; const 영건=agNoneHtml();
+   return {아직:아직, 영건:영건};});
+ ok('Y5 아직 받는 중이면 그렇게 적는다',
+    diag.아직===''||/아직 받는 중/.test(diag.아직),diag.아직.slice(0,60));
+ ok('Y6 진짜 0건일 때만 0건이라 적는다',/0건/.test(diag.영건),diag.영건.slice(0,60));
+
+ /* 🔒 실패하면 빈 것으로 **확정**한다 — null 로 두면 「불러오는 중」에 갇혀 에러를 못 본다 */
+ const fail=await p.evaluate(async()=>{
+   SB.from=function(t){
+     if(t==='agora_posts')return {select:function(){return {order:function(){
+       return Promise.resolve({data:null,error:{message:'끊김'}});}};}};
+     return window.__from(t);};
+   AG.mem=null; AG.posts=null; AG.loading=false; AG.err=''; agLoad();
+   await new Promise(r=>setTimeout(r,600));
+   const out={posts:AG.posts, err:AG.err, 화면:document.getElementById('v-agora').textContent};
+   SB.from=window.__from; AG.mem=null; AG.posts=null; AG.loading=false; AG.err=''; agLoad();
+   await new Promise(r=>setTimeout(r,600));
+   return out;});
+ ok('Y7 실패하면 빈 것으로 확정한다',Array.isArray(fail.posts)&&fail.posts.length===0,
+    JSON.stringify(fail.posts));
+ ok('Y8 🔒 실패가 「불러오는 중」에 가려지지 않는다',
+    !/불러오는 중/.test(fail.화면)&&/끊김/.test(fail.화면),fail.err);
+ await p.waitForTimeout(400);
+
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);
