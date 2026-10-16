@@ -19,13 +19,13 @@ const fs=require('fs'),path=require('path'),assert=require('assert/strict');
 const FILE=process.argv[2]||path.join(__dirname,'..','index.html');
 
 const MEM=[
- {slug:'robert-life' ,name:'로버트(생활)',provider:'claude',domain:'재정',icon:'🏠',active:true,sort:10},
- {slug:'robert-study',name:'로버트(학습)',provider:'claude',domain:'JLPT',icon:'📖',active:true,sort:20},
- {slug:'robert-saju' ,name:'로버트(사주)',provider:'claude',domain:'명리',icon:'🕯️',active:true,sort:30},
- {slug:'suyeon'      ,name:'수연'        ,provider:'openai',domain:'검수',icon:'🔎',active:true,sort:40},
- {slug:'maker'       ,name:'제작방'      ,provider:'claude',domain:'앱'  ,icon:'🛠',active:true,sort:50},
- {slug:'cardio'      ,name:'순환기'      ,provider:'claude',domain:'심장',icon:'❤️',active:true,sort:60},
- {slug:'rehab'       ,name:'재활의학과'  ,provider:'claude',domain:'어깨',icon:'💪',active:true,sort:70},
+ {slug:'robert-life' ,title:'생활사',name:'로버트(생활)',provider:'claude',domain:'재정',icon:'🏠',active:true,sort:10},
+ {slug:'robert-study',title:'학습사',name:'로버트(학습)',provider:'claude',domain:'JLPT',icon:'📖',active:true,sort:20},
+ {slug:'robert-saju' ,title:'사주사',name:'로버트(사주)',provider:'claude',domain:'명리',icon:'🕯️',active:true,sort:30},
+ {slug:'suyeon'      ,title:'수연',name:'수연'        ,provider:'openai',domain:'검수',icon:'🔎',active:true,sort:40},
+ {slug:'maker'       ,title:'제작사',name:'제작방'      ,provider:'claude',domain:'앱'  ,icon:'🛠',active:true,sort:50},
+ {slug:'cardio'      ,title:'의사(순환기)',name:'순환기'      ,provider:'claude',domain:'심장',icon:'❤️',active:true,sort:60},
+ {slug:'rehab'       ,title:'의사(그외)',name:'재활의학과'  ,provider:'claude',domain:'어깨',icon:'💪',active:true,sort:70},
  /* 🔒 빠진 방은 지우지 않는다 — 지우면 과거 달의 이름이 깨진다 */
  {slug:'psychic'     ,name:'점술방'      ,provider:'claude',domain:'심리',icon:'🔯',active:false,sort:80}];
 
@@ -92,7 +92,11 @@ const POSTS=[
   submitted_at:'2026-08-31T10:00:00Z'}];
 
 /* 🔴 실측값이다 — 「로그 0건」이 거짓이었다(없는 키를 읽었다). 타임로그 23 · 식단 28 이 진짜다 */
-const FACTS={ym:'2026-09','거래건수':183,'수입':3342106,'지출':3858012,'학습과제':42,'과제완료':25,
+/* 🔒 실제 agora_facts 는 기간·일수·진행률을 같이 돌려준다(v4.32) — 픽스처도 그 모양이어야
+   '보름치를 월 예산과 그냥 비교하지 마라'를 화면이 말하는지 잴 수 있다 */
+const FACTS={ym:'2026-09',phase:'full','기간':'2026-09-01 ~ 2026-09-30','일수':30,
+ '그달일수':30,'기간진행률':100,'예산단위':'월 — 이 숫자는 한 달치다',
+ '거래건수':183,'수입':3342106,'지출':3858012,'학습과제':42,'과제완료':25,
  '드릴':18,'시험':3,'체크한날':25,'식단':28,'타임로그':23,'체중기록':5,'EMR턴':6,'일지':1,
  '주의':'「기록 없음」은 「하지 않음」이 아니다.'};
 
@@ -160,6 +164,10 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  await p.waitForTimeout(1000);
  const R=[];const ok=(n,v,x)=>R.push({n,v:!!v,x});
  const txt=()=>p.$eval('#v-agora',e=>e.textContent);
+ /* 🔒 아래 절들은 문서 보기를 잰다 — 기본이 회의장이 됐으므로 명시적으로 넘긴다 */
+ ok('A0 기본 보기는 회의장이다',await p.evaluate(()=>agView())==='hall',
+    await p.evaluate(()=>agView()));
+ await p.evaluate(()=>agSetView('doc')); await p.waitForTimeout(400);
  const q=(sel)=>p.$$eval('#v-agora '+sel,es=>es.length);
  const pick=async(v)=>{await p.evaluate(x=>agPick(x),v);await p.waitForTimeout(450);};
  const room=async(v)=>{await p.evaluate(x=>agPickRoom(x),v);await p.waitForTimeout(400);};
@@ -451,6 +459,71 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  const fr=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='agora_facts'));
  ok('O3 facts 에 단계를 넘긴다',fr.some(x=>x.args.p_phase==='mid')&&fr.some(x=>x.args.p_phase==='full'),
     JSON.stringify(fr.map(x=>x.args.p_phase)));
+
+ /* ══ P) 🏰 가신회의 — 보는 화면 ══ */
+ await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(600);
+ const hall=await p.evaluate(()=>({
+   있다:!!document.getElementById('aghall'),
+   svg:document.querySelectorAll('#aghall svg').length,
+   /* 🔒 이미지 파일을 쓰지 않는다 — 단일 파일 원칙(§15.1) */
+   img:document.querySelectorAll('#aghall img, #aghall image').length,
+   자리:document.querySelectorAll('#aghall .agseat').length,
+   빈자리:document.querySelectorAll('#aghall .agseat.empty').length,
+   해당없음:document.querySelectorAll('#aghall .agseat.na').length,
+   두루마리:document.querySelectorAll('#aghall .agscr').length,
+   말풍선:!!document.getElementById('agbub')}));
+ ok('P1 회의장이 그려진다',hall.있다&&hall.svg===1,JSON.stringify(hall));
+ ok('P2 🔒 이미지 파일을 쓰지 않는다(인라인 SVG 뿐)',hall.img===0,String(hall.img));
+ /* 로한 + 7방 = 8자리 */
+ ok('P3 영주와 일곱 가신이 앉는다',hall.자리===8,String(hall.자리));
+ /* 🔒 미제출은 빈 의자로 남긴다 — 숨기면 거짓말이다 */
+ ok('P4 미제출은 빈 자리로 보인다',hall.빈자리===2,String(hall.빈자리));
+ ok('P5 해당없음은 따로 표시된다',hall.해당없음===1,String(hall.해당없음));
+ ok('P6 두루마리가 탁자에 놓인다',hall.두루마리===5,String(hall.두루마리));
+
+ /* 🔒 트리거는 캐릭터다. 할 말 없는 자는 눌리지 않는다 */
+ const mute=await p.evaluate(()=>[...document.querySelectorAll('#aghall .agseat')]
+   .filter(e=>e.classList.contains('mute')).map(e=>e.dataset.slug));
+ ok('P7 할 말 없는 자는 눌리지 않는다',mute.length===2&&mute.includes('robert-life'),JSON.stringify(mute));
+ /* 🔒 「해당 없음」은 **말한 것**이다 — 미제출과 가른다 */
+ ok('P8 「해당 없음」은 눌린다',!mute.includes('cardio'),JSON.stringify(mute));
+
+ /* 캐릭터를 누르면 처음부터 아뢴다 */
+ await p.evaluate(()=>agSpeak('suyeon')); await p.waitForTimeout(250);
+ const spoke=await p.evaluate(()=>({
+   n:AG_CUR?AG_CUR.seq.length:0, who:AG_CUR?AG_CUR.seq[0].who:'',
+   lb:AG_CUR?AG_CUR.seq[0].label:'',
+   t:document.getElementById('agbub').textContent,
+   on:document.querySelectorAll('#aghall .agseat.on').length}));
+ ok('P9 가신을 누르면 아뢴다',spoke.who==='suyeon'&&spoke.lb==='총평',JSON.stringify(spoke).slice(0,120));
+ /* 🔴 핵심 — 2,000자를 한 번에 쏟지 않는다 */
+ ok('P10 🔒 말풍선은 한 번에 한 토막이다',spoke.n>=8&&spoke.t.length<1200,
+    '토막 '+spoke.n+' · 화면 '+spoke.t.length+'자');
+ ok('P11 말하는 자리가 밝아진다',spoke.on===1,String(spoke.on));
+ const n1=await p.evaluate(()=>{agStep(1);return {i:AG_CUR.i,who:AG_CUR.seq[AG_CUR.i].who};});
+ ok('P12 ▶ 로 넘어간다',n1.i===1,JSON.stringify(n1));
+
+ /* 미제출을 눌러도 아무 일이 없어야 한다 */
+ const before=await p.evaluate(()=>AG_CUR&&AG_CUR.seq[AG_CUR.i].who);
+ await p.evaluate(()=>agSpeak('robert-life')); await p.waitForTimeout(150);
+ ok('P13 미제출을 눌러도 말풍선이 안 바뀐다',
+    (await p.evaluate(()=>AG_CUR&&AG_CUR.seq[AG_CUR.i].who))===before,String(before));
+
+ /* 📜 두루마리 */
+ await p.evaluate(()=>agScrollOpen(0)); await p.waitForTimeout(200);
+ const scr=await p.evaluate(()=>({who:AG_CUR.seq[0].who,lb:AG_CUR.seq[0].label,
+   t:document.getElementById('agbub').textContent}));
+ ok('P14 두루마리를 누르면 그 달 숫자가 뜬다',
+    scr.who==='scroll'&&/재정/.test(scr.lb)&&/거래건수/.test(scr.t),JSON.stringify(scr).slice(0,140));
+ /* 🔒 기간을 적는다 — 보름치를 월 예산과 그냥 비교하지 않게 */
+ ok('P15 두루마리 머리에 기간이 적힌다',/2026-09-01/.test(scr.lb),scr.lb);
+
+ /* 🔒 문서 보기를 없애지 않는다 — 같은 데이터, 두 보기 */
+ await p.evaluate(()=>agSetView('doc')); await p.waitForTimeout(400);
+ const doc=await p.evaluate(()=>({hall:!!document.getElementById('aghall'),
+   grid:document.querySelectorAll('#v-agora .agcard').length}));
+ ok('P16 문서 보기로 되돌아간다',!doc.hall&&doc.grid===7,JSON.stringify(doc));
+ await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(400);
 
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));

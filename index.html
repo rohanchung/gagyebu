@@ -762,6 +762,59 @@ textarea.mla.same{background:#f2f9f4}
 .aghd{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .aghd h2{margin:0 0 6px}.aghd p{margin:0;color:var(--muted);font-size:13px}
 /* 명단 — 🔒 미제출을 숨기지 않는다. 빈 격자가 아고라의 상태다 */
+/* ══════ 🏰 v4.33 가신회의 ══════
+   🔒 보는 화면이다. 읽는 화면(문서 보기)을 없애지 않는다 — 같은 데이터, 두 보기 */
+.agview{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.agview button{border:0;background:var(--card);color:var(--muted);padding:5px 12px;
+  font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.agview button.on{background:#2f6feb;color:#fff}
+.aghall{position:relative;border:1px solid #3a2b20;border-radius:12px;overflow:hidden;background:#120d0a}
+.aghall svg{display:block;width:100%;height:auto}
+.agseat{cursor:pointer}
+.agseat .fig{transition:transform .2s ease}
+.agseat:hover .fig{transform:translateY(-4px)}
+.agseat.on .fig{transform:translateY(-7px)}
+/* 🔒 빈 자리는 **비어 보이게** 둔다. 숨기면 거짓말이다 */
+.agseat.empty{opacity:.82;cursor:default}
+.agseat.empty:hover .fig{transform:none}
+.agseat.na{opacity:.6}
+.agnm{font-size:13px;fill:#f0e2c4;font-weight:800;paint-order:stroke;
+  stroke:#140e0a;stroke-width:3.5px;stroke-linejoin:round}
+.agnm.dim{fill:#9b8970}
+.agnm2{font-size:10.5px;fill:#b7a386;paint-order:stroke;stroke:#140e0a;stroke-width:3px}
+.agscr{cursor:pointer}
+.agscrl{font-size:11.5px;fill:#f0dcb0;font-weight:700;paint-order:stroke;stroke:#140e0a;stroke-width:3px}
+/* 💬 말풍선 — 🔒 한 번에 한 토막 */
+.agbub{position:relative;margin:11px auto 0;width:100%;background:#f7efdd;color:#2a2018;
+  border-radius:13px;padding:12px 14px 10px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.agbub:after{content:"";position:absolute;top:-10px;left:var(--tail,50%);transform:translateX(-50%);
+  border:10px solid transparent;border-top:0;border-bottom-color:#f7efdd;transition:left .25s ease}
+.agbub.none{background:var(--soft);box-shadow:none;border:1px dashed #b9c4d2}
+.agbub.none:after{display:none}
+.agbub.praise{box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 2px #7ec08a}
+.agbub.worry{box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 2px #7aa3d8}
+.agbub.grave{box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 2px #d2675c;animation:agjolt .3s ease}
+.agbub.plead{box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 2px #d9b25c}
+@keyframes agjolt{0%{transform:translateY(0)}30%{transform:translateY(-5px)}100%{transform:translateY(0)}}
+/* 🔒 움직임을 줄이라는 설정을 따른다 — 색과 표정만 바뀐다 */
+@media(prefers-reduced-motion:reduce){
+  .agbub.grave{animation:none}.agseat .fig{transition:none}.agbub:after{transition:none}}
+.agbh{display:flex;gap:7px;align-items:center;font-size:11px;color:#6b5a44;margin-bottom:6px}
+.agbh b{font-size:13px;color:#3a2c1c}
+.agbt{font-size:13.5px;line-height:1.7}
+.agbt p{margin:0 0 7px}
+.agbn{display:flex;gap:6px;align-items:center;margin-top:9px}
+.agsp{margin-left:auto;font-size:10.5px;color:#7a674f}
+.agbn .mini{border:1px solid #cdbb99;background:#efe4cd;color:#4a3a26;border-radius:7px;
+  padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.agbn .mini:disabled{opacity:.4;cursor:default}
+.agbn .mini.go{background:#e0bd6a;border-color:#b9954a}
+.agtn{font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;margin-left:auto}
+.agtn.plain{background:#e3d8c0;color:#5c4e38}
+.agtn.praise{background:#d6ecd8;color:#2c6137}
+.agtn.worry{background:#d9e5f5;color:#2d4c74}
+.agtn.grave{background:#f6d7d3;color:#8d2f26}
+.agtn.plead{background:#f5e6c2;color:#7a5a16}
 .agros{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
 /* 📢 공지 — v4.32. 🔒 미확인이 있으면 눈에 띄어야 한다. 조용한 회색이면 또 모르고 지나간다 */
 .agnt{border:1px solid #e6dcc4;background:#fffdf4;border-radius:9px;padding:8px 10px;margin-bottom:10px}
@@ -7198,6 +7251,9 @@ function agSetPhase(p){
   AG.facts=null;renderAgora();agLoadFacts();
 }
 function agPhName(p){return (p||agPhase())==='mid'?'중간':'월말';}
+/* 🏰 v4.33 — 🔒 **기본은 회의장**이다. 문서 보기는 없애지 않는다(같은 데이터, 두 보기) */
+function agView(){var v=(DB.ui&&DB.ui.agView)||'';return v==='doc'?'doc':'hall';}
+function agSetView(v){DB.ui=DB.ui||{};DB.ui.agView=v;save();AG_CUR=null;renderAgora();}
 var AG_KIND={review:'월간 평가',comment:'대댓글',clarify:'해명',rate:'방 평가'};
 /* 📊 사실 묶음에서 화면에 올릴 칸 — 🔒 0 을 빨갛게 드러낸다. 숨기면 거짓말이다.
    🔴 [결함] 처음엔 「로그」를 올렸는데 DB 함수가 **없는 키**(data.logs)를 읽어 늘 0 이었다.
@@ -7388,6 +7444,502 @@ function agNoticeClose(id){
    .catch(function(e){alert('실패: '+((e&&e.message)||e));});
 }
 
+/* ══════ 🏰 v4.33 가신회의 — 그림 ══════
+   로한: "아고라에 **텍스트만 가득해서** 가독성도 떨어지고 보기가 싫어진다.
+          중세 배경의 방에 긴 탁자를 그려서 끝에 내가 앉아있고 각 담당 '관'들이 앉아있는 형태로."
+   설계 정본: agora-design.md §15 (원칙 40개)
+   🔒 **인라인 SVG 뿐이다. 이미지 파일을 쓰지 않는다** — 단일 파일 원칙(§15.1).
+   🔒 보기만 바뀐다 — DB·제출 잠금·공지 강제·phase 는 그대로다. */
+function agShade(hex,amt){
+  var n=parseInt(String(hex).slice(1),16);
+  var r=Math.max(0,Math.min(255,(n>>16)+amt)), g=Math.max(0,Math.min(255,((n>>8)&255)+amt)),
+      b=Math.max(0,Math.min(255,(n&255)+amt));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+/* ═════════ 얼굴 ═════════ */
+function agFace(m,tone,gaze){
+  var sk=m.skin, dk=agShade(sk,-28), g='', eo=(gaze||0);
+  g+='<ellipse cx="-15.5" cy="-9" rx="3.4" ry="5" fill="'+sk+'"/>';
+  g+='<ellipse cx="15.5" cy="-9" rx="3.4" ry="5" fill="'+sk+'"/>';
+  g+='<path d="M-14 -15 q0 -13 14 -13 q14 0 14 13 q0 13 -4 19 q-4 7 -10 7 q-6 0 -10 -7 q-4 -6 -4 -19z" fill="'+sk+'"/>';
+  g+='<path d="M-13.4 -12 q3 15 1.6 23" stroke="'+dk+'" stroke-width="1.2" fill="none" opacity=".3"/>';
+  var ey=-9.5;
+  if(tone==='praise'){
+    g+='<path d="M-10 '+ey+' q3.4 -4.4 6.8 0 M3.2 '+ey+' q3.4 -4.4 6.8 0" stroke="#2e2119" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
+  }else{
+    [-6.5,6.5].forEach(function(x){
+      g+='<ellipse cx="'+x+'" cy="'+ey+'" rx="4.2" ry="3.2" fill="#fdfaf4"/>';
+      g+='<circle cx="'+(x+eo)+'" cy="'+ey+'" r="2.2" fill="'+(m.lady?'#53331f':'#3c2a1e')+'"/>';
+      g+='<circle cx="'+(x+eo)+'" cy="'+ey+'" r="1.05" fill="#120c08"/>';
+      g+='<circle cx="'+(x+eo-0.85)+'" cy="'+(ey-1.2)+'" r=".7" fill="#fff" opacity=".92"/>';});
+    if(m.lady)g+='<path d="M-10.8 -12.4 q4.3 -2.6 8.6 -.6 M2.2 -13 q4.3 -2 8.6 .6" stroke="#2a1c22" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
+  }
+  var bw=m.lady?1.6:2.2, bc=agShade(m.hair,12);
+  if(tone==='grave')
+    g+='<path d="M-11.6 -17.4 L-2.8 -14 M11.6 -17.4 L2.8 -14" stroke="'+bc+'" stroke-width="'+(bw+0.5)+'" stroke-linecap="round"/>';
+  else if(tone==='worry'||tone==='plead')
+    g+='<path d="M-11.6 -18.4 q4.6 2.8 8.2 1.2 M11.6 -18.4 q-4.6 2.8 -8.2 1.2" stroke="'+bc+'" stroke-width="'+bw+'" fill="none" stroke-linecap="round"/>';
+  else if(tone==='praise')
+    g+='<path d="M-11 -16.8 q4.6 -3.2 8.2 -1 M11 -16.8 q-4.6 -3.2 -8.2 -1" stroke="'+bc+'" stroke-width="'+bw+'" fill="none" stroke-linecap="round"/>';
+  else
+    g+='<path d="M-11 -16.4 q4.6 -2.6 8.2 -.4 M11 -16.4 q-4.6 -2.6 -8.2 -.4" stroke="'+bc+'" stroke-width="'+bw+'" fill="none" stroke-linecap="round"/>';
+  g+='<path d="M0 -7 q-1.8 5.4 .7 8 q1.7 1.3 3.2 .2" stroke="'+dk+'" stroke-width="1.35" fill="none" stroke-linecap="round"/>';
+  var lip=m.lady?'#b45f63':agShade(sk,-48);
+  if(tone==='praise')g+='<path d="M-5.2 4 q5.2 5.6 10.4 0 q-5.2 2.4 -10.4 0z" fill="'+lip+'"/>';
+  else if(tone==='grave')g+='<path d="M-5 4.6 L5 4.6" stroke="'+lip+'" stroke-width="2.3" stroke-linecap="round"/>';
+  else if(tone==='worry')g+='<path d="M-4.6 5.6 q4.6 -3.2 9.2 0" stroke="'+lip+'" stroke-width="1.9" fill="none" stroke-linecap="round"/>';
+  else if(m.lady)g+='<path d="M-4.6 3.4 q4.6 1.3 9.2 0 q-4.6 4.8 -9.2 0z" fill="'+lip+'"/>';
+  else g+='<path d="M-4.4 4 q4.4 2.7 8.8 0" stroke="'+lip+'" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
+  if(m.beard===1)
+    g+='<path d="M-10.4 1 q2 14.5 10.4 14.5 q8.4 0 10.4 -14.5 q-10.4 7.2 -20.8 0z" fill="'+m.hair+'" opacity=".93"/>';
+  if(m.beard===2)
+    g+='<path d="M-10.4 1 q1 12.5 4.2 21 q3.2 10.4 6.2 10.4 q3 0 6.2 -10.4 q3.2 -8.5 4.2 -21 q-10.4 6.2 -20.8 0z" fill="'+m.hair+'"/>'
+     +'<path d="M-7.2 -1 q7.2 5.2 14.4 0" stroke="'+agShade(m.hair,20)+'" stroke-width="1.2" fill="none"/>';
+  return g;
+}
+function agHair(m){
+  if(m.lady)
+    return '<path d="M-17.5 -11 q-2 -25 17.5 -25 q19.5 0 17.5 25 q-3.2 -12.4 -17.5 -12.4 q-14.3 0 -17.5 12.4z" fill="'+m.hair+'"/>'
+      +'<path d="M-17.5 -13 q-7.4 21 -3.2 42 q2 10 7.2 14.4 q-9.4 -23 -4.2 -42z" fill="'+m.hair+'"/>'
+      +'<path d="M17.5 -13 q7.4 21 3.2 42 q-2 10 -7.2 14.4 q9.4 -23 4.2 -42z" fill="'+m.hair+'"/>'
+      +'<path d="M-14 -19.5 q8.2 -7.2 16.4 -2" stroke="'+agShade(m.hair,24)+'" stroke-width="1.5" fill="none" opacity=".7"/>';
+  return '<path d="M-15.8 -12 q-1 -21 15.8 -21 q16.8 0 15.8 21 q-4.2 -11.4 -15.8 -11.4 q-11.6 0 -15.8 11.4z" fill="'+m.hair+'"/>'
+    +'<path d="M-12.2 -19.4 q7.2 -5.2 13.4 -2" stroke="'+agShade(m.hair,22)+'" stroke-width="1.35" fill="none" opacity=".6"/>';
+}
+function agHat(m){
+  var c=m.robe, t=m.trim;
+  if(m.hat==='scholar')
+    return '<g><path d="M-23 -25 L23 -25 L0 -33 z" fill="'+agShade(c,-16)+'"/>'
+     +'<rect x="-24" y="-26" width="48" height="4.2" rx="1.8" fill="'+c+'"/>'
+     +'<path d="M-13.4 -23 q0 -9.4 13.4 -9.4 q13.4 0 13.4 9.4z" fill="'+agShade(c,-24)+'"/>'
+     +'<path d="M19 -25 q6.4 12.6 2 21" stroke="'+t+'" stroke-width="2.1" fill="none"/>'
+     +'<circle cx="21" cy="-3.6" r="2.6" fill="'+t+'"/></g>';
+  if(m.hat==='tall')
+    return '<g><path d="M-16.4 -21 Q-9.4 -58 0 -65 Q9.4 -58 16.4 -21 z" fill="'+c+'"/>'
+     +'<path d="M-16.4 -21 Q0 -15 16.4 -21 L16.4 -26 Q0 -20 -16.4 -26z" fill="'+agShade(c,-22)+'"/>'
+     +'<path d="M-8 -35.6 l2.1 -5.2 l2.1 5.2 l5.2 2.1 l-5.2 2.1 l-2.1 5.2 l-2.1 -5.2 l-5.2 -2.1z" fill="'+t+'"/>'
+     +'<circle cx="5.2" cy="-48" r="2.1" fill="'+t+'"/><circle cx="-4.2" cy="-52" r="1.5" fill="'+t+'"/></g>';
+  if(m.hat==='circlet')
+    return '<g><path d="M-17.5 -19.4 Q0 -29 17.5 -19.4" stroke="'+t+'" stroke-width="2.8" fill="none"/>'
+     +'<path d="M0 -26.4 l2.8 4.6 l-2.8 4.2 l-2.8 -4.2z" fill="#9fd8e8"/>'
+     +'<circle cx="-9.4" cy="-23" r="1.8" fill="'+t+'"/><circle cx="9.4" cy="-23" r="1.8" fill="'+t+'"/></g>';
+  if(m.hat==='plague')
+    return '<g><ellipse cx="0" cy="-21" rx="26" ry="5.6" fill="'+agShade(c,-28)+'"/>'
+     +'<path d="M-13.4 -22 q0 -13.4 13.4 -13.4 q13.4 0 13.4 13.4z" fill="'+c+'"/>'
+     +'<rect x="-14" y="-25" width="28" height="4.2" fill="'+t+'" opacity=".85"/></g>';
+  if(m.hat==='hood')
+    return '<g><path d="M-18.4 -7 q-3.2 -31 18.4 -31 q21.6 0 18.4 31 q-6.2 -16.4 -18.4 -16.4 q-12.2 0 -18.4 16.4z" fill="'+c+'"/>'
+     +'<path d="M-18.4 -7 q4.2 16.4 18.4 18.4 q14.2 -2 18.4 -18.4 q-18.4 8.2 -36.8 0z" fill="'+agShade(c,-20)+'" opacity=".55"/></g>';
+  if(m.hat==='cap')
+    return '<g><path d="M-15.4 -19.4 q2 -14.4 15.4 -14.4 q13.4 0 15.4 14.4z" fill="'+c+'"/>'
+     +'<ellipse cx="0" cy="-19.4" rx="17.4" ry="3.8" fill="'+agShade(c,-26)+'"/>'
+     +'<path d="M-15.4 -21.4 h30.8" stroke="'+t+'" stroke-width="1.9"/></g>';
+  return '<g><path d="M-16.4 -11 q-1 -25 16.4 -25 q17.4 0 16.4 25 q-5.2 -13.4 -16.4 -13.4 q-11.2 0 -16.4 13.4z" fill="'+c+'"/>'
+   +'<path d="M-16.4 -11 q4.2 6.2 6.2 9.4 M16.4 -11 q-4.2 6.2 -6.2 9.4" stroke="'+agShade(c,-22)+'" stroke-width="3.2" fill="none"/></g>';
+}
+function agItem(m,dir){
+  var t=m.trim, d=dir||1, g='<g transform="translate('+(31*d)+',27) scale('+d+',1)">';
+  if(m.item==='scale')
+    g+='<path d="M0 -22 L0 5" stroke="#caa877" stroke-width="2.8"/>'
+     +'<path d="M-13.4 -16 L13.4 -16" stroke="#e3cb92" stroke-width="2.3"/>'
+     +'<path d="M-13.4 -16 l-5.2 8.2 h10.4z M13.4 -16 l-5.2 8.2 h10.4z" fill="#e3cb92"/>'
+     +'<circle cy="-23.4" r="2.8" fill="'+t+'"/>';
+  else if(m.item==='book')
+    g+='<path d="M-12.4 -14 q12.4 -4.2 12.4 2 q0 -6.2 12.4 -2 l0 22.6 q-12.4 -4.2 -12.4 2 q0 -6.2 -12.4 -2z" fill="#f2e6c9"/>'
+     +'<path d="M0 -12 L0 12.4" stroke="#b49a6e" stroke-width="1.7"/>'
+     +'<path d="M-9.4 -8 h6.2 M-9.4 -3 h6.2 M3.2 -8 h6.2 M3.2 -3 h6.2" stroke="#c3ab82" stroke-width="1"/>'
+     +'<path d="M-13.4 -15.4 q13.4 -5.2 13.4 1 q0 -6.2 13.4 -1 l1 3.2 q-14.4 -5.2 -14.4 1 q0 -6.2 -14.4 -1z" fill="'+t+'" opacity=".5"/>';
+  else if(m.item==='orb')
+    g+='<circle cy="-6" r="11.4" fill="#2a1f44" stroke="'+t+'" stroke-width="2.1"/>'
+     +'<circle cx="-3.2" cy="-10" r="2.8" fill="#fff" opacity=".85"/>'
+     +'<circle cx="4.2" cy="-2" r="1.6" fill="#dcc9ff"/><circle cx="-5.2" cy="0" r="1.2" fill="#bba6ef"/>'
+     +'<path d="M-9.4 6.2 q9.4 7.2 18.8 0 l0 4.2 q-9.4 6.2 -18.8 0z" fill="'+t+'"/>';
+  else if(m.item==='quill')
+    g+='<path d="M10.4 -24 q-20.8 12.4 -16.6 31" stroke="#fbf4e4" stroke-width="3.2" fill="none" stroke-linecap="round"/>'
+     +'<path d="M10.4 -24 q-10.4 2 -13.4 10.4 q7.2 -4.2 13.4 -10.4z" fill="#e8dcc0"/>'
+     +'<rect x="-14.4" y="4.2" width="24.8" height="14.4" rx="2.6" fill="#f2e6c9"/>'
+     +'<path d="M-10.4 9.4 h16.6 M-10.4 13.4 h11.4" stroke="#b49a6e" stroke-width="1.25"/>';
+  else if(m.item==='hammer')
+    g+='<rect x="-2.3" y="-20" width="4.6" height="31" rx="2.1" fill="#b98f5c"/>'
+     +'<rect x="-12.4" y="-26.4" width="24.8" height="10.4" rx="2.5" fill="#aeb3bb"/>'
+     +'<rect x="-12.4" y="-26.4" width="24.8" height="3.5" fill="#d6dae0"/>';
+  else if(m.item==='stetho')
+    g+='<path d="M-10.4 -22 q-5.2 20.8 7.2 27 q12.4 -6.2 7.2 -27" stroke="#ead9c4" stroke-width="2.7" fill="none"/>'
+     +'<circle cx="4.2" cy="8.2" r="6.2" fill="#cfae92" stroke="#9d7f66" stroke-width="1.7"/>'
+     +'<circle cx="-10.4" cy="-23" r="2.3" fill="#ead9c4"/><circle cx="4.2" cy="-23" r="2.3" fill="#ead9c4"/>';
+  else if(m.item==='staff')
+    g+='<path d="M0 -27 L0 17" stroke="#b98f5c" stroke-width="3.5" stroke-linecap="round"/>'
+     +'<path d="M0 -27 q11.4 3.2 9.4 12.4" stroke="#b98f5c" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+     +'<path d="M-6.2 -4 q6.2 3.2 12.4 0" stroke="'+t+'" stroke-width="2.5" fill="none"/>';
+  return g+'</g>';
+}
+/* ═════════ 인물 ═════════ */
+function agFigure(m,st,flags){
+  var dim=(st==='no'), dir=(m.side==='L'?-1:1), tone=flags.tone||'plain';
+  var g='<g class="agseat'+(dim?' empty':'')+(st==='na'?' na':'')+'" data-slug="'+m.slug+'">';
+  g+='<path d="M-31 47 q0 -63 31 -63 q31 0 31 63z" fill="#3a2a1d" stroke="#6b4f33" stroke-width="2.2"/>';
+  g+='<path d="M-23 41 q0 -49 23 -49 q23 0 23 49z" fill="#2e2117" opacity=".8"/>';
+  g+='<circle cx="0" cy="-10" r="5.2" fill="none" stroke="#6b4f33" stroke-width="1.7"/>';
+  /* 🔒 빈 자리는 **비어 보이게** 둔다 — 방석만 남기고 사람을 그리지 않는다 */
+  if(dim)g+='<ellipse cx="0" cy="40" rx="22" ry="7" fill="#5a3f2a"/>'
+    +'<ellipse cx="0" cy="38" rx="20" ry="6" fill="#6b4c32"/>';
+  if(!dim){
+    g+='<g class="fig">';
+    g+='<path d="M-31 51 q2 -33 31 -33 q29 0 31 33z" fill="'+m.robe+'"/>';
+    g+='<path d="M-31 51 q2 -33 31 -33 q-10.4 10.4 -12.4 33z" fill="'+agShade(m.robe,-24)+'" opacity=".5"/>';
+    g+='<path d="M-19.4 23 q19.4 12.4 38.8 0 q-6.2 -8.2 -19.4 -8.2 q-13.2 0 -19.4 8.2z" fill="'+agShade(m.robe,-32)+'"/>';
+    g+='<path d="M-25 39 q25 10.4 50 0" stroke="'+m.trim+'" stroke-width="3.1" fill="none"/>';
+    g+='<circle cx="0" cy="33.5" r="5.6" fill="'+m.trim+'" opacity=".92"/>';
+    g+='<text x="0" y="37" text-anchor="middle" style="font-size:7px">'+m.icon+'</text>';
+    g+='<path d="M-6.2 10 q6.2 7.2 12.4 0 l0 10.4 q-6.2 4.2 -12.4 0z" fill="'+agShade(m.skin,-20)+'"/>';
+    if(m.lady)g+='<path d="M-17.5 -5 q-6.2 23 -2 45 M17.5 -5 q6.2 23 2 45" stroke="'+m.hair+'" stroke-width="8.2" fill="none" stroke-linecap="round"/>';
+    g+=agHair(m)+agFace(m,tone,dir*0.6)+agHat(m)+agItem(m,dir);
+    g+='</g>';
+  }
+  if(flags.notice&&!dim)g+='<text x="0" y="-47" text-anchor="middle" style="font-size:15px">📢</text>';
+  if(st==='na')g+='<text x="25" y="-26" text-anchor="middle" style="font-size:15px">⊘</text>';
+  if(flags.star&&!dim)g+='<text x="-29" y="45" text-anchor="middle" style="font-size:15px">⭐</text>';
+  if(!dim&&tone!=='plain')g+='<text x="-29" y="-24" text-anchor="middle" style="font-size:14px">'+TONE[tone].ic+'</text>';
+  var nx=(m.side==='L'?-54:54);
+  g+='<text class="agnm'+(dim?' dim':'')+'" x="'+nx+'" y="70" text-anchor="middle">'+m.title+'</text>';
+  if(dim)g+='<text class="agnm2" x="'+nx+'" y="84" text-anchor="middle">· 미제출</text>';
+  return g+'</g>';
+}
+/* 🔒 왕이 아니라 영주다 — 왕관 대신 영주관, 홀 대신 장검 */
+function agLord(tone){
+  var m={skin:'#edc8a2',hair:'#3a2a1e',robe:'#6d4a86',trim:'#e0bd6a',beard:1,lady:0};
+  var g='<g class="agseat" data-slug="rohan">';
+  g+='<path d="M-45 57 q0 -93 45 -93 q45 0 45 93z" fill="#4a3320" stroke="#7a5a33" stroke-width="2.5"/>';
+  g+='<path d="M-35 51 q0 -75 35 -75 q35 0 35 75z" fill="#3a2718"/>';
+  g+='<path d="M-45 -24 q45 -22 90 0" fill="none" stroke="#e0bd6a" stroke-width="2.5"/>';
+  g+='<circle cx="-37" cy="-14" r="4.5" fill="#e0bd6a"/><circle cx="37" cy="-14" r="4.5" fill="#e0bd6a"/>';
+  g+='<path d="M0 -41 l3.5 6.6 l7.2 1 l-5.2 5.2 l1.2 7.2 l-6.7 -3.5 l-6.7 3.5 l1.2 -7.2 l-5.2 -5.2 l7.2 -1z" fill="#e0bd6a" opacity=".9"/>';
+  g+='<g class="fig">';
+  g+='<path d="M-41 59 q4 -41 41 -41 q37 0 41 41z" fill="'+m.robe+'"/>';
+  g+='<path d="M-41 59 q4 -41 41 -41 q-14.4 14.4 -17.4 41z" fill="'+agShade(m.robe,-26)+'" opacity=".5"/>';
+  g+='<path d="M-25 25 q25 16.5 50 0 q-8.2 -10.4 -25 -10.4 q-16.8 0 -25 10.4z" fill="#f3ead7"/>';
+  g+='<path d="M-20 27 l3 7.2 M-10 31 l3 7.2 M0 33 l3 7.2 M10 31 l3 7.2 M20 27 l3 7.2" stroke="#3a2a20" stroke-width="1.65"/>';
+  g+='<path d="M-31 45 q31 12.4 62 0" stroke="'+m.trim+'" stroke-width="3.7" fill="none"/>';
+  g+='<path d="M-7.2 10 q7.2 8.2 14.4 0 l0 11.4 q-7.2 5.2 -14.4 0z" fill="'+agShade(m.skin,-20)+'"/>';
+  g+=agHair(m)+agFace(m,tone||'plain',0);
+  g+='<rect x="-19.4" y="-23.6" width="38.8" height="7.4" rx="3" fill="'+m.trim+'" stroke="#a8812f" stroke-width="1.2"/>';
+  g+='<path d="M-13 -23.6 l3.4 -6 l3.4 6 M-3.4 -23.6 L0 -31.4 l3.4 7.8 M6.2 -23.6 l3.4 -6 l3.4 6" fill="'+m.trim+'" stroke="#a8812f" stroke-width="1"/>';
+  g+='<circle cx="0" cy="-19.8" r="2.4" fill="#c0504a"/><circle cx="-10" cy="-19.8" r="1.8" fill="#3f6fa8"/>'
+   +'<circle cx="10" cy="-19.8" r="1.8" fill="#3f6fa8"/>';
+  /* 🔒 장검은 뺐다(로한 지시) — 회의 자리에 무기는 뜻이 없다 */
+  g+='</g>';
+  g+='<text class="agnm" x="0" y="82" text-anchor="middle" style="font-size:15px;fill:#f0d78f">🛡 로한</text>';
+  return g+'</g>';
+}
+/* ═════════ 어전 ═════════ */
+function agCrest(cx,cy,k){
+  k=k||1;
+  return '<g transform="translate('+cx+','+cy+') scale('+k+')">'
+   /* 금테 — 두껍게. 얇으면 멀리서 안 보인다 */
+   +'<path d="M-31 -35 L31 -35 L31 3 Q31 28 0 43 Q-31 28 -31 3 Z" fill="#c99a3f"/>'
+   +'<path d="M-31 -35 L31 -35 L31 -29 L-31 -29 Z" fill="#e6c477"/>'
+   /* 검은 바탕 */
+   +'<path d="M-24.5 -28.5 L24.5 -28.5 L24.5 2.5 Q24.5 23 0 35.5 Q-24.5 23 -24.5 2.5 Z" fill="#161110"/>'
+   /* 안쪽 가는 금선 */
+   +'<path d="M-19 -23 L19 -23 L19 2 Q19 19 0 29.5 Q-19 19 -19 2 Z" fill="none" stroke="#d9ae55" stroke-width="1.3" opacity=".65"/>'
+   /* 🔒 R 은 **글자로** 그린다 — path 로 흉내내면 삐뚤어진다 */
+   +'<text x="0" y="12" text-anchor="middle" fill="#e8c46a" '
+     +'style="font-family:Georgia,serif;font-size:36px;font-weight:700">R</text>'
+   +'</g>';
+}
+function agTorch(x,y){
+  return '<g><rect x="'+(x-4)+'" y="'+y+'" width="8" height="36" rx="3" fill="#4a3526"/>'
+   +'<path d="M'+(x-11)+' '+y+' q11 7 22 0 q-3 10.4 -11 10.4 q-8 0 -11 -10.4z" fill="#6b4a2f"/>'
+   +'<circle cx="'+x+'" cy="'+(y-16)+'" r="46" fill="url(#glow)"/>'
+   +'<ellipse cx="'+x+'" cy="'+(y-23)+'" rx="13" ry="23" fill="url(#fl)" opacity=".92"/>'
+   +'<ellipse cx="'+x+'" cy="'+(y-17)+'" rx="6.6" ry="13" fill="#ffd98a" opacity=".95"/></g>';
+}
+
+/* ══════ 🏰 v4.33 가신회의 — 보는 화면 ══════
+   로한: "아고라에 **텍스트만 가득해서** 가독성도 떨어지고 보기가 싫어진다.
+          중세 배경의 방에 긴 탁자를 그려서 끝에 내가 앉아있고 각 담당 '관'들이 앉아있는 형태로."
+   설계 정본: agora-design.md §15 (원칙 40개)
+   🔒 보기만 바뀐다 — DB·제출 잠금·공지 강제·phase 는 그대로다. 문서 보기도 없애지 않는다. */
+
+/* 🔒 생김새는 **slug 로 매핑**한다. 명단(DB)에는 관직·담당만 있고 색·지물은 화면 것이다.
+   명단에 없는 방이 와도 기본 모습으로 앉는다 — 빈 칸을 만들지 않는다. */
+var AG_LOOK={
+ 'robert-life' :{skin:'#e3bb95',hair:'#4a3526',robe:'#a06a33',trim:'#e6c477',hat:'coif',   item:'scale', beard:1},
+ 'robert-study':{skin:'#eac6a0',hair:'#2f3a52',robe:'#44608f',trim:'#cfe0f2',hat:'scholar',item:'book',  beard:0},
+ 'robert-saju' :{skin:'#dfb894',hair:'#d8d3e2',robe:'#6a4e9c',trim:'#d8c8f5',hat:'tall',   item:'orb',   beard:2},
+ 'suyeon'      :{skin:'#f2d2b4',hair:'#2a1c22',robe:'#3f8f74',trim:'#f0dfae',hat:'circlet',item:'quill', beard:0,lady:1},
+ 'maker'       :{skin:'#d9ab86',hair:'#5a4536',robe:'#6f7480',trim:'#c6cbd4',hat:'cap',    item:'hammer',beard:1},
+ 'cardio'      :{skin:'#e7c3a0',hair:'#3a2a24',robe:'#a3484a',trim:'#f0d3cf',hat:'plague', item:'stetho',beard:0},
+ 'rehab'       :{skin:'#ddb48f',hair:'#473a30',robe:'#3f8290',trim:'#cfe9ec',hat:'hood',   item:'staff', beard:1}};
+var AG_LOOK0={skin:'#e0bb95',hair:'#4a3a2e',robe:'#7a6a58',trim:'#d8ccb4',hat:'coif',item:'scroll',beard:0};
+var AG_TONE={plain:{ko:'담담히 아뢴다',ic:'😐'},praise:{ko:'기껍게 아뢴다',ic:'😊'},
+  worry:{ko:'염려하여 아뢴다',ic:'😟'},grave:{ko:'엄중히 아뢴다',ic:'😠'},
+  plead:{ko:'간곡히 청한다',ic:'🙏'}};
+function agToneOf(t){return AG_TONE[t]?t:'plain';}
+
+/* 🔒 자리는 **sort 로 좌우 번갈아** 앉힌다. 새 컬럼을 만들지 않는다(파생).
+   수연은 비서라 로한의 좌측 첫 자리 — 상석에서 내려다보므로 화면 오른쪽이다. */
+function agSeats(){
+  var ms=(AG.mem||[]).filter(function(m){return m.active;}).slice()
+    .sort(function(a,b){return (a.sort||0)-(b.sort||0)||(a.slug<b.slug?-1:1);});
+  /* 🔒 수연은 비서라 영주의 **좌측 첫 자리**다 — 상석에서 내려다보므로 화면 오른쪽 맨 앞 */
+  var L=[], R=ms.filter(function(m){return m.slug==='suyeon';});
+  ms.filter(function(m){return m.slug!=='suyeon';})
+    .forEach(function(m,i){ (i%2===0?L:R).push(m); });
+  var out=[];
+  L.forEach(function(m,i){out.push({m:m,side:'L',pos:i});});
+  R.forEach(function(m,i){out.push({m:m,side:'R',pos:i});});
+  return out;
+}
+function agLookOf(slug){
+  var k=AG_LOOK[slug]||AG_LOOK0, m=agMemOf(slug);
+  return {slug:slug,title:(m.title||m.name||slug),icon:(m.icon||'🏛'),
+    skin:k.skin,hair:k.hair,robe:k.robe,trim:k.trim,hat:k.hat,item:k.item,
+    beard:k.beard||0,lady:k.lady||0};
+}
+
+/* 📜 두루마리 — 🔒 묶음은 **화면에서만** 한다. agora_facts 는 그대로다(파생을 저장하지 않는다) */
+var AG_SCROLL=[
+ {k:'재정',keys:['거래건수','수입','지출','예산합계','예산확정']},
+ {k:'학업',keys:['학습과제','과제완료','드릴','시험','단어','예문']},
+ {k:'몸',  keys:['체중기록','체중변화','EMR턴']},
+ {k:'나날',keys:['체크한날','식단','타임로그','일지']},
+ {k:'점괘',keys:['사주예측']}];
+function agScrollVal(d,k){
+  var v=d[k];
+  if(k==='수입'||k==='지출'||k==='예산합계')return won(+v||0);
+  if(k==='예산확정')return v?'확정':'기준 한 벌';
+  if(k==='체중변화')return Array.isArray(v)?(v[0]+' → '+v[1]):'-';
+  if(k==='과제완료')return null;
+  if(k==='학습과제')return (d['과제완료']!=null?d['과제완료']+'/':'')+(v==null?'-':v);
+  return v==null?'-':String(v);
+}
+/* 🔒 0 인 칸은 **두루마리 겉에** 붉은 점으로 드러낸다 — 눌러야만 보이면 숨기는 것이다 */
+function agScrollZero(d,s){
+  return s.keys.some(function(k){
+    if(k==='예산확정'||k==='체중변화'||k==='과제완료')return false;
+    var v=d[k]; return v!=null&&+v===0;});
+}
+
+
+/* ── 🏰 회의장 그리기 ── */
+var AG_VB={w:1180,h:1030};
+var AG_TBL={yTop:300,yBot:906,xTopL:452,xTopR:728,xBotL:272,xBotR:908};
+function agSeatXY(st){
+  var L=(st.side==='L'), y=318+st.pos*174;
+  var t=(y-AG_TBL.yTop)/(AG_TBL.yBot-AG_TBL.yTop);
+  var edge=L?AG_TBL.xTopL+(AG_TBL.xBotL-AG_TBL.xTopL)*t
+            :AG_TBL.xTopR+(AG_TBL.xBotR-AG_TBL.xTopR)*t;
+  return {x:Math.round(edge+(L?-96:96)), y:y};
+}
+/* 공지 미확인 수 — 🔒 그 방은 평가를 쓸 수 없다. 머리 위 📢 가 그것을 말한다 */
+function agNtPending(slug){
+  return (AG.nt||[]).filter(function(n){
+    if(!agNtLive(n))return false;
+    var t=n.targets||[];
+    if(t.length&&t.indexOf(slug)<0)return false;
+    return !(n._ack||[]).some(function(a){return a.member===slug;});
+  }).length;
+}
+function agHallHtml(ym){
+  var seats=agSeats();
+  var d=(AG.facts&&AG.facts.ym===ym&&AG.facts.phase===agPhase())?AG.facts.d:null;
+  var s='<svg viewBox="0 0 '+AG_VB.w+' '+AG_VB.h+'" role="img" aria-label="가신회의">';
+  s+='<defs>'
+   +'<linearGradient id="agwall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3a2c"/><stop offset="1" stop-color="#241a13"/></linearGradient>'
+   +'<linearGradient id="agfloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2017"/><stop offset="1" stop-color="#160f09"/></linearGradient>'
+   +'<linearGradient id="agwood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a6038"/><stop offset="1" stop-color="#593b21"/></linearGradient>'
+   +'<linearGradient id="agglass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86b0de"/><stop offset="1" stop-color="#2d4b7a"/></linearGradient>'
+   +'<radialGradient id="agfl"><stop offset="0" stop-color="#fff0b8"/><stop offset=".55" stop-color="#f0a53c"/><stop offset="1" stop-color="#d1521f" stop-opacity="0"/></radialGradient>'
+   +'<radialGradient id="agglow"><stop offset="0" stop-color="#ffb648" stop-opacity=".5"/><stop offset="1" stop-color="#ffb648" stop-opacity="0"/></radialGradient>'
+   +'<radialGradient id="agvig" cx=".5" cy=".42" r=".8"><stop offset=".52" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".74"/></radialGradient>'
+   +'<pattern id="agbrick" width="84" height="42" patternUnits="userSpaceOnUse">'
+     +'<rect width="84" height="42" fill="url(#agwall)"/>'
+     +'<path d="M0 0h84M0 21h84M0 0v21M42 21v21" stroke="#17100b" stroke-width="2.2" opacity=".5"/></pattern>'
+   +'</defs>';
+  s+='<rect width="'+AG_VB.w+'" height="500" fill="url(#agbrick)"/>';
+  s+='<rect y="500" width="'+AG_VB.w+'" height="'+(AG_VB.h-500)+'" fill="url(#agfloor)"/>';
+  for(var i=-6;i<=6;i++)
+    s+='<path d="M590 500 L'+(590+i*292)+' '+AG_VB.h+'" stroke="#3a2b1e" stroke-width="1.4" opacity=".4"/>';
+  [532,582,660,784,920].forEach(function(y){
+    s+='<path d="M0 '+y+' H'+AG_VB.w+'" stroke="#3a2b1e" stroke-width="1.4" opacity=".35"/>';});
+  [192,590,988].forEach(function(x){
+    s+='<g><path d="M'+(x-55)+' 244 v-98 a55 55 0 0 1 110 0 v98 z" fill="#17100b"/>'
+     +'<path d="M'+(x-45)+' 236 v-90 a45 45 0 0 1 90 0 v90 z" fill="url(#agglass)" opacity=".9"/>'
+     +'<path d="M'+x+' 56 v180 M'+(x-45)+' 152 h90" stroke="#17100b" stroke-width="5"/>'
+     +'<path d="M'+(x-22)+' 102 v134 M'+(x+22)+' 102 v134" stroke="#17100b" stroke-width="3.4" opacity=".8"/>'
+     +'<ellipse cx="'+x+'" cy="306" rx="72" ry="48" fill="#9ec4ea" opacity=".06"/></g>';});
+  /* 🛡 로한북 문장 깃발 */
+  [384,796].forEach(function(x){
+    s+='<g opacity=".97">'
+     +'<rect x="'+(x-52)+'" y="56" width="104" height="9" rx="4" fill="#6b4a2f"/>'
+     +'<circle cx="'+(x-52)+'" cy="60.5" r="5.4" fill="#e0bd6a"/><circle cx="'+(x+52)+'" cy="60.5" r="5.4" fill="#e0bd6a"/>'
+     +'<rect x="'+(x-44)+'" y="64" width="88" height="168" fill="#5a2f3a"/>'
+     +'<rect x="'+(x-38)+'" y="70" width="76" height="162" fill="#7a3f4c"/>'
+     +'<rect x="'+(x-38)+'" y="70" width="14" height="162" fill="#8d4b58" opacity=".5"/>'
+     +'<path d="M'+(x-44)+' 232 l14.6 19 l14.6 -19 l14.6 19 l14.6 -19 l14.6 19 l14.6 -19z" fill="#5a2f3a"/>'
+     +'<path d="M'+(x-38)+' 232 l12.6 16 l12.6 -16 l12.6 16 l12.6 -16 l12.6 16 l12.6 -16z" fill="#7a3f4c"/>'
+     +agCrest(x,142,1.08)+'</g>';});
+  s+=agTorch(76,252)+agTorch(1104,252);
+  s+='<path d="M540 500 L640 500 L806 '+AG_VB.h+' L374 '+AG_VB.h+' z" fill="#7a2f33" opacity=".45"/>';
+  s+='<path d="M556 500 L624 500 L776 '+AG_VB.h+' L404 '+AG_VB.h+' z" fill="none" stroke="#e0bd6a" stroke-width="2.4" opacity=".45"/>';
+  /* 🛡 로한 — 받들지 않은 공지가 남아 있으면 엄중한 얼굴이다 */
+  var ntLeft=(AG.nt||[]).filter(agNtLive).length;
+  s+='<g transform="translate(590,198) scale(1.18)">'+agLord(ntLeft?'grave':'plain')+'</g>';
+  /* 탁자 */
+  s+='<path d="M'+AG_TBL.xTopL+' '+AG_TBL.yTop+' L'+AG_TBL.xTopR+' '+AG_TBL.yTop+' L'+AG_TBL.xBotR+' '+AG_TBL.yBot+' L'+AG_TBL.xBotL+' '+AG_TBL.yBot+' z" fill="url(#agwood)" stroke="#3f2a18" stroke-width="3"/>';
+  s+='<path d="M'+AG_TBL.xTopL+' '+AG_TBL.yTop+' L'+AG_TBL.xTopR+' '+AG_TBL.yTop+' L'+(AG_TBL.xTopR+9)+' '+(AG_TBL.yTop+19)+' L'+(AG_TBL.xTopL-9)+' '+(AG_TBL.yTop+19)+' z" fill="#9a6d3f"/>';
+  [0.28,0.55,0.8].forEach(function(t){
+    var yl=AG_TBL.yTop+(AG_TBL.yBot-AG_TBL.yTop)*t;
+    var xl=AG_TBL.xTopL+(AG_TBL.xBotL-AG_TBL.xTopL)*t, xr=AG_TBL.xTopR+(AG_TBL.xBotR-AG_TBL.xTopR)*t;
+    s+='<path d="M'+(xl+28)+' '+yl+' L'+(xr-28)+' '+yl+'" stroke="#4a3220" stroke-width="1.6" opacity=".4"/>';});
+  /* 가신 */
+  seats.forEach(function(st){
+    var p=agSeatXY(st), r=agReviewOf(ym,st.m.slug);
+    var look=agLookOf(st.m.slug); look.side=st.side;
+    var flags={notice:agNtPending(st.m.slug)>0, star:!!agRateOf(ym,st.m.slug),
+               tone:agToneOf(r&&r.tone)};
+    s+='<g transform="translate('+p.x+','+p.y+') scale(1.2)">'
+      +agFigure(look,(r?(r.status==='na'?'na':'ok'):'no'),flags)+'</g>';});
+  /* 📜 두루마리 — 숫자를 탁자 위에 올린다 */
+  if(d)AG_SCROLL.forEach(function(sc,i){
+    var x=590+(i-2)*102, y=524;
+    s+='<g class="agscr" data-scr="'+i+'" transform="translate('+x+','+y+')">'
+     +'<rect x="-27" y="-21" width="54" height="42" rx="3" fill="#f0e3c6"/>'
+     +'<path d="M-19 -9.4 h38 M-19 0 h38 M-19 9.4 h25" stroke="#b09468" stroke-width="2.5" stroke-linecap="round"/>'
+     +'<rect x="-35" y="-26" width="12.4" height="52" rx="6.2" fill="#9a7445" stroke="#6f5330" stroke-width="1.5"/>'
+     +'<rect x="22.6" y="-26" width="12.4" height="52" rx="6.2" fill="#9a7445" stroke="#6f5330" stroke-width="1.5"/>'
+     +(agScrollZero(d,sc)?'<circle cx="27" cy="-27" r="6.2" fill="#e2604f" stroke="#1b1109" stroke-width="2"/>':'')
+     +'<text class="agscrl" x="0" y="42" text-anchor="middle">'+mdEsc(sc.k)+'</text></g>';});
+  s+='<rect width="'+AG_VB.w+'" height="'+AG_VB.h+'" fill="url(#agvig)" pointer-events="none"/></svg>';
+  return '<div class="aghall" id="aghall">'+s+'</div><div class="agbub" id="agbub"></div>';
+}
+
+/* ── 💬 말풍선 — 🔒 한 번에 한 토막. 2,000자를 그대로 넣으면
+   「텍스트만 가득」이 말풍선 안에서 그대로 재현된다(실측 own 2,000자) ── */
+var AG_CUR=null;
+function agChunk(txt){
+  var out=[];
+  String(txt||'').split(/\n{2,}/).forEach(function(p){
+    p=p.trim(); if(!p)return;
+    if(p.length<=175){out.push(p);return;}
+    var buf='';
+    p.split(/(?<=[.!?。])\s+/).forEach(function(x){
+      if((buf+' '+x).trim().length>175){if(buf)out.push(buf.trim());buf=x;}
+      else buf=(buf?buf+' ':'')+x;});
+    if(buf.trim())out.push(buf.trim());});
+  return out.length?out:['(내용 없음)'];
+}
+/* 🔒 할 말 없는 자는 눌리지 않는다. 「해당 없음」은 **말한 것**이라 눌린다(미제출과 가른다) */
+function agHasVoice(ym,slug){
+  if(slug==='rohan')
+    return (AG.nt||[]).filter(agNtLive).length>0
+      || agOf(ym,'clarify').length>0 || agOf(ym,'rate').length>0;
+  return !!agReviewOf(ym,slug);
+}
+/* 발언 묶음 — 평가 → 그가 건 간언 → 받은 해명·재간언. 화자가 바뀌면 말풍선 주인도 바뀐다 */
+function agSeq(ym,slug){
+  var out=[], byId={};
+  (AG.posts||[]).forEach(function(x){byId[x.id]=x;});
+  function push(w,lb,tx,tn){
+    agChunk(tx).forEach(function(c){out.push({who:w,label:lb,text:c,tone:agToneOf(tn)});});}
+  var talk=agOf(ym,'comment').concat(agOf(ym,'clarify'),agOf(ym,'rate'))
+    .sort(function(a,b){return String(a.submitted_at||'')<String(b.submitted_at||'')?-1:1;});
+  if(slug==='rohan'){
+    (AG.nt||[]).filter(agNtLive).forEach(function(n){
+      var tg=agNtTargets(n), no=tg.filter(function(m){return agNtPending(m.slug)>0;});
+      push('rohan','📢 분부', n.title+'\n\n'+n.body
+        +(no.length?('\n\n— 아직 '+no.length+'방이 받들지 않았다: '
+          +no.map(function(m){return m.title||m.name;}).join(' · ')):''), 'grave');});
+    talk.forEach(function(t){
+      if(t.member!=='rohan')return;
+      var to=t.kind==='rate'?t.target:(byId[t.parent_id]||{}).member;
+      push('rohan',(t.kind==='rate'?'⭐ 조언 평가':'🙋 해명')+(to?' → '+agTitleOf(to):''),t.content,t.tone);});
+    if(!out.length)push('rohan','','아직 내릴 분부가 없다.','plain');
+    return out;
+  }
+  var r=agReviewOf(ym,slug);
+  if(!r)return out;
+  if(r.status==='na'){push(slug,'⊘ 해당 없음',r.content,r.tone);return out;}
+  push(slug,'총평',r.summary,r.tone);
+  if(r.own)push(slug,'내 담당 영역',r.own,r.tone);
+  if(stNorm?stNorm(r.others):r.others)push(slug,'⚖ 다른 영역에 하는 말',r.others,r.tone);
+  if(r.ask)push(slug,'🙋 영주께',r.ask,r.tone);
+  talk.forEach(function(t){
+    var to=t.kind==='rate'?t.target:(byId[t.parent_id]||{}).member;
+    if(t.member===slug)
+      push(slug,'🗣 간언'+(to?' → '+agTitleOf(to):''),t.content,t.tone);
+    else if(to===slug)
+      push(t.member,(t.kind==='clarify'?'🙋 해명':(t.kind==='rate'?'⭐ 조언 평가':'🗣 간언'))
+        +' → '+agTitleOf(slug),t.content,t.tone);});
+  return out;
+}
+function agTitleOf(slug){
+  if(slug==='rohan')return '로한';
+  var m=agMemOf(slug); return m.title||m.name||slug;
+}
+function agSpeak(slug){
+  var ym=agYm();
+  if(!agHasVoice(ym,slug))return;
+  AG_CUR={seq:agSeq(ym,slug),i:0};
+  if(!AG_CUR.seq.length){AG_CUR=null;return;}
+  agApply();
+}
+function agScrollOpen(i){
+  var sc=AG_SCROLL[i], d=(AG.facts&&AG.facts.d)||null;
+  if(!sc||!d)return;
+  var lines=sc.keys.map(function(k){
+    var v=agScrollVal(d,k); return v==null?null:(k+' '+v);}).filter(Boolean);
+  AG_CUR={seq:[{who:'scroll',label:'📜 '+sc.k+' · '+(d['기간']||agYm()),
+    text:lines.join('\n'),tone:'plain'}],i:0};
+  agMark(null);
+  var b=document.getElementById('agbub');
+  if(b)b.style.setProperty('--tail',Math.round((590+(i-2)*102)/AG_VB.w*100)+'%');
+  agBub();
+}
+function agApply(){
+  var c=AG_CUR.seq[AG_CUR.i];
+  agMark(c.who); agTail(c.who); agBub();
+}
+function agMark(slug){
+  var h=document.getElementById('aghall'); if(!h)return;
+  h.querySelectorAll('.agseat').forEach(function(el){
+    el.classList.toggle('on',el.dataset.slug===slug);});
+}
+function agTail(slug){
+  var b=document.getElementById('agbub'); if(!b)return;
+  if(slug==='rohan'||slug==='scroll'){b.style.setProperty('--tail','50%');return;}
+  var st=agSeats().filter(function(x){return x.m.slug===slug;})[0];
+  b.style.setProperty('--tail',st?Math.round(agSeatXY(st).x/AG_VB.w*100)+'%':'50%');
+}
+function agStep(d){
+  if(!AG_CUR)return;
+  AG_CUR.i=Math.max(0,Math.min(AG_CUR.seq.length-1,AG_CUR.i+d));
+  agApply();
+}
+function agBub(){
+  var b=document.getElementById('agbub'); if(!b)return;
+  if(!AG_CUR){
+    b.className='agbub none';
+    b.innerHTML='<div class="mut" style="font-size:11.5px">가신을 누르면 아뢴다. '
+      +'📜 두루마리를 누르면 그 달의 숫자가 뜬다.</div>';
+    return;}
+  var c=AG_CUR.seq[AG_CUR.i], tn=agToneOf(c.tone);
+  var nm=(c.who==='scroll')?'기록':agTitleOf(c.who);
+  var ic=(c.who==='scroll')?'📜':(c.who==='rohan'?'🛡':agMemOf(c.who).icon||'🏛');
+  b.className='agbub '+tn;
+  b.innerHTML='<div class="agbh">'+ic+' <b>'+mdEsc(nm)+'</b>'
+    +(c.label?'<span>· '+mdEsc(c.label)+'</span>':'')
+    /* 🔒 어조를 글자로도 적는다 — 표정만으로는 저시력·색맹에서 안 보인다 */
+    +'<span class="agtn '+tn+'">'+AG_TONE[tn].ic+' '+AG_TONE[tn].ko+'</span></div>'
+    +'<div class="agbt">'+mdRender(c.text)+'</div>'
+    +'<div class="agbn">'
+      +'<button class="mini" '+(AG_CUR.i?'':'disabled')+' onclick="agStep(-1)">◀</button>'
+      +'<button class="mini go" '+(AG_CUR.i<AG_CUR.seq.length-1?'':'disabled')+' onclick="agStep(1)">다음 ▶</button>'
+      +'<span class="agsp">'+(AG_CUR.i+1)+' / '+AG_CUR.seq.length+'</span></div>';
+}
+
+
 function renderAgora(){
   var box=document.getElementById('v-agora');if(!box)return;
   var head='<div class="aghd"><div><h2>🏛 아고라</h2>'
@@ -7405,6 +7957,10 @@ function renderAgora(){
       +'<b style="font-size:15px">'+mdEsc(ym)+'</b>'
       +'<button class="ghost sm" onclick="agMove(1)">▶</button>'
       /* 🕐 단계 토글 — 🔒 기본값은 오늘의 차례다 */
+      +'<span class="agview" style="margin-left:6px">'
+        +'<button class="'+(agView()==='hall'?'on':'')+'" onclick="agSetView(&#39;hall&#39;)">🏰 회의장</button>'
+        +'<button class="'+(agView()==='doc'?'on':'')+'" onclick="agSetView(&#39;doc&#39;)">📄 문서</button>'
+      +'</span>'
       +'<span class="agph" style="margin-left:6px">'
         +'<button class="'+(ph==='mid'?'on':'')+'" onclick="agSetPhase(&#39;mid&#39;)">중간 (1~15)</button>'
         +'<button class="'+(ph==='full'?'on':'')+'" onclick="agSetPhase(&#39;full&#39;)">월말 (전체)</button>'
@@ -7413,9 +7969,24 @@ function renderAgora(){
         ?'<span class="mut" style="font-size:10.5px">← 오늘의 차례</span>'
         :'<button class="ghost sm" onclick="agGoTurn()">오늘의 차례로</button>')
       +'<button class="ghost sm" style="margin-left:auto" onclick="agLoad();agLoadNotices()">↻ 새로고침</button></div>'
-    +agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym,agSelRoom())+agTools(ym);
+    +(agView()==='hall'
+       ? agHallHtml(ym)+agTools(ym)
+       : agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym,agSelRoom())+agTools(ym));
+  if(agView()==='hall')agHallBind(ym);
   /* 🔒 공지를 아직 못 불러왔으면 여기서 한 번 부른다 — 「불러오는 중」에 멈추지 않게 */
   if(AG.nt===null&&!AG.ntErr)agLoadNotices();
+}
+/* 🔒 트리거는 **캐릭터**다. 할 말 없는 자는 눌리지 않고, 못 누른다는 것이 보인다(원칙 28·30).
+   「해당 없음」은 **말한 것**이라 눌린다 — 미제출과 같이 묶으면 테이블이 가른 뜻이 사라진다(§4) */
+function agHallBind(ym){
+  var h=document.getElementById('aghall'); if(!h)return;
+  h.querySelectorAll('.agseat').forEach(function(el){
+    var slug=el.dataset.slug;
+    if(!agHasVoice(ym,slug)){el.classList.add('mute');return;}
+    el.addEventListener('click',function(){agSpeak(slug);});});
+  h.querySelectorAll('.agscr').forEach(function(el){
+    el.addEventListener('click',function(){agScrollOpen(+el.dataset.scr);});});
+  agBub();
 }
 /* 🔒 ① 미제출을 숨기지 않는다 */
 function agRoster(ym){
@@ -9674,13 +10245,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.32';
+var APP_VERSION='4.33';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.33',date:'2026-10-16',note:'<b>🏰 가신회의 — 아고라를 읽는 화면에서 보는 화면으로.</b> 로한: 「아고라에 <b>텍스트만 가득해서</b> 가독성도 떨어지고 보기가 싫어진다. 중세 배경의 방에 긴 탁자를 그려서 끝에 내가 앉아있고 각 담당 관들이 앉아있는 형태로」 · 🔒 <b>보기만 바뀐다</b> — DB·제출 잠금·공지 강제·phase 는 그대로고, <b>문서 보기도 없애지 않았다</b>(같은 데이터, 두 보기) · 머리에 <b>[🏰 회의장 | 📄 문서]</b> 토글. 기본은 회의장 · <b>🏰 그림</b> — 돌벽·스테인드글라스 3창·로한북 문장 깃발·횃불·카펫·원근 탁자. 🔒 <b>전부 인라인 SVG다. 이미지 파일 0개</b> — 단일 파일 원칙을 깨지 않는다 · <b>👥 일곱 가신</b> — 생활사·학습사·사주사·수연·제작사·의사(순환기)·의사(그외). 관직명은 <b>명단 테이블</b>(agora_members.title)에서 온다. 수연은 비서라 영주의 좌측 첫 자리 · 🔒 <b>캐릭터가 상태를 입는다</b> — 미제출은 <b>빈 의자</b>(숨기면 거짓말), 해당없음은 ⊘, 공지 미확인은 📢, 로한의 ⭐ 평가는 발치에 별 · <b>🖱 트리거는 캐릭터다</b> — 누르면 평가 → 그가 건 간언 → 받은 해명·재간언을 따라간다. <b>화자가 바뀌면 말풍선 주인도 바뀐다</b>(티키타카) · 🔴 <b>말풍선은 한 번에 한 토막이다</b> — 실측 own 2,000자를 그대로 넣으면 「텍스트만 가득」이 말풍선 안에서 재현된다. 문단으로 쪼개 ▶ 로 넘긴다 · 🔒 <b>할 말 없는 자는 눌리지 않는다</b>. 다만 <b>「해당 없음」은 눌린다</b> — 그건 말한 것이다. 미제출과 같이 묶으면 테이블이 가른 뜻이 화면에서 사라진다 · 😠 <b>어조가 얼굴에 나온다</b> — 눈썹·입·말풍선 테두리. 🔒 글자로도 적는다(저시력·색맹) · 📜 <b>두루마리 다섯</b>(재정·학업·몸·나날·점괘) — 0인 칸은 <b>겉에 붉은 점</b>으로 드러낸다. 머리에 기간을 적어 보름치를 월 예산과 그냥 비교하지 않게 한다 · 🔒 움직임을 줄이라는 설정이면 흔들지 않는다 · 🔴 <b>그림 함수를 뽑을 때 범위가 겹쳐 AG_VB·AG_TBL·agSeatXY 가 두 번 선언됐다</b> — var·function 중복은 조용히 허용되고 나중 것이 이긴다. 동작은 했지만 거짓이라 앞쪽을 지웠다 · 🔴 SVG 식별자가 lord 인데 DB 는 rohan 이라 영주가 「할 말 없음」으로 판정됐다 — <b>식별자는 DB 를 따른다</b> · t54 106 → <b>123건</b>(P절 16건 신설) · run.sh all 42/42 통과'},
   {v:'4.32',date:'2026-10-15',note:'<b>🏛 아고라 v2 — 📢 공지 · 🕐 중간평가(15일/말일).</b> 로한: 「변동된 것들을 내가 <b>매번 여러 방에 다 알려주기가 존나 귀찮다</b>. 아고라에 적어놓으면 다른 방에서 묻기 전에 공지를 읽고 <b>반영</b>했으면 한다. 그리고 월말 평가 말고 중간 평가를 하나 넣어서 15일/말일」 · 🔒 <b>요구의 핵심은 평가를 늘리는 게 아니라 로한의 수고를 줄이는 것이다.</b> 평가가 두 배가 되면 로한이 읽을 양도 두 배가 되고, 그러면 아고라를 안 열게 된다 · <b>📢 공지</b> — 아고라 맨 위에서 <b>✎ 공지 쓰기</b>. 제목·내용·대상(안 고르면 전체)·언제까지(비우면 계속) · 🔒 <b>월에 묶지 않는다</b> — 변경사항은 달이 바뀌어도 유효하다(별도 테이블 + 유효기간) · 🔒 <b>이미 있는 입구에 끼웠다</b> — 방들이 원래 부르는 <code>agora_pending()</code> 맨 앞에 「확인할공지」가 온다. 새 함수를 외우게 하면 안 지켜지고 그러면 로한이 다시 일일이 챈다 · 🔒 <b>「읽었음」 버튼을 만들지 않았다.</b> <code>agora_ack</code> 는 <b>무엇을 바꿨는지</b>를 요구한다(5자 이상) — 체크만 받으면 로한이 「반영됐다」는 <b>거짓 숫자</b>를 본다(2026-09 에 거짓 숫자 하나로 다섯 방이 같이 틀렸다) · 🔒 <b>미확인은 쓰기를 막고 읽기는 막지 않는다</b> — 읽기를 막으면 공지도 못 읽는다. 화면은 공지마다 <b>n/m 반영</b>과 <b>미확인 방 이름</b>을 적는다(숫자만 보여주면 누구를 챌지 모른다) · <b>🕐 중간평가</b> — 머리에 <b>[중간 (1~15) | 월말 (전체)]</b> 토글. 🔒 기본값은 <b>오늘의 차례</b>다(15일 이후면 이번 달 중간, 그 전이면 지난 달 월말) · 🔴 <b>중간평가에서 「내 담당 영역」(결산)을 뺐다</b> — 실측 own 2,000자가 분량의 절반이다. 7방 × 한 달 두 번이면 로한이 안 읽는다. 세 칸(총평·다른영역·로한에게)이고, 결산은 월말에 쓴다 · 🔒 <b>월말 읽기가 그 달 중간평가와 로한의 평가를 같이 준다</b> — 15일에 요구한 것이 지켜졌는지 월말에 다룬다. 이 참조가 없으면 중간평가는 그냥 평가가 두 배가 된 것일 뿐이다 · 🔒 <b>facts 가 기간을 말한다</b> — mid 는 1~15일만 센다. 기간·일수·진행률·「예산은 월 단위다」를 같이 준다. 보름 지출을 월 예산과 그냥 비교하면 「절반밖에 안 썼다」를 「잘했다」로 읽는다 · DB: <code>agora_notices</code>·<code>agora_acks</code> 신설, <code>agora_posts.phase</code>, 유니크를 (ym,phase,member)/(ym,phase,target) 로, guard 검사도 전부 (ym,phase) 단위로 · 🔒 <code>phase</code> 는 <b>언제나 마지막 인자</b>다 — 중간에 끼우면 기존 호출 <code>agora_read(ym,slug)</code> 가 phase 로 잘못 간다 · 핸드오프 7방+공통 v2 · <b>🔴 t54 가 날짜에 기대고 있었다</b> — 기본 기간이 「오늘의 차례」가 되자 픽스처(2026-09 월말)가 안 보여 전부 빨개졌다. 앱이 맞고 테스트가 틀렸다(t50·t42 와 같은 종류) → 시계를 10/5 로 고정 · t54 86 → <b>106건</b>, run.sh all 42/42 통과'},
   {v:'4.31',date:'2026-10-14',note:'<b>🛟 [중대] 저장되지 않은 변경을 잃지 않는다 — 10월 가계부가 날아갔다.</b> 로한: 「어제 가계부 13일거까지 써놨던게 날라갔다」 · <b>실측</b>: 10/08~13 거래 <b>0건</b>(마지막이 10-07), 매월 5일에 빠짐없이 찍히던 <b>10월분 국민연금 140,220·건강보험 122,020 이 통째로 없다</b>, 140만원 카뱅 이체도 없다 · 🔴 <b>스냅샷 55개를 다 뒤졌는데 어디에도 없었다</b> — 서버는 그 입력을 본 적이 없다. localStorage 에도 없었다: <code>localBackup()</code> 은 <b>접속 직후 하루 1회</b>라 입력한 것을 안 남긴다 · 🔴 <b>원인을 특정하지 못했다.</b> 저장이 못 닿았는지, 충돌창에서 버렸는지, 창을 닫았는지 가릴 증거가 없다. v4.13 의 3자 병합도 낙관적 잠금도 <b>저장 요청이 서버에 닿은 뒤</b>의 장치다 — 닿지 못한 입력은 아무것도 지키지 않았다 · ⚠️ <b>내 책임이 섞여 있다</b>: 10/13 에 단어·문항을 넣느라 <code>app_state.data</code> 를 MCP 로 <b>네 번</b> 직접 UPDATE 했다. <code>app_state_bump</code> 트리거가 그때마다 <code>updated_at</code> 을 올리니, 열려 있던 로한의 탭은 저장할 때마다 충돌로 떨어진다. 작업 끝나고 「새로고침하라」도 안 말했다 · <b>그래서 원인을 가리지 않는 그물을 깐다</b> · ① 🛟 <b>저장을 보내기 직전에 로컬에 박는다</b>(<code>rb_pending</code>) — 저장이 <b>확인되면</b> 지운다. 남아 있다는 건 「저장되지 않은 변경이 있다」는 뜻이다 · ② <b>다음 접속에 서버 📀 스냅샷으로 건져 올린다</b>(<code>kind:pending</code>, <b>상한 없음</b> — 사고의 유일한 증거를 상한으로 밀어내지 않는다). 🔒 <b>자동으로 DB 를 덮지 않는다</b> — 그게 v3.6 에 단어 96건을 두 번 날린 짓이다. 보존만 하고 되돌릴지는 로한이 고른다 · ③ 🔴 <b>충돌창에서 「버린다」를 골라도 내 화면을 먼저 남긴다</b>(<code>pre_discard</code>). v1.8 은 「덮어쓰기」쪽 서버본만 남겼다 — <b>잃는 쪽을 안 지키는 비대칭</b>이었고, 날아간 가계부가 이 경로를 지났을 수 있는데 흔적이 하나도 없었다 · ④ 자리가 없으면 <b>옛 복원지점을 줄여서라도 미저장분을 지킨다</b> — 어제 사본은 서버에도 있고 방금 입력은 거기밖에 없다 · 📄 <b>data-safety.md</b> 신설(정본) — 데이터가 사는 네 층과 <b>내가 app_state 를 직접 건드릴 때의 절차</b>를 박았다 · t55 20건 신설(저장 실패 시 잔류 · 건지기 · 자동 덮어쓰기 금지 · 버리기 직전 보존)'},
   {v:'4.30',date:'2026-10-13',note:'<b>📚 스피드체크북을 다 넣었다 — 문형 108항목 · 유의표현 115쌍.</b> 로한: 「책에서 배우는 주요 단어들은 다 모아놓은 것 같으니까 학습 드릴에 반영해버려」 → 단어 439개(581 → <b>1,020개</b>)에 이어 <b>문항 255건</b>(예문 61 → <b>316개</b>) · ① <b>📖 문형 채우기</b> — 문형 001~108 의 책 예문과 책 해설을 그대로 쓴다. 오답은 <b>같은 종류의 다른 문형</b>에서 빌리고, <b>오답이 예문 안에 들어 있으면 뺀다</b>(정답이 둘이 되니까) · ② <b>🔁 유의표현</b> — 「이 표현과 같은 뜻」을 묻는다. 정답이 문장 <b>밖</b>이라 빈칸 채우기가 아니다 → slots 가 아닌 syn 필드로 돈다. 🔒 보기는 다른 항목의 짝에서 빌리되 <b>같은 표현을 가진 항목은 뺀다</b> — 책에는 짝이 둘인 표현이 있어(あいさつしました) 그대로 섞으면 정답이 둘이 된다 · ③ 🔴 <b>조사 엔진에 태우지 않았다.</b> 조사 엔진은 교재 띄어쓰기로 어절을 찾는데 이 책 예문은 쉼표가 어절 안에 있어(「つかれたから、ちょっと」) <b>29개 중 9개가 엉뚱한 자리를 가렸다</b> → 책 문형은 일반 슬롯 경로로 보낸다 · ④ 🔴 <b>가리는 자리를 데이터가 못박는다(nth).</b> 「かいぎは 何時に 始まるか…」가 묻는 건 「始まるか」인데 첫 등장 か 는 단어 かいぎ 안이다 — 추측 규칙으로는 못 맞힌다. 140행을 전수 검사해 어긋나는 <b>2건</b>에만 nth 를 박았다 · 🔒 <b>기존 배열에 뒤로 붙였다</b>(61 + 255 = 316, 건수가 안 맞으면 전체 롤백) — 학습방이 올린 건 하나도 안 지웠다 · t47 D1b · t48 F절 13건 추가'},
