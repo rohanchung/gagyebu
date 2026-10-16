@@ -762,6 +762,29 @@ textarea.mla.same{background:#f2f9f4}
 .aghd{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .aghd h2{margin:0 0 6px}.aghd p{margin:0;color:var(--muted);font-size:13px}
 /* 명단 — 🔒 미제출을 숨기지 않는다. 빈 격자가 아고라의 상태다 */
+/* 📜 회의 기록 — v4.34. 🔒 넓으면 오른쪽, 좁으면 아래(기능을 빼지 않는다 · §15.7) */
+.aglay{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px;align-items:start}
+@media(max-width:1150px){.aglay{grid-template-columns:1fr}}
+.aglog{background:#2a1f17;border:1px solid #4a382a;border-radius:12px;padding:9px;
+  max-height:760px;overflow:auto}
+@media(max-width:1150px){.aglog{max-height:420px}}
+.aglogh{font-size:12.5px;font-weight:800;margin:0 0 6px;color:#e0bd6a}
+.aglogg{font-size:10.5px;color:#a4917a;margin:9px 0 4px;border-top:1px dashed #4a382a;padding-top:7px}
+.aglogg:first-of-type{border-top:0;margin-top:0}
+.aglogn{font-size:10.5px;color:#8d7c67;padding:3px 7px}
+.aglogli{display:flex;gap:7px;padding:6px 7px;border-radius:8px;cursor:pointer;align-items:flex-start}
+.aglogli:hover{background:#3a2b20}
+.aglogli.on{background:#43301f;outline:1px solid #e0bd6a}
+/* 🔒 할 말 없는 줄은 눌리지 않는다 — 회의장과 같아야 한다 */
+.aglogli.mute{cursor:default;opacity:.55}
+.aglogli.mute:hover{background:transparent}
+.aglogli .ic{font-size:14px;line-height:1.3}
+.aglogli .tx{min-width:0}
+.aglogli .who{font-size:11px;font-weight:700;color:#f3e7d3}
+.aglogli .to{font-size:10px;color:#e0bd6a}
+.aglogli .tn{font-size:10px;margin-left:4px}
+.aglogli .pv{font-size:10.5px;color:#a4917a;overflow:hidden;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-all}
 /* ══════ 🏰 v4.33 가신회의 ══════
    🔒 보는 화면이다. 읽는 화면(문서 보기)을 없애지 않는다 — 같은 데이터, 두 보기 */
 .agview{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -7812,7 +7835,11 @@ function agHallHtml(ym){
      +(agScrollZero(d,sc)?'<circle cx="27" cy="-27" r="6.2" fill="#e2604f" stroke="#1b1109" stroke-width="2"/>':'')
      +'<text class="agscrl" x="0" y="42" text-anchor="middle">'+mdEsc(sc.k)+'</text></g>';});
   s+='<rect width="'+AG_VB.w+'" height="'+AG_VB.h+'" fill="url(#agvig)" pointer-events="none"/></svg>';
-  return '<div class="aghall" id="aghall">'+s+'</div><div class="agbub" id="agbub"></div>';
+  return '<div class="aglay">'
+    +'<div><div class="aghall" id="aghall">'+s+'</div>'
+      +'<div class="agbub" id="agbub"></div></div>'
+    +agLogHtml(ym)
+  +'</div>';
 }
 
 /* ── 💬 말풍선 — 🔒 한 번에 한 토막. 2,000자를 그대로 넣으면
@@ -7976,6 +8003,105 @@ function renderAgora(){
   /* 🔒 공지를 아직 못 불러왔으면 여기서 한 번 부른다 — 「불러오는 중」에 멈추지 않게 */
   if(AG.nt===null&&!AG.ntErr)agLoadNotices();
 }
+
+/* ══════ 📜 회의 기록 (v4.34) ══════
+   로한: "맨 오른쪽엔 게임 **대화로그창**처럼 각 캐릭터마다 무슨말을 했는지 써있고
+          파트별로 구분이 되어있는거야. 생활사 대화를 클릭하면 가운데 화면에
+          다시 그 대화 애니메이션이 작동하는거지. (이건 미리 들어가 있음)"
+   🔒 파트는 **종류로** 가른다(§15.6) — 방으로 가르면 한 방이 길 때 목록이 무너진다.
+   🔒 로그는 **접지 않는다.** 미리 다 들어있고 스크롤만 한다.
+   🔒 로그는 트리거를 뺏지 않는다 — 캐릭터는 처음부터, 로그 줄은 **그 대목부터**(원칙 28). */
+/* 🔒 미리보기용 평문 — 마크다운 기호를 벗긴다. 렌더하면 두 줄 상자가 무너진다 */
+function agPlain(t){
+  return String(t||'')
+    .replace(/```[sS]*?```/g,' ')
+    .replace(/[*_`~]/g,'')
+    .replace(/^#{1,6}s*/gm,'')
+    .replace(/^s*[-+]s+/gm,'')
+    .replace(/s+/g,' ').trim();
+}
+function agLogRow(o){
+  var tn=agToneOf(o.tone);
+  return '<div class="aglogli" data-k="'+o.k+'" data-v="'+mdEsc(o.v)+'">'
+    +'<span class="ic">'+o.ic+'</span><span class="tx">'
+    +'<span class="who">'+mdEsc(o.who)+'</span>'
+    +(o.to?'<span class="to"> → '+mdEsc(o.to)+'</span>':'')
+    +(tn!=='plain'?'<span class="tn" title="'+AG_TONE[tn].ko+'">'+AG_TONE[tn].ic+'</span>':'')
+    +'<div class="pv">'+mdEsc(agPlain(o.pv))+'</div></span></div>';
+}
+function agLogHtml(ym){
+  var byId={}; (AG.posts||[]).forEach(function(x){byId[x.id]=x;});
+  function toOf(x){
+    if(x.kind==='rate')return agTitleOf(x.target);
+    var p=x.parent_id?byId[x.parent_id]:null;
+    return p?agTitleOf(p.member):'';
+  }
+  var h='<div class="aglogh">📜 회의 기록</div>';
+
+  /* ─ ⚖ 평가 — 🔒 미제출도 줄을 남긴다(숨기면 거짓말) ─ */
+  var seats=agSeats();
+  h+='<div class="aglogg">⚖ 평가 — '+seats.length+'방</div>';
+  seats.forEach(function(st){
+    var m=st.m, r=agReviewOf(ym,m.slug);
+    var pv=r?(r.status==='na'?('⊘ '+(r.content||'')):(r.summary||'')):'미제출 — 자리가 비어 있다';
+    h+=agLogRow({k:'room',v:m.slug,ic:(m.icon||'🏛'),who:(m.title||m.name||m.slug),
+      to:'',tone:(r&&r.tone),pv:pv});
+  });
+
+  /* ─ 🗣 간언 — 방들이 서로에게 ─ */
+  var cs=agOf(ym,'comment').filter(function(x){return x.member!=='rohan';})
+    .sort(function(a,b){return String(a.submitted_at||'')<String(b.submitted_at||'')?-1:1;});
+  h+='<div class="aglogg">🗣 간언 — 서로에게 '+cs.length+'건</div>';
+  if(!cs.length)h+='<div class="aglogn">아직 오간 말이 없다.</div>';
+  cs.forEach(function(x){
+    h+=agLogRow({k:'post',v:x.id,ic:(agMemOf(x.member).icon||'🏛'),
+      who:agTitleOf(x.member),to:toOf(x),tone:x.tone,pv:x.content});
+  });
+
+  /* ─ 🛡 분부 — 공지·해명·⭐평가 ─ */
+  var nt=(AG.nt||[]).filter(agNtLive);
+  var rs=agOf(ym,'clarify').concat(agOf(ym,'rate'))
+    .sort(function(a,b){return String(a.submitted_at||'')<String(b.submitted_at||'')?-1:1;});
+  h+='<div class="aglogg">🛡 분부 — 공지·해명·평가 '+(nt.length+rs.length)+'건</div>';
+  if(!nt.length&&!rs.length)h+='<div class="aglogn">아직 내린 분부가 없다.</div>';
+  nt.forEach(function(n){
+    var tg=agNtTargets(n), ok=tg.filter(function(m){return agNtPending(m.slug)===0;});
+    h+=agLogRow({k:'room',v:'rohan',ic:'📢',
+      who:'공지 · '+ok.length+'/'+tg.length+' 반영',to:'',tone:'grave',pv:n.title});
+  });
+  rs.forEach(function(x){
+    h+=agLogRow({k:'post',v:x.id,ic:(x.kind==='rate'?'⭐':'🙋'),
+      who:'로한',to:toOf(x),tone:x.tone,pv:x.content});
+  });
+  return '<div class="aglog" id="aglog">'+h+'</div>';
+}
+/* 🔒 로그 줄 = **그 대목부터** 듣는 입구. 캐릭터는 처음부터 */
+function agSpeakAt(postId){
+  var ym=agYm(), p=(AG.posts||[]).filter(function(x){return x.id===postId;})[0];
+  if(!p)return;
+  var who=p.member, seq=agSeq(ym,who);
+  if(!seq.length)return;
+  var key=String(p.content||p.summary||'').slice(0,24), at=0;
+  for(var i=0;i<seq.length;i++){ if(key&&seq[i].text.indexOf(key)>=0){at=i;break;} }
+  AG_CUR={seq:seq,i:at}; agApply(); agLogMark(postId);
+}
+function agLogMark(v){
+  var el=document.getElementById('aglog'); if(!el)return;
+  el.querySelectorAll('.aglogli').forEach(function(x){
+    x.classList.toggle('on',x.dataset.v===String(v));});
+}
+function agLogBind(){
+  var el=document.getElementById('aglog'); if(!el)return;
+  el.querySelectorAll('.aglogli').forEach(function(x){
+    var k=x.dataset.k, v=x.dataset.v;
+    /* 🔒 할 말 없는 방은 로그에서도 안 눌린다 — 화면 두 곳이 다르게 굴면 고장으로 읽힌다 */
+    if(k==='room'&&!agHasVoice(agYm(),v)){x.classList.add('mute');return;}
+    x.addEventListener('click',function(){
+      if(k==='room'){agSpeak(v);agLogMark(v);}
+      else agSpeakAt(v);});
+  });
+}
+
 /* 🔒 트리거는 **캐릭터**다. 할 말 없는 자는 눌리지 않고, 못 누른다는 것이 보인다(원칙 28·30).
    「해당 없음」은 **말한 것**이라 눌린다 — 미제출과 같이 묶으면 테이블이 가른 뜻이 사라진다(§4) */
 function agHallBind(ym){
@@ -7986,6 +8112,7 @@ function agHallBind(ym){
     el.addEventListener('click',function(){agSpeak(slug);});});
   h.querySelectorAll('.agscr').forEach(function(el){
     el.addEventListener('click',function(){agScrollOpen(+el.dataset.scr);});});
+  agLogBind();
   agBub();
 }
 /* 🔒 ① 미제출을 숨기지 않는다 */
@@ -10245,13 +10372,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.33';
+var APP_VERSION='4.34';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.34',date:'2026-10-16',note:'<b>📜 회의 기록창 — 오른쪽에 붙이고, 줄을 누르면 그 대목부터 듣는다.</b> 로한: 「맨 오른쪽엔 게임 <b>대화로그창</b>처럼 각 캐릭터마다 무슨말을 했는지 써있고 파트별로 구분이 되어있는거야. 생활사 대화를 클릭하면 가운데 화면에 다시 그 대화 애니메이션이 작동하는거지」 · <b>세 묶음</b> — ⚖ 평가(7방) · 🗣 간언(서로에게) · 🛡 분부(공지·해명·⭐평가). 🔒 <b>파트는 종류로 가른다</b> — 방으로 가르면 한 방이 길 때 목록이 무너진다 · 🔒 <b>미제출도 줄을 남긴다</b>(숨기면 거짓말) · 🔴 <b>로그는 트리거를 뺏지 않는다</b> — <b>캐릭터는 처음부터, 로그 줄은 그 대목부터</b>. 같은 흐름의 다른 입구다 · 🔒 <b>할 말 없는 방은 로그에서도 안 눌린다</b> — 화면 두 곳이 다르게 굴면 고장으로 읽힌다 · 넓으면 오른쪽, 1150px 미만이면 아래로 내린다(기능을 빼지 않는다) · 🔴 <b>미리보기에 ** 가 글자로 보였다</b> — §12 에서 본문에 한 번 겪은 그 자리다. 🔒 미리보기는 <b>렌더하지 않고 기호만 벗긴다</b>(두 줄 상자에 블록이 들어가면 줄이 무너진다) · t54 123 → <b>134건</b>(Q절 11건 신설) · run.sh all 42/42 통과'},
   {v:'4.33',date:'2026-10-16',note:'<b>🏰 가신회의 — 아고라를 읽는 화면에서 보는 화면으로.</b> 로한: 「아고라에 <b>텍스트만 가득해서</b> 가독성도 떨어지고 보기가 싫어진다. 중세 배경의 방에 긴 탁자를 그려서 끝에 내가 앉아있고 각 담당 관들이 앉아있는 형태로」 · 🔒 <b>보기만 바뀐다</b> — DB·제출 잠금·공지 강제·phase 는 그대로고, <b>문서 보기도 없애지 않았다</b>(같은 데이터, 두 보기) · 머리에 <b>[🏰 회의장 | 📄 문서]</b> 토글. 기본은 회의장 · <b>🏰 그림</b> — 돌벽·스테인드글라스 3창·로한북 문장 깃발·횃불·카펫·원근 탁자. 🔒 <b>전부 인라인 SVG다. 이미지 파일 0개</b> — 단일 파일 원칙을 깨지 않는다 · <b>👥 일곱 가신</b> — 생활사·학습사·사주사·수연·제작사·의사(순환기)·의사(그외). 관직명은 <b>명단 테이블</b>(agora_members.title)에서 온다. 수연은 비서라 영주의 좌측 첫 자리 · 🔒 <b>캐릭터가 상태를 입는다</b> — 미제출은 <b>빈 의자</b>(숨기면 거짓말), 해당없음은 ⊘, 공지 미확인은 📢, 로한의 ⭐ 평가는 발치에 별 · <b>🖱 트리거는 캐릭터다</b> — 누르면 평가 → 그가 건 간언 → 받은 해명·재간언을 따라간다. <b>화자가 바뀌면 말풍선 주인도 바뀐다</b>(티키타카) · 🔴 <b>말풍선은 한 번에 한 토막이다</b> — 실측 own 2,000자를 그대로 넣으면 「텍스트만 가득」이 말풍선 안에서 재현된다. 문단으로 쪼개 ▶ 로 넘긴다 · 🔒 <b>할 말 없는 자는 눌리지 않는다</b>. 다만 <b>「해당 없음」은 눌린다</b> — 그건 말한 것이다. 미제출과 같이 묶으면 테이블이 가른 뜻이 화면에서 사라진다 · 😠 <b>어조가 얼굴에 나온다</b> — 눈썹·입·말풍선 테두리. 🔒 글자로도 적는다(저시력·색맹) · 📜 <b>두루마리 다섯</b>(재정·학업·몸·나날·점괘) — 0인 칸은 <b>겉에 붉은 점</b>으로 드러낸다. 머리에 기간을 적어 보름치를 월 예산과 그냥 비교하지 않게 한다 · 🔒 움직임을 줄이라는 설정이면 흔들지 않는다 · 🔴 <b>그림 함수를 뽑을 때 범위가 겹쳐 AG_VB·AG_TBL·agSeatXY 가 두 번 선언됐다</b> — var·function 중복은 조용히 허용되고 나중 것이 이긴다. 동작은 했지만 거짓이라 앞쪽을 지웠다 · 🔴 SVG 식별자가 lord 인데 DB 는 rohan 이라 영주가 「할 말 없음」으로 판정됐다 — <b>식별자는 DB 를 따른다</b> · t54 106 → <b>123건</b>(P절 16건 신설) · run.sh all 42/42 통과'},
   {v:'4.32',date:'2026-10-15',note:'<b>🏛 아고라 v2 — 📢 공지 · 🕐 중간평가(15일/말일).</b> 로한: 「변동된 것들을 내가 <b>매번 여러 방에 다 알려주기가 존나 귀찮다</b>. 아고라에 적어놓으면 다른 방에서 묻기 전에 공지를 읽고 <b>반영</b>했으면 한다. 그리고 월말 평가 말고 중간 평가를 하나 넣어서 15일/말일」 · 🔒 <b>요구의 핵심은 평가를 늘리는 게 아니라 로한의 수고를 줄이는 것이다.</b> 평가가 두 배가 되면 로한이 읽을 양도 두 배가 되고, 그러면 아고라를 안 열게 된다 · <b>📢 공지</b> — 아고라 맨 위에서 <b>✎ 공지 쓰기</b>. 제목·내용·대상(안 고르면 전체)·언제까지(비우면 계속) · 🔒 <b>월에 묶지 않는다</b> — 변경사항은 달이 바뀌어도 유효하다(별도 테이블 + 유효기간) · 🔒 <b>이미 있는 입구에 끼웠다</b> — 방들이 원래 부르는 <code>agora_pending()</code> 맨 앞에 「확인할공지」가 온다. 새 함수를 외우게 하면 안 지켜지고 그러면 로한이 다시 일일이 챈다 · 🔒 <b>「읽었음」 버튼을 만들지 않았다.</b> <code>agora_ack</code> 는 <b>무엇을 바꿨는지</b>를 요구한다(5자 이상) — 체크만 받으면 로한이 「반영됐다」는 <b>거짓 숫자</b>를 본다(2026-09 에 거짓 숫자 하나로 다섯 방이 같이 틀렸다) · 🔒 <b>미확인은 쓰기를 막고 읽기는 막지 않는다</b> — 읽기를 막으면 공지도 못 읽는다. 화면은 공지마다 <b>n/m 반영</b>과 <b>미확인 방 이름</b>을 적는다(숫자만 보여주면 누구를 챌지 모른다) · <b>🕐 중간평가</b> — 머리에 <b>[중간 (1~15) | 월말 (전체)]</b> 토글. 🔒 기본값은 <b>오늘의 차례</b>다(15일 이후면 이번 달 중간, 그 전이면 지난 달 월말) · 🔴 <b>중간평가에서 「내 담당 영역」(결산)을 뺐다</b> — 실측 own 2,000자가 분량의 절반이다. 7방 × 한 달 두 번이면 로한이 안 읽는다. 세 칸(총평·다른영역·로한에게)이고, 결산은 월말에 쓴다 · 🔒 <b>월말 읽기가 그 달 중간평가와 로한의 평가를 같이 준다</b> — 15일에 요구한 것이 지켜졌는지 월말에 다룬다. 이 참조가 없으면 중간평가는 그냥 평가가 두 배가 된 것일 뿐이다 · 🔒 <b>facts 가 기간을 말한다</b> — mid 는 1~15일만 센다. 기간·일수·진행률·「예산은 월 단위다」를 같이 준다. 보름 지출을 월 예산과 그냥 비교하면 「절반밖에 안 썼다」를 「잘했다」로 읽는다 · DB: <code>agora_notices</code>·<code>agora_acks</code> 신설, <code>agora_posts.phase</code>, 유니크를 (ym,phase,member)/(ym,phase,target) 로, guard 검사도 전부 (ym,phase) 단위로 · 🔒 <code>phase</code> 는 <b>언제나 마지막 인자</b>다 — 중간에 끼우면 기존 호출 <code>agora_read(ym,slug)</code> 가 phase 로 잘못 간다 · 핸드오프 7방+공통 v2 · <b>🔴 t54 가 날짜에 기대고 있었다</b> — 기본 기간이 「오늘의 차례」가 되자 픽스처(2026-09 월말)가 안 보여 전부 빨개졌다. 앱이 맞고 테스트가 틀렸다(t50·t42 와 같은 종류) → 시계를 10/5 로 고정 · t54 86 → <b>106건</b>, run.sh all 42/42 통과'},
   {v:'4.31',date:'2026-10-14',note:'<b>🛟 [중대] 저장되지 않은 변경을 잃지 않는다 — 10월 가계부가 날아갔다.</b> 로한: 「어제 가계부 13일거까지 써놨던게 날라갔다」 · <b>실측</b>: 10/08~13 거래 <b>0건</b>(마지막이 10-07), 매월 5일에 빠짐없이 찍히던 <b>10월분 국민연금 140,220·건강보험 122,020 이 통째로 없다</b>, 140만원 카뱅 이체도 없다 · 🔴 <b>스냅샷 55개를 다 뒤졌는데 어디에도 없었다</b> — 서버는 그 입력을 본 적이 없다. localStorage 에도 없었다: <code>localBackup()</code> 은 <b>접속 직후 하루 1회</b>라 입력한 것을 안 남긴다 · 🔴 <b>원인을 특정하지 못했다.</b> 저장이 못 닿았는지, 충돌창에서 버렸는지, 창을 닫았는지 가릴 증거가 없다. v4.13 의 3자 병합도 낙관적 잠금도 <b>저장 요청이 서버에 닿은 뒤</b>의 장치다 — 닿지 못한 입력은 아무것도 지키지 않았다 · ⚠️ <b>내 책임이 섞여 있다</b>: 10/13 에 단어·문항을 넣느라 <code>app_state.data</code> 를 MCP 로 <b>네 번</b> 직접 UPDATE 했다. <code>app_state_bump</code> 트리거가 그때마다 <code>updated_at</code> 을 올리니, 열려 있던 로한의 탭은 저장할 때마다 충돌로 떨어진다. 작업 끝나고 「새로고침하라」도 안 말했다 · <b>그래서 원인을 가리지 않는 그물을 깐다</b> · ① 🛟 <b>저장을 보내기 직전에 로컬에 박는다</b>(<code>rb_pending</code>) — 저장이 <b>확인되면</b> 지운다. 남아 있다는 건 「저장되지 않은 변경이 있다」는 뜻이다 · ② <b>다음 접속에 서버 📀 스냅샷으로 건져 올린다</b>(<code>kind:pending</code>, <b>상한 없음</b> — 사고의 유일한 증거를 상한으로 밀어내지 않는다). 🔒 <b>자동으로 DB 를 덮지 않는다</b> — 그게 v3.6 에 단어 96건을 두 번 날린 짓이다. 보존만 하고 되돌릴지는 로한이 고른다 · ③ 🔴 <b>충돌창에서 「버린다」를 골라도 내 화면을 먼저 남긴다</b>(<code>pre_discard</code>). v1.8 은 「덮어쓰기」쪽 서버본만 남겼다 — <b>잃는 쪽을 안 지키는 비대칭</b>이었고, 날아간 가계부가 이 경로를 지났을 수 있는데 흔적이 하나도 없었다 · ④ 자리가 없으면 <b>옛 복원지점을 줄여서라도 미저장분을 지킨다</b> — 어제 사본은 서버에도 있고 방금 입력은 거기밖에 없다 · 📄 <b>data-safety.md</b> 신설(정본) — 데이터가 사는 네 층과 <b>내가 app_state 를 직접 건드릴 때의 절차</b>를 박았다 · t55 20건 신설(저장 실패 시 잔류 · 건지기 · 자동 덮어쓰기 금지 · 버리기 직전 보존)'},

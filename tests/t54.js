@@ -525,6 +525,59 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  ok('P16 문서 보기로 되돌아간다',!doc.hall&&doc.grid===7,JSON.stringify(doc));
  await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(400);
 
+ /* ══ Q) 📜 회의 기록창 — 로그는 **그 대목부터** 듣는 입구다 ══ */
+ const lg=await p.evaluate(()=>({
+   있다:!!document.getElementById('aglog'),
+   묶음:[...document.querySelectorAll('#aglog .aglogg')].map(e=>e.textContent.trim().slice(0,6)),
+   줄:document.querySelectorAll('#aglog .aglogli').length,
+   방줄:document.querySelectorAll('#aglog .aglogli[data-k="room"]').length,
+   글줄:document.querySelectorAll('#aglog .aglogli[data-k="post"]').length,
+   못누름:[...document.querySelectorAll('#aglog .aglogli.mute')].map(e=>e.dataset.v)}));
+ ok('Q1 기록창이 뜬다',lg.있다,String(lg.있다));
+ /* 🔒 파트는 **종류로** 가른다 — 방으로 가르면 한 방이 길 때 목록이 무너진다 */
+ ok('Q2 평가·간언·분부 세 묶음',lg.묶음.length===3
+    &&/평가/.test(lg.묶음[0])&&/간언/.test(lg.묶음[1])&&/분부/.test(lg.묶음[2]),JSON.stringify(lg.묶음));
+ /* 🔒 미제출도 줄을 남긴다 — 숨기면 거짓말이다 */
+ ok('Q3 일곱 방이 모두 줄을 가진다(미제출 포함)',lg.방줄>=7,String(lg.방줄));
+ ok('Q4 간언·분부가 글 줄로 들어간다',lg.글줄>=4,String(lg.글줄));
+ /* 🔒 회의장과 로그가 **같이** 막혀야 한다 — 두 곳이 다르게 굴면 고장으로 읽힌다 */
+ ok('Q5 할 말 없는 방은 로그에서도 안 눌린다',
+    lg.못누름.includes('robert-life')&&lg.못누름.includes('maker'),JSON.stringify(lg.못누름));
+
+ /* 방 줄을 누르면 **처음부터** */
+ await p.evaluate(()=>{
+   const el=[...document.querySelectorAll('#aglog .aglogli[data-k="room"]')]
+     .find(x=>x.dataset.v==='suyeon'); el.click();});
+ await p.waitForTimeout(250);
+ const fromTop=await p.evaluate(()=>({i:AG_CUR.i,who:AG_CUR.seq[0].who,
+   on:document.querySelectorAll('#aglog .aglogli.on').length}));
+ ok('Q6 방 줄은 처음부터 듣는다',fromTop.i===0&&fromTop.who==='suyeon',JSON.stringify(fromTop));
+ ok('Q7 누른 줄이 켜진다',fromTop.on===1,String(fromTop.on));
+
+ /* 🔴 핵심 — 글 줄은 **그 대목부터** */
+ const jump=await p.evaluate(()=>{
+   const el=document.querySelector('#aglog .aglogli[data-k="post"]');
+   const id=el.dataset.v; el.click();
+   const want=(AG.posts||[]).find(x=>x.id===id);
+   return {i:AG_CUR.i,n:AG_CUR.seq.length,
+     보이는글:AG_CUR.seq[AG_CUR.i].text.slice(0,20),
+     원문:String(want&&want.content||'').slice(0,20),
+     화자:AG_CUR.seq[AG_CUR.i].who};});
+ ok('Q8 🔒 글 줄은 그 대목부터 듣는다',jump.보이는글===jump.원문,JSON.stringify(jump).slice(0,160));
+ ok('Q9 중간 대목이면 i 가 0 이 아니다',jump.i>0||jump.n===1,JSON.stringify({i:jump.i,n:jump.n}));
+
+ /* 🔒 회의장에서 눌러도 같은 흐름이다 — 두 입구가 같은 것을 가리킨다 */
+ await p.evaluate(()=>agSpeak('rehab')); await p.waitForTimeout(200);
+ const both=await p.evaluate(()=>({who:AG_CUR.seq[0].who,
+   lb:AG_CUR.seq[0].label,n:AG_CUR.seq.length}));
+ ok('Q10 「해당 없음」도 로그에 말이 남는다',both.who==='rehab'&&/해당 없음/.test(both.lb),
+    JSON.stringify(both));
+
+ /* 🔒 미리보기는 평문이다 — mdEsc 만 쓰면 ** 가 글자로 보인다(§12 와 같은 자리) */
+ const pv=await p.evaluate(()=>[...document.querySelectorAll('#aglog .pv')]
+   .map(e=>e.textContent).join(' '));
+ ok('Q11 미리보기에 마크다운 기호가 안 보인다',pv.indexOf('**')<0&&pv.indexOf('##')<0,
+    pv.slice(0,60));
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);
