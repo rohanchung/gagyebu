@@ -2138,6 +2138,11 @@ function restoreLocal(key){
   applyRestore(d,'로컬 복원지점 '+key.slice(7));
 }
 window.addEventListener('beforeunload',function(e){ if(SAVE_DIRTY){ e.preventDefault(); e.returnValue=''; } });
+/* 📱 v4.35 — 가로↔세로가 바뀌면 회의장을 다시 그린다. 🔒 바뀔 때만(원칙: 듣던 말풍선을 지킨다) */
+var AG_RSZ=null;
+window.addEventListener('resize',function(){
+  clearTimeout(AG_RSZ); AG_RSZ=setTimeout(function(){ try{ agOnResize(); }catch(e){} },180);
+});
 
 /* ====== 유틸 ====== */
 function won(n){return '₩'+Math.round(Math.abs(n)).toLocaleString('ko-KR');}
@@ -7623,7 +7628,7 @@ function agFigure(m,st,flags){
   if(st==='na')g+='<text x="25" y="-26" text-anchor="middle" style="font-size:15px">⊘</text>';
   if(flags.star&&!dim)g+='<text x="-29" y="45" text-anchor="middle" style="font-size:15px">⭐</text>';
   if(!dim&&tone!=='plain')g+='<text x="-29" y="-24" text-anchor="middle" style="font-size:14px">'+TONE[tone].ic+'</text>';
-  var nx=(m.side==='L'?-54:54);
+  var nx=m.mid?0:(m.side==='L'?-54:54);
   g+='<text class="agnm'+(dim?' dim':'')+'" x="'+nx+'" y="70" text-anchor="middle">'+m.title+'</text>';
   if(dim)g+='<text class="agnm2" x="'+nx+'" y="84" text-anchor="middle">· 미제출</text>';
   return g+'</g>';
@@ -7746,14 +7751,40 @@ function agScrollZero(d,s){
 
 
 /* ── 🏰 회의장 그리기 ── */
-var AG_VB={w:1180,h:1030};
-var AG_TBL={yTop:300,yBot:906,xTopL:452,xTopR:728,xBotL:272,xBotR:908};
-function agSeatXY(st){
-  var L=(st.side==='L'), y=318+st.pos*174;
-  var t=(y-AG_TBL.yTop)/(AG_TBL.yBot-AG_TBL.yTop);
-  var edge=L?AG_TBL.xTopL+(AG_TBL.xBotL-AG_TBL.xTopL)*t
-            :AG_TBL.xTopR+(AG_TBL.xBotR-AG_TBL.xTopR)*t;
-  return {x:Math.round(edge+(L?-96:96)), y:y};
+/* ── 🏰 회의장 — 🔒 **좌표만 갈린다.** 그림(캐릭터·문장·횃불)은 한 벌이다 ──
+   §15.7: 좁다고 기능을 빼지 않는다. 배치만 바꾼다.
+   ≥700px  긴 탁자를 가로로 · 가신이 좌우에
+    <700px 탁자를 **세로로 세운다** — 680 폭에 긴 탁자를 눕히면 캐릭터가 깨알이 된다 */
+var AG_LAY_WIDE={
+  tall:false, vb:{w:1180,h:1030}, wallH:500,
+  tbl:{yTop:300,yBot:906,xTopL:452,xTopR:728,xBotL:272,xBotR:908},
+  lord:{x:590,y:198,k:1.18}, figK:1.2, seatY0:318, seatGap:174, seatOff:96,
+  win:[192,590,988], winY:244, flag:[384,796], torch:[[76,252],[1104,252]],
+  vanish:590, floorY:[532,582,660,784,920],
+  carpet:[540,640,806,374], carpet2:[556,624,776,404],
+  scroll:{x0:590,y0:524,dx:102,dy:0,k:1,lblK:1}
+};
+var AG_LAY_TALL={
+  tall:true, vb:{w:680,h:1280}, wallH:330,
+  tbl:{yTop:292,yBot:1200,xTopL:252,xTopR:428,xBotL:196,xBotR:484},
+  lord:{x:340,y:150,k:1.0}, figK:1.06, seatY0:348, seatGap:208, seatOff:80,
+  win:[340], winY:196, flag:[118,562], torch:[[46,180],[634,180]],
+  vanish:340, floorY:[352,392,452,536,660,840],
+  carpet:[300,380,470,210], carpet2:[312,368,452,228],
+  scroll:{x0:340,y0:392,dx:0,dy:170,k:0.92,lblK:1.5}
+};
+/* 🔒 레이아웃은 **폭 하나로** 갈린다. 두 군데서 따로 판정하면 반드시 어긋난다 */
+function agLay(){
+  var w=(typeof window!=='undefined'&&window.innerWidth)||1200;
+  return w<700?AG_LAY_TALL:AG_LAY_WIDE;
+}
+var AG_VB=AG_LAY_WIDE.vb, AG_TBL=AG_LAY_WIDE.tbl;   /* 옛 이름 — 꼬리 계산이 쓴다 */
+function agSeatXY(st,L0){
+  var Y=L0||agLay(), T=Y.tbl, isL=(st.side==='L');
+  var y=Y.seatY0+st.pos*Y.seatGap;
+  var t=(y-T.yTop)/(T.yBot-T.yTop);
+  var edge=isL?T.xTopL+(T.xBotL-T.xTopL)*t : T.xTopR+(T.xBotR-T.xTopR)*t;
+  return {x:Math.round(edge+(isL?-Y.seatOff:Y.seatOff)), y:y};
 }
 /* 공지 미확인 수 — 🔒 그 방은 평가를 쓸 수 없다. 머리 위 📢 가 그것을 말한다 */
 function agNtPending(slug){
@@ -7765,9 +7796,10 @@ function agNtPending(slug){
   }).length;
 }
 function agHallHtml(ym){
+  var Y=agLay(), V=Y.vb, T=Y.tbl;
   var seats=agSeats();
   var d=(AG.facts&&AG.facts.ym===ym&&AG.facts.phase===agPhase())?AG.facts.d:null;
-  var s='<svg viewBox="0 0 '+AG_VB.w+' '+AG_VB.h+'" role="img" aria-label="가신회의">';
+  var s='<svg viewBox="0 0 '+V.w+' '+V.h+'" role="img" aria-label="가신회의">';
   s+='<defs>'
    +'<linearGradient id="agwall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3a2c"/><stop offset="1" stop-color="#241a13"/></linearGradient>'
    +'<linearGradient id="agfloor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2017"/><stop offset="1" stop-color="#160f09"/></linearGradient>'
@@ -7780,20 +7812,21 @@ function agHallHtml(ym){
      +'<rect width="84" height="42" fill="url(#agwall)"/>'
      +'<path d="M0 0h84M0 21h84M0 0v21M42 21v21" stroke="#17100b" stroke-width="2.2" opacity=".5"/></pattern>'
    +'</defs>';
-  s+='<rect width="'+AG_VB.w+'" height="500" fill="url(#agbrick)"/>';
-  s+='<rect y="500" width="'+AG_VB.w+'" height="'+(AG_VB.h-500)+'" fill="url(#agfloor)"/>';
+  s+='<rect width="'+V.w+'" height="'+Y.wallH+'" fill="url(#agbrick)"/>';
+  s+='<rect y="'+Y.wallH+'" width="'+V.w+'" height="'+(V.h-Y.wallH)+'" fill="url(#agfloor)"/>';
   for(var i=-6;i<=6;i++)
-    s+='<path d="M590 500 L'+(590+i*292)+' '+AG_VB.h+'" stroke="#3a2b1e" stroke-width="1.4" opacity=".4"/>';
-  [532,582,660,784,920].forEach(function(y){
-    s+='<path d="M0 '+y+' H'+AG_VB.w+'" stroke="#3a2b1e" stroke-width="1.4" opacity=".35"/>';});
-  [192,590,988].forEach(function(x){
-    s+='<g><path d="M'+(x-55)+' 244 v-98 a55 55 0 0 1 110 0 v98 z" fill="#17100b"/>'
-     +'<path d="M'+(x-45)+' 236 v-90 a45 45 0 0 1 90 0 v90 z" fill="url(#agglass)" opacity=".9"/>'
-     +'<path d="M'+x+' 56 v180 M'+(x-45)+' 152 h90" stroke="#17100b" stroke-width="5"/>'
-     +'<path d="M'+(x-22)+' 102 v134 M'+(x+22)+' 102 v134" stroke="#17100b" stroke-width="3.4" opacity=".8"/>'
-     +'<ellipse cx="'+x+'" cy="306" rx="72" ry="48" fill="#9ec4ea" opacity=".06"/></g>';});
+    s+='<path d="M'+Y.vanish+' '+Y.wallH+' L'+(Y.vanish+i*(V.w/4))+' '+V.h+'" stroke="#3a2b1e" stroke-width="1.4" opacity=".4"/>';
+  Y.floorY.forEach(function(y){
+    s+='<path d="M0 '+y+' H'+V.w+'" stroke="#3a2b1e" stroke-width="1.4" opacity=".35"/>';});
+  /* 창 — 좁으면 하나만 */
+  Y.win.forEach(function(x){
+    var yb=Y.winY;
+    s+='<g><path d="M'+(x-55)+' '+yb+' v-98 a55 55 0 0 1 110 0 v98 z" fill="#17100b"/>'
+     +'<path d="M'+(x-45)+' '+(yb-8)+' v-90 a45 45 0 0 1 90 0 v90 z" fill="url(#agglass)" opacity=".9"/>'
+     +'<path d="M'+x+' '+(yb-188)+' v180 M'+(x-45)+' '+(yb-92)+' h90" stroke="#17100b" stroke-width="5"/>'
+     +'<path d="M'+(x-22)+' '+(yb-142)+' v134 M'+(x+22)+' '+(yb-142)+' v134" stroke="#17100b" stroke-width="3.4" opacity=".8"/></g>';});
   /* 🛡 로한북 문장 깃발 */
-  [384,796].forEach(function(x){
+  Y.flag.forEach(function(x){
     s+='<g opacity=".97">'
      +'<rect x="'+(x-52)+'" y="56" width="104" height="9" rx="4" fill="#6b4a2f"/>'
      +'<circle cx="'+(x-52)+'" cy="60.5" r="5.4" fill="#e0bd6a"/><circle cx="'+(x+52)+'" cy="60.5" r="5.4" fill="#e0bd6a"/>'
@@ -7803,43 +7836,62 @@ function agHallHtml(ym){
      +'<path d="M'+(x-44)+' 232 l14.6 19 l14.6 -19 l14.6 19 l14.6 -19 l14.6 19 l14.6 -19z" fill="#5a2f3a"/>'
      +'<path d="M'+(x-38)+' 232 l12.6 16 l12.6 -16 l12.6 16 l12.6 -16 l12.6 16 l12.6 -16z" fill="#7a3f4c"/>'
      +agCrest(x,142,1.08)+'</g>';});
-  s+=agTorch(76,252)+agTorch(1104,252);
-  s+='<path d="M540 500 L640 500 L806 '+AG_VB.h+' L374 '+AG_VB.h+' z" fill="#7a2f33" opacity=".45"/>';
-  s+='<path d="M556 500 L624 500 L776 '+AG_VB.h+' L404 '+AG_VB.h+' z" fill="none" stroke="#e0bd6a" stroke-width="2.4" opacity=".45"/>';
+  Y.torch.forEach(function(p){ s+=agTorch(p[0],p[1]); });
+  var c=Y.carpet, c2=Y.carpet2;
+  s+='<path d="M'+c[0]+' '+Y.wallH+' L'+c[1]+' '+Y.wallH+' L'+c[2]+' '+V.h+' L'+c[3]+' '+V.h+' z" fill="#7a2f33" opacity=".45"/>';
+  s+='<path d="M'+c2[0]+' '+Y.wallH+' L'+c2[1]+' '+Y.wallH+' L'+c2[2]+' '+V.h+' L'+c2[3]+' '+V.h+' z" fill="none" stroke="#e0bd6a" stroke-width="2.4" opacity=".45"/>';
   /* 🛡 로한 — 받들지 않은 공지가 남아 있으면 엄중한 얼굴이다 */
   var ntLeft=(AG.nt||[]).filter(agNtLive).length;
-  s+='<g transform="translate(590,198) scale(1.18)">'+agLord(ntLeft?'grave':'plain')+'</g>';
+  s+='<g transform="translate('+Y.lord.x+','+Y.lord.y+') scale('+Y.lord.k+')">'
+    +agLord(ntLeft?'grave':'plain')+'</g>';
   /* 탁자 */
-  s+='<path d="M'+AG_TBL.xTopL+' '+AG_TBL.yTop+' L'+AG_TBL.xTopR+' '+AG_TBL.yTop+' L'+AG_TBL.xBotR+' '+AG_TBL.yBot+' L'+AG_TBL.xBotL+' '+AG_TBL.yBot+' z" fill="url(#agwood)" stroke="#3f2a18" stroke-width="3"/>';
-  s+='<path d="M'+AG_TBL.xTopL+' '+AG_TBL.yTop+' L'+AG_TBL.xTopR+' '+AG_TBL.yTop+' L'+(AG_TBL.xTopR+9)+' '+(AG_TBL.yTop+19)+' L'+(AG_TBL.xTopL-9)+' '+(AG_TBL.yTop+19)+' z" fill="#9a6d3f"/>';
+  s+='<path d="M'+T.xTopL+' '+T.yTop+' L'+T.xTopR+' '+T.yTop+' L'+T.xBotR+' '+T.yBot+' L'+T.xBotL+' '+T.yBot+' z" fill="url(#agwood)" stroke="#3f2a18" stroke-width="3"/>';
+  s+='<path d="M'+T.xTopL+' '+T.yTop+' L'+T.xTopR+' '+T.yTop+' L'+(T.xTopR+9)+' '+(T.yTop+19)+' L'+(T.xTopL-9)+' '+(T.yTop+19)+' z" fill="#9a6d3f"/>';
   [0.28,0.55,0.8].forEach(function(t){
-    var yl=AG_TBL.yTop+(AG_TBL.yBot-AG_TBL.yTop)*t;
-    var xl=AG_TBL.xTopL+(AG_TBL.xBotL-AG_TBL.xTopL)*t, xr=AG_TBL.xTopR+(AG_TBL.xBotR-AG_TBL.xTopR)*t;
-    s+='<path d="M'+(xl+28)+' '+yl+' L'+(xr-28)+' '+yl+'" stroke="#4a3220" stroke-width="1.6" opacity=".4"/>';});
+    var yl=T.yTop+(T.yBot-T.yTop)*t;
+    var xl=T.xTopL+(T.xBotL-T.xTopL)*t, xr=T.xTopR+(T.xBotR-T.xTopR)*t;
+    s+='<path d="M'+(xl+22)+' '+yl+' L'+(xr-22)+' '+yl+'" stroke="#4a3220" stroke-width="1.6" opacity=".4"/>';});
   /* 가신 */
   seats.forEach(function(st){
-    var p=agSeatXY(st), r=agReviewOf(ym,st.m.slug);
+    var p=agSeatXY(st,Y), r=agReviewOf(ym,st.m.slug);
     var look=agLookOf(st.m.slug); look.side=st.side;
+    /* 🔒 세로에선 이름을 **아래 중앙**에 둔다 — 바깥으로 밀면 화면 밖으로 나간다 */
+    look.mid=Y.tall?1:0;
     var flags={notice:agNtPending(st.m.slug)>0, star:!!agRateOf(ym,st.m.slug),
                tone:agToneOf(r&&r.tone)};
-    s+='<g transform="translate('+p.x+','+p.y+') scale(1.2)">'
+    s+='<g transform="translate('+p.x+','+p.y+') scale('+Y.figK+')">'
       +agFigure(look,(r?(r.status==='na'?'na':'ok'):'no'),flags)+'</g>';});
-  /* 📜 두루마리 — 숫자를 탁자 위에 올린다 */
+  /* 📜 두루마리 — 가로면 한 줄로, 세로면 탁자를 따라 내려간다 */
   if(d)AG_SCROLL.forEach(function(sc,i){
-    var x=590+(i-2)*102, y=524;
-    s+='<g class="agscr" data-scr="'+i+'" transform="translate('+x+','+y+')">'
+    var S=Y.scroll;
+    var x=S.x0+(S.dx?(i-2)*S.dx:0), y=S.y0+(S.dy?i*S.dy:0);
+    s+='<g class="agscr" data-scr="'+i+'" transform="translate('+x+','+y+') scale('+S.k+')">'
      +'<rect x="-27" y="-21" width="54" height="42" rx="3" fill="#f0e3c6"/>'
      +'<path d="M-19 -9.4 h38 M-19 0 h38 M-19 9.4 h25" stroke="#b09468" stroke-width="2.5" stroke-linecap="round"/>'
      +'<rect x="-35" y="-26" width="12.4" height="52" rx="6.2" fill="#9a7445" stroke="#6f5330" stroke-width="1.5"/>'
      +'<rect x="22.6" y="-26" width="12.4" height="52" rx="6.2" fill="#9a7445" stroke="#6f5330" stroke-width="1.5"/>'
      +(agScrollZero(d,sc)?'<circle cx="27" cy="-27" r="6.2" fill="#e2604f" stroke="#1b1109" stroke-width="2"/>':'')
-     +'<text class="agscrl" x="0" y="42" text-anchor="middle">'+mdEsc(sc.k)+'</text></g>';});
-  s+='<rect width="'+AG_VB.w+'" height="'+AG_VB.h+'" fill="url(#agvig)" pointer-events="none"/></svg>';
+     +'<text class="agscrl" x="0" y="44" text-anchor="middle"'
+       +(S.lblK&&S.lblK!==1?' style="font-size:'+(11.5*S.lblK).toFixed(1)+'px"':'')
+       +'>'+mdEsc(sc.k)+'</text></g>';});
+  s+='<rect width="'+V.w+'" height="'+V.h+'" fill="url(#agvig)" pointer-events="none"/></svg>';
   return '<div class="aglay">'
     +'<div><div class="aghall" id="aghall">'+s+'</div>'
       +'<div class="agbub" id="agbub"></div></div>'
     +agLogHtml(ym)
   +'</div>';
+}
+/* 🔒 레이아웃이 **바뀔 때만** 다시 그린다 — 리사이즈마다 그리면 듣던 말풍선이 날아간다 */
+var AG_LAST_TALL=null;
+function agOnResize(){
+  if(!DB||!DB.ui||agView()!=='hall')return;
+  if(!document.getElementById('aghall'))return;
+  var t=agLay().tall;
+  if(AG_LAST_TALL===t)return;
+  AG_LAST_TALL=t;
+  var keep=AG_CUR;          /* 듣던 자리를 지킨다 */
+  renderAgora();
+  if(keep){AG_CUR=keep;agApply();}
 }
 
 /* ── 💬 말풍선 — 🔒 한 번에 한 토막. 2,000자를 그대로 넣으면
@@ -7921,7 +7973,9 @@ function agScrollOpen(i){
     text:lines.join('\n'),tone:'plain'}],i:0};
   agMark(null);
   var b=document.getElementById('agbub');
-  if(b)b.style.setProperty('--tail',Math.round((590+(i-2)*102)/AG_VB.w*100)+'%');
+  var Y=agLay(), S=Y.scroll;
+  if(b)b.style.setProperty('--tail',
+    Math.round((S.x0+(S.dx?(i-2)*S.dx:0))/Y.vb.w*100)+'%');
   agBub();
 }
 function agApply(){
@@ -7937,7 +7991,8 @@ function agTail(slug){
   var b=document.getElementById('agbub'); if(!b)return;
   if(slug==='rohan'||slug==='scroll'){b.style.setProperty('--tail','50%');return;}
   var st=agSeats().filter(function(x){return x.m.slug===slug;})[0];
-  b.style.setProperty('--tail',st?Math.round(agSeatXY(st).x/AG_VB.w*100)+'%':'50%');
+  var Y=agLay();
+  b.style.setProperty('--tail',st?Math.round(agSeatXY(st,Y).x/Y.vb.w*100)+'%':'50%');
 }
 function agStep(d){
   if(!AG_CUR)return;
@@ -7999,7 +8054,7 @@ function renderAgora(){
     +(agView()==='hall'
        ? agHallHtml(ym)+agTools(ym)
        : agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym,agSelRoom())+agTools(ym));
-  if(agView()==='hall')agHallBind(ym);
+  if(agView()==='hall'){AG_LAST_TALL=agLay().tall;agHallBind(ym);}
   /* 🔒 공지를 아직 못 불러왔으면 여기서 한 번 부른다 — 「불러오는 중」에 멈추지 않게 */
   if(AG.nt===null&&!AG.ntErr)agLoadNotices();
 }
@@ -10372,13 +10427,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.34';
+var APP_VERSION='4.35';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.35',date:'2026-10-16',note:'<b>📱 좁은 화면 — 탁자를 세로로 세운다.</b> 가신회의 네 판 중 마지막 · 🔒 <b>좁다고 기능을 빼지 않는다. 배치만 바꾼다</b>(§15.7) — 자리 여덟·두루마리 다섯·기록창·말풍선이 그대로 남는다 · 🔴 <b>680 폭에 긴 탁자를 눕히면 캐릭터가 깨알이 된다</b> — 축소가 아니라 <b>다른 배치</b>다. 영주 위, 가신 좌우 2열, 두루마리가 탁자를 따라 내려간다 · 🔒 <b>좌표만 갈린다. 그림은 한 벌이다</b> — 캐릭터·문장·횃불 함수는 그대로 두고 좌표 묶음(AG_LAY_WIDE/TALL)만 바꿔 넣는다. 배치를 늘릴 때 그림을 두 벌 관리하지 않는다(원칙 2) · 🔒 <b>레이아웃은 폭 하나로 갈린다</b>(agLay) — 두 군데서 판정하면 반드시 어긋난다 · 세로에선 <b>이름을 아래 중앙</b>에(바깥으로 밀면 화면 밖이다) · 창 3개 → 1개 · 두루마리 이름은 <b>1.5배</b>(줄여 그린 만큼 글자를 되돌린다 — 무엇이 든 두루마리인지 모르면 누를 이유가 없다) · 🔒 <b>리사이즈는 가로↔세로가 바뀔 때만</b> 다시 그린다 — 리사이즈마다 그리면 <b>듣고 있던 말풍선이 날아간다</b>. 180ms 디바운스 · t54 134 → <b>145건</b>(R절 11건 — 되돌아가면 듣던 자리를 지키는 것까지 잰다) · run.sh all 42/42 통과'},
   {v:'4.34',date:'2026-10-16',note:'<b>📜 회의 기록창 — 오른쪽에 붙이고, 줄을 누르면 그 대목부터 듣는다.</b> 로한: 「맨 오른쪽엔 게임 <b>대화로그창</b>처럼 각 캐릭터마다 무슨말을 했는지 써있고 파트별로 구분이 되어있는거야. 생활사 대화를 클릭하면 가운데 화면에 다시 그 대화 애니메이션이 작동하는거지」 · <b>세 묶음</b> — ⚖ 평가(7방) · 🗣 간언(서로에게) · 🛡 분부(공지·해명·⭐평가). 🔒 <b>파트는 종류로 가른다</b> — 방으로 가르면 한 방이 길 때 목록이 무너진다 · 🔒 <b>미제출도 줄을 남긴다</b>(숨기면 거짓말) · 🔴 <b>로그는 트리거를 뺏지 않는다</b> — <b>캐릭터는 처음부터, 로그 줄은 그 대목부터</b>. 같은 흐름의 다른 입구다 · 🔒 <b>할 말 없는 방은 로그에서도 안 눌린다</b> — 화면 두 곳이 다르게 굴면 고장으로 읽힌다 · 넓으면 오른쪽, 1150px 미만이면 아래로 내린다(기능을 빼지 않는다) · 🔴 <b>미리보기에 ** 가 글자로 보였다</b> — §12 에서 본문에 한 번 겪은 그 자리다. 🔒 미리보기는 <b>렌더하지 않고 기호만 벗긴다</b>(두 줄 상자에 블록이 들어가면 줄이 무너진다) · t54 123 → <b>134건</b>(Q절 11건 신설) · run.sh all 42/42 통과'},
   {v:'4.33',date:'2026-10-16',note:'<b>🏰 가신회의 — 아고라를 읽는 화면에서 보는 화면으로.</b> 로한: 「아고라에 <b>텍스트만 가득해서</b> 가독성도 떨어지고 보기가 싫어진다. 중세 배경의 방에 긴 탁자를 그려서 끝에 내가 앉아있고 각 담당 관들이 앉아있는 형태로」 · 🔒 <b>보기만 바뀐다</b> — DB·제출 잠금·공지 강제·phase 는 그대로고, <b>문서 보기도 없애지 않았다</b>(같은 데이터, 두 보기) · 머리에 <b>[🏰 회의장 | 📄 문서]</b> 토글. 기본은 회의장 · <b>🏰 그림</b> — 돌벽·스테인드글라스 3창·로한북 문장 깃발·횃불·카펫·원근 탁자. 🔒 <b>전부 인라인 SVG다. 이미지 파일 0개</b> — 단일 파일 원칙을 깨지 않는다 · <b>👥 일곱 가신</b> — 생활사·학습사·사주사·수연·제작사·의사(순환기)·의사(그외). 관직명은 <b>명단 테이블</b>(agora_members.title)에서 온다. 수연은 비서라 영주의 좌측 첫 자리 · 🔒 <b>캐릭터가 상태를 입는다</b> — 미제출은 <b>빈 의자</b>(숨기면 거짓말), 해당없음은 ⊘, 공지 미확인은 📢, 로한의 ⭐ 평가는 발치에 별 · <b>🖱 트리거는 캐릭터다</b> — 누르면 평가 → 그가 건 간언 → 받은 해명·재간언을 따라간다. <b>화자가 바뀌면 말풍선 주인도 바뀐다</b>(티키타카) · 🔴 <b>말풍선은 한 번에 한 토막이다</b> — 실측 own 2,000자를 그대로 넣으면 「텍스트만 가득」이 말풍선 안에서 재현된다. 문단으로 쪼개 ▶ 로 넘긴다 · 🔒 <b>할 말 없는 자는 눌리지 않는다</b>. 다만 <b>「해당 없음」은 눌린다</b> — 그건 말한 것이다. 미제출과 같이 묶으면 테이블이 가른 뜻이 화면에서 사라진다 · 😠 <b>어조가 얼굴에 나온다</b> — 눈썹·입·말풍선 테두리. 🔒 글자로도 적는다(저시력·색맹) · 📜 <b>두루마리 다섯</b>(재정·학업·몸·나날·점괘) — 0인 칸은 <b>겉에 붉은 점</b>으로 드러낸다. 머리에 기간을 적어 보름치를 월 예산과 그냥 비교하지 않게 한다 · 🔒 움직임을 줄이라는 설정이면 흔들지 않는다 · 🔴 <b>그림 함수를 뽑을 때 범위가 겹쳐 AG_VB·AG_TBL·agSeatXY 가 두 번 선언됐다</b> — var·function 중복은 조용히 허용되고 나중 것이 이긴다. 동작은 했지만 거짓이라 앞쪽을 지웠다 · 🔴 SVG 식별자가 lord 인데 DB 는 rohan 이라 영주가 「할 말 없음」으로 판정됐다 — <b>식별자는 DB 를 따른다</b> · t54 106 → <b>123건</b>(P절 16건 신설) · run.sh all 42/42 통과'},
   {v:'4.32',date:'2026-10-15',note:'<b>🏛 아고라 v2 — 📢 공지 · 🕐 중간평가(15일/말일).</b> 로한: 「변동된 것들을 내가 <b>매번 여러 방에 다 알려주기가 존나 귀찮다</b>. 아고라에 적어놓으면 다른 방에서 묻기 전에 공지를 읽고 <b>반영</b>했으면 한다. 그리고 월말 평가 말고 중간 평가를 하나 넣어서 15일/말일」 · 🔒 <b>요구의 핵심은 평가를 늘리는 게 아니라 로한의 수고를 줄이는 것이다.</b> 평가가 두 배가 되면 로한이 읽을 양도 두 배가 되고, 그러면 아고라를 안 열게 된다 · <b>📢 공지</b> — 아고라 맨 위에서 <b>✎ 공지 쓰기</b>. 제목·내용·대상(안 고르면 전체)·언제까지(비우면 계속) · 🔒 <b>월에 묶지 않는다</b> — 변경사항은 달이 바뀌어도 유효하다(별도 테이블 + 유효기간) · 🔒 <b>이미 있는 입구에 끼웠다</b> — 방들이 원래 부르는 <code>agora_pending()</code> 맨 앞에 「확인할공지」가 온다. 새 함수를 외우게 하면 안 지켜지고 그러면 로한이 다시 일일이 챈다 · 🔒 <b>「읽었음」 버튼을 만들지 않았다.</b> <code>agora_ack</code> 는 <b>무엇을 바꿨는지</b>를 요구한다(5자 이상) — 체크만 받으면 로한이 「반영됐다」는 <b>거짓 숫자</b>를 본다(2026-09 에 거짓 숫자 하나로 다섯 방이 같이 틀렸다) · 🔒 <b>미확인은 쓰기를 막고 읽기는 막지 않는다</b> — 읽기를 막으면 공지도 못 읽는다. 화면은 공지마다 <b>n/m 반영</b>과 <b>미확인 방 이름</b>을 적는다(숫자만 보여주면 누구를 챌지 모른다) · <b>🕐 중간평가</b> — 머리에 <b>[중간 (1~15) | 월말 (전체)]</b> 토글. 🔒 기본값은 <b>오늘의 차례</b>다(15일 이후면 이번 달 중간, 그 전이면 지난 달 월말) · 🔴 <b>중간평가에서 「내 담당 영역」(결산)을 뺐다</b> — 실측 own 2,000자가 분량의 절반이다. 7방 × 한 달 두 번이면 로한이 안 읽는다. 세 칸(총평·다른영역·로한에게)이고, 결산은 월말에 쓴다 · 🔒 <b>월말 읽기가 그 달 중간평가와 로한의 평가를 같이 준다</b> — 15일에 요구한 것이 지켜졌는지 월말에 다룬다. 이 참조가 없으면 중간평가는 그냥 평가가 두 배가 된 것일 뿐이다 · 🔒 <b>facts 가 기간을 말한다</b> — mid 는 1~15일만 센다. 기간·일수·진행률·「예산은 월 단위다」를 같이 준다. 보름 지출을 월 예산과 그냥 비교하면 「절반밖에 안 썼다」를 「잘했다」로 읽는다 · DB: <code>agora_notices</code>·<code>agora_acks</code> 신설, <code>agora_posts.phase</code>, 유니크를 (ym,phase,member)/(ym,phase,target) 로, guard 검사도 전부 (ym,phase) 단위로 · 🔒 <code>phase</code> 는 <b>언제나 마지막 인자</b>다 — 중간에 끼우면 기존 호출 <code>agora_read(ym,slug)</code> 가 phase 로 잘못 간다 · 핸드오프 7방+공통 v2 · <b>🔴 t54 가 날짜에 기대고 있었다</b> — 기본 기간이 「오늘의 차례」가 되자 픽스처(2026-09 월말)가 안 보여 전부 빨개졌다. 앱이 맞고 테스트가 틀렸다(t50·t42 와 같은 종류) → 시계를 10/5 로 고정 · t54 86 → <b>106건</b>, run.sh all 42/42 통과'},

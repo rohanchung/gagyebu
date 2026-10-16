@@ -578,6 +578,61 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
    .map(e=>e.textContent).join(' '));
  ok('Q11 미리보기에 마크다운 기호가 안 보인다',pv.indexOf('**')<0&&pv.indexOf('##')<0,
     pv.slice(0,60));
+ /* ══ R) 📱 좁은 화면 — 🔒 좁다고 기능을 빼지 않는다. 배치만 바꾼다(§15.7) ══ */
+ await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(400);
+ const wide=await p.evaluate(()=>{
+   const v=document.querySelector('#aghall svg').getAttribute('viewBox');
+   return {vb:v,tall:agLay().tall,
+     seats:document.querySelectorAll('#aghall .agseat').length};});
+ ok('R1 넓은 화면은 가로 배치다',!wide.tall&&/1180/.test(wide.vb),JSON.stringify(wide));
+
+ await p.setViewportSize({width:420,height:900}); await p.waitForTimeout(600);
+ const narrow=await p.evaluate(()=>{
+   const svg=document.querySelector('#aghall svg');
+   const v=(svg&&svg.getAttribute('viewBox'))||'';
+   return {vb:v,tall:agLay().tall,
+     seats:document.querySelectorAll('#aghall .agseat').length,
+     scrolls:document.querySelectorAll('#aghall .agscr').length,
+     log:!!document.getElementById('aglog'),
+     bub:!!document.getElementById('agbub')};});
+ /* 🔒 좁으면 탁자를 세로로 세운다 — 680 폭에 긴 탁자를 눕히면 캐릭터가 깨알이 된다 */
+ ok('R2 좁으면 세로 배치로 바뀐다',narrow.tall&&/680/.test(narrow.vb),JSON.stringify(narrow));
+ /* 🔒 기능을 빼지 않는다 */
+ ok('R3 자리 여덟이 그대로 있다',narrow.seats===8,String(narrow.seats));
+ ok('R4 두루마리가 그대로 있다',narrow.scrolls===5,String(narrow.scrolls));
+ ok('R5 기록창과 말풍선도 남는다',narrow.log&&narrow.bub,JSON.stringify(narrow));
+
+ /* 🔴 세로에서 자리가 화면 밖으로 나가면 안 된다 */
+ const fit=await p.evaluate(()=>{
+   const Y=agLay(), bad=[];
+   agSeats().forEach(function(st){
+     const q=agSeatXY(st,Y);
+     if(q.x<60||q.x>Y.vb.w-60||q.y<0||q.y>Y.vb.h-90)bad.push(st.m.slug+':'+q.x+','+q.y);});
+   return bad;});
+ ok('R6 세로에서 자리가 화면 안에 들어온다',fit.length===0,JSON.stringify(fit));
+
+ /* 🔒 이름은 세로에서 **아래 중앙**이다 — 바깥으로 밀면 화면 밖으로 나간다 */
+ const nmx=await p.evaluate(()=>[...document.querySelectorAll('#aghall .agnm')]
+   .map(e=>+e.getAttribute('x')));
+ ok('R7 세로에선 이름이 아래 중앙에 온다',nmx.length>=7&&nmx.every(x=>x===0),JSON.stringify(nmx));
+
+ /* 좁은 화면에서도 눌러서 들을 수 있다 */
+ await p.evaluate(()=>agSpeak('suyeon')); await p.waitForTimeout(250);
+ const sp=await p.evaluate(()=>({who:AG_CUR&&AG_CUR.seq[0].who,
+   n:AG_CUR?AG_CUR.seq.length:0,
+   t:document.getElementById('agbub').textContent.length}));
+ ok('R8 좁은 화면에서도 아뢴다',sp.who==='suyeon'&&sp.n>=8,JSON.stringify(sp));
+ ok('R9 말풍선은 여전히 한 토막이다',sp.t<1200,String(sp.t));
+
+ /* 🔒 되돌아가면 가로로 — 그리고 **듣던 자리를 지킨다** */
+ await p.evaluate(()=>{AG_CUR.i=3;agApply();}); await p.waitForTimeout(150);
+ await p.setViewportSize({width:1500,height:1200}); await p.waitForTimeout(700);
+ const back=await p.evaluate(()=>({tall:agLay().tall,
+   vb:document.querySelector('#aghall svg').getAttribute('viewBox'),
+   i:AG_CUR?AG_CUR.i:-1,who:AG_CUR&&AG_CUR.seq[AG_CUR.i].who}));
+ ok('R10 넓어지면 가로로 돌아온다',!back.tall&&/1180/.test(back.vb),JSON.stringify(back));
+ ok('R11 🔒 듣던 자리를 지킨다',back.i===3&&back.who==='suyeon',JSON.stringify(back));
+
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);
