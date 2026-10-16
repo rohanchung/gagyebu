@@ -765,9 +765,7 @@ textarea.mla.same{background:#f2f9f4}
 /* 📜 회의 기록 — v4.34. 🔒 넓으면 오른쪽, 좁으면 아래(기능을 빼지 않는다 · §15.7) */
 .aglay{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px;align-items:start}
 @media(max-width:1150px){.aglay{grid-template-columns:1fr}}
-.aglog{background:#2a1f17;border:1px solid #4a382a;border-radius:12px;padding:9px;
-  max-height:760px;overflow:auto}
-@media(max-width:1150px){.aglog{max-height:420px}}
+/* 🔒 v4.36 — 상자는 .agpanel 이 쓴다. 기록은 탭 내용일 뿐이다 */
 .aglogh{font-size:12.5px;font-weight:800;margin:0 0 6px;color:#e0bd6a}
 .aglogg{font-size:10.5px;color:#a4917a;margin:9px 0 4px;border-top:1px dashed #4a382a;padding-top:7px}
 .aglogg:first-of-type{border-top:0;margin-top:0}
@@ -839,6 +837,47 @@ textarea.mla.same{background:#f2f9f4}
 .agtn.grave{background:#f6d7d3;color:#8d2f26}
 .agtn.plead{background:#f5e6c2;color:#7a5a16}
 .agros{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+/* ══════ 🗂 v4.36 오른쪽 패널 — 기록·공지·분부가 **한 상자 안의 탭**이다 ══════
+   🔴 공지를 맨 위 띠로 뒀더니 둘만 쌓여도 회의장이 화면 밖으로 밀렸다(§16).
+   🔒 옮기는 것이지 숨기는 것이 아니다 — 탭 머리의 빨간 숫자가 안 열어도 알린다 */
+.agpanel{background:#2a1f17;border:1px solid #4a382a;border-radius:12px;padding:9px;
+  display:flex;flex-direction:column;min-height:0;max-height:620px}
+.agtabs{display:flex;gap:4px;margin-bottom:7px;flex:0 0 auto}
+.agtabs button{flex:1;border:1px solid #4a382a;background:#231a13;color:#a4917a;
+  border-radius:8px;padding:6px 3px;font-size:11px;font-weight:800;cursor:pointer;
+  font-family:inherit;white-space:nowrap}
+.agtabs button.on{background:#43301f;color:#f3e7d3;border-color:#e0bd6a}
+.agbadge{display:inline-block;margin-left:4px;background:#c7362f;color:#fff;
+  border-radius:999px;font-size:9.5px;padding:0 5px;font-weight:800}
+.agtabbody{overflow:auto;min-height:0;flex:1 1 auto}
+/* 패널 안 공지 카드 — 🔒 미확인이면 테두리가 붉다 */
+.agnti{border:1px solid #4a382a;border-radius:9px;padding:7px 8px;margin-top:7px;background:#231a13}
+.agnti.open{border-color:#c7362f}
+.agnti .agntt{display:flex;gap:6px;align-items:baseline;color:#f3e7d3}
+.agnti .agntt b{font-size:11.5px}
+.agnti .agntm{font-size:10px;color:#8d7c67;margin-top:2px}
+.agnti .agntb{font-size:10.5px;color:#c4b29a;margin-top:4px;line-height:1.55;
+  max-height:140px;overflow:auto}
+.agnti .agntw{font-size:10px;color:#ef8a7f;margin-top:4px}
+.agnti .agntg{font-size:10px;color:#8fc9a5;margin-top:3px;line-height:1.5}
+.agnti .agntk{margin-left:auto}
+.agnti .agntk.ok{color:#8fc9a5}
+.agnti .agntk.no{color:#ef8a7f}
+.agpn{font-size:10px;color:#8d7c67;margin:6px 0;line-height:1.55}
+.agpn b{color:#c4b29a}
+.agpn code{font-size:9.5px;color:#e0bd6a}
+/* ══════ 🔒 v4.36 스크롤 — 없애려는 건 **페이지 전체가 구르는 것**이다.
+   회의장을 세로 기준으로 자르고 패널을 같은 높이로 묶는다.
+   ⚠️ 패널 **안의** 스크롤은 남긴다 — 기록은 길어질 수밖에 없다(§16.3) ══════ */
+@media(min-width:1151px){
+  .aglay{align-items:stretch}
+  .agcol{display:flex;flex-direction:column;min-height:0;height:calc(100vh - 190px)}
+  .aghall{flex:1 1 auto;min-height:0;display:flex}
+  .aghall svg{width:100%;height:100%;min-height:0}
+  .agbub{flex:0 0 auto;max-height:34%;overflow:auto;margin-top:9px}
+  .agpanel{height:calc(100vh - 190px);max-height:none}
+}
+@media(max-width:1150px){.agpanel{max-height:460px}}
 /* 📢 공지 — v4.32. 🔒 미확인이 있으면 눈에 띄어야 한다. 조용한 회색이면 또 모르고 지나간다 */
 .agnt{border:1px solid #e6dcc4;background:#fffdf4;border-radius:9px;padding:8px 10px;margin-bottom:10px}
 .agnt.none{border-style:dashed;background:var(--soft)}
@@ -7428,6 +7467,93 @@ function agNoticeBar(){
     +'<div class="agntg">🔒 확인하지 않은 방은 평가·대댓글을 쓸 수 없다. '
     +'방은 「읽었음」이 아니라 <b>무엇을 바꿨는지</b>를 적어야 확인이 된다.</div></div>';
 }
+/* ══════ 🗂 오른쪽 패널 — 기록·공지·분부 (v4.36) ══════
+   로한: "공지가 상단에 위치하니까 한눈에 안보이지? 공지도 회의기록 그 레이아웃 안으로
+          집어넣어버려. 그 안에서 탭으로 구분되게 해서 거기서 CRUD 할 수 있게.
+          그 화면 아래 해명쓰기 이런것도 다 오른쪽 메뉴에서 처리하게."
+   🔴 공지 띠를 맨 위에 뒀더니 둘만 쌓여도 회의장이 화면 밖으로 밀렸다(머리만 260px).
+      순서를 맞추려다 주인공을 밀어냈다 — 어전이 안 보이면 어전회의가 아니다(§16).
+   🔒 옮기는 것이지 숨기는 것이 아니다 — 탭 머리의 빨간 숫자·영주의 엄중한 얼굴·
+      기록 탭의 분부 묶음, 세 자리에서 걸린다(원칙 42). */
+/* 🔒 「이 공지를 안 받든 방」을 묻는 함수는 하나다(원칙 2) —
+   카드·탭 숫자·기록 줄이 각자 세면 세 숫자가 어긋난다 */
+function agNtNo(n){
+  var done={}; (n&&n._ack||[]).forEach(function(a){done[a.member]=a;});
+  return agNtTargets(n).filter(function(m){return !done[m.slug];});
+}
+function agNtAckOf(n,slug){
+  var r=null; (n&&n._ack||[]).forEach(function(a){if(a.member===slug)r=a;});
+  return r;
+}
+function agTab(){
+  var v=(DB.ui&&DB.ui.agTab)||'';
+  return (v==='notice'||v==='tools')?v:'log';
+}
+function agSetTab(v){
+  DB.ui=DB.ui||{}; DB.ui.agTab=v; save();
+  var el=document.getElementById('agpanel');
+  if(!el){renderAgora();return;}
+  el.innerHTML=agPanelInner(agYm()); agPanelBind();
+}
+/* 받들지 않은 방이 남은 공지 수 — 🔒 탭을 안 열어도 숫자로 걸린다 */
+function agNtOpenCount(){
+  return (AG.nt||[]).filter(agNtLive).filter(function(n){return agNtNo(n).length>0;}).length;
+}
+function agPanelInner(ym){
+  var t=agTab(), open=agNtOpenCount();
+  return '<div class="agtabs">'
+    +'<button class="'+(t==='log'?'on':'')+'" data-tab="log" onclick="agSetTab(&#39;log&#39;)">📜 기록</button>'
+    +'<button class="'+(t==='notice'?'on':'')+'" data-tab="notice" onclick="agSetTab(&#39;notice&#39;)">📢 공지'
+      +(open?'<span class="agbadge">'+open+'</span>':'')+'</button>'
+    +'<button class="'+(t==='tools'?'on':'')+'" data-tab="tools" onclick="agSetTab(&#39;tools&#39;)">🛡 분부</button>'
+    +'</div><div class="agtabbody" id="agtabbody">'
+    +(t==='log'?agLogHtml(ym):(t==='notice'?agNoticeTab():agToolsTab(ym)))
+    +'</div>';
+}
+function agPanelBind(){ if(agTab()==='log')agLogBind(); }
+/* ── 📢 공지 탭 — 🔒 여기서 쓰고 닫는다 ── */
+function agNoticeTab(){
+  if(AG.ntErr)return '<div class="agpn" style="color:#ef8a7f">⚠ <b>공지를 못 가져왔다</b> — '+mdEsc(AG.ntErr)
+    +'<br>방들은 이걸 받들어야 평가를 쓸 수 있다. 막혀 있으면 <b>아무 방도 평가를 못 쓴다</b>.</div>';
+  if(AG.nt===null)return '<div class="agpn">공지를 불러오는 중…</div>';
+  var live=(AG.nt||[]).filter(agNtLive);
+  var h='<button class="btn sm" style="width:100%" onclick="agNoticeModal()">✎ 공지 쓰기</button>'
+   +'<div class="agpn">바뀐 것을 여기 한 번 적으면 <b>일곱 가신이 묻기 전에 읽는다</b>. '
+   +'🔒 받들지 않은 방은 평가·간언을 쓸 수 없다.</div>';
+  if(!live.length)return h+'<div class="agpn">유효한 공지가 없다.</div>';
+  return h+live.map(function(n){
+    var tg=agNtTargets(n), no=agNtNo(n);
+    var ok=tg.filter(function(m){return !!agNtAckOf(n,m.slug);});
+    return '<div class="agnti'+(no.length?' open':'')+'">'
+      +'<div class="agntt"><b>'+mdEsc(n.title)+'</b>'
+        +'<span class="agntk '+(no.length?'no':'ok')+'">'+ok.length+'/'+tg.length+'</span></div>'
+      +'<div class="agntm">'+mdEsc(n.effective||'')
+        +(n.until?' ~ '+mdEsc(n.until):' ~ 계속')+' · '
+        +((n.targets&&n.targets.length)
+            ?tg.map(function(m){return agTitleOf(m.slug);}).join(' · '):'전체')+'</div>'
+      +'<div class="agntb">'+mdEsc(agPlain(n.body))+'</div>'
+      /* 🔒 미확인 방을 이름으로 적는다 — 숫자만으로는 누구를 챌지 모른다 */
+      +(no.length?'<div class="agntw">⊘ 미확인: '
+          +no.map(function(m){return mdEsc(agTitleOf(m.slug));}).join(' · ')+'</div>':'')
+      +(ok.length?'<div class="agntg">'+ok.map(function(m){
+          return '✓ '+mdEsc(agTitleOf(m.slug))+' — '
+            +mdEsc(agPlain(agNtAckOf(n,m.slug).applied).slice(0,50));
+        }).join('<br>')+'</div>':'')
+      +'<div style="margin-top:6px"><button class="ghost sm" style="font-size:10.5px" '
+        +'onclick="agNoticeClose('+JSON.stringify(n.id).replace(/"/g,'&quot;')+')">닫기</button></div>'
+      +'</div>';}).join('');
+}
+/* ── 🛡 분부 탭 — 해명·평가·보낼 한 줄 ── */
+function agToolsTab(ym){
+  return '<div class="agpn">🙋 <b>너는 피고가 아니다.</b> 해명할 의무가 없고 — '
+    +'<b>가신을 평가할 권한이 있다.</b> 그들은 다음 평가를 쓰기 전에 네 평가를 읽는다.</div>'
+    +'<button class="btn sm" style="width:100%;margin-bottom:6px" onclick="agSayModal()">🙋 해명 쓰기</button>'
+    +'<button class="ghost sm" style="width:100%;margin-bottom:6px" onclick="agRateModal()">⭐ 가신 조언 평가</button>'
+    +'<button class="ghost sm" style="width:100%" onclick="agCopy(this)" '
+      +'data-line="'+mdEsc(agLine(ym))+'">📋 가신에게 보낼 한 줄</button>'
+    +'<div class="agpn">해명을 쓰면 각 방의 <code>agora_pending()</code> 에 자동으로 뜬다 — '
+    +'말로 알릴 필요가 없다. 🔒 제출 잠금은 가신에게만 걸린다. 너는 처음부터 전부 본다.</div>';
+}
 function agNoticeModal(){
   var ms=(AG.mem||[]).filter(function(m){return m.active;});
   var chk=ms.map(function(m){
@@ -7876,9 +8002,9 @@ function agHallHtml(ym){
        +'>'+mdEsc(sc.k)+'</text></g>';});
   s+='<rect width="'+V.w+'" height="'+V.h+'" fill="url(#agvig)" pointer-events="none"/></svg>';
   return '<div class="aglay">'
-    +'<div><div class="aghall" id="aghall">'+s+'</div>'
+    +'<div class="agcol"><div class="aghall" id="aghall">'+s+'</div>'
       +'<div class="agbub" id="agbub"></div></div>'
-    +agLogHtml(ym)
+    +'<div class="agpanel" id="agpanel">'+agPanelInner(ym)+'</div>'
   +'</div>';
 }
 /* 🔒 레이아웃이 **바뀔 때만** 다시 그린다 — 리사이즈마다 그리면 듣던 말풍선이 날아간다 */
@@ -8032,8 +8158,10 @@ function renderAgora(){
   var ym=agYm(), ph=agPhase(), tn=agTurn();
   box.innerHTML=head
     +(AG.err?'<div class="emrnotice emrbad">⚠ '+mdEsc(AG.err)+'</div>':'')
-    /* 📢 공지가 맨 위다 — 방들도 맨 앞에서 받는다. 화면과 방이 같은 순서를 본다 */
-    +agNoticeBar()
+    /* 🔴 v4.36 — 공지 띠를 맨 위에 둔 것이 틀렸다. 둘만 쌓여도 회의장이 화면 밖으로
+       밀렸다(머리만 260px). 회의장에선 오른쪽 패널의 📢 탭이 그 일을 한다(§16.1).
+       🔒 문서 보기엔 패널이 없으니 띠를 그대로 둔다 — 자리를 옮기는 것이지 없애는 게 아니다 */
+    +(agView()==='hall'?'':agNoticeBar())
     +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:9px;flex-wrap:wrap">'
       +'<button class="ghost sm" onclick="agMove(-1)">◀</button>'
       +'<b style="font-size:15px">'+mdEsc(ym)+'</b>'
@@ -8052,7 +8180,7 @@ function renderAgora(){
         :'<button class="ghost sm" onclick="agGoTurn()">오늘의 차례로</button>')
       +'<button class="ghost sm" style="margin-left:auto" onclick="agLoad();agLoadNotices()">↻ 새로고침</button></div>'
     +(agView()==='hall'
-       ? agHallHtml(ym)+agTools(ym)
+       ? agHallHtml(ym)        /* 🛡 분부 탭이 agTools 의 일을 한다 */
        : agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym,agSelRoom())+agTools(ym));
   if(agView()==='hall'){AG_LAST_TALL=agLay().tall;agHallBind(ym);}
   /* 🔒 공지를 아직 못 불러왔으면 여기서 한 번 부른다 — 「불러오는 중」에 멈추지 않게 */
@@ -8120,9 +8248,11 @@ function agLogHtml(ym){
   h+='<div class="aglogg">🛡 분부 — 공지·해명·평가 '+(nt.length+rs.length)+'건</div>';
   if(!nt.length&&!rs.length)h+='<div class="aglogn">아직 내린 분부가 없다.</div>';
   nt.forEach(function(n){
-    var tg=agNtTargets(n), ok=tg.filter(function(m){return agNtPending(m.slug)===0;});
+    /* 🔒 agNtPending 은 그 방의 **모든** 미확인을 센다 — 이 공지 하나를 묻는 자리엔
+       agNtNo(n) 를 쓴다. 카드·탭 숫자·이 줄이 같은 함수를 봐야 어긋나지 않는다(원칙 2) */
+    var tg=agNtTargets(n), ok=tg.length-agNtNo(n).length;
     h+=agLogRow({k:'room',v:'rohan',ic:'📢',
-      who:'공지 · '+ok.length+'/'+tg.length+' 반영',to:'',tone:'grave',pv:n.title});
+      who:'공지 · '+ok+'/'+tg.length+' 반영',to:'',tone:'grave',pv:n.title});
   });
   rs.forEach(function(x){
     h+=agLogRow({k:'post',v:x.id,ic:(x.kind==='rate'?'⭐':'🙋'),
@@ -8167,7 +8297,7 @@ function agHallBind(ym){
     el.addEventListener('click',function(){agSpeak(slug);});});
   h.querySelectorAll('.agscr').forEach(function(el){
     el.addEventListener('click',function(){agScrollOpen(+el.dataset.scr);});});
-  agLogBind();
+  agPanelBind();
   agBub();
 }
 /* 🔒 ① 미제출을 숨기지 않는다 */
@@ -10427,13 +10557,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.35';
+var APP_VERSION='4.36';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.36',date:'2026-10-16',note:'<b>🗂 공지를 오른쪽 패널 탭으로 · 스크롤을 없앴다.</b> 🔴 <b>v4.32 에서 공지 띠를 맨 위에 둔 것이 틀렸다</b> — 「방들도 맨 앞에서 받으니 화면과 방이 같은 순서를 본다」가 이유였는데, 공지 둘만 쌓여도 머리가 260px 이 되어 <b>회의장이 화면 밖으로 밀렸다</b>. 순서를 맞추려다 주인공을 밀어냈다 · 오른쪽에 <b>[📜 기록 | 📢 공지 | 🛡 분부] 세 탭</b> — 공지를 여기서 쓰고 닫고(CRUD), 해명·가신 평가·보낼 한 줄도 여기서 한다 · 🔒 <b>옮기는 것이지 숨기는 것이 아니다</b> — 탭 머리의 <b>빨간 숫자</b>(받들지 않은 공지 수)·영주의 엄중한 얼굴·기록 탭의 분부 묶음, <b>세 자리</b>에서 걸린다. 한 곳에서 빠져도 다른 데서 잡힌다 · 🔒 <b>페이지가 구르지 않는다</b>(실측 1200px 화면에서 1200px) — 회의장과 패널을 화면 높이에 묶었다. ⚠️ <b>패널 안의 스크롤은 남긴다</b> — 기록은 길어질 수밖에 없다. 없애려던 건 <b>주인공이 화면에서 사라지는 것</b>이다 · 🔒 <b>탭은 패널만 갈아 끼운다</b> — 회의장을 다시 그리면 듣던 말풍선이 날아간다 · 🔒 문서 보기엔 패널이 없으니 <b>공지 띠와 해명 상자를 그대로 뒀다</b> · 🔴 <b>agNtPending 은 그 방의 모든 미확인을 센다</b> — 공지 하나를 묻는 자리에 쓰면 다른 공지가 밀린 방이 이것도 안 받든 것처럼 보인다. 묻는 함수를 <b>agNtNo 하나로</b> 모았다(원칙 2) · 🗣 <b>가신들이 서로를 관직명으로 부른다</b> — 🔴 처음엔 「명단에서 관직을 맨 앞에」로 짰는데 <b>jsonb 는 칸 순서를 지키지 않는다</b>(길이·바이트 순으로 정렬한다). 순서로 못 말하면 <b>라벨</b>이 말해야 한다 — 칸 이름을 <code>본명(부르지않는다)</code> 로 바꾸고 <code>호칭</code> 규약을 읽을 때마다 실어 보낸다. 🚫 <b>이미 쓰인 글은 고치지 않는다</b> · t54 145 → <b>162건</b>(S절 17건) · run.sh all 통과'},
   {v:'4.35',date:'2026-10-16',note:'<b>📱 좁은 화면 — 탁자를 세로로 세운다.</b> 가신회의 네 판 중 마지막 · 🔒 <b>좁다고 기능을 빼지 않는다. 배치만 바꾼다</b>(§15.7) — 자리 여덟·두루마리 다섯·기록창·말풍선이 그대로 남는다 · 🔴 <b>680 폭에 긴 탁자를 눕히면 캐릭터가 깨알이 된다</b> — 축소가 아니라 <b>다른 배치</b>다. 영주 위, 가신 좌우 2열, 두루마리가 탁자를 따라 내려간다 · 🔒 <b>좌표만 갈린다. 그림은 한 벌이다</b> — 캐릭터·문장·횃불 함수는 그대로 두고 좌표 묶음(AG_LAY_WIDE/TALL)만 바꿔 넣는다. 배치를 늘릴 때 그림을 두 벌 관리하지 않는다(원칙 2) · 🔒 <b>레이아웃은 폭 하나로 갈린다</b>(agLay) — 두 군데서 판정하면 반드시 어긋난다 · 세로에선 <b>이름을 아래 중앙</b>에(바깥으로 밀면 화면 밖이다) · 창 3개 → 1개 · 두루마리 이름은 <b>1.5배</b>(줄여 그린 만큼 글자를 되돌린다 — 무엇이 든 두루마리인지 모르면 누를 이유가 없다) · 🔒 <b>리사이즈는 가로↔세로가 바뀔 때만</b> 다시 그린다 — 리사이즈마다 그리면 <b>듣고 있던 말풍선이 날아간다</b>. 180ms 디바운스 · t54 134 → <b>145건</b>(R절 11건 — 되돌아가면 듣던 자리를 지키는 것까지 잰다) · run.sh all 42/42 통과'},
   {v:'4.34',date:'2026-10-16',note:'<b>📜 회의 기록창 — 오른쪽에 붙이고, 줄을 누르면 그 대목부터 듣는다.</b> 로한: 「맨 오른쪽엔 게임 <b>대화로그창</b>처럼 각 캐릭터마다 무슨말을 했는지 써있고 파트별로 구분이 되어있는거야. 생활사 대화를 클릭하면 가운데 화면에 다시 그 대화 애니메이션이 작동하는거지」 · <b>세 묶음</b> — ⚖ 평가(7방) · 🗣 간언(서로에게) · 🛡 분부(공지·해명·⭐평가). 🔒 <b>파트는 종류로 가른다</b> — 방으로 가르면 한 방이 길 때 목록이 무너진다 · 🔒 <b>미제출도 줄을 남긴다</b>(숨기면 거짓말) · 🔴 <b>로그는 트리거를 뺏지 않는다</b> — <b>캐릭터는 처음부터, 로그 줄은 그 대목부터</b>. 같은 흐름의 다른 입구다 · 🔒 <b>할 말 없는 방은 로그에서도 안 눌린다</b> — 화면 두 곳이 다르게 굴면 고장으로 읽힌다 · 넓으면 오른쪽, 1150px 미만이면 아래로 내린다(기능을 빼지 않는다) · 🔴 <b>미리보기에 ** 가 글자로 보였다</b> — §12 에서 본문에 한 번 겪은 그 자리다. 🔒 미리보기는 <b>렌더하지 않고 기호만 벗긴다</b>(두 줄 상자에 블록이 들어가면 줄이 무너진다) · t54 123 → <b>134건</b>(Q절 11건 신설) · run.sh all 42/42 통과'},
   {v:'4.33',date:'2026-10-16',note:'<b>🏰 가신회의 — 아고라를 읽는 화면에서 보는 화면으로.</b> 로한: 「아고라에 <b>텍스트만 가득해서</b> 가독성도 떨어지고 보기가 싫어진다. 중세 배경의 방에 긴 탁자를 그려서 끝에 내가 앉아있고 각 담당 관들이 앉아있는 형태로」 · 🔒 <b>보기만 바뀐다</b> — DB·제출 잠금·공지 강제·phase 는 그대로고, <b>문서 보기도 없애지 않았다</b>(같은 데이터, 두 보기) · 머리에 <b>[🏰 회의장 | 📄 문서]</b> 토글. 기본은 회의장 · <b>🏰 그림</b> — 돌벽·스테인드글라스 3창·로한북 문장 깃발·횃불·카펫·원근 탁자. 🔒 <b>전부 인라인 SVG다. 이미지 파일 0개</b> — 단일 파일 원칙을 깨지 않는다 · <b>👥 일곱 가신</b> — 생활사·학습사·사주사·수연·제작사·의사(순환기)·의사(그외). 관직명은 <b>명단 테이블</b>(agora_members.title)에서 온다. 수연은 비서라 영주의 좌측 첫 자리 · 🔒 <b>캐릭터가 상태를 입는다</b> — 미제출은 <b>빈 의자</b>(숨기면 거짓말), 해당없음은 ⊘, 공지 미확인은 📢, 로한의 ⭐ 평가는 발치에 별 · <b>🖱 트리거는 캐릭터다</b> — 누르면 평가 → 그가 건 간언 → 받은 해명·재간언을 따라간다. <b>화자가 바뀌면 말풍선 주인도 바뀐다</b>(티키타카) · 🔴 <b>말풍선은 한 번에 한 토막이다</b> — 실측 own 2,000자를 그대로 넣으면 「텍스트만 가득」이 말풍선 안에서 재현된다. 문단으로 쪼개 ▶ 로 넘긴다 · 🔒 <b>할 말 없는 자는 눌리지 않는다</b>. 다만 <b>「해당 없음」은 눌린다</b> — 그건 말한 것이다. 미제출과 같이 묶으면 테이블이 가른 뜻이 화면에서 사라진다 · 😠 <b>어조가 얼굴에 나온다</b> — 눈썹·입·말풍선 테두리. 🔒 글자로도 적는다(저시력·색맹) · 📜 <b>두루마리 다섯</b>(재정·학업·몸·나날·점괘) — 0인 칸은 <b>겉에 붉은 점</b>으로 드러낸다. 머리에 기간을 적어 보름치를 월 예산과 그냥 비교하지 않게 한다 · 🔒 움직임을 줄이라는 설정이면 흔들지 않는다 · 🔴 <b>그림 함수를 뽑을 때 범위가 겹쳐 AG_VB·AG_TBL·agSeatXY 가 두 번 선언됐다</b> — var·function 중복은 조용히 허용되고 나중 것이 이긴다. 동작은 했지만 거짓이라 앞쪽을 지웠다 · 🔴 SVG 식별자가 lord 인데 DB 는 rohan 이라 영주가 「할 말 없음」으로 판정됐다 — <b>식별자는 DB 를 따른다</b> · t54 106 → <b>123건</b>(P절 16건 신설) · run.sh all 42/42 통과'},

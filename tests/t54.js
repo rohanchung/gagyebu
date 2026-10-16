@@ -633,6 +633,78 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  ok('R10 넓어지면 가로로 돌아온다',!back.tall&&/1180/.test(back.vb),JSON.stringify(back));
  ok('R11 🔒 듣던 자리를 지킨다',back.i===3&&back.who==='suyeon',JSON.stringify(back));
 
+ /* ══ S) 🗂 오른쪽 패널 탭 — 🔴 공지 띠를 맨 위에 둔 것이 틀렸다(§16).
+      둘만 쌓여도 머리가 260px 이 되어 회의장이 화면 밖으로 밀렸다 ══ */
+ await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(400);
+ const pn=await p.evaluate(()=>({
+   tabs:[...document.querySelectorAll('.agtabs button')].map(b=>b.dataset.tab),
+   on:(document.querySelector('.agtabs button.on')||{}).dataset.tab,
+   badge:(document.querySelector('.agbadge')||{}).textContent,
+   bar:document.querySelectorAll('#v-agora .agnt').length,
+   tools:document.querySelectorAll('#v-agora .aglock').length,
+   log:!!document.getElementById('aglog')}));
+ ok('S1 기록·공지·분부 세 탭이 한 상자에 있다',
+    pn.tabs.join()==='log,notice,tools',JSON.stringify(pn.tabs));
+ ok('S2 기본은 기록 탭이다',pn.on==='log'&&pn.log,JSON.stringify(pn));
+ /* 🔒 회의장에선 공지 띠와 도구를 **옮겼다** — 지운 게 아니다(아래 S10 이 그걸 잰다) */
+ ok('S3 회의장 위에 공지 띠가 없다',pn.bar===0,String(pn.bar));
+ ok('S4 회의장 아래에 해명 상자가 없다',pn.tools===0,String(pn.tools));
+ /* 🔒 숨기는 게 아니라 옮기는 것이다 — 탭을 안 열어도 숫자가 챈다(원칙 42) */
+ ok('S5 탭 머리에 받들지 않은 공지 수가 붙는다',pn.badge==='2',String(pn.badge));
+
+ /* 🔒 페이지 전체가 구르지 않는다. 패널 **안의** 스크롤은 남긴다(§16.3) */
+ const sc=await p.evaluate(()=>({
+   page:document.documentElement.scrollHeight,vh:window.innerHeight,
+   body:document.getElementById('agtabbody').scrollHeight>0}));
+ ok('S6 회의장에서 페이지가 구르지 않는다',sc.page<=sc.vh+2,JSON.stringify(sc));
+
+ /* 🔒 듣는 중에 탭을 갈아도 회의장은 그대로여야 한다 */
+ await p.evaluate(()=>agSpeak('suyeon')); await p.waitForTimeout(250);
+ await p.evaluate(()=>{AG_CUR.i=3;agApply();}); await p.waitForTimeout(150);
+ /* 📢 공지 탭 — 여기서 쓰고 닫는다 */
+ await p.evaluate(()=>agSetTab('notice')); await p.waitForTimeout(250);
+ const nt=await p.evaluate(()=>({
+   cards:document.querySelectorAll('.agnti').length,
+   open:document.querySelectorAll('.agnti.open').length,
+   write:/공지 쓰기/.test(document.getElementById('agtabbody').textContent),
+   close:[...document.querySelectorAll('#agtabbody button')]
+     .filter(b=>b.textContent.indexOf('닫기')>=0).length,
+   t:document.getElementById('agtabbody').textContent,
+   i:AG_CUR?AG_CUR.i:-1, who:AG_CUR&&AG_CUR.seq[AG_CUR.i].who,
+   hall:!!document.querySelector('#aghall svg'),
+   page:document.documentElement.scrollHeight}));
+ ok('S7 공지 탭에 유효한 공지만 카드로 뜬다',nt.cards===2,String(nt.cards));
+ ok('S8 받들지 않은 공지는 카드가 붉다',nt.open===2,String(nt.open));
+ ok('S9 여기서 쓰고 닫는다(CRUD 입구)',nt.write&&nt.close===2,JSON.stringify([nt.write,nt.close]));
+ /* 🔒 미확인 방을 **관직명으로** 적는다 — 숫자만으로는 누구를 챌지 모른다 */
+ ok('S10 미확인 방을 관직명으로 적는다',/미확인/.test(nt.t)&&/의사[(]순환기[)]/.test(nt.t),'');
+ ok('S11 반영한 내용도 적는다',/예산 비교를 월 기준으로 바꿨다/.test(nt.t),'');
+ /* 🔒 탭은 패널만 갈아 끼운다 — 회의장을 다시 그리면 듣던 자리가 날아간다 */
+ ok('S12 탭을 바꿔도 듣던 자리를 지킨다',nt.i===3&&nt.who==='suyeon'&&nt.hall,JSON.stringify(nt));
+ ok('S13 공지 탭에서도 페이지가 구르지 않는다',nt.page<=sc.vh+2,String(nt.page));
+
+ /* 🛡 분부 탭 — 해명·평가·보낼 한 줄 */
+ await p.evaluate(()=>agSetTab('tools')); await p.waitForTimeout(250);
+ const tl=await p.evaluate(()=>({
+   n:document.querySelectorAll('#agtabbody button').length,
+   t:document.getElementById('agtabbody').textContent,
+   line:(document.querySelector('#agtabbody button[data-line]')||{}).dataset.line||''}));
+ ok('S14 분부 탭에 해명·평가·한 줄 셋이 있다',
+    tl.n===3&&/해명 쓰기/.test(tl.t)&&/조언 평가/.test(tl.t),JSON.stringify([tl.n]));
+ ok('S15 보낼 한 줄은 단계에 맞는 호출문이다',/agora_pending/.test(tl.line),tl.line.slice(0,40));
+
+ /* 🔒 기록 탭의 분부 묶음은 그대로 — 세 자리에서 걸린다(원칙 42) */
+ await p.evaluate(()=>agSetTab('log')); await p.waitForTimeout(250);
+ const lgt=await p.evaluate(()=>document.getElementById('agtabbody').textContent);
+ ok('S16 기록 탭에 공지가 분부로 남아 있다',/분부/.test(lgt)&&/공지 · 1[/]7 반영/.test(lgt),'');
+
+ /* 🔒 문서 보기엔 패널이 없다 — 거기선 띠와 도구를 그대로 둔다. 옮긴 것이지 없앤 게 아니다 */
+ await p.evaluate(()=>agSetView('doc')); await p.waitForTimeout(400);
+ const dc=await p.evaluate(()=>({bar:document.querySelectorAll('#v-agora .agnt').length,
+   tools:document.querySelectorAll('#v-agora .aglock').length}));
+ ok('S17 문서 보기엔 공지 띠와 해명 상자가 그대로다',dc.bar===1&&dc.tools===1,JSON.stringify(dc));
+ await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(300);
+
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);
