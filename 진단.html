@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>로한북 진단</title>
+<style>
+ body{font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#f6f7f9;color:#1b1f24}
+ h1{font-size:19px;margin:0 0 4px} p.sub{margin:0 0 18px;color:#5b6572;font-size:13px}
+ .box{background:#fff;border:1px solid #dfe3e8;border-radius:12px;padding:14px;margin-bottom:14px}
+ label{display:block;font-size:12px;font-weight:700;color:#5b6572;margin-bottom:4px}
+ input{width:100%;padding:9px 10px;border:1px solid #cdd4dc;border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:9px}
+ button{background:#2f6feb;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;cursor:pointer}
+ button.g{background:#fff;color:#2f6feb;border:1px solid #9dbcf5}
+ button:disabled{opacity:.5;cursor:default}
+ table{width:100%;border-collapse:collapse;font-size:13px}
+ th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #eef1f4}
+ th{font-size:11px;color:#5b6572}
+ td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+ .ok{color:#1d7a46;font-weight:700}.bad{color:#b23b3b;font-weight:700}.slow{color:#b07000;font-weight:700}
+ pre{background:#101418;color:#e6edf3;padding:12px;border-radius:9px;font-size:11.5px;white-space:pre-wrap;word-break:break-all}
+ .mut{color:#5b6572;font-size:12px}
+</style></head><body>
+<h1>🩺 로한북 진단</h1>
+<p class="sub">아고라가 비어 보이는 원인을 가른다. <b>로그인한 상태로</b> 각 조회가 몇 ms 에 몇 건을 돌려주는지 그대로 적는다.</p>
+
+<div class="box">
+ <div id="who" class="mut">로그인 전</div>
+ <div id="loginbox" style="margin-top:10px">
+  <label>이메일</label><input id="em" type="email" autocomplete="username">
+  <label>비밀번호</label><input id="pw" type="password" autocomplete="current-password">
+  <button id="go">로그인</button>
+  <span id="le" class="bad" style="font-size:12px;margin-left:8px"></span>
+ </div>
+</div>
+
+<div class="box">
+ <button id="run" class="g" disabled>진단 실행</button>
+ <button id="out" class="g" disabled style="margin-left:6px">로그아웃</button>
+ <div id="res" style="margin-top:12px"></div>
+</div>
+
+<div class="box">
+ <div class="mut">아래 상자를 통째로 복사해서 보내면 된다.</div>
+ <pre id="raw">(아직 없음)</pre>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+var SUPA_URL='https://ytkbrdgbklnijbwkvino.supabase.co';
+var SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl0a2JyZGdia2xuaWpid2t2aW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MjA0NTQsImV4cCI6MjEwMTk5NjQ1NH0.7ymaJsdADQ1RhodMMuJxV58nE9httVltWllKq1QmXQM';
+var SB=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+var LINES=[];
+
+function $(id){return document.getElementById(id);}
+function setUser(u){
+  $('who').innerHTML = u ? ('👤 <b>'+u.email+'</b> 로 로그인됨') : '로그인 전';
+  $('loginbox').style.display = u ? 'none' : 'block';
+  $('run').disabled = !u; $('out').disabled = !u;
+}
+SB.auth.getSession().then(function(r){ setUser(r.data && r.data.session && r.data.session.user); });
+
+$('go').onclick=function(){
+  $('le').textContent='';
+  SB.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value})
+   .then(function(r){ if(r.error){$('le').textContent=r.error.message;return;}
+     $('pw').value=''; setUser(r.data.user); });
+};
+$('out').onclick=function(){ SB.auth.signOut().then(function(){ setUser(null); }); };
+
+/* 🔒 끝나지 않는 것도 실패다 — 8초를 넘기면 '멈춤'으로 적는다 */
+function timed(name, fn){
+  var t0=Date.now(), done=false;
+  return new Promise(function(res){
+    var to=setTimeout(function(){ if(!done){done=true;
+      res({name:name, ms:Date.now()-t0, n:'-', err:'8초 넘게 응답 없음(멈춤)'}); } },8000);
+    Promise.resolve(fn()).then(function(r){
+      if(done)return; done=true; clearTimeout(to);
+      res({name:name, ms:Date.now()-t0,
+           n:(r && r.data) ? (Array.isArray(r.data)?r.data.length:1) : 0,
+           err:(r && r.error) ? (r.error.message+' ['+(r.error.code||'')+']') : null,
+           status:r && r.status});
+    }, function(e){
+      if(done)return; done=true; clearTimeout(to);
+      res({name:name, ms:Date.now()-t0, n:'-', err:String(e && e.message || e)});
+    });
+  });
+}
+
+$('run').onclick=async function(){
+  $('run').disabled=true; $('res').innerHTML='<span class="mut">재는 중…</span>';
+  LINES=[];
+  var s=await SB.auth.getSession();
+  var ses=s.data && s.data.session;
+  LINES.push('계정: '+(ses && ses.user ? ses.user.email : '(없음)'));
+  LINES.push('uid: '+(ses && ses.user ? ses.user.id : '-'));
+  if(ses && ses.expires_at){
+    var exp=new Date(ses.expires_at*1000);
+    LINES.push('토큰 만료: '+exp.toLocaleString()+'  (지금: '+new Date().toLocaleString()+')');
+    LINES.push('남은 시간: '+Math.round((exp-Date.now())/1000)+'초');
+  }
+  LINES.push('기기 시계 오차(UTC 기준 분): '+(new Date().getTimezoneOffset()));
+  LINES.push('');
+
+  var jobs=[
+    ['agora_members', function(){return SB.from('agora_members').select('*').order('sort');}],
+    ['agora_posts',   function(){return SB.from('agora_posts').select('*').order('submitted_at');}],
+    ['agora_posts(갯수만)', function(){return SB.from('agora_posts').select('id');}],
+    ['agora_notices', function(){return SB.from('agora_notices').select('*');}],
+    ['agora_acks',    function(){return SB.from('agora_acks').select('*');}],
+    ['app_state',     function(){return SB.from('app_state').select('user_id,updated_at');}],
+    ['rpc agora_facts', function(){return SB.rpc('agora_facts',{p_ym:'2026-10',p_phase:'mid'});}]
+  ];
+  var rows=[];
+  for(var i=0;i<jobs.length;i++){
+    var r=await timed(jobs[i][0], jobs[i][1]);
+    rows.push(r);
+    LINES.push(pad(r.name,22)+pad(r.ms+'ms',9)+pad('건수 '+r.n,10)+(r.err?('⚠ '+r.err):'ok'));
+  }
+  function pad(s,n){s=String(s);while(s.length<n)s+=' ';return s;}
+
+  var html='<table><tr><th>조회</th><th>걸린 시간</th><th>건수</th><th>결과</th></tr>';
+  rows.forEach(function(r){
+    var cls=r.err?'bad':(r.ms>1500?'slow':'ok');
+    html+='<tr><td>'+r.name+'</td><td class="n '+cls+'">'+r.ms+' ms</td>'
+      +'<td class="n">'+r.n+'</td><td class="'+cls+'">'+(r.err?r.err:'정상')+'</td></tr>';
+  });
+  html+='</table>';
+  $('res').innerHTML=html;
+  $('raw').textContent=LINES.join('\n');
+  $('run').disabled=false;
+};
+</script>
+</body></html>

@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>당구 연습장</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎱</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- 🔴 [결함] 여기 버전이 「@2」였다. **메이저 범위**라 jsDelivr 가 최신 2.x 를 매번 준다.
+     내가 코드를 한 줄도 안 건드려도 **라이브러리가 바뀌면 앱이 바뀐다.**
+     2026-10-16 로한: 「아고라에 아무도 없다」 — 그날 앱이 받던 것은 2.118.0 이었고,
+     같은 조회를 2.45.4 로 고정한 진단 페이지에서는 48건이 그대로 왔다(실측 179ms).
+     v4.35(어제까지 멀쩡하던 판)로 열어도 똑같이 비어 보인 이유가 이것이다 — 그 판도 @2 다.
+     🔒 **버전을 범위로 쓰지 않는다.** 올릴 때는 내가 올리고, 올린 뒤 테스트를 돌린다.
+        고정하지 않으면 「어제는 됐는데 오늘 안 된다」가 언제든 다시 온다. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <!-- 🔒 버전 꼬리표(?v=) — 없으면 GitHub Pages 캐시 때문에 새 index.html 에 옛 app.js 가 붙어 돈다
      (실제로 "불러오는 중" 화면이 안 꺼지고 그 아래 앱이 떴다). 세 곳(html data-ver · 두 src · APP_VER/PH.VERSION)을 같이 올린다 — b01 이 확인 -->
 <script src="physics.js?v=3.7.1"></script>
