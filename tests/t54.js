@@ -40,7 +40,10 @@ function big(n,paras,md){
 }
 const POSTS=[
  /* 🔴 순환기 — 가장 긴 글(실측 own 802 · others 1399). 방 이름 5개를 적었다 */
- {id:'p-cardio',ym:'2026-09',member:'cardio',kind:'review',status:'ok',parent_id:null,
+ /* 🔴 픽스처가 전부 plain 이라 tone!=='plain' 가지에 숨은 오타(TONE[tone])를 못 잡았다.
+    실제로 2026-10-16 생활사가 plead 로 쓰자 회의장이 통째로 안 그려졌다.
+    🔒 쓰이는 값은 테스트에도 들어와야 한다 — 안 밟는 길은 없는 길이 아니라 **안 보이는 길**이다. */
+ {id:'p-cardio',ym:'2026-09',member:'cardio',kind:'review',status:'ok',parent_id:null,tone:'plead',
   summary:'배달 12→5건으로 8월에 세운 목표를 정확히 맞췄고 식단은 28일 기록됐다. 반면 9/3 진료 기록이 로한북에 없다.',
   own:big(802,8,true),
   others:'**로버트(생활)** — 의료가 예산 항목에 없다.\n\n**제작방** — 진료 결과를 넣을 입구가 없다.\n\n'
@@ -1011,6 +1014,44 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  ok('Y8 🔒 실패가 「불러오는 중」에 가려지지 않는다',
     !/불러오는 중/.test(fail.화면)&&/끊김/.test(fail.화면),fail.err);
  await p.waitForTimeout(400);
+
+ /* ══ Z2) 😠 모든 어조로 그려진다 ══
+      🔴 agFigure 안에 TONE[tone] 이 있었다 — AG_TONE 의 오타.
+         tone!=='plain' 일 때만 타는 줄이라 v4.33 부터 한 번도 안 밟혔고,
+         생활사가 plead 로 쓰자 renderAgora 가 통째로 터져 회의장이 사라졌다.
+         (글이 없던 게 아니라 **그리다 죽은 것**이었다) */
+ const allTones=await p.evaluate(()=>{
+   const bad=[];
+   ['plain','praise','worry','grave','plead'].forEach(function(t){
+     ['ok','na','no'].forEach(function(stt){
+       try{ agFigure(agLookOf('suyeon'),stt,{notice:true,star:true,tone:t}); }
+       catch(e){ bad.push(t+'/'+stt+': '+e.message); }});});
+   return bad;});
+ ok('Z2-1 다섯 어조 × 세 상태 전부 그려진다',allTones.length===0,JSON.stringify(allTones));
+
+ /* 🔒 한 방의 어조를 바꿔 가며 **회의장 전체**를 그려 본다 — 함수 단위로만 재면 놓친다 */
+ const hallTones=await p.evaluate(()=>{
+   const keep=AG.posts.map(x=>x.tone), bad=[];
+   ['praise','worry','grave','plead'].forEach(function(t){
+     AG.posts.forEach(function(x){ if(x.kind==='review')x.tone=t; });
+     try{
+       renderAgora();
+       const n=document.querySelectorAll('#aghall .agseat').length;
+       if(n===0)bad.push(t+': 자리 0개(그리다 죽었다)');
+     }catch(e){ bad.push(t+': '+e.message); }});
+   AG.posts.forEach(function(x,i){x.tone=keep[i];}); renderAgora();
+   return bad;});
+ ok('Z2-2 어떤 어조에서도 회의장이 그려진다',hallTones.length===0,JSON.stringify(hallTones));
+
+ /* 🔒 말풍선·기록창도 같은 길을 탄다 */
+ const bubTones=await p.evaluate(()=>{
+   const bad=[];
+   ['praise','worry','grave','plead'].forEach(function(t){
+     try{ AG_CUR={seq:[{who:'suyeon',label:'총평',text:'한 줄',tone:t}],i:0}; agApply();
+       if(!document.getElementById('agbub').textContent.trim())bad.push(t+': 말풍선 비었다');
+     }catch(e){ bad.push(t+': '+e.message); }});
+   return bad;});
+ ok('Z2-3 어떤 어조에서도 말풍선이 뜬다',bubTones.length===0,JSON.stringify(bubTones));
 
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
