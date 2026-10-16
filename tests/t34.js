@@ -28,6 +28,10 @@ const BASE=()=>({schemaVersion:7,ui:{month:'2026-08'},
  goals:[],routines:[],checks:{},rewards:[],rewardCards:{},journal:[],items:[],
  logs2:[{id:'g1',date:'2026-08-04',title:'정책자금 거치연장 요청',body:'진행중'},
         {id:'g2',date:'2026-07-28',title:'방 개설 & 전면 진단',body:'개설'}],
+ /* 🔒 이 픽스처는 **이미 그 자리의 시각으로 적힌** 기록이다 —
+    v4.40 의 UTC→로컬 보정을 타지 않게 표시를 달아 둔다.
+    (보정 자체는 K절이 따로 잰다. 여기서 재는 것은 날짜 묶음이다) */
+ actTzFixed:1,
  activity:[{t:'2026-08-28 09:10',m:'거래 추가 · 식비'},{t:'2026-08-28 08:02',m:'계좌 수정'},
            {t:'2026-08-27 22:40',m:'루틴 순서 · R1 ▲'}],
  fixed:[],events:[],posts:[],budgets:{},debts:[],accounts:[],cards:[],categories:[],transactions:[],
@@ -218,6 +222,56 @@ async function boot(st,opt){
   ok('J2 탭 복귀 시 재조회 안 함',n2===1,n2);
   await p.evaluate(()=>hoLoad(1));await p.waitForTimeout(400);
   ok('J3 강제 새로고침은 조회함',(await p.evaluate(()=>window.__hoHits))===2);
+  await b.close();
+ }
+
+ /* ── K. 🕑 활동 로그 시각 — 🔴 UTC 로 적고 있었다 ──
+      로한: "내가 새벽에 저런걸 했을리가 없잖아" / "어느순간 외국시간으로 되어있는것 같다"
+      🔴 시각만이 아니라 **날짜 묶음도** 틀렸다 — 밤 9시 이후에 한 일이 다음 날로 넘어간다. */
+ {
+  const {b,p}=await boot(BASE());
+  /* 🔒 그 자리의 시계로 적는다 — todayStr() 과 같은 기준이어야 한다 */
+  const now=await p.evaluate(()=>{
+    DB.activity=[]; logAct('시각 점검');
+    const d=new Date();
+    return {적힌값:DB.activity[0].t,
+      로컬:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
+        +' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'),
+      utc:new Date().toISOString().slice(0,16).replace('T',' '),
+      오늘:todayStr()};});
+  ok('K1 활동 로그를 그 자리의 시각으로 적는다',now.적힌값===now.로컬,JSON.stringify(now));
+  /* 🔒 todayStr() 과 같은 날을 가리킨다 — 두 곳이 다르면 같은 질문에 두 답이 된다 */
+  ok('K2 날짜가 todayStr() 과 같다',now.적힌값.slice(0,10)===now.오늘,JSON.stringify(now));
+  /* 시간대가 0 이 아닌 곳에서는 UTC 와 달라야 한다(UTC 지역이면 같아도 맞다) */
+  const off=await p.evaluate(()=>new Date().getTimezoneOffset());
+  if(off!==0)ok('K3 UTC 를 그대로 쓰지 않는다',now.적힌값!==now.utc,JSON.stringify(now));
+  else ok('K3 UTC 지역이라 같은 값이 맞다',now.적힌값===now.utc,JSON.stringify(now));
+
+  /* 🔒 이미 UTC 로 적힌 기록도 옮긴다 — 딱 한 번 */
+  const moved=await p.evaluate(()=>{
+    const utc='2026-10-15 21:30';
+    const d={schemaVersion:7,activity:[{t:utc,m:'옛 기록'},{t:'이상한값',m:'형식이 다르다'}]};
+    const r1=migrateV6(JSON.parse(JSON.stringify(d)));
+    const r2=migrateV6(JSON.parse(JSON.stringify(r1)));   /* 두 번 돌려 본다 */
+    const want=(()=>{const x=new Date(utc.replace(' ','T')+':00Z');
+      return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')
+        +' '+String(x.getHours()).padStart(2,'0')+':'+String(x.getMinutes()).padStart(2,'0');})();
+    return {한번:r1.activity[0].t, 두번:r2.activity[0].t, 기대:want,
+            형식다름:r1.activity[1].t, 표시:r1.actTzFixed};});
+  ok('K4 이미 적힌 UTC 기록을 그 자리의 시각으로 옮긴다',
+     moved.한번===moved.기대,JSON.stringify(moved));
+  /* 🔴 이 보정은 멱등이 아니다 — 두 번 돌면 18시간이 된다. 표시가 그걸 막는다 */
+  ok('K5 🔒 두 번 돌려도 한 번만 옮긴다',moved.두번===moved.한번,JSON.stringify(moved));
+  ok('K6 1회성 표시를 남긴다',moved.표시===1,String(moved.표시));
+  /* 🔒 형식이 다른 값은 건드리지 않는다 — 모르는 것을 고치면 그게 손상이다 */
+  ok('K7 형식이 다른 값은 그대로 둔다',moved.형식다름==='이상한값',moved.형식다름);
+
+  /* 화면에도 그 시각이 그대로 나온다 */
+  await p.evaluate(()=>{DB.activity=[{t:'2026-10-16 15:52',m:'낮에 한 일'}];
+    setLogTab('act');});
+  await p.waitForTimeout(200);
+  const seen=await p.evaluate(()=>document.body.textContent);
+  ok('K8 화면에 그 시각 그대로 보인다',/15:52/.test(seen)&&/2026-10-16/.test(seen),'');
   await b.close();
  }
 

@@ -7466,12 +7466,32 @@ function agReviewOf(ym,slug){
   return a.length?a[0]:null;
 }
 function agoraOpen(){renderAgora();agLoad();agLoadNotices();}
+/* ══════ ⏱ v4.39 — 끝나지 않는 것도 실패다 ══════
+   🔴 [결함 재발] v4.26 에서 「불러오는 중…」이 영원히 떠 있던 자리를 고쳤다.
+      그땐 **에러를 삼킨** 것이었다. 이번엔 같은 증상이 **다른 원인**으로 났다 —
+      요청이 영영 resolve 되지 않으면(세션 갱신 교착 등) 마지막 then 이 돌지 않아
+      AG.loading 이 true 로 **박힌다**. 그 뒤 renderAgora 가 몇 번 불려도
+      agLoad 는 맨 앞에서 return 한다 → 영원히 「불러오는 중」.
+      로한: 「아고라 누르면 불러오는 중만 뜬다. 나머지 페이지는 다 정상이다」
+      — 다른 화면은 이미 읽은 DB 를 쓰니 네트워크를 안 탄다. 아고라만 새로 묻는다.
+   🔒 기다림에 **끝**을 둔다. 끝나지 않으면 실패로 적고, 손잡이를 남긴다. */
+var AG_WAIT=12000;
+function agTimed(p,what){
+  var t=null;
+  return Promise.race([
+    Promise.resolve(p).then(function(v){clearTimeout(t);return v;},
+                            function(e){clearTimeout(t);throw e;}),
+    new Promise(function(_,rej){ t=setTimeout(function(){
+      rej(new Error(what+' 가 '+(AG_WAIT/1000)+'초 동안 응답하지 않는다 — '
+        +'세션이 끊겼거나 요청이 멈춘 것이다. 로그아웃 후 다시 로그인하면 풀린다.'));
+    },AG_WAIT);})]);
+}
 function agLoad(){
   if(!USER||!SB.from||AG.loading)return;
   AG.loading=true;
-  SB.from('agora_members').select('*').order('sort')
+  agTimed(SB.from('agora_members').select('*').order('sort'),'명단(agora_members)')
     .then(function(r){if(r.error)throw r.error;AG.mem=r.data||[];
-      return SB.from('agora_posts').select('*').order('submitted_at');})
+      return agTimed(SB.from('agora_posts').select('*').order('submitted_at'),'글(agora_posts)');})
     .then(function(r){if(r&&r.error)throw r.error;AG.posts=(r&&r.data)||[];AG.err='';})
     .catch(function(e){AG.err=(e&&e.message)||String(e);if(!AG.mem)AG.mem=[];})
     .then(function(){AG.loading=false;renderAgora();agLoadFacts();});
@@ -7484,7 +7504,7 @@ function agLoadFacts(){
   if(!USER||!SB.rpc){AG.facts={ym:agYm(),d:null,err:'로그인 전이라 숫자를 못 가져온다'};return;}
   var ym=agYm(), ph=agPhase();
   /* 🔒 단계를 넘긴다 — mid 는 1~15일만 센다. 안 넘기면 보름 평가가 월 전체 숫자를 본다 */
-  SB.rpc('agora_facts',{p_ym:ym,p_phase:ph}).then(function(r){
+  agTimed(SB.rpc('agora_facts',{p_ym:ym,p_phase:ph}),'숫자(agora_facts)').then(function(r){
     if(r&&r.error)throw r.error;
     AG.facts={ym:ym,phase:ph,d:(r&&r.data)||null};renderAgora();})
    .catch(function(e){
@@ -7499,11 +7519,11 @@ function agLoadFacts(){
    🔴 실패를 조용히 삼키지 않는다 — v4.26 에서 facts 실패를 삼켜 「불러오는 중」이 영원히 떠 있었다. */
 function agLoadNotices(){
   if(!USER||!SB.from){AG.nt=[];return;}
-  SB.from('agora_notices').select('*').order('effective',{ascending:false})
+  agTimed(SB.from('agora_notices').select('*').order('effective',{ascending:false}),'공지(agora_notices)')
    .then(function(r){
      if(r.error)throw r.error;
      var ns=r.data||[];
-     return SB.from('agora_acks').select('*').then(function(q){
+     return agTimed(SB.from('agora_acks').select('*'),'받든 기록(agora_acks)').then(function(q){
        if(q.error)throw q.error;
        var by={};(q.data||[]).forEach(function(a){
          (by[a.notice_id]=by[a.notice_id]||[]).push(a);});
@@ -8259,7 +8279,12 @@ function renderAgora(){
     +'<p>같은 기간을, 일곱 개의 눈으로. <b>15일 중간</b>·<b>말일 월말</b>로 각 방이 평가를 올리고 서로 대댓글을 단다.</p></div>'
     +'<span class="emrstage">🔒 방은 자기 평가를 제출한 뒤에야 남의 글을 본다</span></div>';
   if(!USER||!SB.from){box.innerHTML=head+'<div class="emrnotice">로그인하면 아고라가 열린다.</div>';return;}
-  if(AG.mem===null){box.innerHTML=head+'<div class="emrnotice">불러오는 중…</div>';agLoad();return;}
+  if(AG.mem===null){box.innerHTML=head
+    +'<div class="emrnotice">불러오는 중… '
+    +'<button class="ghost sm" onclick="AG.loading=false;AG.mem=null;renderAgora()">다시 시도</button>'
+    +'<div class="mut" style="font-size:10.5px;margin-top:4px">'
+    +AG_WAIT/1000+'초가 지나도 이 화면이면 응답이 멈춘 것이다 — 그때는 이유를 적는다.</div></div>';
+    agLoad();return;}
   var ym=agYm(), ph=agPhase(), tn=agTurn();
   box.innerHTML=head
     +(AG.err?'<div class="emrnotice emrbad">⚠ '+mdEsc(AG.err)+'</div>':'')
@@ -10680,7 +10705,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.38';
+var APP_VERSION='4.40';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -10694,6 +10719,8 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.40',date:'2026-10-16',note:'<b>🕑 활동 로그가 UTC 로 적히고 있었다 — 그 자리의 시각으로 바로잡았다.</b> 🔴 로한: 「내가 새벽에 저런걸 했을리가 없잖아」 · <code>logAct</code> 가 <code>toISOString()</code> 을 써서 <b>한국시간과 9시간 어긋났다</b>(낮 15:52 → 06:52) · 🔴 <b>시각만이 아니다. 날짜 묶음도 틀렸다</b> — 밤 9시 이후에 한 일이 전부 <b>다음 날로 넘어간다</b>. 새벽에 한 적 없는 일들이 새벽에 줄지어 있던 이유다 · 🔒 <code>todayStr()</code> 은 처음부터 <b>그 자리의 시계</b>를 썼다. 로그만 다른 기준을 쓰고 있었다 — <b>같은 질문(지금 몇 시냐)에 두 곳이 다르게 답했다</b>(원칙 2) · 이미 적힌 기록도 옮긴다. 🔒 <b>+9 를 더하지 않는다</b> — UTC 로 <b>읽어서</b> 로컬로 다시 적는다. 시간대를 가정하면 다른 곳에서 틀린다 · 🔴 이 보정은 <b>멱등이 아니다</b>(두 번 돌면 18시간이 된다) → 1회성 표시(actTzFixed)를 남긴다. v7.5 사고(게이트에 막혀 한 번도 안 돈 것)의 <b>반대쪽 위험</b>이다 · 🔒 형식이 다른 값은 건드리지 않는다 — 모르는 것을 고치면 그게 손상이다 · t34 에 K절 8건 신설(70건) · run.sh all 통과'},
+  {v:'4.39',date:'2026-10-16',note:'<b>⏱ 끝나지 않는 것도 실패다 — 「불러오는 중」에서 영원히 멈추지 않는다.</b> 🔴 로한: 「아고라 누르면 불러오는 중만 뜬다. 나머지 페이지는 다 정상이다」 · <b>요청이 영영 resolve 되지 않으면</b>(세션 갱신 교착 등) agLoad 의 마지막 then 이 돌지 않아 <b>AG.loading 이 true 로 박힌다</b>. 그 뒤 renderAgora 가 몇 번 불려도 agLoad 는 맨 앞에서 return 한다 → <b>영원히 불러오는 중</b>. 다른 화면은 이미 읽은 DB 를 쓰니 네트워크를 안 탄다 — <b>아고라만 새로 묻는다</b>. 그래서 아고라만 죽은 것처럼 보였다 · 🔴 <b>v4.26 에서 고쳤던 증상의 재발인데 원인이 다르다</b> — 그땐 <b>에러를 삼킨</b> 것이었고, 이번엔 <b>끝나지 않는</b> 것이다. 같은 화면 같은 문구라 같은 결함으로 착각하기 쉽다 · 🔒 <b>기다림에 끝을 둔다</b>(agTimed · 12초) — 명단·글·공지·받든 기록·숫자 다섯 요청 전부. 끝나지 않으면 <b>무엇이 멈췄는지와 어떻게 푸는지</b>를 적는다 · 🔒 <b>멈췄을 때 손잡이를 남긴다</b> — 「불러오는 중」에 다시 시도 단추. 새로고침밖에 길이 없으면 그건 막힌 것이다 · t54 199 → <b>207건</b>(X절 8건 — AG.loading 이 박히지 않는 것까지 잰다) · run.sh all 통과'},
   {v:'4.38',date:'2026-10-16',note:'<b>🕐 안 온 차례를 「미제출」이라 부르지 않는다.</b> 🔴 로한: 「회의장에 아무도 없는데?? 버그인가? 기록도 다 비어있고」 — <b>10월 월말을 열면 아직 아무도 쓸 수 없는데 일곱 자리가 전부 빈 의자였다</b>. 9월 중간(제도가 없던 달)도, 11월(미래)도 똑같이 「미제출 — 자리가 비어 있다」였다 · 🔒 <b>빈 칸을 숨기지 않는 것과, 없던 것을 비었다고 말하는 것은 다르다</b> — 앞은 정직이고 뒤는 거짓이다 · 🔒 <b>DB 는 이미 이 경계를 알고 있었다</b>(agora_pending 은 2026-10 이전의 mid 도, 안 온 차례도 미제출로 세지 않는다). <b>앱만 몰랐다</b> — 같은 질문에 두 곳이 다르게 답하고 있었다 · <b>agWhen(ym,phase)</b> 하나로 판정한다 — past(지난 차례) · soon(아직 안 왔다) · none(그땐 제도가 없었다). 🔒 한 곳에서만 판정한다 · 화면이 <b>왜 비었는지 말한다</b> — 「2026-10 월말평가는 아직 오지 않은 차례다 — 그 달 마지막 날부터 쓴다. 자리가 빈 것이 아니라 아직 아무도 쓸 수 없다」 · 자리 라벨·기록 줄·명단 숫자도 「미제출」 대신 <b>아직 / 없던 차례</b>로 바뀐다 · 🔒 없던 차례의 「중간」 단추는 <b>막되 보인다</b> — 숨기면 왜 없는지 모른다 · 🔒 <b>지난 차례의 미제출은 그대로 미제출이다</b> — 고친 건 부르는 말이지 숨기는 게 아니다 · 🔴 경계가 두 곳(앱 AG_MID_FROM · db/20261015_agora_v2.sql)에 적혔다. 바꿀 땐 둘 다 · 🔴 <b>곁다리로 드릴 결함 하나를 잡았다</b> — run.sh all 에서 t42 Y13 이 한 번 터졌다. 「それでは 席に 着いて ください。（ ）、テストを 始めます」의 정답이 「では」인데 <b>「それでは」 안에 답이 그대로 보인다</b>. 고르는 문제가 아니라 <b>베끼는 문제</b>였다. 랜덤이 그 항목을 뽑을 때만 드러나 평소엔 통과했다 — <b>간헐이 아니라 결함이다</b>. stSynQ 는 오답 후보의 겹침만 봤고 <b>정답이 문제문에 남는지는 아무도 안 봤다</b>. 자격 판정(stSynOK) 한 곳에서 막는다 — 풀과 모드 판정이 같은 함수를 보니 한 번에 막힌다(원칙 2). 🔒 틀린 문항은 없느니만 못하다(v3.5). <b>실데이터 115쌍 중 답이 새는 것은 0개</b>라 로한의 드릴에서 빠지는 문항은 없다 · t54 172 → <b>184건</b>(U절 12건) · run.sh all 통과'},
   {v:'4.37',date:'2026-10-16',note:'<b>💬 대화창을 비주얼노벨처럼 — 화면이 더는 흔들리지 않는다.</b> 🔴 <b>말풍선이 회의장 아래 흐름에 끼어 있었다</b> — 글이 길면 상자가 커지고 회의장이 밀려, 토막을 넘길 때마다(실측 26자~165자) <b>화면이 커졌다 작아졌다</b> 했다(로한 지적). 🔒 <b>읽는 자리가 흔들리면 읽히지 않는다</b> — 글을 줄이는 게 아니라 자리를 고정해야 한다 · 말풍선을 흐름에서 빼 <b>회의장 위에 깔고 높이를 154px 로 고정</b>했다. 무엇을 듣든 회의장은 1010px 그대로다(실측) · 🔒 <b>안 듣는 중에도 같은 높이</b>다 — 떴다 사라지면 그게 또 흔들림이다. 대신 「가신을 누르면 아뢴다」를 적는다 · ⚠️ 본문이 넘치면 <b>상자 안에서만</b> 구른다 · 🖱 <b>상자 아무 데나 좌클릭 = 다음 · 우클릭 = 이전</b>(브라우저 메뉴는 막는다). 🔒 단추 위 클릭은 상자 클릭으로 세지 않는다 — 안 그러면 한 번에 두 칸 넘어간다 · 🔒 <b>◀ 다음 ▶ 단추는 남긴다</b> — 클릭으로 넘긴다는 걸 보이게 두는 자리다. 상자 밑에 한 줄로도 적었다 · 🔒 좁은 화면은 <b>덮지 않고 자리를 낸다</b> — 탁자가 세로라 아래쪽에도 가신이 앉는다. <b>덮으면 누를 수 없고, 트리거가 사라진 것과 같다</b>(원칙 28). 실측 가려진 자리 0개 · t54 162 → <b>172건</b>(T절 10건) · run.sh all 통과'},
   {v:'4.36',date:'2026-10-16',note:'<b>🗂 공지를 오른쪽 패널 탭으로 · 스크롤을 없앴다.</b> 🔴 <b>v4.32 에서 공지 띠를 맨 위에 둔 것이 틀렸다</b> — 「방들도 맨 앞에서 받으니 화면과 방이 같은 순서를 본다」가 이유였는데, 공지 둘만 쌓여도 머리가 260px 이 되어 <b>회의장이 화면 밖으로 밀렸다</b>. 순서를 맞추려다 주인공을 밀어냈다 · 오른쪽에 <b>[📜 기록 | 📢 공지 | 🛡 분부] 세 탭</b> — 공지를 여기서 쓰고 닫고(CRUD), 해명·가신 평가·보낼 한 줄도 여기서 한다 · 🔒 <b>옮기는 것이지 숨기는 것이 아니다</b> — 탭 머리의 <b>빨간 숫자</b>(받들지 않은 공지 수)·영주의 엄중한 얼굴·기록 탭의 분부 묶음, <b>세 자리</b>에서 걸린다. 한 곳에서 빠져도 다른 데서 잡힌다 · 🔒 <b>페이지가 구르지 않는다</b>(실측 1200px 화면에서 1200px) — 회의장과 패널을 화면 높이에 묶었다. ⚠️ <b>패널 안의 스크롤은 남긴다</b> — 기록은 길어질 수밖에 없다. 없애려던 건 <b>주인공이 화면에서 사라지는 것</b>이다 · 🔒 <b>탭은 패널만 갈아 끼운다</b> — 회의장을 다시 그리면 듣던 말풍선이 날아간다 · 🔒 문서 보기엔 패널이 없으니 <b>공지 띠와 해명 상자를 그대로 뒀다</b> · 🔴 <b>agNtPending 은 그 방의 모든 미확인을 센다</b> — 공지 하나를 묻는 자리에 쓰면 다른 공지가 밀린 방이 이것도 안 받든 것처럼 보인다. 묻는 함수를 <b>agNtNo 하나로</b> 모았다(원칙 2) · 🗣 <b>가신들이 서로를 관직명으로 부른다</b> — 🔴 처음엔 「명단에서 관직을 맨 앞에」로 짰는데 <b>jsonb 는 칸 순서를 지키지 않는다</b>(길이·바이트 순으로 정렬한다). 순서로 못 말하면 <b>라벨</b>이 말해야 한다 — 칸 이름을 <code>본명(부르지않는다)</code> 로 바꾸고 <code>호칭</code> 규약을 읽을 때마다 실어 보낸다. 🚫 <b>이미 쓰인 글은 고치지 않는다</b> · t54 145 → <b>162건</b>(S절 17건) · run.sh all 통과'},
@@ -10819,7 +10846,17 @@ var CHANGELOG=[
   {v:'1.1',date:'2026-08-11',note:'Supabase 실시간 저장 연동 · 위험한 시드초기화 제거'},
   {v:'1.0',date:'2026-08-10',note:'가계부 최초 구축 — 현황판·달력·계좌/부채·세무·재물관리·예산·로그'}
 ];
-function logAct(m){ if(!DB)return; if(!DB.activity)DB.activity=[]; DB.activity.unshift({t:new Date().toISOString().slice(0,16).replace('T',' '),m:m}); if(DB.activity.length>200)DB.activity.length=200; }
+/* 🔴 [결함] 활동 로그 시각을 **UTC** 로 적고 있었다(toISOString).
+   로한: 「내 활동 로그가 어느순간 외국시간으로 되어있는것 같다」 — 한국시간과 9시간 어긋난다.
+   🔴 시각만이 아니다. **날짜 묶음도 틀렸다** — 밤 9시 이후에 한 일이 전부 다음 날로 넘어간다.
+      새벽에 한 적 없는 일들이 새벽에 줄지어 있던 이유다.
+   🔒 todayStr() 은 처음부터 **그 자리의 시계**를 썼다. 로그만 다른 기준을 쓰고 있었다 —
+      같은 질문(지금 몇 시냐)에 두 곳이 다르게 답했다(원칙 2). */
+function fmtMin(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
+    +' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function logAct(m){ if(!DB)return; if(!DB.activity)DB.activity=[]; DB.activity.unshift({t:fmtMin(new Date()),m:m}); if(DB.activity.length>200)DB.activity.length=200; }
 /* ====== 로그 페이지 (v2.3 · 탭 재편 + 핸드오프 게시판) ======
    ⚠️ v2.2까지 이 페이지는 성격이 다른 5개(백업·스냅샷·체인지로그·활동·logs2)를
       세로로 쌓아둔 곳이었다. 분량의 대부분을 체인지로그가 먹어서
@@ -12117,6 +12154,20 @@ function migrateV6(d){
   /* ⚠ d.ui 는 SEED 에만 있고 어느 마이그레이션도 만들지 않았다.
      DB.ui.xxx 를 19군데에서 직접 읽는다 — ui 가 없는 행이나 오래된 백업을 복원하면 데일리 탭이 즉사한다.
      v1.1 복원 기능을 넣으면서 실제로 재현돼 막았다. */
+  /* 🔴 v4.40 — 이미 UTC 로 적힌 활동 로그를 **그 자리의 시각**으로 옮긴다.
+     🔒 +9 를 더하지 않는다. UTC 로 **읽어서** 로컬로 다시 적는다 —
+        시간대를 가정하면 다른 곳에서 틀린다. 브라우저가 아는 곳이 답이다.
+     🔴 이 보정은 **멱등이 아니다**(두 번 돌면 18시간이 된다). 그래서 1회성 표시를 남긴다 —
+        v7.5 사고(게이트에 막혀 한 번도 안 돈 것)의 반대쪽 위험이다. */
+  if(!d.actTzFixed){
+    (d.activity||[]).forEach(function(a){
+      var t=String(a.t||'');
+      if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$/.test(t))return;
+      var dt=new Date(t.replace(' ','T')+':00Z');
+      if(!isNaN(dt.getTime()))a.t=fmtMin(dt);
+    });
+    d.actTzFixed=1;
+  }
   if(!d.ui||typeof d.ui!=='object')d.ui={};
   if(!d.ui.month)d.ui.month=todayStr().slice(0,7);
   if(!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점'];

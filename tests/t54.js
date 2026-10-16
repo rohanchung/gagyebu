@@ -902,6 +902,51 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  await p.evaluate(()=>{AG.facts=null;agSetView('hall');agLoadFacts();});
  await p.waitForTimeout(500);
 
+ /* ══ X) ⏱ 끝나지 않는 것도 실패다 ══
+      🔴 [재발] v4.26 에서 「불러오는 중…」이 영원히 떠 있던 자리를 고쳤는데,
+         같은 증상이 **다른 원인**으로 났다 — 그땐 에러를 삼켰고, 이번엔 요청이
+         영영 resolve 되지 않아 마지막 then 이 안 돌고 AG.loading 이 true 로 **박혔다**.
+         그 뒤 renderAgora 가 몇 번 불려도 agLoad 는 맨 앞에서 return 한다.
+      로한: "아고라 누르면 불러오는 중만 뜬다. 나머지 페이지는 다 정상이다" */
+ /* 🔒 멈췄을 때 손잡이가 있어야 한다 — 새로고침밖에 길이 없으면 그건 막힌 것이다 */
+ const stuck=await p.evaluate(()=>{
+   AG.mem=null; AG.loading=true; renderAgora();
+   const b=[...document.querySelectorAll('#v-agora button')]
+     .filter(x=>/다시 시도/.test(x.textContent));
+   return {안내:/불러오는 중/.test(document.getElementById('v-agora').textContent),
+           손잡이:b.length, 이유:/응답이 멈춘 것이다/.test(document.getElementById('v-agora').textContent)};});
+ ok('X1 불러오는 중에도 다시 시도 손잡이가 있다',stuck.손잡이===1,JSON.stringify(stuck));
+ ok('X2 오래 걸리면 이유를 적겠다고 미리 말한다',stuck.안내&&stuck.이유,JSON.stringify(stuck));
+
+ /* 🔒 영영 안 끝나는 요청을 **실패로 바꾼다** — 기다림에 끝을 둔다 */
+ const dead=await p.evaluate(async()=>{
+   window.__from=SB.from; AG_WAIT=250;
+   SB.from=function(t){
+     if(t==='agora_members')return {select:function(){return {order:function(){
+       return new Promise(function(){});   /* 영영 끝나지 않는다 */
+     }};}};
+     return window.__from(t);};
+   AG.mem=null; AG.loading=false; AG.err=''; agLoad();
+   await new Promise(r=>setTimeout(r,900));
+   return {err:AG.err, loading:AG.loading, mem:AG.mem?AG.mem.length:null,
+           화면:document.getElementById('v-agora').textContent};});
+ ok('X3 끝나지 않으면 실패로 적는다',/응답하지 않는다/.test(dead.err),dead.err.slice(0,60));
+ /* 🔴 여기가 핵심이다 — loading 이 박히면 다시는 못 부른다 */
+ ok('X4 🔒 AG.loading 이 박히지 않는다',dead.loading===false,String(dead.loading));
+ ok('X5 영원히 「불러오는 중」에 머물지 않는다',!/불러오는 중/.test(dead.화면),'');
+ /* 🔒 무엇이 멈췄는지와 **어떻게 푸는지**를 적는다 */
+ ok('X6 무엇이 멈췄는지 적는다',/agora_members/.test(dead.err),dead.err.slice(0,40));
+ ok('X7 어떻게 푸는지도 적는다',/다시 로그인/.test(dead.err),'');
+
+ /* 🔒 고친 뒤엔 다시 불러진다 — 한 번 실패했다고 막히면 안 된다 */
+ const back2=await p.evaluate(async()=>{
+   SB.from=window.__from; AG_WAIT=12000;
+   AG.mem=null; AG.loading=false; AG.err=''; agLoad();
+   await new Promise(r=>setTimeout(r,600));
+   return {mem:(AG.mem||[]).length, err:AG.err};});
+ ok('X8 막힌 게 풀리면 다시 불러온다',back2.mem>=7&&!back2.err,JSON.stringify(back2));
+ await p.waitForTimeout(400);
+
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);
