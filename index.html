@@ -905,11 +905,17 @@ textarea.mla.same{background:#f2f9f4}
 .agntk.no{color:#b23b3b}
 .agntw{font-size:10.5px;color:#b23b3b;margin-top:3px}
 .agntg{font-size:10.5px;color:var(--muted);margin-top:3px}
+/* 🕐 v4.38 안내 — 🔒 비어 보이는 이유를 적는 자리. 조용한 회색이면 또 못 보고 지나간다 */
+.agsoon{border:1px dashed #c7a24a;background:#fff8e6;border-radius:9px;
+  padding:7px 10px;margin-bottom:10px;font-size:11.5px;color:#6b5218}
+.agsoon b{color:#4a3a10}
 /* 🕐 단계 토글 */
 .agph{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .agph button{border:0;background:var(--card);padding:5px 12px;font-size:12px;font-weight:700;
   color:var(--muted);cursor:pointer}
 .agph button.on{background:#2f6feb;color:#fff}
+/* 🔒 없던 차례는 고를 수 없다 — 그런데 **보이기는 한다**(숨기면 왜 없는지 모른다) */
+.agph button:disabled{opacity:.42;cursor:not-allowed}
 .agro{display:flex;align-items:center;gap:4px;font-size:11px;border:1px solid var(--line);
   border-radius:999px;padding:3px 9px;background:var(--card);white-space:nowrap}
 .agro.ok{background:#e3f4ea;border-color:#b6ddc5;color:#1f7a45;font-weight:700}
@@ -1538,7 +1544,7 @@ textarea.mla.same{background:#f2f9f4}
     <div class="view" id="v-items"></div>
     <div class="view" id="v-budget"></div>
     <div class="view" id="v-log"></div>
-    <div class="foot"><span id="footVer"></span> · 데이터는 Supabase에 안전 저장 · <a id="reloadBtn">새로고침</a> · <a id="logoutBtn">로그아웃</a></div>
+    <div class="foot"><span id="footVer"></span> · <b id="footWho"></b> · 데이터는 Supabase에 안전 저장 · <a id="reloadBtn">새로고침</a> · <a id="logoutBtn">로그아웃</a></div>
   </div>
 </div>
 <div class="overlay" id="ov"><div class="modal" id="modal"></div></div>
@@ -5186,7 +5192,16 @@ function stGSlot(s,kind){return stGSlots(s,kind)[0]||null;}
    🔒 오답은 다른 항목의 짝에서 빌리되, **같은 ja 를 가진 항목은 뺀다** —
       책에는 한 표현에 짝이 둘인 것이 있다(あいさつしました ↔ 「おはようございます」/「こんにちは」).
       그 둘을 보기에 같이 올리면 정답이 둘이 된다. 틀린 문항은 없느니만 못하다(v3.5). */
-function stSynOK(s){return !!(s&&stNorm(s.ja)&&stNorm(s.syn));}
+/* 🔴 [결함] 정답이 **문제문에 그대로 남아 있는** 문항이 있었다 —
+   「それでは 席に 着いて ください。（　）、テストを 始めます。」 정답 「では」.
+   「それでは」 안에 답이 보인다. 고르는 문제가 아니라 **베끼는 문제**가 된다(t42 Y13).
+   랜덤이 그 항목을 뽑을 때만 드러나 평소엔 통과했다 — 간헐이 아니라 결함이다.
+   🔒 자격을 **여기서** 막는다. 풀과 모드 판정이 같은 함수를 보니 한 번에 막힌다(원칙 2).
+   🔒 틀린 문항은 없느니만 못하다(v3.5) — 한 문항 줄더라도 답이 새는 문항은 안 낸다. */
+function stSynOK(s){
+  if(!(s&&stNorm(s.ja)&&stNorm(s.syn)))return false;
+  return String(s.ja).indexOf(String(s.syn))<0;
+}
 function stSynPool(){return stSents().filter(stSynOK);}
 function stSynQ(s){
   var all=stSynPool();
@@ -7333,6 +7348,78 @@ function agSetPhase(p){
   AG.facts=null;renderAgora();agLoadFacts();
 }
 function agPhName(p){return (p||agPhase())==='mid'?'중간':'월말';}
+/* ══════ 🕐 v4.38 — 그 차례가 **왔는가** ══════
+   🔴 [결함] 안 온 차례·없던 차례를 전부 「미제출」로 칠했다. 10월 월말을 열면
+      아직 아무도 쓸 수 없는데 일곱 자리가 전부 빈 의자였다 — 로한이 본
+      「회의장에 아무도 없는데?? 기록도 다 비어있고」가 그것이다.
+      빈 칸을 숨기지 않는 것과, **없던 것을 비었다고 말하는 것**은 다르다.
+   🔒 DB 는 이미 이 경계를 안다 — agora_pending 은 2026-10 이전의 mid 를
+      미제출로 세지 않고, 아직 안 온 차례도 세지 않는다.
+   🔴 경계가 **두 곳**에 적혔다(여기와 db/20261015_agora_v2.sql). 바꿀 땐 둘 다 바꾼다. */
+var AG_MID_FROM='2026-10';   /* 중간평가 제도가 생긴 달 */
+function agWhen(ym,ph){
+  ym=ym||agYm(); ph=ph||agPhase();
+  if(ph==='mid'&&ym<AG_MID_FROM)return 'none';     /* 그땐 중간평가가 없었다 */
+  var a=String(ym).split('-'), y=+a[0], m=+a[1];
+  if(!y||!m)return 'past';
+  /* 🔒 중간은 15일에 열리고, 월말은 그 달 마지막 날에 열린다(agora_pending 과 같다) */
+  var due=(ph==='mid')?new Date(y,m-1,15):new Date(y,m,0);
+  var t=new Date(); t.setHours(0,0,0,0);
+  return (t<due)?'soon':'past';
+}
+/* 🔒 「없다」를 뭐라고 부를지도 한 곳에서 정한다 — 화면마다 다르게 적으면 고장으로 읽힌다 */
+function agNoWord(ym,ph){
+  var w=agWhen(ym,ph);
+  return w==='none'?'없던 차례':(w==='soon'?'아직':'미제출');
+}
+/* 🔴 [결함] 「이 계정에 글이 한 건도 없다」를 「일곱 방이 다 미제출이다」로 그렸다.
+   🔒 명단(agora_members)에는 **user_id 가 없다** — 계정과 무관하게 모두에게 같게 보인다.
+      그래서 다른 계정으로 로그인해도 자리 일곱은 그대로 그려지고, **글만** 안 보인다.
+      자리는 있는데 아무도 말하지 않는 화면은 **고장으로 읽힌다**(로한: 「버그인가?」).
+   🔒 비었으면 비었다고, 어느 계정으로 보고 있는지까지 적는다. 화면이 스스로 답해야 한다. */
+/* 🔴 [결함] 회의장은 「보는 화면」이라 **숫자 실패를 삼켰다** — 두루마리가 조용히 사라진다.
+   문서 보기(agFactsHtml)는 「못 가져왔다」를 크게 말하는데 회의장은 아무 말도 안 했다.
+   같은 데이터 두 보기인데 **한쪽만 정직했다**. 로한 화면에서 두루마리 다섯이 통째로
+   없었던 것이 그것이다 — 비어 보이는 이유를 화면이 말하지 않았다. */
+function agHallFactsNote(ym){
+  if(agView()!=='hall')return '';   /* 문서 보기엔 agFactsHtml 이 이미 말한다 */
+  var f=AG.facts, now=(f&&f.ym===ym&&f.phase===agPhase());
+  if(now&&f.d)return '';
+  if(now&&f.err)
+    return '<div class="agsoon">⚠ <b>이 달의 숫자를 못 가져왔다</b> — '+mdEsc(f.err)
+      +' · 📜 <b>두루마리가 비는 이유가 이것이다.</b> 방들도 같은 함수로 숫자를 받는다 — '
+      +'막히면 방마다 다른 숫자를 들고 온다.</div>';
+  return '<div class="agsoon">📊 두루마리에 넣을 숫자를 불러오는 중…</div>';
+}
+function agNoneHtml(){
+  if(!AG.posts||AG.posts.length)return '';
+  /* 🔒 「없다」로 끝내지 않는다 — 어디까지 왔고 어디서 끊겼는지를 적는다.
+     명단은 오는데 글이 0이면 계정이 다르거나 조회가 막힌 것이다. 둘을 가를 수 있어야 한다. */
+  var f=AG.facts;
+  var fs=!f?'아직 안 불렀다'
+    :(f.err?('<b>실패</b> — '+mdEsc(f.err)):(f.d?'받았다':'빈 값'));
+  return '<div class="agsoon">👤 <b>이 계정에는 아고라 기록이 한 건도 없다.</b> '
+    +(USER&&USER.email?'지금 <b>'+mdEsc(USER.email)+'</b> 로 보고 있다. ':'')
+    +'가신 명단은 <b>계정과 무관하게 같게 보인다</b>(agora_members 는 모두에게 열려 있다) — '
+    +'그래서 자리는 그려지지만 아무도 말하지 않는다. '
+    +'<b>다른 계정으로 로그인했는지 확인해라.</b>'
+    +'<div style="margin-top:5px;font-size:10.5px">명단 '+((AG.mem||[]).length)+'명 · '
+      +'글 '+((AG.posts||[]).length)+'건 · 공지 '+(AG.nt===null?'아직':(AG.nt||[]).length+'건')
+      +' · 숫자 '+fs
+      +(AG.err?(' · <b>조회 오류</b> '+mdEsc(AG.err)):'')
+      +(AG.ntErr?(' · <b>공지 오류</b> '+mdEsc(AG.ntErr)):'')+'</div></div>';
+}
+function agWhenKo(ym,ph){
+  var w=agWhen(ym,ph);
+  if(w==='past')return '';
+  var y=String(ym||agYm()), p=ph||agPhase();
+  if(w==='none')
+    return '🕐 <b>'+mdEsc(y)+' 중간평가는 없던 차례다.</b> 중간평가는 '+AG_MID_FROM
+      +' 부터 생겼다 — 자리가 빈 것이 아니라 <b>그땐 제도가 없었다</b>.';
+  return '🕐 <b>'+mdEsc(y)+' '+agPhName(p)+'평가는 아직 오지 않은 차례다</b> — '
+    +(p==='mid'?'매달 15일':'그 달 마지막 날')+'부터 쓴다. '
+    +'자리가 빈 것이 아니라 <b>아직 아무도 쓸 수 없다</b>.';
+}
 /* 🏰 v4.33 — 🔒 **기본은 회의장**이다. 문서 보기는 없애지 않는다(같은 데이터, 두 보기) */
 function agView(){var v=(DB.ui&&DB.ui.agView)||'';return v==='doc'?'doc':'hall';}
 function agSetView(v){DB.ui=DB.ui||{};DB.ui.agView=v;save();AG_CUR=null;renderAgora();}
@@ -7771,7 +7858,8 @@ function agFigure(m,st,flags){
   if(!dim&&tone!=='plain')g+='<text x="-29" y="-24" text-anchor="middle" style="font-size:14px">'+TONE[tone].ic+'</text>';
   var nx=m.mid?0:(m.side==='L'?-54:54);
   g+='<text class="agnm'+(dim?' dim':'')+'" x="'+nx+'" y="70" text-anchor="middle">'+m.title+'</text>';
-  if(dim)g+='<text class="agnm2" x="'+nx+'" y="84" text-anchor="middle">· 미제출</text>';
+  /* 🔒 v4.38 — 안 온 차례를 「미제출」이라 부르지 않는다 */
+  if(dim)g+='<text class="agnm2" x="'+nx+'" y="84" text-anchor="middle">· '+agNoWord()+'</text>';
   return g+'</g>';
 }
 /* 🔒 왕이 아니라 영주다 — 왕관 대신 영주관, 홀 대신 장검 */
@@ -8189,13 +8277,19 @@ function renderAgora(){
         +'<button class="'+(agView()==='doc'?'on':'')+'" onclick="agSetView(&#39;doc&#39;)">📄 문서</button>'
       +'</span>'
       +'<span class="agph" style="margin-left:6px">'
-        +'<button class="'+(ph==='mid'?'on':'')+'" onclick="agSetPhase(&#39;mid&#39;)">중간 (1~15)</button>'
+        +'<button class="'+(ph==='mid'?'on':'')+'"'
+          +(agWhen(ym,'mid')==='none'?' disabled title="이 달엔 중간평가가 없었다 — '+AG_MID_FROM+' 부터 생겼다"':'')
+          +' onclick="agSetPhase(&#39;mid&#39;)">중간 (1~15)</button>'
         +'<button class="'+(ph==='full'?'on':'')+'" onclick="agSetPhase(&#39;full&#39;)">월말 (전체)</button>'
       +'</span>'
       +((ym===tn.ym&&ph===tn.phase)
         ?'<span class="mut" style="font-size:10.5px">← 오늘의 차례</span>'
         :'<button class="ghost sm" onclick="agGoTurn()">오늘의 차례로</button>')
       +'<button class="ghost sm" style="margin-left:auto" onclick="agLoad();agLoadNotices()">↻ 새로고침</button></div>'
+    /* 🔒 v4.38 — 왜 비었는지 말한다. 말 안 하면 고장으로 읽힌다 */
+    +agNoneHtml()
+    +agHallFactsNote(ym)
+    +(agWhen()==='past'?'':'<div class="agsoon">'+agWhenKo()+'</div>')
     +(agView()==='hall'
        ? agHallHtml(ym)        /* 🛡 분부 탭이 agTools 의 일을 한다 */
        : agRoster(ym)+agFactsHtml(ym)+agGrid(ym)+agTalk(ym,agSelRoom())+agTools(ym));
@@ -8243,7 +8337,10 @@ function agLogHtml(ym){
   h+='<div class="aglogg">⚖ 평가 — '+seats.length+'방</div>';
   seats.forEach(function(st){
     var m=st.m, r=agReviewOf(ym,m.slug);
-    var pv=r?(r.status==='na'?('⊘ '+(r.content||'')):(r.summary||'')):'미제출 — 자리가 비어 있다';
+    var pv=r?(r.status==='na'?('⊘ '+(r.content||'')):(r.summary||''))
+           :(agWhen(ym)==='past'?'미제출 — 자리가 비어 있다'
+             :(agWhen(ym)==='none'?'없던 차례다 — 그땐 중간평가 제도가 없었다'
+                                  :'아직 오지 않은 차례다 — 아무도 쓸 수 없다'));
     h+=agLogRow({k:'room',v:m.slug,ic:(m.icon||'🏛'),who:(m.title||m.name||m.slug),
       to:'',tone:(r&&r.tone),pv:pv});
   });
@@ -8332,12 +8429,12 @@ function agRoster(ym){
   var chips=(AG.mem||[]).filter(function(m){return m.active;}).map(function(m){
     var r=agReviewOf(ym,m.slug), k=r?(r.status==='na'?'na':'ok'):'no';n[k]++;
     var ico={ok:'✓',na:'⊘',no:'·'}[k];
-    var tip={ok:'제출',na:'해당 없음 — 이번 달은 볼 게 없다고 말했다',no:'미제출'}[k];
+    var tip={ok:'제출',na:'해당 없음 — 이번 달은 볼 게 없다고 말했다',no:agNoWord(ym)}[k];
     return '<span class="agro '+k+'" title="'+mdEsc(m.name+' · '+m.domain+' — '+tip)+'">'
       +m.icon+' '+mdEsc(m.name)+' <b>'+ico+'</b></span>';}).join('');
   return '<div class="agros">'+chips+'</div>'
-    +'<div class="agtally">✓ 제출 '+n.ok+' · ⊘ 해당없음 '+n.na+' · · <b>미제출 '+n.no+'</b>'
-    +(n.no?' — 빈 칸을 숨기지 않는다':'')+'</div>';
+    +'<div class="agtally">✓ 제출 '+n.ok+' · ⊘ 해당없음 '+n.na+' · · <b>'+agNoWord(ym)+' '+n.no+'</b>'
+    +(n.no?(agWhen(ym)==='past'?' — 빈 칸을 숨기지 않는다':' — 아직 쓸 수 있는 차례가 아니다'):'')+'</div>';
 }
 /* 📊 이 달의 숫자 — 🔒 파생. 저장하지 않는다 */
 function agFactsHtml(ym){
@@ -8400,7 +8497,7 @@ function agGrid(ym){
     if(!r)return '<div class="agcard no'+(m.slug===sel?' on':'')+'" title="미제출 — 눌러서 이 방에 온 말을 본다"'
       +' onclick="agPickRoom(\''+mdEsc(m.slug)+'\')">'
       +'<div class="agrw">'+m.icon+' '+mdEsc(m.name)+'</div>'
-      +'<div class="agsum mut">· 미제출</div></div>';
+      +'<div class="agsum mut">· '+agNoWord(ym)+'</div></div>';
     var na=(r.status==='na'), tg=agXTargets(r), xs=agXCount(r);
     return '<div class="agcard'+(na?' na':'')+(m.slug===sel?' on':'')
       +'" onclick="agPickRoom(\''+mdEsc(m.slug)+'\')">'
@@ -10583,13 +10680,21 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.37';
+var APP_VERSION='4.38';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
+/* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
+   달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
+   🔒 계정은 모든 데이터의 전제다. 전제를 숨기면 나머지 화면이 전부 거짓이 될 수 있다. */
+function footWho(){
+  var e=document.getElementById('footWho'); if(!e)return;
+  e.textContent=(USER&&USER.email)?('👤 '+USER.email):'👤 로그인 전';
+}
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.38',date:'2026-10-16',note:'<b>🕐 안 온 차례를 「미제출」이라 부르지 않는다.</b> 🔴 로한: 「회의장에 아무도 없는데?? 버그인가? 기록도 다 비어있고」 — <b>10월 월말을 열면 아직 아무도 쓸 수 없는데 일곱 자리가 전부 빈 의자였다</b>. 9월 중간(제도가 없던 달)도, 11월(미래)도 똑같이 「미제출 — 자리가 비어 있다」였다 · 🔒 <b>빈 칸을 숨기지 않는 것과, 없던 것을 비었다고 말하는 것은 다르다</b> — 앞은 정직이고 뒤는 거짓이다 · 🔒 <b>DB 는 이미 이 경계를 알고 있었다</b>(agora_pending 은 2026-10 이전의 mid 도, 안 온 차례도 미제출로 세지 않는다). <b>앱만 몰랐다</b> — 같은 질문에 두 곳이 다르게 답하고 있었다 · <b>agWhen(ym,phase)</b> 하나로 판정한다 — past(지난 차례) · soon(아직 안 왔다) · none(그땐 제도가 없었다). 🔒 한 곳에서만 판정한다 · 화면이 <b>왜 비었는지 말한다</b> — 「2026-10 월말평가는 아직 오지 않은 차례다 — 그 달 마지막 날부터 쓴다. 자리가 빈 것이 아니라 아직 아무도 쓸 수 없다」 · 자리 라벨·기록 줄·명단 숫자도 「미제출」 대신 <b>아직 / 없던 차례</b>로 바뀐다 · 🔒 없던 차례의 「중간」 단추는 <b>막되 보인다</b> — 숨기면 왜 없는지 모른다 · 🔒 <b>지난 차례의 미제출은 그대로 미제출이다</b> — 고친 건 부르는 말이지 숨기는 게 아니다 · 🔴 경계가 두 곳(앱 AG_MID_FROM · db/20261015_agora_v2.sql)에 적혔다. 바꿀 땐 둘 다 · 🔴 <b>곁다리로 드릴 결함 하나를 잡았다</b> — run.sh all 에서 t42 Y13 이 한 번 터졌다. 「それでは 席に 着いて ください。（ ）、テストを 始めます」의 정답이 「では」인데 <b>「それでは」 안에 답이 그대로 보인다</b>. 고르는 문제가 아니라 <b>베끼는 문제</b>였다. 랜덤이 그 항목을 뽑을 때만 드러나 평소엔 통과했다 — <b>간헐이 아니라 결함이다</b>. stSynQ 는 오답 후보의 겹침만 봤고 <b>정답이 문제문에 남는지는 아무도 안 봤다</b>. 자격 판정(stSynOK) 한 곳에서 막는다 — 풀과 모드 판정이 같은 함수를 보니 한 번에 막힌다(원칙 2). 🔒 틀린 문항은 없느니만 못하다(v3.5). <b>실데이터 115쌍 중 답이 새는 것은 0개</b>라 로한의 드릴에서 빠지는 문항은 없다 · t54 172 → <b>184건</b>(U절 12건) · run.sh all 통과'},
   {v:'4.37',date:'2026-10-16',note:'<b>💬 대화창을 비주얼노벨처럼 — 화면이 더는 흔들리지 않는다.</b> 🔴 <b>말풍선이 회의장 아래 흐름에 끼어 있었다</b> — 글이 길면 상자가 커지고 회의장이 밀려, 토막을 넘길 때마다(실측 26자~165자) <b>화면이 커졌다 작아졌다</b> 했다(로한 지적). 🔒 <b>읽는 자리가 흔들리면 읽히지 않는다</b> — 글을 줄이는 게 아니라 자리를 고정해야 한다 · 말풍선을 흐름에서 빼 <b>회의장 위에 깔고 높이를 154px 로 고정</b>했다. 무엇을 듣든 회의장은 1010px 그대로다(실측) · 🔒 <b>안 듣는 중에도 같은 높이</b>다 — 떴다 사라지면 그게 또 흔들림이다. 대신 「가신을 누르면 아뢴다」를 적는다 · ⚠️ 본문이 넘치면 <b>상자 안에서만</b> 구른다 · 🖱 <b>상자 아무 데나 좌클릭 = 다음 · 우클릭 = 이전</b>(브라우저 메뉴는 막는다). 🔒 단추 위 클릭은 상자 클릭으로 세지 않는다 — 안 그러면 한 번에 두 칸 넘어간다 · 🔒 <b>◀ 다음 ▶ 단추는 남긴다</b> — 클릭으로 넘긴다는 걸 보이게 두는 자리다. 상자 밑에 한 줄로도 적었다 · 🔒 좁은 화면은 <b>덮지 않고 자리를 낸다</b> — 탁자가 세로라 아래쪽에도 가신이 앉는다. <b>덮으면 누를 수 없고, 트리거가 사라진 것과 같다</b>(원칙 28). 실측 가려진 자리 0개 · t54 162 → <b>172건</b>(T절 10건) · run.sh all 통과'},
   {v:'4.36',date:'2026-10-16',note:'<b>🗂 공지를 오른쪽 패널 탭으로 · 스크롤을 없앴다.</b> 🔴 <b>v4.32 에서 공지 띠를 맨 위에 둔 것이 틀렸다</b> — 「방들도 맨 앞에서 받으니 화면과 방이 같은 순서를 본다」가 이유였는데, 공지 둘만 쌓여도 머리가 260px 이 되어 <b>회의장이 화면 밖으로 밀렸다</b>. 순서를 맞추려다 주인공을 밀어냈다 · 오른쪽에 <b>[📜 기록 | 📢 공지 | 🛡 분부] 세 탭</b> — 공지를 여기서 쓰고 닫고(CRUD), 해명·가신 평가·보낼 한 줄도 여기서 한다 · 🔒 <b>옮기는 것이지 숨기는 것이 아니다</b> — 탭 머리의 <b>빨간 숫자</b>(받들지 않은 공지 수)·영주의 엄중한 얼굴·기록 탭의 분부 묶음, <b>세 자리</b>에서 걸린다. 한 곳에서 빠져도 다른 데서 잡힌다 · 🔒 <b>페이지가 구르지 않는다</b>(실측 1200px 화면에서 1200px) — 회의장과 패널을 화면 높이에 묶었다. ⚠️ <b>패널 안의 스크롤은 남긴다</b> — 기록은 길어질 수밖에 없다. 없애려던 건 <b>주인공이 화면에서 사라지는 것</b>이다 · 🔒 <b>탭은 패널만 갈아 끼운다</b> — 회의장을 다시 그리면 듣던 말풍선이 날아간다 · 🔒 문서 보기엔 패널이 없으니 <b>공지 띠와 해명 상자를 그대로 뒀다</b> · 🔴 <b>agNtPending 은 그 방의 모든 미확인을 센다</b> — 공지 하나를 묻는 자리에 쓰면 다른 공지가 밀린 방이 이것도 안 받든 것처럼 보인다. 묻는 함수를 <b>agNtNo 하나로</b> 모았다(원칙 2) · 🗣 <b>가신들이 서로를 관직명으로 부른다</b> — 🔴 처음엔 「명단에서 관직을 맨 앞에」로 짰는데 <b>jsonb 는 칸 순서를 지키지 않는다</b>(길이·바이트 순으로 정렬한다). 순서로 못 말하면 <b>라벨</b>이 말해야 한다 — 칸 이름을 <code>본명(부르지않는다)</code> 로 바꾸고 <code>호칭</code> 규약을 읽을 때마다 실어 보낸다. 🚫 <b>이미 쓰인 글은 고치지 않는다</b> · t54 145 → <b>162건</b>(S절 17건) · run.sh all 통과'},
   {v:'4.35',date:'2026-10-16',note:'<b>📱 좁은 화면 — 탁자를 세로로 세운다.</b> 가신회의 네 판 중 마지막 · 🔒 <b>좁다고 기능을 빼지 않는다. 배치만 바꾼다</b>(§15.7) — 자리 여덟·두루마리 다섯·기록창·말풍선이 그대로 남는다 · 🔴 <b>680 폭에 긴 탁자를 눕히면 캐릭터가 깨알이 된다</b> — 축소가 아니라 <b>다른 배치</b>다. 영주 위, 가신 좌우 2열, 두루마리가 탁자를 따라 내려간다 · 🔒 <b>좌표만 갈린다. 그림은 한 벌이다</b> — 캐릭터·문장·횃불 함수는 그대로 두고 좌표 묶음(AG_LAY_WIDE/TALL)만 바꿔 넣는다. 배치를 늘릴 때 그림을 두 벌 관리하지 않는다(원칙 2) · 🔒 <b>레이아웃은 폭 하나로 갈린다</b>(agLay) — 두 군데서 판정하면 반드시 어긋난다 · 세로에선 <b>이름을 아래 중앙</b>에(바깥으로 밀면 화면 밖이다) · 창 3개 → 1개 · 두루마리 이름은 <b>1.5배</b>(줄여 그린 만큼 글자를 되돌린다 — 무엇이 든 두루마리인지 모르면 누를 이유가 없다) · 🔒 <b>리사이즈는 가로↔세로가 바뀔 때만</b> 다시 그린다 — 리사이즈마다 그리면 <b>듣고 있던 말풍선이 날아간다</b>. 180ms 디바운스 · t54 134 → <b>145건</b>(R절 11건 — 되돌아가면 듣던 자리를 지키는 것까지 잰다) · run.sh all 42/42 통과'},
@@ -12719,12 +12824,12 @@ function enter(){
     localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
     /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
     try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen((DB.ui.pomoRun.date)||todayStr()); } }catch(e){}});}
-function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;enter();});}
-function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
+function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;footWho();enter();});}
+function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;footWho();enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
 document.getElementById('signupBtn').addEventListener('click',doSignup);
 document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
-SB.auth.getSession().then(function(r){if(r.data&&r.data.session){USER=r.data.session.user;enter();
+SB.auth.getSession().then(function(r){if(r.data&&r.data.session){USER=r.data.session.user;footWho();enter();
   setTimeout(function(){var a=document.querySelector('.side .m.on');
     if(a&&window.innerWidth<=900&&a.scrollIntoView)a.scrollIntoView({inline:'center',block:'nearest'});},300);}});
 </script>

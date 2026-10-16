@@ -764,6 +764,144 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
     nb.tall&&nb.가려진자리===0,JSON.stringify(nb));
  await p.setViewportSize({width:1500,height:1200}); await p.waitForTimeout(700);
 
+ /* ══ U) 🕐 안 온 차례를 「미제출」이라 부르지 않는다 ══
+      🔴 로한: "회의장에 아무도 없는데?? 버그인가? 기록도 다 비어있고"
+      10월 월말을 열면 아직 아무도 쓸 수 없는데 일곱 자리가 전부 빈 의자였다.
+      🔒 빈 칸을 숨기지 않는 것과, **없던 것을 비었다고 말하는 것**은 다르다. */
+ const when=await p.evaluate(()=>({
+   /* 픽스처는 2026-09 월말, 오늘은 2026-10-05 */
+   지난차례:agWhen('2026-09','full'), 안온차례:agWhen('2026-10','full'),
+   이번달중간:agWhen('2026-10','mid'), 없던차례:agWhen('2026-09','mid'),
+   미래:agWhen('2026-11','full')}));
+ ok('U1 지난 차례는 past 다',when.지난차례==='past',JSON.stringify(when));
+ ok('U2 아직 안 온 차례는 soon 이다',
+    when.안온차례==='soon'&&when.이번달중간==='soon'&&when.미래==='soon',JSON.stringify(when));
+ /* 🔒 2026-10 전엔 중간평가 제도가 없었다 — DB 의 agora_pending 과 같은 경계다 */
+ ok('U3 중간평가가 없던 달은 none 이다',when.없던차례==='none',JSON.stringify(when));
+
+ /* 지난 차례 — 🔒 미제출은 여전히 미제출이라 적는다(숨기면 거짓말) */
+ await p.evaluate(()=>{AG.ym=null;AG.phase=null;
+   DB.ui.agYm='2026-09';DB.ui.agPhase='full';renderAgora();});
+ await p.waitForTimeout(350);
+ const past=await p.evaluate(()=>({
+   띠:document.querySelectorAll('.agsoon').length,
+   말있는자리:document.querySelectorAll('#aghall .agseat:not(.mute)').length,
+   t:document.getElementById('agtabbody').textContent}));
+ ok('U4 지난 차례엔 안내 띠가 없다',past.띠===0,String(past.띠));
+ ok('U5 지난 차례의 미제출은 그대로 미제출이다',
+    /미제출 — 자리가 비어 있다/.test(past.t),'');
+ ok('U6 지난 차례는 말하는 자리가 남아 있다',past.말있는자리>=5,String(past.말있는자리));
+
+ /* 아직 안 온 차례 — 🔒 왜 비었는지 화면이 말한다 */
+ await p.evaluate(()=>{AG.ym=null;AG.phase=null;
+   DB.ui.agYm='2026-10';DB.ui.agPhase='full';renderAgora();});
+ await p.waitForTimeout(350);
+ const soon=await p.evaluate(()=>({
+   띠:[...document.querySelectorAll('.agsoon')].filter(e=>/🕐/.test(e.textContent)).map(e=>e.textContent).join(' '),
+   자리:[...document.querySelectorAll('#aghall .agnm2')].map(e=>e.textContent),
+   t:document.getElementById('agtabbody').textContent}));
+ ok('U7 안 온 차례는 그렇다고 적는다',
+    /아직 오지 않은 차례/.test(soon.띠)&&/아무도 쓸 수 없다/.test(soon.띠),soon.띠.slice(0,50));
+ ok('U8 자리 라벨이 「미제출」이 아니다',
+    soon.자리.length>=5&&soon.자리.every(x=>/아직/.test(x))&&!soon.자리.some(x=>/미제출/.test(x)),
+    JSON.stringify(soon.자리.slice(0,3)));
+ ok('U9 기록도 「미제출」이라 하지 않는다',
+    /아직 오지 않은 차례다/.test(soon.t)&&!/미제출 — 자리가 비어 있다/.test(soon.t),'');
+
+ /* 없던 차례 — 🔒 고를 수 없다. 그런데 **보이기는 한다**(숨기면 왜 없는지 모른다) */
+ await p.evaluate(()=>{AG.ym=null;AG.phase=null;
+   DB.ui.agYm='2026-09';DB.ui.agPhase='mid';renderAgora();});
+ await p.waitForTimeout(350);
+ const none=await p.evaluate(()=>{
+   const b=[...document.querySelectorAll('.agph button')]
+     .filter(x=>/중간/.test(x.textContent))[0];
+   return {띠:[...document.querySelectorAll('.agsoon')].filter(e=>/🕐/.test(e.textContent)).map(e=>e.textContent).join(' '),
+     막힘:!!(b&&b.disabled), 보임:!!b,
+     t:document.getElementById('agtabbody').textContent};});
+ ok('U10 없던 차례는 그렇다고 적는다',
+    /없던 차례/.test(none.띠)&&/제도가 없었다/.test(none.띠),none.띠.slice(0,40));
+ ok('U11 중간 단추는 막히되 보인다',none.막힘&&none.보임,JSON.stringify(none));
+ ok('U12 기록도 없던 차례라고 말한다',/없던 차례다/.test(none.t),'');
+
+ await p.evaluate(()=>{AG.ym=null;AG.phase=null;
+   DB.ui.agYm='2026-09';DB.ui.agPhase='full';renderAgora();});
+ await p.waitForTimeout(350);
+
+ /* ══ V) 👤 글이 한 건도 없는 것과, 일곱 방이 미제출인 것은 다르다 ══
+      🔴 명단(agora_members)에는 user_id 가 없다 — 계정과 무관하게 같게 보인다.
+         그래서 다른 계정으로 보면 **자리는 그려지고 아무도 말하지 않는다**.
+         로한이 본 「회의장에 아무도 없는데?? 기록도 다 비어있고」의 다른 한 갈래다. */
+ /* 🔒 실제 로그인엔 메일이 있다 — 목에는 없으니 여기서 채운다 */
+ await p.evaluate(()=>{USER=USER||{};USER.email="bhj9528@example.com";});
+ const had=await p.evaluate(()=>{
+   window.__keep=AG.posts; AG.posts=[]; renderAgora(); return window.__keep.length;});
+ await p.waitForTimeout(350);
+ const acct=await p.evaluate(()=>({
+   띠:[...document.querySelectorAll('.agsoon')].filter(e=>/👤/.test(e.textContent)).map(e=>e.textContent).join(' '),
+   자리:document.querySelectorAll('#aghall .agseat').length}));
+ ok('V1 글이 0건이면 0건이라고 말한다',
+    /아고라 기록이 한 건도 없다/.test(acct.띠),acct.띠.slice(0,40));
+ /* 🔒 어느 계정으로 보고 있는지 적는다 — 그래야 화면이 스스로 답한다 */
+ ok('V2 보고 있는 계정을 적는다',/@/.test(acct.띠),acct.띠.slice(0,80));
+ /* 🔒 명단이 계정과 무관하다는 사실을 드러낸다 — 자리만 보고 고장이라 읽지 않게 */
+ ok('V3 명단이 계정과 무관함을 말한다',/계정과 무관하게 같게 보인다/.test(acct.띠),'');
+ ok('V4 다른 계정인지 확인하라고 말한다',/다른 계정으로 로그인했는지/.test(acct.띠),'');
+ ok('V5 그래도 자리는 그려진다(숨기지 않는다)',acct.자리===8,String(acct.자리));
+ /* 🔒 글이 있으면 이 안내는 뜨지 않는다 */
+ await p.evaluate(()=>{AG.posts=window.__keep; renderAgora();});
+ await p.waitForTimeout(350);
+ const gone=await p.evaluate(()=>
+   [...document.querySelectorAll('.agsoon')]
+     .filter(e=>/한 건도 없다/.test(e.textContent)).length);
+ ok('V6 글이 있으면 그 안내는 사라진다',gone===0&&had>0,JSON.stringify([gone,had]));
+
+ /* 🔒 계정은 **모든 데이터의 전제**다 — 앱 어디에도 안 적혀 있었다 */
+ const foot=await p.evaluate(()=>{footWho();
+   return document.getElementById("footWho").textContent;});
+ ok('V7 바닥에 보고 있는 계정을 늘 적는다',/@/.test(foot),foot);
+
+ /* ══ W) 📊 회의장도 숫자 실패를 말한다 ══
+      🔴 회의장은 「보는 화면」이라 실패를 삼켰다 — 두루마리가 조용히 사라졌다.
+         문서 보기는 「못 가져왔다」를 크게 말하는데 회의장은 아무 말도 안 했다.
+         같은 데이터 두 보기인데 한쪽만 정직했다(로한 화면: 두루마리 다섯이 통째로 없었다). */
+ const good=await p.evaluate(()=>({
+   두루마리:document.querySelectorAll('#aghall .agscr').length,
+   띠:[...document.querySelectorAll('.agsoon')].filter(e=>/숫자/.test(e.textContent)).length}));
+ ok('W1 숫자가 있으면 두루마리가 그려지고 군말이 없다',
+    good.두루마리===5&&good.띠===0,JSON.stringify(good));
+
+ await p.evaluate(()=>{AG.facts={ym:agYm(),phase:agPhase(),d:null,err:'permission denied'};
+   renderAgora();});
+ await p.waitForTimeout(350);
+ const bad=await p.evaluate(()=>({
+   두루마리:document.querySelectorAll('#aghall .agscr').length,
+   띠:[...document.querySelectorAll('.agsoon')].filter(e=>/숫자|두루마리/.test(e.textContent)).map(e=>e.textContent).join(' ')}));
+ ok('W2 숫자를 못 가져오면 두루마리가 빈다',bad.두루마리===0,String(bad.두루마리));
+ /* 🔒 비었으면 **왜** 비었는지 말한다 */
+ ok('W3 회의장이 숫자 실패를 말한다',
+    /숫자를 못 가져왔다/.test(bad.띠)&&/permission denied/.test(bad.띠),bad.띠.slice(0,60));
+ ok('W4 두루마리가 비는 이유라고 연결해 준다',/두루마리가 비는 이유/.test(bad.띠),'');
+ /* 🔒 방들도 같은 함수로 숫자를 받는다 — 막히면 토론이 아니다 */
+ ok('W5 방마다 다른 숫자를 든다고 경고한다',/방마다 다른 숫자/.test(bad.띠),'');
+
+ /* 아직 안 불렀을 때는 「불러오는 중」이라고 한다 — 🔒 실패와 가른다 */
+ await p.evaluate(()=>{AG.facts=null;renderAgora();}); await p.waitForTimeout(300);
+ const wait=await p.evaluate(()=>(document.querySelector('.agsoon')||{}).textContent||'');
+ ok('W6 아직 못 받았을 땐 불러오는 중이라고 한다',
+    /불러오는 중/.test(wait)&&!/못 가져왔다/.test(wait),wait.slice(0,40));
+
+ /* 🔒 문서 보기엔 이미 제 안내가 있다 — 두 번 말하지 않는다 */
+ await p.evaluate(()=>{AG.facts={ym:agYm(),phase:agPhase(),d:null,err:'permission denied'};
+   agSetView('doc');});
+ await p.waitForTimeout(400);
+ const dv=await p.evaluate(()=>({
+   회의장띠:[...document.querySelectorAll('.agsoon')].filter(e=>/두루마리/.test(e.textContent)).length,
+   문서안내:/이 달의 숫자를 못 가져왔다/.test(document.getElementById('v-agora').textContent)}));
+ ok('W7 문서 보기에선 회의장 띠를 띄우지 않는다',dv.회의장띠===0,String(dv.회의장띠));
+ ok('W8 문서 보기는 제 안내로 말한다',dv.문서안내,'');
+ await p.evaluate(()=>{AG.facts=null;agSetView('hall');agLoadFacts();});
+ await p.waitForTimeout(500);
+
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);
