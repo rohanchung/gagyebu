@@ -806,11 +806,20 @@ textarea.mla.same{background:#f2f9f4}
 .agscr{cursor:pointer}
 .agscrl{font-size:11.5px;fill:#f0dcb0;font-weight:700;paint-order:stroke;stroke:#140e0a;stroke-width:3px}
 /* 💬 말풍선 — 🔒 한 번에 한 토막 */
-.agbub{position:relative;margin:11px auto 0;width:100%;background:#f7efdd;color:#2a2018;
-  border-radius:13px;padding:12px 14px 10px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+/* 💬 v4.37 — 🔴 말풍선이 회의장 **아래 흐름에** 끼어 있었다. 그래서 글이 길면
+   말풍선이 커지고 회의장이 밀려 **화면이 커졌다 작아졌다** 했다(로한 지적).
+   🔒 흐름에서 빼 회의장 위에 깔고 **높이를 고정**한다 — 무엇을 듣든 화면은 그대로다.
+   넘치는 글은 상자 안에서만 구른다(토막은 이미 175자에서 끊는다). */
+.agbub{position:absolute;left:12px;right:12px;bottom:12px;width:auto;margin:0;z-index:3;
+  height:154px;display:flex;flex-direction:column;cursor:pointer;
+  background:#f7efdd;color:#2a2018;
+  border-radius:13px;padding:10px 14px 8px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
 .agbub:after{content:"";position:absolute;top:-10px;left:var(--tail,50%);transform:translateX(-50%);
   border:10px solid transparent;border-top:0;border-bottom-color:#f7efdd;transition:left .25s ease}
-.agbub.none{background:var(--soft);box-shadow:none;border:1px dashed #b9c4d2}
+/* 🔒 안 듣는 중에도 **같은 높이**다 — 떴다 사라지면 그게 또 흔들림이다 */
+.agbub.none{background:rgba(24,16,11,.88);border:1px dashed #6b5430;box-shadow:none;
+  cursor:default;align-items:center;justify-content:center;text-align:center}
+.agbub.none .mut{color:#c4b29a}
 .agbub.none:after{display:none}
 .agbub.praise{box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 2px #7ec08a}
 .agbub.worry{box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 2px #7aa3d8}
@@ -822,9 +831,11 @@ textarea.mla.same{background:#f2f9f4}
   .agbub.grave{animation:none}.agseat .fig{transition:none}.agbub:after{transition:none}}
 .agbh{display:flex;gap:7px;align-items:center;font-size:11px;color:#6b5a44;margin-bottom:6px}
 .agbh b{font-size:13px;color:#3a2c1c}
-.agbt{font-size:13.5px;line-height:1.7}
+.agbt{font-size:13.5px;line-height:1.7;flex:1 1 auto;overflow:auto;min-height:0}
 .agbt p{margin:0 0 7px}
-.agbn{display:flex;gap:6px;align-items:center;margin-top:9px}
+.agbn{display:flex;gap:6px;align-items:center;margin-top:7px;flex:0 0 auto}
+/* 🔒 클릭으로 넘길 수 있다는 걸 적어 둔다 — 안 적으면 아무도 모른다 */
+.aghint{font-size:10px;color:#8a7658;margin-left:8px}
 .agsp{margin-left:auto;font-size:10.5px;color:#7a674f}
 .agbn .mini{border:1px solid #cdbb99;background:#efe4cd;color:#4a3a26;border-radius:7px;
   padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
@@ -874,10 +885,14 @@ textarea.mla.same{background:#f2f9f4}
   .agcol{display:flex;flex-direction:column;min-height:0;height:calc(100vh - 190px)}
   .aghall{flex:1 1 auto;min-height:0;display:flex}
   .aghall svg{width:100%;height:100%;min-height:0}
-  .agbub{flex:0 0 auto;max-height:34%;overflow:auto;margin-top:9px}
   .agpanel{height:calc(100vh - 190px);max-height:none}
 }
-@media(max-width:1150px){.agpanel{max-height:460px}}
+@media(max-width:1150px){
+  .agpanel{max-height:460px}
+  /* 🔒 좁으면 탁자가 세로라 아래쪽에도 가신이 앉는다 — 덮지 않고 자리를 낸다 */
+  .aghall{padding-bottom:150px}
+  .agbub{height:138px}
+}
 /* 📢 공지 — v4.32. 🔒 미확인이 있으면 눈에 띄어야 한다. 조용한 회색이면 또 모르고 지나간다 */
 .agnt{border:1px solid #e6dcc4;background:#fffdf4;border-radius:9px;padding:8px 10px;margin-bottom:10px}
 .agnt.none{border-style:dashed;background:var(--soft)}
@@ -8002,8 +8017,9 @@ function agHallHtml(ym){
        +'>'+mdEsc(sc.k)+'</text></g>';});
   s+='<rect width="'+V.w+'" height="'+V.h+'" fill="url(#agvig)" pointer-events="none"/></svg>';
   return '<div class="aglay">'
-    +'<div class="agcol"><div class="aghall" id="aghall">'+s+'</div>'
-      +'<div class="agbub" id="agbub"></div></div>'
+    +'<div class="agcol"><div class="aghall" id="aghall">'+s
+      /* 🔒 말풍선은 회의장 **안에** 깔린다. 밖에 두면 길이가 곧 레이아웃이 된다 */
+      +'<div class="agbub" id="agbub"></div></div></div>'
     +'<div class="agpanel" id="agpanel">'+agPanelInner(ym)+'</div>'
   +'</div>';
 }
@@ -8144,6 +8160,7 @@ function agBub(){
     +'<div class="agbn">'
       +'<button class="mini" '+(AG_CUR.i?'':'disabled')+' onclick="agStep(-1)">◀</button>'
       +'<button class="mini go" '+(AG_CUR.i<AG_CUR.seq.length-1?'':'disabled')+' onclick="agStep(1)">다음 ▶</button>'
+      +'<span class="aghint">상자를 누르면 다음 · 오른쪽 클릭은 이전</span>'
       +'<span class="agsp">'+(AG_CUR.i+1)+' / '+AG_CUR.seq.length+'</span></div>';
 }
 
@@ -8297,6 +8314,15 @@ function agHallBind(ym){
     el.addEventListener('click',function(){agSpeak(slug);});});
   h.querySelectorAll('.agscr').forEach(function(el){
     el.addEventListener('click',function(){agScrollOpen(+el.dataset.scr);});});
+  /* 💬 로한: "대화창 아무곳이나 왼쪽 클릭 시 다음으로 오른쪽 클릭시 앞으로"
+     🔒 ◀ 다음 ▶ 단추는 남긴다 — 눌러서 넘긴다는 걸 **보이게** 두는 자리다 */
+  var bb=document.getElementById('agbub');
+  if(bb){
+    bb.addEventListener('click',function(e){
+      if(e.target.closest('button'))return;   /* 단추가 두 칸 넘기지 않게 */
+      agStep(1);});
+    bb.addEventListener('contextmenu',function(e){ e.preventDefault(); agStep(-1); });
+  }
   agPanelBind();
   agBub();
 }
@@ -10557,13 +10583,14 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.36';
+var APP_VERSION='4.37';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* ⚠️ 버전 체계 (2026-08-20 로한 확정)
    v1.0 = 정식. 이후 **기능 추가 = 0.1 / 세부 수정 = 0.01**.
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.37',date:'2026-10-16',note:'<b>💬 대화창을 비주얼노벨처럼 — 화면이 더는 흔들리지 않는다.</b> 🔴 <b>말풍선이 회의장 아래 흐름에 끼어 있었다</b> — 글이 길면 상자가 커지고 회의장이 밀려, 토막을 넘길 때마다(실측 26자~165자) <b>화면이 커졌다 작아졌다</b> 했다(로한 지적). 🔒 <b>읽는 자리가 흔들리면 읽히지 않는다</b> — 글을 줄이는 게 아니라 자리를 고정해야 한다 · 말풍선을 흐름에서 빼 <b>회의장 위에 깔고 높이를 154px 로 고정</b>했다. 무엇을 듣든 회의장은 1010px 그대로다(실측) · 🔒 <b>안 듣는 중에도 같은 높이</b>다 — 떴다 사라지면 그게 또 흔들림이다. 대신 「가신을 누르면 아뢴다」를 적는다 · ⚠️ 본문이 넘치면 <b>상자 안에서만</b> 구른다 · 🖱 <b>상자 아무 데나 좌클릭 = 다음 · 우클릭 = 이전</b>(브라우저 메뉴는 막는다). 🔒 단추 위 클릭은 상자 클릭으로 세지 않는다 — 안 그러면 한 번에 두 칸 넘어간다 · 🔒 <b>◀ 다음 ▶ 단추는 남긴다</b> — 클릭으로 넘긴다는 걸 보이게 두는 자리다. 상자 밑에 한 줄로도 적었다 · 🔒 좁은 화면은 <b>덮지 않고 자리를 낸다</b> — 탁자가 세로라 아래쪽에도 가신이 앉는다. <b>덮으면 누를 수 없고, 트리거가 사라진 것과 같다</b>(원칙 28). 실측 가려진 자리 0개 · t54 162 → <b>172건</b>(T절 10건) · run.sh all 통과'},
   {v:'4.36',date:'2026-10-16',note:'<b>🗂 공지를 오른쪽 패널 탭으로 · 스크롤을 없앴다.</b> 🔴 <b>v4.32 에서 공지 띠를 맨 위에 둔 것이 틀렸다</b> — 「방들도 맨 앞에서 받으니 화면과 방이 같은 순서를 본다」가 이유였는데, 공지 둘만 쌓여도 머리가 260px 이 되어 <b>회의장이 화면 밖으로 밀렸다</b>. 순서를 맞추려다 주인공을 밀어냈다 · 오른쪽에 <b>[📜 기록 | 📢 공지 | 🛡 분부] 세 탭</b> — 공지를 여기서 쓰고 닫고(CRUD), 해명·가신 평가·보낼 한 줄도 여기서 한다 · 🔒 <b>옮기는 것이지 숨기는 것이 아니다</b> — 탭 머리의 <b>빨간 숫자</b>(받들지 않은 공지 수)·영주의 엄중한 얼굴·기록 탭의 분부 묶음, <b>세 자리</b>에서 걸린다. 한 곳에서 빠져도 다른 데서 잡힌다 · 🔒 <b>페이지가 구르지 않는다</b>(실측 1200px 화면에서 1200px) — 회의장과 패널을 화면 높이에 묶었다. ⚠️ <b>패널 안의 스크롤은 남긴다</b> — 기록은 길어질 수밖에 없다. 없애려던 건 <b>주인공이 화면에서 사라지는 것</b>이다 · 🔒 <b>탭은 패널만 갈아 끼운다</b> — 회의장을 다시 그리면 듣던 말풍선이 날아간다 · 🔒 문서 보기엔 패널이 없으니 <b>공지 띠와 해명 상자를 그대로 뒀다</b> · 🔴 <b>agNtPending 은 그 방의 모든 미확인을 센다</b> — 공지 하나를 묻는 자리에 쓰면 다른 공지가 밀린 방이 이것도 안 받든 것처럼 보인다. 묻는 함수를 <b>agNtNo 하나로</b> 모았다(원칙 2) · 🗣 <b>가신들이 서로를 관직명으로 부른다</b> — 🔴 처음엔 「명단에서 관직을 맨 앞에」로 짰는데 <b>jsonb 는 칸 순서를 지키지 않는다</b>(길이·바이트 순으로 정렬한다). 순서로 못 말하면 <b>라벨</b>이 말해야 한다 — 칸 이름을 <code>본명(부르지않는다)</code> 로 바꾸고 <code>호칭</code> 규약을 읽을 때마다 실어 보낸다. 🚫 <b>이미 쓰인 글은 고치지 않는다</b> · t54 145 → <b>162건</b>(S절 17건) · run.sh all 통과'},
   {v:'4.35',date:'2026-10-16',note:'<b>📱 좁은 화면 — 탁자를 세로로 세운다.</b> 가신회의 네 판 중 마지막 · 🔒 <b>좁다고 기능을 빼지 않는다. 배치만 바꾼다</b>(§15.7) — 자리 여덟·두루마리 다섯·기록창·말풍선이 그대로 남는다 · 🔴 <b>680 폭에 긴 탁자를 눕히면 캐릭터가 깨알이 된다</b> — 축소가 아니라 <b>다른 배치</b>다. 영주 위, 가신 좌우 2열, 두루마리가 탁자를 따라 내려간다 · 🔒 <b>좌표만 갈린다. 그림은 한 벌이다</b> — 캐릭터·문장·횃불 함수는 그대로 두고 좌표 묶음(AG_LAY_WIDE/TALL)만 바꿔 넣는다. 배치를 늘릴 때 그림을 두 벌 관리하지 않는다(원칙 2) · 🔒 <b>레이아웃은 폭 하나로 갈린다</b>(agLay) — 두 군데서 판정하면 반드시 어긋난다 · 세로에선 <b>이름을 아래 중앙</b>에(바깥으로 밀면 화면 밖이다) · 창 3개 → 1개 · 두루마리 이름은 <b>1.5배</b>(줄여 그린 만큼 글자를 되돌린다 — 무엇이 든 두루마리인지 모르면 누를 이유가 없다) · 🔒 <b>리사이즈는 가로↔세로가 바뀔 때만</b> 다시 그린다 — 리사이즈마다 그리면 <b>듣고 있던 말풍선이 날아간다</b>. 180ms 디바운스 · t54 134 → <b>145건</b>(R절 11건 — 되돌아가면 듣던 자리를 지키는 것까지 잰다) · run.sh all 42/42 통과'},
   {v:'4.34',date:'2026-10-16',note:'<b>📜 회의 기록창 — 오른쪽에 붙이고, 줄을 누르면 그 대목부터 듣는다.</b> 로한: 「맨 오른쪽엔 게임 <b>대화로그창</b>처럼 각 캐릭터마다 무슨말을 했는지 써있고 파트별로 구분이 되어있는거야. 생활사 대화를 클릭하면 가운데 화면에 다시 그 대화 애니메이션이 작동하는거지」 · <b>세 묶음</b> — ⚖ 평가(7방) · 🗣 간언(서로에게) · 🛡 분부(공지·해명·⭐평가). 🔒 <b>파트는 종류로 가른다</b> — 방으로 가르면 한 방이 길 때 목록이 무너진다 · 🔒 <b>미제출도 줄을 남긴다</b>(숨기면 거짓말) · 🔴 <b>로그는 트리거를 뺏지 않는다</b> — <b>캐릭터는 처음부터, 로그 줄은 그 대목부터</b>. 같은 흐름의 다른 입구다 · 🔒 <b>할 말 없는 방은 로그에서도 안 눌린다</b> — 화면 두 곳이 다르게 굴면 고장으로 읽힌다 · 넓으면 오른쪽, 1150px 미만이면 아래로 내린다(기능을 빼지 않는다) · 🔴 <b>미리보기에 ** 가 글자로 보였다</b> — §12 에서 본문에 한 번 겪은 그 자리다. 🔒 미리보기는 <b>렌더하지 않고 기호만 벗긴다</b>(두 줄 상자에 블록이 들어가면 줄이 무너진다) · t54 123 → <b>134건</b>(Q절 11건 신설) · run.sh all 42/42 통과'},

@@ -705,6 +705,65 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  ok('S17 문서 보기엔 공지 띠와 해명 상자가 그대로다',dc.bar===1&&dc.tools===1,JSON.stringify(dc));
  await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(300);
 
+ /* ══ T) 💬 말풍선 — 🔴 글 길이가 곧 레이아웃이었다(§17) ══
+      로한: "대화창에 크기에 따라 지금 화면이 커졌다 작아졌다 하거든?
+             대화창 아무곳이나 왼쪽 클릭 시 다음으로 오른쪽 클릭시 앞으로" */
+ await p.evaluate(()=>agSetView('hall')); await p.waitForTimeout(400);
+ await p.evaluate(()=>agSpeak('suyeon')); await p.waitForTimeout(250);
+ /* 🔒 말풍선은 회의장 **안에** 깔린다 — 밖에 두면 길이가 곧 레이아웃이 된다 */
+ const inH=await p.evaluate(()=>!!document.querySelector('#aghall > #agbub'));
+ ok('T1 말풍선이 회의장 위에 깔린다',inH,String(inH));
+ /* 🔒 무엇을 듣든 회의장 높이가 그대로다 */
+ const shake=await p.evaluate(async()=>{
+   const H=()=>Math.round(document.getElementById('aghall').getBoundingClientRect().height);
+   const hs=[],ls=[];
+   for(let i=0;i<AG_CUR.seq.length;i++){
+     AG_CUR.i=i; agApply(); await new Promise(r=>setTimeout(r,15));
+     hs.push(H()); ls.push(AG_CUR.seq[i].text.length);}
+   return {h:[...new Set(hs)],min:Math.min.apply(null,ls),max:Math.max.apply(null,ls)};});
+ ok('T2 🔒 글이 길어도 회의장이 안 흔들린다',
+    shake.h.length===1&&shake.max-shake.min>80,JSON.stringify(shake));
+ /* 💬 상자 아무 데나 좌클릭 = 다음 */
+ await p.evaluate(()=>{AG_CUR.i=0;agApply();}); await p.waitForTimeout(100);
+ await p.click('#agbub .agbt'); await p.waitForTimeout(120);
+ ok('T3 상자를 누르면 다음으로 간다',(await p.evaluate(()=>AG_CUR.i))===1,'');
+ /* 우클릭 = 이전. 🔒 브라우저 메뉴는 뜨지 않는다 */
+ await p.click('#agbub .agbt',{button:'right'}); await p.waitForTimeout(120);
+ ok('T4 오른쪽 클릭은 이전으로 간다',(await p.evaluate(()=>AG_CUR.i))===0,'');
+ /* 🔒 단추가 두 칸 넘기지 않는다 — 상자 클릭과 겹치면 한 번에 둘이 넘어간다 */
+ await p.click('#agbub .mini.go'); await p.waitForTimeout(120);
+ ok('T5 다음 단추는 한 칸만 넘긴다',(await p.evaluate(()=>AG_CUR.i))===1,'');
+ /* 🔒 끝에서 더 가지 않는다 */
+ await p.evaluate(()=>{AG_CUR.i=AG_CUR.seq.length-1;agApply();});
+ await p.click('#agbub .agbt'); await p.waitForTimeout(120);
+ const last=await p.evaluate(()=>[AG_CUR.i,AG_CUR.seq.length-1]);
+ ok('T6 끝에서는 더 넘어가지 않는다',last[0]===last[1],JSON.stringify(last));
+ /* 🔒 안 듣는 중에도 **같은 높이**다 — 떴다 사라지면 그게 또 흔들림이다 */
+ const idle=await p.evaluate(async()=>{
+   const h0=Math.round(document.getElementById('aghall').getBoundingClientRect().height);
+   const b0=Math.round(document.getElementById('agbub').getBoundingClientRect().height);
+   AG_CUR=null; agBub(); await new Promise(r=>setTimeout(r,15));
+   return {h:[h0,Math.round(document.getElementById('aghall').getBoundingClientRect().height)],
+           b:[b0,Math.round(document.getElementById('agbub').getBoundingClientRect().height)],
+           t:document.getElementById('agbub').textContent};});
+ ok('T7 안 듣는 중에도 상자 높이가 같다',
+    idle.h[0]===idle.h[1]&&idle.b[0]===idle.b[1],JSON.stringify([idle.h,idle.b]));
+ ok('T8 안 듣는 중엔 무엇을 누르라고 적는다',/가신을 누르면/.test(idle.t),'');
+ await p.click('#agbub'); await p.waitForTimeout(100);
+ ok('T9 안 듣는 중에 눌러도 아무 일이 없다',(await p.evaluate(()=>AG_CUR))===null,'');
+
+ /* 🔒 좁으면 탁자가 세로라 **아래쪽에도 가신이 앉는다** — 덮지 않고 자리를 낸다 */
+ await p.setViewportSize({width:430,height:950}); await p.waitForTimeout(700);
+ await p.evaluate(()=>agSpeak('suyeon')); await p.waitForTimeout(250);
+ const nb=await p.evaluate(()=>{
+   const bb=document.getElementById('agbub').getBoundingClientRect();
+   return {tall:agLay().tall,
+     가려진자리:[...document.querySelectorAll('#aghall .agseat')].filter(e=>{
+       const r=e.getBoundingClientRect(); return r.bottom>bb.top+6 && r.top<bb.bottom;}).length};});
+ ok('T10 좁은 화면에서 말풍선이 자리를 가리지 않는다',
+    nb.tall&&nb.가려진자리===0,JSON.stringify(nb));
+ await p.setViewportSize({width:1500,height:1200}); await p.waitForTimeout(700);
+
  ok('Z JS 에러 0',errs.length===0,errs[0]||'');
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));
  assert.deepEqual(errs,[]);
