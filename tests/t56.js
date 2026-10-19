@@ -109,16 +109,42 @@ async function boot(st){
   /* ── D. 안 묶인 상환을 숨기지 않는다 ── */
   const loose=await p.evaluate(()=>({
     n:debtLooseTxns().length, 날짜:debtLooseTxns().map(t=>t.date),
-    html:debtLooseHtml()}));
+    notes:noteList().length, 안읽음:noteNew().length,
+    bell:noteBellHtml(), why:(noteList()[0]||{}).why}));
   ok('D1 안 묶인 상환 후보를 찾는다',loose.n===2,JSON.stringify(loose.날짜));
-  ok('D2 🔒 화면이 그걸 말한다',/안 묶인 상환 후보가 2건/.test(loose.html),loose.html.slice(0,60));
-  ok('D3 왜 안 줄어드는지까지 적는다',/아무리 갚아도 잔액이 안 줄어든다/.test(loose.html),'');
+  /* 🔔 v4.47 — 본문 띠가 아니라 **종**이 말한다 */
+  ok('D2 🔔 알림 묶음에 들어간다',loose.notes===2&&loose.안읽음===2,JSON.stringify(loose));
+  ok('D3 종에 안 읽은 수가 붙는다',/belln">2</.test(loose.bell)&&/bell on/.test(loose.bell),loose.bell);
+  ok('D3b 왜 안 줄어드는지까지 적는다',/아무리 갚아도 잔액이 안 줄어든다/.test(loose.why||''),loose.why||'');
   /* 🔒 묶으면 후보에서 빠진다 */
   const loose2=await p.evaluate(()=>{
     DB.transactions.filter(t=>t.id==='t1')[0].debtId='d2';
     DB.transactions.filter(t=>t.id==='t1')[0].debtPrin=0;
     return debtLooseTxns().length;});
   ok('D4 묶으면 후보에서 빠진다',loose2===1,String(loose2));
+  /* 🔒 고치면 **알림 자체가 사라진다** — 「확인」보다 나은 끝이다 */
+  ok('D5 🔒 묶으면 알림도 사라진다',
+     (await p.evaluate(()=>noteList().length))===1,'');
+
+  /* ── D′. 🔔 확인해도 숨기지는 않는다 ── */
+  const seen=await p.evaluate(()=>{
+    const k=noteList()[0].k;
+    noteSee(k);
+    return {키:k, 전체:noteList().length, 안읽음:noteNew().length,
+            표시:noteSeen(k), bell:noteBellHtml()};});
+  ok('D6 확인하면 종의 숫자에서 빠진다',seen.안읽음===0,JSON.stringify(seen));
+  /* 🔴 여기가 핵심 — 확인했다고 없는 일이 되면 그게 거짓말이다 */
+  ok('D7 🔒 확인해도 목록에서는 사라지지 않는다',seen.전체===1&&seen.표시,JSON.stringify(seen));
+  ok('D8 다 읽으면 종이 조용해진다',!/bell on/.test(seen.bell)&&!/belln/.test(seen.bell),seen.bell);
+  /* 🔒 알림이 없어지면 확인 표시도 치운다 — 안 쓰는 찌꺼기를 남기지 않는다 */
+  const clean=await p.evaluate(()=>{
+    const t=DB.transactions.filter(x=>!x.debtId)[0];
+    if(t){t.debtId='d2';t.debtPrin=0;}
+    noteSee('debt:없는거래');
+    return {남은표시:Object.keys((DB.ui&&DB.ui.seenNotes)||{}),
+            알림:noteList().length, bell:noteBellHtml()};});
+  ok('D9 사라진 알림의 확인 표시는 치운다',clean.남은표시.length===0,JSON.stringify(clean));
+  ok('D10 알릴 것이 없으면 종 자체가 안 뜬다',clean.알림===0&&clean.bell==='',clean.bell);
 
   /* ── E. 화면 ── */
   await p.evaluate(()=>{gotoTab('acct');}); await p.waitForTimeout(500);
@@ -127,12 +153,25 @@ async function boot(st){
      /최초 20,000,000/.test(ui)&&/갚은 원금 864,000/.test(ui)&&/남은 19,136,000/.test(ui),
      ui.slice(ui.indexOf('소상공인'),ui.indexOf('소상공인')+120));
   ok('E2 상환 내역이 보인다',/2026-10-19/.test(ui)&&/원금 416,000/.test(ui),'');
-  ok('E3 계좌·채무에도 안 묶인 경고가 뜬다',/안 묶인 상환 후보/.test(ui),'');
+  /* 🔔 v4.47 — 로한: "아니 계속 떠있잖아" → 본문 띠를 걷고 종으로 옮겼다 */
+  ok('E3 🔔 본문에는 띠가 눌러앉지 않는다',!/안 묶인 상환 후보/.test(ui),'');
   await p.evaluate(()=>{gotoTab('dash');}); await p.waitForTimeout(500);
   const dash=await p.evaluate(()=>document.getElementById('v-dash').textContent.replace(/\s+/g,' '));
   ok('E4 🔒 현황판도 같은 잔액을 보여준다',/19,136,000/.test(dash),'');
+  /* 🔒 알릴 것이 생기면 종이 머리 오른쪽에 뜬다 — 없으면 조용한 것이 맞다(D10) */
+  const bell=await p.evaluate(()=>{
+    const t=DB.transactions.filter(x=>x.debtId)[0];
+    delete t.debtId; delete t.debtPrin;      /* 알림을 하나 되살린다 */
+    renderDash();
+    const b=document.querySelector('#v-dash .updated .bell');
+    return {있나:!!b, 머리글:!!document.querySelector('#v-dash .updated'),
+            끝쪽:!!(b&&b.parentElement&&b.parentElement.lastElementChild===b),
+            알림:noteList().length};});
+  ok('E5 🔔 알릴 것이 생기면 종이 현황판 머리에 뜬다',
+     bell.있나&&bell.머리글&&bell.알림===1,JSON.stringify(bell));
+  ok('E5b 종은 머리 오른쪽 끝이다',bell.끝쪽,JSON.stringify(bell));
 
-  ok('E5 JS 에러 0',errs.length===0,errs[0]);
+  ok('E6 JS 에러 0',errs.length===0,errs[0]);
   await b.close();
 }
 

@@ -1210,6 +1210,15 @@ textarea.mla.same{background:#f2f9f4}
 .rwchip.open{background:#e7f6ee;border-color:#a8ddc0;color:#0b6b3a;font-weight:700}
 .rwchip.done{background:var(--soft);color:#9aa6b6;opacity:.75}
 .ctxacts,.hacts{display:flex;align-items:center;gap:7px}
+/* 🔔 v4.47 알림 종 — 🔒 안 읽은 것이 있을 때만 붉다 */
+.bell{position:relative;border:1px solid var(--line);background:var(--card);border-radius:999px;
+  padding:3px 10px;font-size:13px;cursor:pointer;font-family:inherit;line-height:1.5}
+.bell.on{border-color:#c7362f;background:#fff4f3}
+.belln{margin-left:4px;background:#c7362f;color:#fff;border-radius:999px;
+  font-size:10px;font-weight:800;padding:0 5px}
+.noterow{display:flex;gap:9px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+.noterow:first-of-type{border-top:0}
+.noterow.seen{opacity:.5}
 .pane h4{align-items:center;gap:8px;flex-wrap:wrap}
 .subhd{font-family:var(--serif);font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--gold);
   margin:9px 0 5px;padding-bottom:3px;border-bottom:1px dashed #ece3c9}
@@ -2567,7 +2576,9 @@ function renderDash(){
   var posts=(DB.posts||[]).slice().sort(function(a,b){return a.date<b.date?1:-1;});
   var postList=posts.length?posts.map(function(p){return '<div class="row" style="cursor:pointer" data-post="'+p.id+'"><span>📜 '+p.title+'</span><span class="mut" style="font-size:10px;white-space:nowrap">'+(p.date||'')+'</span></div>';}).join(''):'<div class="mut" style="padding:8px 0">아직 정리 글 없음 — 로버트와 나눈 결론이 여기 쌓인다.</div>';
   document.getElementById('v-dash').innerHTML=''
-   +'<div class="updated">🟢 실시간 · <b>'+todayStr()+' 기준 최신</b> · 행 클릭 → 12개월 추세</div>'
+   +'<div class="updated" style="display:flex;align-items:center;gap:8px">'
+     +'<span style="flex:1">🟢 실시간 · <b>'+todayStr()+' 기준 최신</b> · 행 클릭 → 12개월 추세</span>'
+     +noteBellHtml()+'</div>'
    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">'
    +'<div class="sec" style="flex:1;min-width:280px;margin-bottom:0"><h4>자산 요약</h4>'
    +'<table style="width:100%;border-collapse:collapse;font-size:14.5px">'
@@ -2579,7 +2590,7 @@ function renderDash(){
    +'</div>'
    +'<div class="sec"><h4>자산</h4>'+gh
    +'</div>'
-   +debtLooseHtml()
+   /* 🔔 v4.47 — 띠는 종으로 옮겼다. 본문에 눌러앉지 않는다 */
    +'<div class="sec"><h4>부채</h4>'+DB.debts.map(function(d){return '<div class="row"><span>'+d.name+' <span class="mut">'+(d.rate!=null?d.rate+'%':'')+(d.schedule?' · '+d.schedule.start+'부터 상환':' · 상환일정 없음')+'</span></span><span>'+won(debtBalance(d))+'</span></div>'}).join('')+'</div>'
    +'<div class="sec cardbox"><h4>💳 카드 미결제</h4>'
      +(cardRows||'<div class="mut">미결제 없음</div>')
@@ -2815,7 +2826,6 @@ function renderAcct(){
   document.getElementById('v-acct').innerHTML=''
    +'<div class="sec"><h4>계좌·자산 <button class="ghost" id="addAccBtn">+ 추가</button></h4>'+accHtml+'</div>'
    +'<div class="sec"><h4>카드 <button class="ghost" id="addCardBtn">+ 추가</button></h4>'+cardHtml+'</div>'
-   +debtLooseHtml()
    +'<div class="sec"><h4>부채 <button class="ghost" id="addDebtBtn">+ 추가</button></h4>'+debtHtml+'<div class="mut" style="margin-top:6px">대출 0~N개 가변 · 상환 스케줄은 가계부에 예정 세출로 반영(2차).</div></div>'
    +'<div class="sec"><h4>카테고리(분류) <button class="ghost" id="addCatBtn">+ 추가</button></h4>'+catHtml+'<div class="mut" style="margin-top:6px">지출 카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 세무 탭에 자동 연결.</div></div>';
 }
@@ -10894,7 +10904,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.46';
+var APP_VERSION='4.47';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -10908,6 +10918,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.47',date:'2026-10-19',note:'<b>🔔 알림을 종 안으로 — 본문에 눌러앉던 띠를 걷었다.</b> 로한: 「빚에 안묶인 어쩌고 2개 페이지에 떠있는거 … 현황판 맨 위 헤더 오른쪽에 종 하나 아이콘, 눌러 누르면 공지뜨게 해서 내가 확인한건 지울 수 있게 해. <b>아니 계속 떠있잖아</b>」 · 🔴 맞는 지적이다 — 알릴 것이 생길 때마다 본문 맨 위에 띠가 눌러앉으면 <b>정작 보려던 것이 아래로 밀리고</b>, 고칠 때까지 매번 같은 띠를 본다 · 현황판 머리 <b>오른쪽 끝에 🔔</b>, 안 읽은 수를 빨간 숫자로. 누르면 목록이 뜨고 줄마다 <b>「거래 열기」·「확인」</b> · 🔒 <b>확인해도 목록에서 사라지지 않는다</b> — 종의 숫자에서만 빠지고 「확인함」으로 남는다. 지웠다고 없는 일이 되면 그게 거짓말이다 · 🔒 <b>고치면 알림 자체가 사라진다</b> — 빚에 묶는 순간 그 줄이 목록에서 빠진다. 그게 「확인」보다 나은 끝이다 · 🔒 알릴 것이 없으면 <b>종 자체가 안 뜬다</b> · 🔒 사라진 알림의 확인 표시는 치운다 — 안 쓰는 찌꺼기를 남기지 않는다 · 🔒 알림 종류가 늘어도 <b>noteList 한 곳</b>에 더한다(원칙 2) · 🗑 <b>debtLooseHtml() 을 지웠다</b> — 화면에 그리는 자리가 둘이면 한쪽만 고치는 날이 온다. ⚠️ 지우다가 바로 옆에 있던 종 함수까지 함께 날려 테스트가 잡았다(범위를 넓게 잘랐다) · 💳 <b>남은 상환 3건을 빚에 묶었다</b> — 8/19 52,827 은 정책자금(거치기간 이자), 8/25·9/28 92,957 은 보험대출(이자만). 전부 원금 0 이라 잔액은 그대로이고 <b>안 묶인 알림이 0건</b>이 된다 · t56 22 → <b>31건</b> · run.sh all 통과'},
   {v:'4.46',date:'2026-10-19',note:'<b>💳 부채 잔액을 거래에서 계산한다 — 두 달째 갚아도 안 줄던 이유.</b> 🔴 로한: 「두 달째 빚을 갚고 있는데 계좌·채무 페이지랑 현황판의 부채 금액이 변동이 없다」 · <b>거래와 부채가 이어져 있지 않았다</b> — <code>debtId</code> 를 쓰는 코드가 <b>0건</b>이었고 balance 는 saveDebt 에서 <b>손으로 넣은 값</b>만 들어갔다. 가계부에 아무리 적어도 빚은 영원히 그대로였다 · 🔴 게다가 bankSchedule 이 그 balance 를 시작점으로 매번 새로 그려서 <b>「아직 한 번도 안 갚은 상태」의 표</b>를 계속 보여주고 있었다 · 🔒 <b>잔액은 파생이다. 저장하지 않는다</b> — 최초 원금(principal0) − 갚은 원금. 계좌 잔액과 같은 이치다 · 🔒 <b>잔액을 묻는 함수는 debtBalance 하나</b> — 현황판·계좌·채무·총부채가 같은 값을 본다(원칙 2) · 거래 모달에 <b>💳 빚 갚기</b> — 빚을 고르면 그 달 회차의 <b>원금을 제안</b>하고(실제 낸 돈과 다르면 고쳐 적는다), 🔒 <b>이자는 빚을 줄이지 않는다</b>(원금분만 센다) · 🔒 <b>스케줄은 최초 원금에서 그린다</b> — 현재 잔액을 넣으면 갚을 때마다 표가 앞으로 밀려 회차가 거짓이 된다 · 🔒 <b>안 묶인 상환 후보를 숨기지 않는다</b> — 이자·대출 계정과목인데 빚이 지정 안 된 거래를 현황판과 계좌·채무 <b>양쪽</b>에 띄우고 <b>왜 안 줄어드는지</b>까지 적는다. 🚫 금액이 회차와 같다고 <b>내가 추측해서 자동으로 묶지는 않는다</b> — 고르는 것은 로한이다 · 실측: 9/21 502,944(원금 448,000) + 10/19 467,906(원금 416,000) 을 묶으면 <b>20,000,000 → 19,136,000</b> · 🔒 빚을 안 고르면 칸을 만들지 않는다(빈 서랍 금지) · <b>t56 22건 신설</b> · run.sh all 통과'},
   {v:'4.45',date:'2026-10-17',note:'<b>👪 피검사를 사람별로 가른다 — 🙋 나 · 👩 엄마.</b> 로한: 「엄마 건강검진 데이터를 받았는데 상단에 나, 엄마 이런식으로 탭으로 구분해서 데이터 분리 관리」 · 🔒 <b>DB.health 는 손대지 않는다</b> — 그게 「나」고 5년치 21회분이 거기 있다. 사람을 늘리자고 기존 데이터를 옮기면 <b>그 순간이 가장 위험하다</b>(데이터 보존 P0). 늘리는 쪽만 새로 만든다(DB.healthPeople) · 🔒 <b>HP() 는 피검사 화면이 보는 사람일 뿐, 앱 전체의 주인이 아니다</b> — 달력·몸 탭·목표·EMR·진료·아고라 요약은 전부 DB.health(나)를 본다. 안 그러면 엄마 탭을 켠 순간 <b>아고라 숫자까지 엄마 것</b>이 된다(치환 44곳 중 22곳을 되돌렸다) · 🔒 <b>참고치는 사람마다 다르다</b> — 혈색소 남 13.0~16.5 / 여 12.0~15.5, γ-GTP 남 63 이하 / 여 35 이하. 탭만 가르고 지표를 공유하면 <b>남의 기준으로 읽은 거짓 숫자</b>가 된다 → metrics 도 사람마다 따로 · 🔴 <b>labFlag 가 양쪽 기준이 다 있어야만 깃발을 띄웠다</b>. 그런데 국가검진 기준은 대부분 한쪽이다(「AST 40 이하」「eGFR 60 이상」) — 그래서 <b>엄마 AST 45 가 아무 표시 없이 지나갔다</b>. 한쪽만 알아도 그쪽은 판정한다(기존 지표는 전부 양쪽이 있거나 없어서 화면이 안 바뀐다) · 👩 <b>엄마 2026-05-21 국가검진</b>(오산한국병원 · 정상B 경계 · 유질환자) 11개 지표. <b>AST 45↑ · ALT 37↑ · 체질량지수 17.4↓ · 혈색소 11.8↓</b> 가 제대로 잡힌다. 🔒 지질 4종은 결과지에 「비해당」이라 <b>지표 자체를 만들지 않았다</b> — 측정 안 한 것을 빈 줄로 두면 「쟀는데 비었다」로 읽힌다 · 🔒 시드는 <b>처음 한 번만</b>(undefined 일 때만) 채운다 — 지우고 null 로 두면 다시 안 살아난다(v2.1 사고의 반대쪽) · t33 66 → <b>82건</b>(P절 16건 — 사람이 섞이지 않는 것을 잰다) · 🔴 <b>같은 결함의 세 번째 자리를 잡았다</b> — 로한: 「자꾸 일본어 학습 쪽에서 뻑이 나는거야. 확실히 대비를 해」. v4.40 유의표현 → v4.45 슬롯 문항 → <b>조사</b>까지 전부 <b>「정답이 문제에 남아 있다」</b>였다. 「雨が 降って いました。 そこで、 タクシー（　） 帰りました」 답 「で」인데 <b>そこで 에 답이 보인다</b> · 🔒 <b>진짜 문제는 간헐성이었다</b> — 드릴 테스트가 랜덤으로 몇 개만 뽑아 봐서, 고친 뒤에도 <b>남은 자리가 있는지 알 수 없었다</b>. 🔒 「정답이 문제에 남으면 안 된다」는 <b>샘플링할 이유가 없는 불변식</b>이다 → t42 에 <b>전수 검사</b>를 넣었다(모든 모드 × 모든 예문 × 모든 슬롯). 넣자마자 조사 쪽이 걸렸다 · 🔴 <b>처음 넣은 가드는 과했다</b> — 길이를 안 보고 막았더니 멀쩡한 조사 후보 9개가 날아가 t47·t48 이 깨졌다. <b>한 글자 정답(조사·종조사)은 문장 어디에나 나온다</b>(「か」는 かいぎ·いますか 에도 있다). 같은 자를 쓴다고 같은 규칙을 대면 그게 틀린 일반화다 → <b>두 글자 이상 표현에만</b> 적용한다. ⚠️ 남은 한계: 「そこで、タクシー（　）帰りました」 답 「で」처럼 <b>다른 단어 안에 답 글자가 보이는</b> 한 글자 문항은 아직 못 거른다 — 형태소 수준 판정이 필요하다. 알고 남겨 둔다 · 🔒 가리는 자리를 <b>하나로</b> 뽑았다(stGPartMask) — 자격 판정과 문항 생성이 각자 가리면 그 틈으로 샌다 · 🔒 테스트에서 <b>개수를 박아둔 단언을 불변식으로</b> 바꿨다 — 예문이 하나 늘거나 빠질 때마다 깨지던 자리다 · t42 344 → <b>347건</b> · run.sh all 통과'},
   {v:'4.44',date:'2026-10-16',note:'<b>🔴 찾았다 — 가신들이 사라진 진짜 원인은 오타 한 글자였다.</b> <code>agFigure</code> 안에 <code>TONE[tone].ic</code> 가 있었다. <b>AG_TONE 의 오타</b>다 · 🔒 그 줄은 <code>tone!==plain</code> 일 때만 탄다 — v4.33(가신회의)부터 넉 달치 코드에 있었지만 <b>한 번도 안 밟혔다</b>. 모든 글의 어조가 plain 이었기 때문이다 · 💥 2026-10-16 <b>생활사가 plead(간곡히 청한다) 로 처음 쓰자</b> renderAgora 가 통째로 터졌고, innerHTML 이 <b>머리만 쓰고 멈춰</b> 회의장이 아예 안 그려졌다(자리 0 · 기록 0). 로한: 「가신들이 다 제출했는데 아무도 없잖아」 — <b>글이 없던 게 아니라 그리다 죽은 것</b>이었다 · 🔒 <b>v4.35 로 열어도 똑같이 비어 보인 이유</b>가 이것이다. 바뀐 것은 코드가 아니라 <b>데이터가 처음으로 그 길을 밟은 것</b>이다 · 🧪 재현: 로한의 실제 구조(명단 7명·rohan 없음·plead 한 건)로 띄우니 <b>pageerror 한 줄</b>로 바로 잡혔다 · 🔒 <b>테스트 픽스처가 전부 plain 이라 못 잡았다</b> — 안 밟는 길은 없는 길이 아니라 <b>안 보이는 길</b>이다. 픽스처에 plead 를 넣고(되돌리면 t54 가 즉시 터지는 것을 확인했다), 다섯 어조 × 세 상태로 캐릭터·회의장·말풍선을 전부 그려 보는 Z2절 3건을 더했다 · t54 215 → <b>218건</b> · 🔙 가설 다섯(ym/phase·다른 계정·세션 만료·저장 충돌·라이브러리 버전)은 <b>전부 틀렸다</b>. 실제 데이터로 재현한 뒤에야 한 줄로 끝났다'},
@@ -11915,16 +11926,70 @@ function bankSchedule(d){
    로한이 두 달 동안 갚았는데 빚이 안 줄어든 이유는 거래가 안 묶여서였다.
    그걸 화면이 말해 줘야 한다 — 🚫 내가 추측해서 **자동으로 묶지는 않는다**.
    금액이 회차와 같다고 그 빚이라는 보장이 없다. 고르는 것은 로한이다. */
-/* 🔒 같은 경고를 두 화면이 각자 그리면 한쪽만 고치는 날이 온다(원칙 2).
-   현황판과 계좌·채무가 **같은 함수**를 본다. */
-function debtLooseHtml(){
-  var L=debtLooseTxns(); if(!L.length)return '';
-  return '<div class="emrnotice" style="margin-bottom:10px">💳 <b>빚에 안 묶인 상환 후보가 '+L.length+'건 있다.</b>'
-    +'<div class="mut" style="font-size:10.5px;margin-top:4px">이자·대출 계정과목인데 <b>어느 빚인지 지정되지 않았다</b> — '
-    +'그래서 아무리 갚아도 잔액이 안 줄어든다. 거래를 눌러 「💳 빚 갚기」에서 골라 주면 그때부터 줄어든다.</div>'
-    +'<div class="mut" style="font-size:10px;margin-top:5px">'
-    +L.slice(0,5).map(function(x){return x.date+' '+comma(x.amt)+' · '+mdEsc(x.cat||'')+(x.memo?(' · '+mdEsc(x.memo)):'');}).join('<br>')
-    +(L.length>5?('<br>… 외 '+(L.length-5)+'건'):'')+'</div></div>';
+/* 🔔 v4.47 — debtLooseHtml() 을 지웠다. 알림은 종(noteList)이 그린다.
+   🔒 쓰지 않는 함수를 남겨 두면 다음 사람이 "어디서 쓰나" 를 찾는 데 시간을 쓴다.
+   화면에 그리는 자리는 하나여야 한다 — 두 자리면 한쪽만 고치는 날이 온다. */
+/* ══════ 🔔 v4.47 — 알림은 **종 안에** 모은다 ══════
+   로한: "빚에 안묶인 어쩌고 2개 페이지에 떠있는거 … 현황판 맨 위 헤더 오른쪽에 종 하나
+          아이콘 눌러 누르면 공지뜨게 해서 내가 확인한건 지울 수 있게 해. 아니 계속 떠있잖아"
+   🔴 맞는 지적이다. 알릴 것이 생길 때마다 **본문 맨 위에 눌러앉으면**
+      정작 보려던 것이 아래로 밀리고, 고칠 때까지 매번 같은 띠를 본다.
+   🔒 **지워도 사라지지는 않는다.** 뱃지에서만 빠지고 목록엔 「확인함」으로 남는다 —
+      지웠다고 없는 일이 되면 그게 거짓말이다(숨기면 거짓말).
+   🔒 고치면 **알림 자체가 사라진다** — 빚에 묶는 순간 그 줄은 목록에서 빠진다.
+      그게 「확인」보다 나은 끝이다.
+   🔒 알림 종류가 늘어도 noteList 한 곳에 더한다(원칙 2). */
+function noteList(){
+  var out=[];
+  debtLooseTxns().forEach(function(t){
+    out.push({k:'debt:'+t.id, ic:'💳', ttl:'빚에 안 묶인 상환',
+      txt:t.date+' · '+comma(t.amt)+' · '+(t.cat||'')+(t.memo?(' · '+t.memo):''),
+      why:'어느 빚인지 지정되지 않았다 — 그래서 아무리 갚아도 잔액이 안 줄어든다.',
+      go:"txnModal('"+t.id+"')", goLabel:'거래 열기'});
+  });
+  return out;
+}
+function noteSeen(k){ return !!(((DB&&DB.ui&&DB.ui.seenNotes)||{})[k]); }
+function noteNew(){ return noteList().filter(function(n){return !noteSeen(n.k);}); }
+function noteSee(k){
+  DB.ui=DB.ui||{}; DB.ui.seenNotes=DB.ui.seenNotes||{};
+  DB.ui.seenNotes[k]=todayStr();
+  /* 🔒 사라진 알림의 표시는 치운다 — 안 그러면 쓰지 않는 찌꺼기가 쌓인다 */
+  var live={}; noteList().forEach(function(n){live[n.k]=1;});
+  Object.keys(DB.ui.seenNotes).forEach(function(x){ if(!live[x])delete DB.ui.seenNotes[x]; });
+  save(); noteModal(); renderDash();
+}
+function noteSeeAll(){ noteList().forEach(function(n){
+  DB.ui=DB.ui||{}; DB.ui.seenNotes=DB.ui.seenNotes||{}; DB.ui.seenNotes[n.k]=todayStr(); });
+  save(); noteModal(); renderDash(); }
+/* 🔔 종 — 🔒 안 읽은 것이 있으면 숫자로 말한다. 0 이면 조용하다 */
+function noteBellHtml(){
+  var n=noteNew().length, all=noteList().length;
+  if(!all)return '';
+  return '<button class="bell'+(n?' on':'')+'" onclick="noteModal()" '
+    +'title="알림 '+all+'건'+(n?(' · 안 읽음 '+n+'건'):' · 모두 확인함')+'">🔔'
+    +(n?('<span class="belln">'+n+'</span>'):'')+'</button>';
+}
+function noteModal(){
+  var L=noteList();
+  var body=L.length? L.map(function(x){
+    var seen=noteSeen(x.k);
+    return '<div class="noterow'+(seen?' seen':'')+'">'
+      +'<div style="flex:1;min-width:0"><b>'+x.ic+' '+mdEsc(x.ttl)+'</b>'
+        +(seen?'<span class="mut" style="font-size:10px"> · 확인함</span>':'')
+        +'<div class="mut" style="font-size:11.5px;margin-top:2px">'+mdEsc(x.txt)+'</div>'
+        +'<div class="mut" style="font-size:10.5px;margin-top:2px">'+mdEsc(x.why)+'</div></div>'
+      +'<div style="display:flex;gap:5px;align-items:flex-start;white-space:nowrap">'
+        +(x.go?('<button class="ghost sm" onclick="closeModal();'+x.go+'">'+x.goLabel+'</button>'):'')
+        +(seen?'':('<button class="ghost sm" onclick="noteSee('+JSON.stringify(x.k).replace(/"/g,'&quot;')+')">확인</button>'))
+      +'</div></div>';
+  }).join('') : '<div class="mut" style="padding:10px 0">알릴 것이 없다.</div>';
+  openModal('<div class="mtop"><h3>🔔 알림 <span class="mut" style="font-size:12px">'+L.length+'건</span></h3>'
+   +'<span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:10.5px;margin-bottom:8px">🔒 확인해도 목록에서 사라지지 않는다 — '
+   +'종의 숫자에서만 빠진다. <b>고치면 그때 알림이 없어진다.</b></div>'
+   +body
+   +(noteNew().length?('<div style="margin-top:10px"><button class="ghost sm" onclick="noteSeeAll()">전부 확인</button></div>'):''));
 }
 function debtLooseTxns(){
   var CATS=['이자비용','이자','대출상환','원금상환'];
