@@ -353,6 +353,86 @@ const lenOK = p => p.evaluate(()=>{
   await b.close();
 }
 
+/* ══ P) 👪 피검사를 사람별로 가른다 (v4.45) ══
+   로한: "엄마 건강검진 데이터를 받았는데 상단에 나, 엄마 이런식으로 탭으로 구분"
+   🔒 핵심 불변식: **사람이 섞이지 않는다.** 엄마 탭에서 무엇을 해도 「나」는 그대로다. */
+{
+  const {b,p,errs}=await boot(BASE());
+  const tabs=await p.evaluate(()=>({
+    수:document.querySelectorAll('.hptabs button').length,
+    키:[...document.querySelectorAll('.hptabs button')].map(e=>e.dataset.hp),
+    지금:hPerson(), 켜진탭:(document.querySelector('.hptabs button.on')||{}).dataset.hp}));
+  ok('P1 사람 탭이 둘이다(나·엄마)',tabs.수===2&&tabs.키.join()==='me,mom',JSON.stringify(tabs));
+  ok('P2 기본은 나다',tabs.지금==='me'&&tabs.켜진탭==='me',JSON.stringify(tabs));
+
+  /* 🔒 엄마 데이터가 들어와 있다 — 결과지에 인쇄된 11개 */
+  const mom=await p.evaluate(()=>{
+    hSetPerson('mom');
+    return {사람:hPerson(), 검사일:HP().labDates.length, 지표:HP().metrics.length,
+      날짜:HP().labDates[0], 혈색소:(HP().labValues['혈색소']||[])[0],
+      AST:(HP().labValues['AST']||[])[0], 체중:(HP().weights[0]||{}).kg};});
+  ok('P3 엄마 탭으로 바뀐다',mom.사람==='mom',mom.사람);
+  ok('P4 엄마 검진 1회분이 있다',mom.검사일===1&&mom.날짜==='2026-05-21',JSON.stringify(mom));
+  ok('P5 결과지에 인쇄된 지표만 들어 있다',mom.지표===11,String(mom.지표));
+  ok('P6 값이 결과지 그대로다',mom.혈색소===11.8&&mom.AST===45&&mom.체중===43,JSON.stringify(mom));
+
+  /* 🔴 여기가 핵심 — 엄마를 보는 동안에도 「나」는 한 글자도 안 바뀐다 */
+  const keep=await p.evaluate(()=>({
+    나검사일:DB.health.labDates.length, 나지표:DB.health.metrics.length,
+    나체중:(DB.health.weights||[]).length}));
+  ok('P7 🔒 엄마 탭을 켜도 내 데이터는 그대로다',
+     keep.나검사일>0&&keep.나지표>0,JSON.stringify(keep));
+
+  /* 🔒 엄마 쪽에 지표를 더해도 나에게 생기지 않는다 */
+  const sep=await p.evaluate(()=>{
+    const before=DB.health.metrics.length;
+    HP().metrics.push({name:'테스트지표',func:'',low:1,high:2,range:'1-2',cat:'간'});
+    HP().labValues['테스트지표']=[null];
+    const after=DB.health.metrics.length;
+    const 내게있나=DB.health.metrics.some(m=>m.name==='테스트지표');
+    HP().metrics.pop(); delete HP().labValues['테스트지표'];
+    return {before:before,after:after,내게있나:내게있나};});
+  ok('P8 🔒 엄마 지표를 더해도 내 지표는 안 는다',
+     sep.before===sep.after&&!sep.내게있나,JSON.stringify(sep));
+
+  /* 🔒 참고치는 사람마다 다르다 — 혈색소 남 13~17 / 여 12.0~15.5 */
+  const ref=await p.evaluate(()=>{
+    const momHb=HP().metrics.filter(m=>m.name==='혈색소')[0];
+    const meHb=DB.health.metrics.filter(m=>m.name==='Hb(Colorimetry)')[0];
+    return {엄마:momHb&&[momHb.low,momHb.high], 나:meHb&&[meHb.low,meHb.high]};});
+  ok('P9 🔒 혈색소 참고치가 사람마다 다르다',
+     ref.엄마&&ref.엄마[0]===12&&ref.나&&ref.나[0]===13,JSON.stringify(ref));
+
+  /* 🔴 한쪽만 아는 기준도 판정한다 — 「AST 40 이하」에 45 는 넘은 것이다 */
+  const flag=await p.evaluate(()=>{
+    const f=(n,v)=>labFlag(HP().metrics.filter(m=>m.name===n)[0],v);
+    return {AST초과:f('AST',45), ALT초과:f('ALT',37), AST정상:f('AST',30),
+      eGFR미달:f('eGFR',50), eGFR정상:f('eGFR',90),
+      허리정상:f('허리둘레',63), 양쪽없음:labFlag({low:null,high:null},99)};});
+  ok('P10 🔴 위쪽 기준만 있어도 넘으면 ↑ 다',
+     flag.AST초과==='hi'&&flag.ALT초과==='hi'&&flag.AST정상==='',JSON.stringify(flag));
+  ok('P11 아래쪽 기준만 있어도 모자라면 ↓ 다',
+     flag.eGFR미달==='lo'&&flag.eGFR정상==='',JSON.stringify(flag));
+  ok('P12 둘 다 모르면 아무 말도 안 한다',flag.양쪽없음==='',flag.양쪽없음);
+
+  /* 화면에도 그대로 나온다 */
+  await p.evaluate(()=>renderLabs()); await p.waitForTimeout(250);
+  const seen=await p.evaluate(()=>({
+    표:document.querySelector('#v-labs .labtbl').textContent.replace(/\s+/g,' '),
+    머리:document.querySelector('#v-labs h4').textContent}));
+  ok('P13 엄마 표에 간수치가 ↑ 로 보인다',/45↑/.test(seen.표)&&/37↑/.test(seen.표),'');
+  ok('P14 머리에 누구 표인지 적는다',/엄마/.test(seen.머리),seen.머리.slice(0,30));
+
+  /* 🔒 나로 돌아오면 내 표가 그대로다 */
+  const back=await p.evaluate(()=>{
+    hSetPerson('me');
+    return {사람:hPerson(), 검사일:HP().labDates.length,
+      같나:HP()===DB.health};});
+  ok('P15 나로 돌아오면 내 표다',back.사람==='me'&&back.같나&&back.검사일>0,JSON.stringify(back));
+  ok('P16 JS 에러 0',errs.length===0,errs[0]);
+  await b.close();
+}
+
 console.log('t33 피검사 지표 |',pass,'통과 /',fail,'실패');
 if(bad.length)console.log('  ✗ '+bad.join('\n  ✗ '));
 process.exit(fail?1:0);

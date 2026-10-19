@@ -1045,6 +1045,15 @@ textarea.mla.same{background:#f2f9f4}
 .settle-row .sr-d{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 .settle-row .sr-c{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .settle-row .sr-a{font-weight:700;color:var(--neg);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* 👪 v4.45 사람 탭 — 🔒 누구 표인지 한눈에 보여야 한다 */
+.hptabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.hptabs button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+  background:var(--card);color:var(--muted);border-radius:999px;padding:6px 14px;
+  font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.hptabs button.on{background:#2f6feb;color:#fff;border-color:#2f6feb}
+.hptabs .hpn{font-size:10.5px;font-weight:800;opacity:.75;
+  background:rgba(0,0,0,.12);border-radius:999px;padding:0 6px}
+.hptabs button.on .hpn{background:rgba(255,255,255,.25)}
 .labwrap{overflow:auto;max-height:85vh;border:1px solid var(--line);border-radius:8px}
 .labtbl{border-collapse:collapse;font-size:11px;white-space:nowrap}
 .labtbl th,.labtbl td{padding:5px 8px;border-bottom:1px solid #eef1f6}
@@ -4030,7 +4039,7 @@ function medParse(x){
 }
 /* 같은 약의 직전 기록. 검사일 배열은 오름차순이므로 i 이전에서 가장 가까운 것. */
 function medPrev(slot,i,name){
-  var H=DB.health;
+  var H=HP();
   for(var k=i-1;k>=0;k--){
     var arr=((H.labMeds||[])[k]||{})[slot]||[];
     for(var j=0;j<arr.length;j++){var p=medParse(arr[j]);if(p.n===name)return p;}
@@ -4042,7 +4051,7 @@ function medPrev(slot,i,name){
 function medDoseOn(){return !(DB.ui&&DB.ui.medDose===false);}
 function setMedDose(v){DB.ui=DB.ui||{};DB.ui.medDose=v;save();renderLabs();}
 function medCellHtml(slot,i){
-  var arr=((DB.health.labMeds||[])[i]||{})[slot]||[];
+  var arr=((HP().labMeds||[])[i]||{})[slot]||[];
   if(!arr.length)return '·';
   return arr.map(function(x){
     var p=medParse(x), mark='';
@@ -5187,10 +5196,27 @@ function stSentById(id){
    🔒 `src`(교재 챕터)로 거르지 않는다 — 문장이 **그 종류의 슬롯을 가졌는가**만 본다.
       조사 예문 안에 접속사 슬롯이 같이 있으면 접속사 드릴에도 나온다.
    🔒 그리고 슬롯을 **전부** 센다 — 한 문장에 조사 슬롯이 3개면 문항 3개다(v20: "한 문장 = 슬롯 개수"). */
+/* 🔴 [반복결함] v4.40 에서 **유의표현**의 「정답이 문제에 남아 있다」를 고쳤는데,
+   같은 모양의 결함이 **슬롯 문항(접속사·문형·어순)** 에도 있었다. 한 곳만 고치고
+   같은 자리를 안 봤다 — 반복결함 #8 의 전형이다.
+   실례: 「それでは 席に 着いて ください。（　）、テストを 始めます。」 정답 「では」.
+   빈칸은 제대로 가렸다(어절 경계를 지켜 「それでは」를 안 건드린 것은 **의도대로**다).
+   그런데 그 바람에 **정답이 문장 앞에 그대로 보인다** — 고르는 문제가 아니라 베끼는 문제다.
+   🔒 가린 **결과**를 보고 자격을 정한다. 여기 한 곳이면 슬롯을 쓰는 모드가 전부 막힌다(원칙 2).
+   🔒 틀린 문항은 없느니만 못하다(v3.5) — 한 문항 줄더라도 답이 새는 문항은 안 낸다. */
 function stGSlots(s,kind){
   return ((s&&s.slots)||[]).filter(function(x){
-    return String(x.kind||'')===kind&&stNorm(x.target)&&Array.isArray(x.opts)&&x.opts.length>=3
-      &&String((s&&s.ja)||'').indexOf(x.target)>=0;
+    if(String(x.kind||'')!==kind)return false;
+    if(!(stNorm(x.target)&&Array.isArray(x.opts)&&x.opts.length>=3))return false;
+    var ja=String((s&&s.ja)||'');
+    if(ja.indexOf(x.target)<0)return false;
+    /* 🔴 [기준을 좁힌 자리] 처음엔 길이를 안 보고 막았다가 t48 이 지키는 문항까지 뺐다 —
+       「かいぎは 何時に 始まるか 知って いますか。」 답 「か」(nth 2).
+       か 는 かいぎ·いますか 에도 있어서 가려도 남는다. 그렇다고 못 낼 문항이 아니다.
+       🔒 **한 글자 정답은 문장 어디에나 나온다** — 조사·종조사가 그렇다. 거기엔 이 규칙이 안 맞는다.
+       두 글자 이상 표현이 가린 뒤에도 남으면 그때가 **베끼는 문제**다(「それでは」 안의 「では」). */
+    if(String(x.target).length<2)return true;
+    return stGMask(ja,x.target,x.nth).indexOf(x.target)<0;
   });
 }
 function stGSlot(s,kind){return stGSlots(s,kind)[0]||null;}
@@ -5261,24 +5287,39 @@ function stGParticles(s){
     if(!(/[一-鿿゠-ヿ]/.test(stem)||ST_PART_PRON.indexOf(stem)>=0||kana[stem]))return;
     out.push({i:i,p:p,why:''});
   });
+  /* 🔴 [과한 수정을 되돌린 자리] 여기에 「가린 뒤에도 그 조사가 남으면 뺀다」를 넣었다가
+     멀쩡한 후보 9개가 날아가 t47·t48 이 깨졌다. **조사는 한 글자라 문장 어디에나 또 나온다** —
+     「に」가 두 자리에 쓰이는 것은 정상이고 실제 시험도 그렇다. indexOf 로 재면 과하게 잘린다.
+     🔒 슬롯 문항·유의표현의 정답은 **여러 글자 표현**이라 문장에 또 나오면 베끼기가 되지만,
+        조사는 다르다. 같은 자를 쓴다고 같은 규칙을 적용하면 그게 틀린 일반화다.
+     ⚠️ 남은 한계: 「そこで、 タクシー（　） 帰りました」 답 「で」처럼 **다른 단어 안에**
+        답 글자가 보이는 문항은 아직 걸러지지 않는다. 기능어 안의 출현과 독립 조사를
+        가리려면 형태소 수준의 판정이 필요하다 — 지금 장치로는 못 한다. 알고 남겨 둔다. */
   return out;
 }
 /* 🔒 c 를 받으면 **그 자리**를 묻는다 — v20 슬롯 단위 출제가 같은 문장에서 다른 조사를 물으려면 필요하다.
    안 주면 예전처럼 수동 슬롯 우선으로 하나 고른다. */
+/* 🔒 조사를 가린 결과를 만드는 자리는 **하나**다.
+   자격(stGParticles)과 문항(stGPartQ)이 각자 가리면 둘이 어긋나고,
+   그 틈으로 답이 새는 문항이 빠져나간다(원칙 2). */
+function stGPartMask(s,c){
+  var toks=stGTokens(s), t0=toks[c.i]; if(t0==null)return String(s&&s.ja||'');
+  var pu=stGPunct(t0), t=t0.slice(0,t0.length-pu.length);
+  var parts=String((s&&s.ja)||'').split(/(\s+)/), k=-1;
+  for(var j=0;j<parts.length;j++){ if(/^\s+$/.test(parts[j])||!parts[j])continue; k++;
+    if(k===c.i){parts[j]=t.slice(0,-c.p.length)+'（　）'+pu;break;} }
+  return parts.join('');
+}
 function stGPartQ(s,c){
   var cs=stGParticles(s); if(!cs.length)return null;
   if(!c){
     var man=cs.filter(function(x){return x.manual;});
     c=(man.length?man:cs)[Math.floor(Math.random()*(man.length||cs.length))];
   }
-  var toks=stGTokens(s), t0=toks[c.i], pu=stGPunct(t0), t=t0.slice(0,t0.length-pu.length);
-  var parts=String(s.ja).split(/(\s+)/), k=-1;
-  for(var j=0;j<parts.length;j++){ if(/^\s+$/.test(parts[j])||!parts[j])continue; k++;
-    if(k===c.i){parts[j]=t.slice(0,-c.p.length)+'（　）'+pu;break;} }
   var bad=[c.p].concat(ST_PART_TWIN[c.p]||[]);
   var opts=(c.manual&&Array.isArray(c.opts)&&c.opts.length>=3)?c.opts.slice(0,3)
     :stGShuffle(ST_PART.filter(function(x){return bad.indexOf(x)<0;})).slice(0,3);
-  return {ans:c.p, ja:parts.join(''), why:c.why, opts:stGShuffle([c.p].concat(opts))};
+  return {ans:c.p, ja:stGPartMask(s,c), why:c.why, opts:stGShuffle([c.p].concat(opts))};
 }
 /* 어절 — 교재의 띄어쓰기가 그대로 살아 있어야 어순 문제가 성립한다 */
 function stGTokens(s){
@@ -6434,7 +6475,7 @@ function emrSummaryModal(){
 function emrSourcesModal(){
   var p=emrSel();if(!p)return;
   var raw=p.sources||{},s=emrSources(p),auto=!Array.isArray(raw.labs);
-  var groups={};((DB.health||{}).metrics||[]).forEach(function(m){(groups[m.cat||'기타']=groups[m.cat||'기타']||[]).push(m.name);});
+  var groups={};((HP()||{}).metrics||[]).forEach(function(m){(groups[m.cat||'기타']=groups[m.cat||'기타']||[]).push(m.name);});
   var checks=Object.keys(groups).map(function(c){
     return '<div class="emrcat"><b>'+mdEsc(c)+'</b>'+groups[c].map(function(n){
       return '<label><input type="checkbox" class="es_lab" value="'+emrAttr(n)+'"'+(!auto&&s.labs.indexOf(n)>=0?' checked':'')+'> '+mdEsc(n)+'</label>';}).join('')+'</div>';}).join('');
@@ -6461,12 +6502,69 @@ function emrSaveSources(){
 }
 
 /* ====== 건강: 피검사 ====== */
-function labFlag(m,v){if(typeof v!=='number'||m.low==null||m.high==null)return '';if(v>m.high)return 'hi';if(v<m.low)return 'lo';return '';}
-function labResort(){var H=DB.health;var o=H.labDates.map(function(d,i){return i;}).sort(function(a,b){return H.labDates[a]<H.labDates[b]?-1:1;});H.labDates=o.map(function(i){return H.labDates[i];});H.labTypes=o.map(function(i){return H.labTypes[i];});H.labMeds=o.map(function(i){return H.labMeds[i];});
+/* 🔴 [결함] 양쪽 기준이 **다 있어야만** 깃발을 띄웠다. 그런데 국가검진 기준은 대부분
+   한쪽이다 — 「AST 40 이하」「eGFR 60 이상」「크레아티닌 1.5 이하」.
+   그래서 엄마 AST 45(40 초과)가 아무 표시 없이 지나갔다. 넘은 걸 넘었다고 말해야 한다.
+   🔒 한쪽만 알아도 그쪽은 판정한다. 둘 다 모르면 그때만 침묵한다.
+   (기존 지표는 전부 양쪽이 있거나 양쪽이 없어서 화면이 바뀌지 않는다 — 실측 확인) */
+/* ══════ 👪 v4.45 — 피검사를 **사람별로** 가른다 ══════
+   로한: "내 엄마꺼 건강검진 데이터를 받았는데, 상단에 나, 엄마, 아빠 이런식으로
+          탭으로 구분해서 데이터 분리 관리 하면 될 것 같긴 해"
+   🔒 DB.health 는 **손대지 않는다** — 그게 「나」다. 5년치 21회분이 거기 있다.
+      사람을 늘리자고 기존 데이터를 옮기면 그 순간이 가장 위험하다(데이터 보존 P0).
+      늘리는 쪽만 새로 만든다 — DB.healthPeople = {mom:{…}}, 모양은 똑같다.
+   🔒 **HP() 는 피검사 화면이 보는 사람일 뿐, 앱 전체의 주인이 아니다.**
+      달력·몸 탭·목표·EMR·진료·아고라 요약은 전부 DB.health(나)를 그대로 본다 —
+      안 그러면 엄마 탭을 켠 순간 아고라 숫자까지 엄마 것이 된다.
+   🔒 참고치는 **사람마다 다르다**(혈색소 남 13.0~16.5 / 여 12.0~15.5,
+      γ-GTP 남 63 이하 / 여 35 이하). 그래서 metrics 도 사람마다 따로 둔다 —
+      탭만 가르고 지표를 공유하면 남의 기준으로 읽은 **거짓 숫자**가 된다. */
+var HPEOPLE=[{k:'me',ko:'나',ic:'🙋'},{k:'mom',ko:'엄마',ic:'👩'}];
+function hPerson(){
+  var v=(DB&&DB.ui&&DB.ui.hPerson)||'me';
+  return HPEOPLE.some(function(p){return p.k===v;})?v:'me';
+}
+function hPersonOf(k){
+  var a=HPEOPLE.filter(function(p){return p.k===(k||hPerson());});
+  return a.length?a[0]:HPEOPLE[0];
+}
+/* 🔒 빈 사람도 **모양은 갖춘다** — 빈 서랍이 아니라 빈 표가 되게 */
+function hBlank(){
+  return {labDates:[],labTypes:[],labVisits:[],labMeds:[],
+          metrics:[],labValues:{},weights:[],events:[],catOrder:[],height:null};
+}
+function HP(){
+  if(!DB)return hBlank();
+  if(hPerson()==='me')return DB.health;
+  DB.healthPeople=DB.healthPeople||{};
+  var k=hPerson();
+  if(!DB.healthPeople[k])DB.healthPeople[k]=hBlank();
+  return DB.healthPeople[k];
+}
+function hSetPerson(k){
+  DB.ui=DB.ui||{}; DB.ui.hPerson=hPersonOf(k).k; save(); renderLabs();
+}
+/* 🔒 누구를 보고 있는지 **늘 적는다** — 남의 표를 내 것으로 읽으면 그게 거짓이다 */
+function hTabsHtml(){
+  return '<div class="hptabs">'+HPEOPLE.map(function(p){
+    var H=(p.k==='me')?DB.health:((DB.healthPeople||{})[p.k]||null);
+    var n=((H||{}).labDates||[]).length;
+    return '<button class="'+(hPerson()===p.k?'on':'')+'" data-hp="'+p.k+'" '
+      +'onclick="hSetPerson(&#39;'+p.k+'&#39;)">'+p.ic+' '+p.ko
+      +'<span class="hpn">'+n+'</span></button>';
+  }).join('')+'</div>';
+}
+function labFlag(m,v){
+  if(typeof v!=='number')return '';
+  if(m.high!=null&&v>m.high)return 'hi';
+  if(m.low!=null&&v<m.low)return 'lo';
+  return '';
+}
+function labResort(){var H=HP();var o=H.labDates.map(function(d,i){return i;}).sort(function(a,b){return H.labDates[a]<H.labDates[b]?-1:1;});H.labDates=o.map(function(i){return H.labDates[i];});H.labTypes=o.map(function(i){return H.labTypes[i];});H.labMeds=o.map(function(i){return H.labMeds[i];});
   /* 🔒 진료일도 같이 따라가야 한다 — 안 옮기면 다른 검사의 진료일이 붙는다 */
   if(H.labVisits)H.labVisits=o.map(function(i){return H.labVisits[i]||'';});Object.keys(H.labValues).forEach(function(k){var a=H.labValues[k];H.labValues[k]=o.map(function(i){return a[i];});});}
 function renderLabs(){
-  var H=DB.health||{};var dates=H.labDates||[],N=dates.length;
+  var H=HP()||{};var dates=H.labDates||[],N=dates.length;
   /* v2.2 — 검사일과 진료일이 다를 수 있다. 다를 때만 아래에 작게 붙인다. */
   var visits=H.labVisits||[];
   var dcols=dates.map(function(d,i){
@@ -6506,7 +6604,8 @@ function renderLabs(){
     });
   });
   document.getElementById('v-labs').innerHTML=''
-   +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+N+'회 · 지표 '+(H.metrics||[]).length+'개</span>'
+   +hTabsHtml()
+   +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+hPersonOf().ko+' · '+N+'회 · 지표 '+(H.metrics||[]).length+'개</span>'
    +'<span class="hacts"><button class="ghost sm" onclick="setMedDose('+(medDoseOn()?'false':'true')+')" title="약 용량을 표에 표시할지 — 끄면 마우스를 올렸을 때만 보인다">💊 용량 '+(medDoseOn()?'켬':'끔')+'</button> '
    +'<button class="ghost sm" id="labAddBtn">+ 검사일</button> '
    +'<button class="ghost sm" id="labAddMetric">+ 지표</button></span></h4>'
@@ -6520,7 +6619,7 @@ function renderLabs(){
    🔒 창을 넓히면 '몇 달 전 체중'이 그날 값처럼 보인다 — 7일로 좁게 잡는다. */
 var LAB_W_DAYS=7;
 function labWeightAt(ds){
-  var ws=(DB.health.weights||[]),best=null,bd=1e9;
+  var ws=(HP().weights||[]),best=null,bd=1e9;
   for(var i=0;i<ws.length;i++){
     if(ws[i].kg==null||ws[i].kg==='')continue;
     if(ws[i].date===ds)return {kg:ws[i].kg,date:ds,off:0};
@@ -6530,7 +6629,7 @@ function labWeightAt(ds){
   return (best&&bd<=LAB_W_DAYS)?{kg:best.kg,date:best.date,off:bd}:null;
 }
 function labWeightCell(ds){
-  var H=DB.health;H.weights=H.weights||[];
+  var H=HP();H.weights=H.weights||[];
   var exact=H.weights.filter(function(w){return w.date===ds;})[0];
   var near=labWeightAt(ds);
   openModal('<div class="mtop"><h3>체중 <span class="mut" style="font-size:12px">'+ds+'</span></h3>'
@@ -6544,7 +6643,7 @@ function labWeightCell(ds){
    +'<button class="btn" onclick="saveLabWeight(\''+ds+'\')">저장</button>');
 }
 function saveLabWeight(ds){
-  var H=DB.health;H.weights=H.weights||[];
+  var H=HP();H.weights=H.weights||[];
   var raw=(document.getElementById('lw_kg').value||'').replace(/[^0-9.]/g,'');
   var w=H.weights.filter(function(x){return x.date===ds;})[0];
   if(raw===''){
@@ -6557,10 +6656,10 @@ function saveLabWeight(ds){
   }
   save();closeModal();renderLabs();
 }
-function labMetric(name){return (DB.health.metrics||[]).filter(function(m){return m.name===name;})[0]||null;}
+function labMetric(name){return (HP().metrics||[]).filter(function(m){return m.name===name;})[0]||null;}
 function labCats(){
-  var o=(DB.health.catOrder||[]).slice();
-  (DB.health.metrics||[]).forEach(function(m){if(m.cat&&o.indexOf(m.cat)<0)o.push(m.cat);});
+  var o=(HP().catOrder||[]).slice();
+  (HP().metrics||[]).forEach(function(m){if(m.cat&&o.indexOf(m.cat)<0)o.push(m.cat);});
   return o;
 }
 function labMetricModal(name){
@@ -6569,7 +6668,7 @@ function labMetricModal(name){
   var q=function(v){return String(v==null?'':v).replace(/"/g,'&quot;');};
   var cats=labCats();
   var opts=cats.map(function(c){return '<option'+(c===m.cat?' selected':'')+'>'+sajuEsc(c)+'</option>';}).join('');
-  var n=name?((DB.health.labValues[name]||[]).filter(function(v){return v!=null&&v!=='';}).length):0;
+  var n=name?((HP().labValues[name]||[]).filter(function(v){return v!=null&&v!=='';}).length):0;
   openModal('<div class="mtop"><h3>'+(name?'지표 수정':'지표 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +(name&&n?'<div class="mut" style="margin-bottom:8px">기록 '+n+'회 — 이름을 바꾸면 기록도 같이 옮긴다</div>':'')
    +'<div class="field"><label>지표명</label><input id="lm_name" value="'+q(m.name)+'" placeholder="ALP"></div>'
@@ -6588,7 +6687,7 @@ function labMetricModal(name){
    +(name?' <button class="ghost" onclick="delLabMetric(\''+name.replace(/'/g,"\\'")+'\')">삭제</button>':''));
 }
 function saveLabMetric(orig){
-  var H=DB.health;H.metrics=H.metrics||[];H.labValues=H.labValues||{};
+  var H=HP();H.metrics=H.metrics||[];H.labValues=H.labValues||{};
   var g=function(k){var e=document.getElementById('lm_'+k);return e?e.value.trim():'';};
   var nm=g('name'); if(!nm)return alert('지표명은 필요하다');
   if(nm!==orig&&labMetric(nm))return alert('같은 이름의 지표가 이미 있다');
@@ -6613,7 +6712,7 @@ function saveLabMetric(orig){
   save();closeModal();renderLabs();
 }
 function delLabMetric(name){
-  var H=DB.health,m=labMetric(name);if(!m)return;
+  var H=HP(),m=labMetric(name);if(!m)return;
   var n=(H.labValues[name]||[]).filter(function(v){return v!=null&&v!=='';}).length;
   if(!confirm('['+name+'] 지표를 지운다.'+(n?'\n기록 '+n+'회도 함께 사라진다.':'')+'\n진행할까?'))return;
   H.metrics=H.metrics.filter(function(x){return x.name!==name;});
@@ -6621,7 +6720,7 @@ function delLabMetric(name){
   logAct('피검사 지표 삭제 · '+name+(n?' (기록 '+n+'회)':''));
   save();closeModal();renderLabs();
 }
-function labSChart(name,m){var H=DB.health;var vals=H.labValues[name]||[];var n=H.labDates.length;
+function labSChart(name,m){var H=HP();var vals=H.labValues[name]||[];var n=H.labDates.length;
   var pts=[];for(var i=0;i<n;i++){if(typeof vals[i]==='number')pts.push({i:i,v:vals[i]});}
   if(!pts.length)return '<div class="mut" style="padding:10px 0">숫자 기록 없음</div>';
   var W=440,HH=150,PL=38,PR=10,PT=12,PB=18;var vv=pts.map(function(p){return p.v;});var mn=Math.min.apply(null,vv),mx=Math.max.apply(null,vv);
@@ -6632,16 +6731,16 @@ function labSChart(name,m){var H=DB.health;var vals=H.labValues[name]||[];var n=
   var dots=pts.map(function(p){var f=labFlag(m,p.v);var c=f==='hi'?'#e0483d':f==='lo'?'#2f6df6':'#0f9d58';return '<circle cx="'+X(p.i)+'" cy="'+Y(p.v)+'" r="3" fill="'+c+'"/>';}).join('');
   return '<svg viewBox="0 0 '+W+' '+HH+'" width="100%" style="display:block;margin-top:8px">'+band+'<polyline points="'+line+'" fill="none" stroke="#5a6b86" stroke-width="2"/>'+dots+'<text x="4" y="'+(PT+4)+'" font-size="9" fill="#9aa6b6">'+mx+'</text><text x="4" y="'+(HH-PB+4)+'" font-size="9" fill="#9aa6b6">'+mn+'</text></svg>';
 }
-function labCell(name,i){var H=DB.health;var m=H.metrics.filter(function(x){return x.name===name;})[0];var v=(H.labValues[name]||[])[i];
+function labCell(name,i){var H=HP();var m=H.metrics.filter(function(x){return x.name===name;})[0];var v=(H.labValues[name]||[])[i];
   openModal('<div class="mtop"><h3>'+name+' <span class="mut" style="font-size:12px">'+(m.func||'')+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="mut">'+H.labDates[i]+' · '+(H.labTypes[i]||'')+' · 정상 '+(m.range||'-')+'</div>'
    +labSChart(name,m)
    +'<div class="updrow" style="margin-top:10px"><input id="lv" value="'+(v==null?'':v)+'" placeholder="수치"><button class="btn" onclick="saveLabCell(\''+name.replace(/'/g,"\\'")+'\','+i+')">저장</button></div>'
    +'');
 }
-function saveLabCell(name,i){var raw=(document.getElementById('lv').value||'').trim();var H=DB.health;H.labValues[name]=H.labValues[name]||[];var val;if(raw==='')val=null;else{var num=parseFloat(raw.replace(/[^0-9.\-]/g,''));val=isNaN(num)?raw:num;}H.labValues[name][i]=val;logAct('피검사 '+name+' '+H.labDates[i]+' = '+(raw||'삭제'));save();closeModal();renderLabs();}
+function saveLabCell(name,i){var raw=(document.getElementById('lv').value||'').trim();var H=HP();H.labValues[name]=H.labValues[name]||[];var val;if(raw==='')val=null;else{var num=parseFloat(raw.replace(/[^0-9.\-]/g,''));val=isNaN(num)?raw:num;}H.labValues[name][i]=val;logAct('피검사 '+name+' '+H.labDates[i]+' = '+(raw||'삭제'));save();closeModal();renderLabs();}
 function parseMeds(s){return (s||'').split(/[,\n]/).map(function(x){return x.trim();}).filter(Boolean);}
-function labDate(i){var H=DB.health;var meds=H.labMeds[i]||{am:[],pm:[]};
+function labDate(i){var H=HP();var meds=H.labMeds[i]||{am:[],pm:[]};
   openModal('<div class="mtop"><h3>'+H.labDates[i]+' 검사</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>검사일 <span class="mut">채혈·검사한 날</span></label><input id="ld_date" type="date" value="'+H.labDates[i]+'"></div>'
    +'<div class="field"><label>진료일 <span class="mut">결과를 들은 날 · 같으면 비워라</span></label>'
@@ -6657,12 +6756,12 @@ function labDate(i){var H=DB.health;var meds=H.labMeds[i]||{am:[],pm:[]};
 /* v2.5 — 매번 6~7개를 다시 타이핑하지 않는다. 직전 검사일 처방을 그대로 끌어온다.
    ⚠️ 덮어쓰기 전에 묻는다 — 이미 적어둔 걸 조용히 날리면 안 된다. */
 function medCopyPrev(i){
-  var H=DB.health, p=(H.labMeds||[])[i-1]; if(!p)return;
+  var H=HP(), p=(H.labMeds||[])[i-1]; if(!p)return;
   var am=document.getElementById('ld_am'), pm=document.getElementById('ld_pm');
   if(((am.value||'').trim()||(pm.value||'').trim())&&!confirm('지금 적힌 약을 직전 검사일 것으로 덮어쓴다.\n진행할까?'))return;
   am.value=(p.am||[]).join(', '); pm.value=(p.pm||[]).join(', ');
 }
-function saveLabDate(i){var H=DB.health;
+function saveLabDate(i){var H=HP();
   var _d=document.getElementById('ld_date').value.trim();
   if(!isDateStr(_d))return alert('검사일은 YYYY-MM-DD 형식이어야 한다');
   var _v=document.getElementById('ld_visit').value.trim();
@@ -6670,9 +6769,9 @@ function saveLabDate(i){var H=DB.health;
   H.labVisits=H.labVisits||[];
   H.labVisits[i]=(_v&&_v!==_d)?_v:'';    /* 같으면 저장하지 않는다 — 빈 서랍을 남기지 않는다 */
   H.labDates[i]=_d;H.labTypes[i]=document.getElementById('ld_type').value.trim();H.labMeds[i]={am:parseMeds(document.getElementById('ld_am').value),pm:parseMeds(document.getElementById('ld_pm').value)};labResort();logAct('검사일 수정 '+H.labDates[i]);save();closeModal();renderLabs();}
-function delLabDate(i){if(!confirm('이 검사일 전체 삭제?'))return;var H=DB.health;H.labDates.splice(i,1);H.labTypes.splice(i,1);H.labMeds.splice(i,1);
+function delLabDate(i){if(!confirm('이 검사일 전체 삭제?'))return;var H=HP();H.labDates.splice(i,1);H.labTypes.splice(i,1);H.labMeds.splice(i,1);
   if(H.labVisits)H.labVisits.splice(i,1);Object.keys(H.labValues).forEach(function(k){H.labValues[k].splice(i,1);});logAct('검사일 삭제');save();closeModal();renderLabs();}
-function labAddDate(){var H=DB.health;var d=prompt('검사 날짜 (YYYY-MM-DD)',todayStr());if(!d)return;
+function labAddDate(){var H=HP();var d=prompt('검사 날짜 (YYYY-MM-DD)',todayStr());if(!d)return;
   if(!isDateStr(d))return alert('YYYY-MM-DD 형식이어야 한다');
   var t=prompt('타입 (외래/입원/응급실)','외래')||'';H.labDates.push(d);H.labTypes.push(t);H.labMeds.push({am:[],pm:[]});
   H.labVisits=H.labVisits||[];H.labVisits.push('');Object.keys(H.labValues).forEach(function(k){H.labValues[k].push(null);});labResort();logAct('검사일 추가 '+d);save();renderLabs();}
@@ -10751,7 +10850,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.44';
+var APP_VERSION='4.45';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -10765,6 +10864,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.45',date:'2026-10-17',note:'<b>👪 피검사를 사람별로 가른다 — 🙋 나 · 👩 엄마.</b> 로한: 「엄마 건강검진 데이터를 받았는데 상단에 나, 엄마 이런식으로 탭으로 구분해서 데이터 분리 관리」 · 🔒 <b>DB.health 는 손대지 않는다</b> — 그게 「나」고 5년치 21회분이 거기 있다. 사람을 늘리자고 기존 데이터를 옮기면 <b>그 순간이 가장 위험하다</b>(데이터 보존 P0). 늘리는 쪽만 새로 만든다(DB.healthPeople) · 🔒 <b>HP() 는 피검사 화면이 보는 사람일 뿐, 앱 전체의 주인이 아니다</b> — 달력·몸 탭·목표·EMR·진료·아고라 요약은 전부 DB.health(나)를 본다. 안 그러면 엄마 탭을 켠 순간 <b>아고라 숫자까지 엄마 것</b>이 된다(치환 44곳 중 22곳을 되돌렸다) · 🔒 <b>참고치는 사람마다 다르다</b> — 혈색소 남 13.0~16.5 / 여 12.0~15.5, γ-GTP 남 63 이하 / 여 35 이하. 탭만 가르고 지표를 공유하면 <b>남의 기준으로 읽은 거짓 숫자</b>가 된다 → metrics 도 사람마다 따로 · 🔴 <b>labFlag 가 양쪽 기준이 다 있어야만 깃발을 띄웠다</b>. 그런데 국가검진 기준은 대부분 한쪽이다(「AST 40 이하」「eGFR 60 이상」) — 그래서 <b>엄마 AST 45 가 아무 표시 없이 지나갔다</b>. 한쪽만 알아도 그쪽은 판정한다(기존 지표는 전부 양쪽이 있거나 없어서 화면이 안 바뀐다) · 👩 <b>엄마 2026-05-21 국가검진</b>(오산한국병원 · 정상B 경계 · 유질환자) 11개 지표. <b>AST 45↑ · ALT 37↑ · 체질량지수 17.4↓ · 혈색소 11.8↓</b> 가 제대로 잡힌다. 🔒 지질 4종은 결과지에 「비해당」이라 <b>지표 자체를 만들지 않았다</b> — 측정 안 한 것을 빈 줄로 두면 「쟀는데 비었다」로 읽힌다 · 🔒 시드는 <b>처음 한 번만</b>(undefined 일 때만) 채운다 — 지우고 null 로 두면 다시 안 살아난다(v2.1 사고의 반대쪽) · t33 66 → <b>82건</b>(P절 16건 — 사람이 섞이지 않는 것을 잰다) · 🔴 <b>같은 결함의 세 번째 자리를 잡았다</b> — 로한: 「자꾸 일본어 학습 쪽에서 뻑이 나는거야. 확실히 대비를 해」. v4.40 유의표현 → v4.45 슬롯 문항 → <b>조사</b>까지 전부 <b>「정답이 문제에 남아 있다」</b>였다. 「雨が 降って いました。 そこで、 タクシー（　） 帰りました」 답 「で」인데 <b>そこで 에 답이 보인다</b> · 🔒 <b>진짜 문제는 간헐성이었다</b> — 드릴 테스트가 랜덤으로 몇 개만 뽑아 봐서, 고친 뒤에도 <b>남은 자리가 있는지 알 수 없었다</b>. 🔒 「정답이 문제에 남으면 안 된다」는 <b>샘플링할 이유가 없는 불변식</b>이다 → t42 에 <b>전수 검사</b>를 넣었다(모든 모드 × 모든 예문 × 모든 슬롯). 넣자마자 조사 쪽이 걸렸다 · 🔴 <b>처음 넣은 가드는 과했다</b> — 길이를 안 보고 막았더니 멀쩡한 조사 후보 9개가 날아가 t47·t48 이 깨졌다. <b>한 글자 정답(조사·종조사)은 문장 어디에나 나온다</b>(「か」는 かいぎ·いますか 에도 있다). 같은 자를 쓴다고 같은 규칙을 대면 그게 틀린 일반화다 → <b>두 글자 이상 표현에만</b> 적용한다. ⚠️ 남은 한계: 「そこで、タクシー（　）帰りました」 답 「で」처럼 <b>다른 단어 안에 답 글자가 보이는</b> 한 글자 문항은 아직 못 거른다 — 형태소 수준 판정이 필요하다. 알고 남겨 둔다 · 🔒 가리는 자리를 <b>하나로</b> 뽑았다(stGPartMask) — 자격 판정과 문항 생성이 각자 가리면 그 틈으로 샌다 · 🔒 테스트에서 <b>개수를 박아둔 단언을 불변식으로</b> 바꿨다 — 예문이 하나 늘거나 빠질 때마다 깨지던 자리다 · t42 344 → <b>347건</b> · run.sh all 통과'},
   {v:'4.44',date:'2026-10-16',note:'<b>🔴 찾았다 — 가신들이 사라진 진짜 원인은 오타 한 글자였다.</b> <code>agFigure</code> 안에 <code>TONE[tone].ic</code> 가 있었다. <b>AG_TONE 의 오타</b>다 · 🔒 그 줄은 <code>tone!==plain</code> 일 때만 탄다 — v4.33(가신회의)부터 넉 달치 코드에 있었지만 <b>한 번도 안 밟혔다</b>. 모든 글의 어조가 plain 이었기 때문이다 · 💥 2026-10-16 <b>생활사가 plead(간곡히 청한다) 로 처음 쓰자</b> renderAgora 가 통째로 터졌고, innerHTML 이 <b>머리만 쓰고 멈춰</b> 회의장이 아예 안 그려졌다(자리 0 · 기록 0). 로한: 「가신들이 다 제출했는데 아무도 없잖아」 — <b>글이 없던 게 아니라 그리다 죽은 것</b>이었다 · 🔒 <b>v4.35 로 열어도 똑같이 비어 보인 이유</b>가 이것이다. 바뀐 것은 코드가 아니라 <b>데이터가 처음으로 그 길을 밟은 것</b>이다 · 🧪 재현: 로한의 실제 구조(명단 7명·rohan 없음·plead 한 건)로 띄우니 <b>pageerror 한 줄</b>로 바로 잡혔다 · 🔒 <b>테스트 픽스처가 전부 plain 이라 못 잡았다</b> — 안 밟는 길은 없는 길이 아니라 <b>안 보이는 길</b>이다. 픽스처에 plead 를 넣고(되돌리면 t54 가 즉시 터지는 것을 확인했다), 다섯 어조 × 세 상태로 캐릭터·회의장·말풍선을 전부 그려 보는 Z2절 3건을 더했다 · t54 215 → <b>218건</b> · 🔙 가설 다섯(ym/phase·다른 계정·세션 만료·저장 충돌·라이브러리 버전)은 <b>전부 틀렸다</b>. 실제 데이터로 재현한 뒤에야 한 줄로 끝났다'},
   {v:'4.43',date:'2026-10-16',note:'<b>📌 supabase-js 버전을 고정했다 — 아고라가 비어 보이던 진짜 원인.</b> 🔴 로한: 「이런 버그가 생긴적이 없는데. 오늘 업데이트 전에서부터 추론을 생각해봐」 — 맞는 지적이었고, <b>내 코드가 아니었다</b> · 스크립트 태그가 <code>supabase-js@2</code>, 즉 <b>메이저 범위</b>였다. jsDelivr 가 최신 2.x 를 매번 준다 — <b>내가 한 줄도 안 건드려도 라이브러리가 바뀌면 앱이 바뀐다</b> · 🔎 <b>대조 실험으로 확정</b>: 앱이 받던 것은 <b>2.118.0</b>. 같은 조회를 <b>2.45.4</b> 로 고정한 진단 페이지에서는 <b>글 48건이 179ms 에 그대로</b> 왔고 세션·시계도 정상이었다. <b>v4.35(어제까지 멀쩡하던 판)로 열어도 똑같이 비어 보인 것</b>이 결정적이었다 — 그 판도 @2 를 쓴다 · 🔒 <b>버전을 범위로 쓰지 않는다</b>. 올릴 때는 내가 올리고, 올린 뒤 테스트를 돌린다. 고정하지 않으면 「어제는 됐는데 오늘 안 된다」가 언제든 다시 온다 · <b>당구 앱도 같은 @2 였다</b> — 같이 고정했다. b03 주석의 「새로고침 때 불러오는 중이 안 꺼지는 결함」도 같은 뿌리였을 수 있다 · 🔒 그동안 세운 가설 넷(ym/phase 어긋남 · 다른 계정 · 세션 만료 · 저장 충돌)은 <b>전부 틀렸다</b>. 증거 없이 설명부터 만든 탓이다 — 진단 페이지로 <b>실측</b>을 받고서야 갈렸다'},
   {v:'4.42',date:'2026-10-16',note:'<b>⏱ 기다림을 3.5초로 줄이고, 다시 시도가 진짜로 다시 시도하게 했다.</b> 🔴 로한: 「12초 걸리는것도 오바야. 용량이 존나 큰것도 아니고 이렇게 오래걸릴 일이냐고. 다시시도 눌러도 반응 없어」 — 둘 다 맞다 · 📏 <b>글 48건 본문 전부 합쳐 44 kB</b> 다. 정상이면 1초 안에 온다. 🔒 <b>기다림의 길이는 그 일의 크기에 맞춘다</b> — 12초는 「혹시 몰라서」였고, 그 「혹시」가 멈춘 화면을 12초나 붙잡아 뒀다 · 🔴 <b>다시 시도가 반응 없던 이유</b> — 멈춘 요청은 버려지지 않고 그대로 떠 있다. 다시 부르면 <b>두 요청이 겹치고 늦게 온 쪽이 이긴다</b>. 🔒 <b>세대(AG_GEN)를 끊는다</b> — 지난 세대의 응답은 도착해도 쓰지 않는다 · 🔒 <b>실패 화면에도 손잡이를 둔다</b> — 에러만 보여주고 길을 안 주면 그것도 막힌 것이다 · 🔴 <b>아고라를 열 때 요청 셋이 한꺼번에 나갔다</b>(명단·글·공지). supabase-js 는 요청마다 세션을 확인하고, 토큰 갱신이 끼면 그 확인이 <b>서로를 기다린다</b>. 탭을 여러 개 열면 락이 창 밖까지 공유되어 더 엉킨다 → <b>순서대로 묻는다</b>. 공지는 명단·글이 끝난 뒤에 — 어차피 화면 맨 처음에 필요한 것이 아니다 · t54 215건 유지 · run.sh all 통과'},
@@ -11898,6 +11998,14 @@ function delDebt(id){if(!confirm('삭제할까요?'))return;var _d=DB.debts.filt
 var INC_TYPES=['사업소득','근로소득','이자소득','배당소득','기타소득','연금소득'];
 var WEIGHT_IMPORT_2026=[{"date":"2026-01-01","kg":72.6,"memo":"식단 수행"},{"date":"2026-01-03","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-06","kg":72.8,"memo":"식단 수행"},{"date":"2026-01-07","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-08","kg":71.8,"memo":"식단 수행"},{"date":"2026-01-10","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-11","kg":72.6,"memo":"식단 수행"},{"date":"2026-01-12","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-13","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-14","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-15","kg":71.8,"memo":"식단 수행"},{"date":"2026-01-16","kg":71.4,"memo":"식단 수행"},{"date":"2026-01-17","kg":71.6,"memo":"식단 수행"},{"date":"2026-01-20","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-21","kg":71.0,"memo":"식단 수행"},{"date":"2026-01-23","kg":70.6,"memo":"식단 수행"},{"date":"2026-01-24","kg":70.4,"memo":"식단 수행"},{"date":"2026-01-25","kg":71.2,"memo":"식단 수행"},{"date":"2026-01-26","kg":70.2,"memo":"식단 수행"},{"date":"2026-01-27","kg":70.4,"memo":"식단 수행"},{"date":"2026-01-28","kg":70.2,"memo":"식단 수행"},{"date":"2026-01-29","kg":70.0,"memo":"식단 수행"},{"date":"2026-01-30","kg":69.8,"memo":"식단 수행"},{"date":"2026-01-31","kg":70.2,"memo":"식단 수행"},{"date":"2026-02-02","kg":70.4,"memo":"식단 수행"},{"date":"2026-02-03","kg":70.0,"memo":"식단 수행"},{"date":"2026-02-04","kg":70.0,"memo":"식단 수행"},{"date":"2026-02-05","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-06","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-07","kg":69.6,"memo":"식단 수행"},{"date":"2026-02-08","kg":69.4,"memo":"식단 수행"},{"date":"2026-02-09","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-10","kg":69.6,"memo":"식단 수행"},{"date":"2026-02-11","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-12","kg":69.2,"memo":"식단 수행"},{"date":"2026-02-13","kg":69.2,"memo":"식단 수행"},{"date":"2026-02-20","kg":68.8,"memo":"식단 미수행 · 설 연휴"},{"date":"2026-02-21","kg":68.6,"memo":"식단 수행"},{"date":"2026-02-22","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-23","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-24","kg":68.6,"memo":"식단 수행"},{"date":"2026-02-25","kg":68.2,"memo":"식단 수행"},{"date":"2026-02-26","kg":68.2,"memo":"식단 수행"},{"date":"2026-02-27","kg":67.6,"memo":"식단 수행"},{"date":"2026-02-28","kg":68.2,"memo":"식단 수행"},{"date":"2026-03-05","kg":68.0,"memo":"식단 미수행 · 피검사날"},{"date":"2026-03-07","kg":67.6,"memo":"식단 수행"},{"date":"2026-03-08","kg":68.0,"memo":"식단 수행"},{"date":"2026-03-10","kg":67.8,"memo":"식단 수행"},{"date":"2026-03-11","kg":67.8,"memo":"식단 수행"},{"date":"2026-03-15","kg":67.2,"memo":"식단 수행"},{"date":"2026-03-16","kg":67.4,"memo":"식단 수행"},{"date":"2026-03-17","kg":67.0,"memo":"식단 수행"},{"date":"2026-04-01","kg":68.8,"memo":"식단 미수행"},{"date":"2026-04-02","kg":68.0,"memo":"식단 수행"},{"date":"2026-04-07","kg":68.2,"memo":"식단 미수행 · 그냥"},{"date":"2026-04-10","kg":67.4,"memo":"식단 미수행"},{"date":"2026-04-13","kg":68.0,"memo":"식단 미수행 · 재시작"},{"date":"2026-05-10","kg":68.2,"memo":"식단 미수행"},{"date":"2026-05-12","kg":67.8,"memo":"식단 수행"},{"date":"2026-08-04","kg":69.0,"memo":"식단 미수행"},{"date":"2026-08-05","kg":68.2,"memo":"식단 수행"}];
 var HEALTH_SEED={"labDates":["2021-02-01","2021-02-08","2021-02-22","2021-03-31","2021-05-18","2021-07-13","2021-12-29","2022-03-08","2022-05-18","2022-05-27","2022-11-22","2023-03-16","2023-07-14","2023-11-16","2024-03-16","2024-06-11","2024-10-07","2025-03-27","2025-09-18","2026-03-12","2026-09-03"],"labTypes":["응급실","입원","외래","외래","외래","외래","외래","외래","응급실","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래"],"labMeds":[{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":[],"pm":[]}],"metrics":[{"name":"HDL-콜레스테롤","func":"좋은 콜레스테롤(높을수록 유리)","low":40.0,"high":85.0,"range":"40-85","cat":"지질"},{"name":"LDL-콜레스테롤","func":"나쁜 콜레스테롤(동맥경화 위험)","low":50.0,"high":159.0,"range":"50-159","cat":"지질"},{"name":"LDH","func":"젖산탈수소효소(간·심근·조직손상)","low":238.0,"high":422.0,"range":"238-422","cat":"심장"},{"name":"Triglyceride","func":"중성지방","low":35.0,"high":199.9,"range":"35-199.9","cat":"지질"},{"name":"AST(SGOT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Glucose(Quant)","func":"포도당","low":74.0,"high":106.0,"range":"74-106","cat":"대사·당"},{"name":"BUN","func":"혈액요소질소(신장)","low":7.0,"high":23.0,"range":"7-23","cat":"신장"},{"name":"Creatine (Serum)","func":"크레아티닌 · 신장 기능","low":0.7,"high":1.44,"range":"0.7-1.44","cat":"신장"},{"name":"eGFR","func":"추정 사구체여과율 · 신장 기능","low":null,"high":null,"range":"","cat":"신장"},{"name":"Uric Acid (Serum)","func":"요산(통풍·신장)","low":3.5,"high":7.2,"range":"3.5-7.2","cat":"신장"},{"name":"Total 콜레스테롤","func":"총 콜레스테롤","low":130.0,"high":239.9,"range":"130-239.9","cat":"지질"},{"name":"ALT(SGPT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Trpopin T (HS)","func":"심근경색","low":0.0,"high":0.014,"range":"0-0.014","cat":"심장"},{"name":"CK-MB","func":"흉통, 심근경색","low":0.0,"high":4.87,"range":"0-4.87","cat":"심장"},{"name":"NT Pro BNP","func":"심부전 지표(심장 부담)","low":0.0,"high":125.0,"range":"0-125","cat":"심장"},{"name":"Na (Serum)","func":"나트륨","low":136.0,"high":146.0,"range":"136-146","cat":"전해질"},{"name":"K (Serum)","func":"칼륨","low":3.5,"high":5.1,"range":"3.5-5.1","cat":"전해질"},{"name":"CI","func":"염소(전해질)","low":98.0,"high":107.0,"range":"98-107","cat":"전해질"},{"name":"HbA1c","func":"당화혈색소","low":4.0,"high":6.0,"range":"4.0-6.0","cat":"대사·당"},{"name":"Total Ca (Serum)","func":"칼슘","low":8.8,"high":10.6,"range":"8.8-10.6","cat":"전해질"},{"name":"CRP(Quant HS)","func":"염증상태","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Total Protein","func":"총 단백질","low":6.6,"high":8.3,"range":"6.6-8.3","cat":"간"},{"name":"Albumin","func":"알부민(영양·간)","low":3.5,"high":5.2,"range":"3.5-5.2","cat":"간"},{"name":"CPK","func":"크레아틴키나제(근육·심장 부하)","low":43.0,"high":198.0,"range":"43-198","cat":"심장"},{"name":"P (Serum)","func":"인(혈중 인산염)","low":2.5,"high":4.5,"range":"2.5-4.5","cat":"전해질"},{"name":"Mg (Serum)","func":"마그네슘","low":0.73,"high":1.06,"range":"0.73-1.06","cat":"전해질"},{"name":"C-peptide(120min)","func":"식후 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"C-peptide(Basal)","func":"공복 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"Glucose (PP2)","func":"식후 2시간 혈당","low":85.0,"high":120.0,"range":"85-120","cat":"대사·당"},{"name":"UA(7종) & Image Micro","func":"소변검사 종합 패널","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"Osmolality","func":"혈액 삼투질농도(수분·전해질 균형)","low":275.0,"high":295.0,"range":"275-295","cat":"전해질"},{"name":"Total Bilirubin","func":"총 빌리루빈(간·황달)","low":0.3,"high":1.4,"range":"0.3-1.4","cat":"간"},{"name":"Amylase","func":"아밀라제(췌장)","low":22.0,"high":80.0,"range":"22-80","cat":"간"},{"name":"CRP(Quant)","func":"감염","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Lactic Acid","func":"젖산(조직 산소부족)","low":0.5,"high":2.2,"range":"0.5-2.2","cat":"전해질"},{"name":"Total IgE(RIA)","func":"총 면역글로불린E(알레르기)","low":0.0,"high":100.0,"range":"0-100","cat":"염증·면역"},{"name":"UA SG","func":"소변 비중(농축 정도)","low":1.005,"high":1.03,"range":"1.005-1.030","cat":"소변(UA)"},{"name":"UA pH","func":"소변 산성도","low":5.0,"high":8.0,"range":"5.0-8.0","cat":"소변(UA)"},{"name":"UA Glucose","func":"요당(소변 속 포도당)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Bilirubin","func":"소변 빌리루빈(간·담도)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Ketone","func":"소변 케톤체(지방 대사)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Protein","func":"요단백(신장 손상 지표)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Urobilinogen","func":"소변 유로빌리노겐(간 기능)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Nitrite","func":"소변 아질산염(요로감염)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA WBC","func":"소변 백혈구(요로 염증·감염)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"UMicro R.B.C","func":"소변 적혈구(혈뇨)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"CBC[G]","func":"전혈구계산(CBC) 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"Hb(Colorimetry)","func":"혈색소(빈혈)","low":13.0,"high":17.0,"range":"13-17","cat":"혈액(CBC)"},{"name":"Hct","func":"적혈구용적률","low":39.0,"high":51.0,"range":"39-51","cat":"혈액(CBC)"},{"name":"RBC Court","func":"적혈구 수","low":4.2,"high":5.9,"range":"4.2-5.9","cat":"혈액(CBC)"},{"name":"MCV","func":"평균 적혈구 용적","low":80.0,"high":100.0,"range":"80-100","cat":"혈액(CBC)"},{"name":"MCH","func":"평균 적혈구 혈색소량","low":25.0,"high":34.0,"range":"25-34","cat":"혈액(CBC)"},{"name":"MCHC","func":"평균 적혈구 혈색소 농도","low":31.5,"high":35.0,"range":"31.5-35.0","cat":"혈액(CBC)"},{"name":"WBC Count","func":"백혈구 수(감염·염증)","low":4.0,"high":10.0,"range":"4.0-10","cat":"혈액(CBC)"},{"name":"PLT Count","func":"혈소판 수(지혈)","low":150.0,"high":400.0,"range":"150-400","cat":"혈액(CBC)"},{"name":"Eosinophil Count","func":"호산구 수(알레르기·기생충)","low":0.05,"high":0.5,"range":"0.05-0.50","cat":"혈액(CBC)"},{"name":"WBC Diff.Neut","func":"호중구 분율(세균 감염 반응)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Lymp","func":"림프구 분율(바이러스·면역)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Mono","func":"단핵구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC.Diff.Eosi","func":"호산구 분율(알레르기·기생충)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Baso","func":"호염기구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC ANC","func":"절대호중구수(감염 방어력)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT & PT-STAT-Panel","func":"혈액응고 검사 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT","func":"활성화 부분트롬보플라스틴시간(응고)","low":30.7,"high":43.0,"range":"30.7-43.0","cat":"혈액(CBC)"},{"name":"PT Sec","func":"프로트롬빈 시간(초) · 응고","low":11.5,"high":14.5,"range":"11.5-14.5","cat":"혈액(CBC)"},{"name":"PT %","func":"프로트롬빈 활성도(%)","low":86.0,"high":143.0,"range":"86-143","cat":"혈액(CBC)"},{"name":"PT INR","func":"항응고 표준화 지표(INR)","low":0.8,"high":1.2,"range":"0.80-1.20","cat":"혈액(CBC)"},{"name":"ACTH(ECLIA)","func":"부신피질자극호르몬","low":7.2,"high":63.3,"range":"7.20-63.30","cat":"호르몬·내분비"},{"name":"Cortisol","func":"코르티솔(스트레스 호르몬)","low":null,"high":null,"range":"","cat":"호르몬·내분비"},{"name":"Free Cortisol","func":"유리 코르티솔","low":6.0,"high":75.0,"range":"6-75","cat":"호르몬·내분비"},{"name":"VMA(HPLC)","func":"소변 VMA(카테콜아민 대사물)","low":0.0,"high":8.0,"range":"0-8","cat":"호르몬·내분비"},{"name":"Total Metanephrine","func":"메타네프린(부신 종양 지표)","low":0.0,"high":0.8,"range":"0-0.8","cat":"호르몬·내분비"},{"name":"Epinephrine, Free","func":"에피네프린(아드레날린)","low":0.0,"high":17.0,"range":"0-17","cat":"호르몬·내분비"},{"name":"Norepinephrine, Free","func":"노르에피네프린","low":8.0,"high":79.0,"range":"8-79","cat":"호르몬·내분비"},{"name":"Lipoprotein","func":"지단백(a) · 심혈관 위험","low":0.0,"high":34.0,"range":"0-34","cat":"심장"},{"name":"Free T4(RIA)","func":"갑상선호르몬 T4","low":0.89,"high":1.79,"range":"0.89-1.79","cat":"호르몬·내분비"},{"name":"TSH(RIA)","func":"갑상선자극호르몬(TSH)","low":0.17,"high":4.05,"range":"0.17-4.05","cat":"호르몬·내분비"}],"labValues":{"HDL-콜레스테롤":[55.0,null,null,null,38.0,null,43.0,null,null,null,40.0,33.0,36.0,34.0,40.0,33.0,null,39.0,null,37.0,null],"LDL-콜레스테롤":[163.0,null,null,null,null,null,null,null,null,null,93.0,52.0,87.0,90.0,88.0,88.0,null,89.0,null,63.0,null],"LDH":[506.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Triglyceride":[155.0,null,null,null,99.0,null,82.0,null,null,null,110.0,94.0,144.0,145.0,103.0,130.0,null,90.0,null,138.0,null],"AST(SGOT)":[23.0,19.0,19.0,null,18.0,null,20.0,null,21.0,null,18.0,21.0,20.0,21.0,null,null,null,22.0,null,21.0,null],"Glucose(Quant)":[166.0,null,null,null,195.0,189.0,127.0,176.0,167.0,null,108.0,120.0,115.0,138.0,125.0,96.0,null,120.0,null,101.0,null],"BUN":[19.3,17.8,17.3,null,15.1,null,18.0,21.6,23.4,null,12.6,null,null,null,15.1,null,17.4,14.8,15.1,16.0,null],"Creatine (Serum)":[1.32,1.27,1.13,null,1.23,null,1.16,1.37,1.27,null,1.14,null,null,null,1.24,null,1.19,1.07,1.26,1.08,null],"eGFR":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,91.0,74.4,null,null],"Uric Acid (Serum)":[null,null,null,null,6.09,null,6.31,null,null,null,5.17,null,null,null,5.06,null,6.59,6.16,7.28,5.87,null],"Total 콜레스테롤":[242.0,null,null,null,144.0,null,132.0,null,null,null,152.0,97.0,134.0,138.0,147.0,133.0,null,139.0,null,111.0,null],"ALT(SGPT)":[28.0,17.0,23.0,null,25.0,null,17.0,null,20.0,null,17.0,20.0,22.0,27.0,null,null,null,29.0,null,22.0,null],"Trpopin T (HS)":[0.04,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CK-MB":[2.0,0.695,null,null,null,null,null,null,0.7,null,null,null,null,null,null,null,null,null,null,null,null],"NT Pro BNP":[1447.0,169.0,null,null,17.6,null,5.0,null,5.0,null,6.34,null,5.0,null,null,null,5.0,null,5.0,null,null],"Na (Serum)":[138.0,141.0,139.0,null,141.0,null,138.0,143.0,139.0,null,139.0,null,null,null,138.0,null,139.0,139.0,138.0,138.0,null],"K (Serum)":[4.1,3.9,3.9,null,4.7,null,4.4,4.4,4.0,null,4.6,null,null,null,4.8,null,5.0,4.8,5.3,5.1,null],"CI":[100.0,104.0,101.0,null,null,null,null,null,103.0,null,null,null,null,null,null,null,null,null,null,null,null],"HbA1c":[null,null,null,null,null,6.8,6.5,6.6,null,null,6.1,6.6,6.2,7.0,7.4,6.4,null,6.4,6.3,6.0,null],"Total Ca (Serum)":[null,9.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant HS)":[null,11.43,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.82,null,0.47,null],"Total Protein":[7.4,7.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Albumin":[4.6,4.1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CPK":[102.0,48.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"P (Serum)":[null,3.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Mg (Serum)":[null,0.9,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(120min)":[null,null,null,null,null,9.11,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(Basal)":[null,null,null,null,null,4.94,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Glucose (PP2)":[null,null,null,null,null,209.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA(7종) & Image Micro":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Osmolality":[292.0,null,null,null,null,null,null,null,295.0,null,null,null,null,null,null,null,null,null,null,null,null],"Total Bilirubin":[1.37,1.25,null,null,null,null,null,null,0.63,null,null,null,null,null,null,null,null,null,null,null,null],"Amylase":[42.0,null,null,null,null,null,null,null,40.0,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant)":[6.22,null,null,null,null,null,null,null,2.61,null,null,null,null,null,null,null,null,null,null,null,null],"Lactic Acid":[1.6,null,null,null,null,null,null,null,1.1,null,null,null,null,null,null,null,null,null,null,null,null],"Total IgE(RIA)":[null,null,null,null,null,null,null,null,null,20.5,null,null,null,null,null,null,null,null,null,null,null],"UA SG":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.034,null],"UA pH":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,5.5,null],"UA Glucose":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"3+",null],"UA Bilirubin":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Ketone":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"1+",null],"UA Protein":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Urobilinogen":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Nitrite":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA WBC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"UMicro R.B.C":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"CBC[G]":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Hb(Colorimetry)":[16.3,null,15.2,null,14.9,null,15.0,null,16.0,15.4,null,null,null,null,null,16.2,null,null,16.5,null,null],"Hct":[49.1,null,44.8,null,42.9,null,44.7,null,46.4,44.8,null,null,null,null,null,47.6,null,null,47.9,null,null],"RBC Court":[5.51,null,5.18,null,5.0,null,4.98,null,5.42,5.1,null,null,null,null,null,5.26,null,null,5.35,null,null],"MCV":[89.0,null,86.5,null,85.8,null,89.8,null,85.6,87.9,null,null,null,null,null,90.6,null,null,89.7,null,null],"MCH":[29.6,null,29.3,null,29.8,null,30.1,null,29.5,30.2,null,null,null,null,null,30.8,null,null,30.8,null,null],"MCHC":[33.3,null,33.9,null,34.7,null,33.6,null,34.5,34.3,null,null,null,null,null,34.0,null,null,34.3,null,null],"WBC Count":[10.03,null,11.37,null,7.61,null,7.93,null,1.1,7.14,null,null,null,null,null,8.99,null,null,7.35,null,null],"PLT Count":[224.0,null,295.0,null,259.0,null,249.0,null,241.0,232.0,null,null,null,null,null,212.0,null,null,228.0,null,null],"Eosinophil Count":[null,null,null,null,null,null,null,null,null,0.29,null,null,null,null,null,null,null,null,0.22,null,null],"WBC Diff.Neut":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,59.3,null,null],"WBC Diff.Lymp":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,27.2,null,null],"WBC Diff.Mono":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,9.8,null,null],"WBC.Diff.Eosi":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.0,null,null],"WBC Diff.Baso":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.7,null,null],"WBC ANC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,4359.0,null,null],"aPTT & PT-STAT-Panel":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"aPTT":[31.9,34.1,null,null,null,null,null,null,32.3,null,null,null,null,null,null,null,null,null,null,null,null],"PT Sec":[12.5,13.1,null,null,null,null,null,null,12.8,null,null,null,null,null,null,null,null,null,null,null,null],"PT %":[104.0,94.0,null,null,null,null,null,null,99.0,null,null,null,null,null,null,null,null,null,null,null,null],"PT INR":[0.97,1.04,null,null,null,null,null,null,1.0,null,null,null,null,null,null,null,null,null,null,null,null],"ACTH(ECLIA)":[null,null,null,54.06,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Cortisol":[null,null,null,19.27,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Free Cortisol":[null,100.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"VMA(HPLC)":[null,5.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Total Metanephrine":[null,0.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Epinephrine, Free":[null,13.3,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Norepinephrine, Free":[null,98.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Lipoprotein":[null,null,null,null,null,null,null,null,null,null,null,null,27.5,null,null,null,null,null,null,null,null],"Free T4(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.26,null],"TSH(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.45,null]},"weights":[{"date":"2021-02-01","kg":78.0},{"date":"2021-02-08","kg":74.0},{"date":"2021-12-29","kg":73.9},{"date":"2022-05-18","kg":73.8},{"date":"2022-11-22","kg":71.25},{"date":"2023-03-16","kg":73.4},{"date":"2023-07-14","kg":73.5},{"date":"2023-11-16","kg":74.9},{"date":"2024-03-16","kg":74.1},{"date":"2024-06-11","kg":74.5},{"date":"2025-03-27","kg":74.0},{"date":"2025-09-18","kg":74.0},{"date":"2026-03-12","kg":68.2}],"events":[],"catOrder":["심장","신장","전해질","대사·당","지질","간","염증·면역","혈액(CBC)","소변(UA)","호르몬·내분비"]};
+/* 👩 v4.45 — 엄마(고순임 · 1961년생) 2026-05-21 국가검진 1회분.
+   오산한국병원 · 종합판정 **정상B(경계) · 유질환자**(고혈압 · 이상지질혈증).
+   🔒 결과지에 **인쇄된 숫자만** 넣는다. 지질 4종(총콜레스테롤·HDL·LDL·중성지방)은
+      결과지에 「비해당」이라 지표 자체를 만들지 않았다 — 측정 안 한 것을 빈 줄로 두면
+      「쟀는데 비었다」로 읽힌다. 다음에 재면 그때 지표가 생긴다.
+   🔒 참고치는 **여성 기준**이다 — 혈색소 12.0~15.5, γ-GTP 35 이하.
+      로한의 지표(남성 기준)를 그대로 쓰면 같은 숫자가 다른 뜻이 된다. */
+var MOM_SEED={"person":{"name":"고순임","sex":"F","birth":"1961-06-01"},"height":157.1,"labDates":["2026-05-21"],"labTypes":["국가검진"],"labVisits":[""],"labMeds":[{"am":[],"pm":[]}],"weights":[{"date":"2026-05-21","kg":43}],"events":[{"id":"mom-2026-05-21","date":"2026-05-21","name":"일반건강검진 — 정상B(경계) · 유질환자","symptom":"고혈압 · 이상지질혈증 / 저체중 · 빈혈 의심 · 간기능 이상 의심","treatment":"생활습관 개선과 지속 진료. 철분이 많은 음식 + 빈혈 추적검사, 주기적 간기능검사, 신체활동 늘리기. (오산한국병원)"}],"catOrder":["계측","혈액","대사·당","신장","간"],"metrics":[{"name":"수축기혈압","func":"수축기 혈압(최고)","low":90,"high":120,"range":"90-120","cat":"계측"},{"name":"이완기혈압","func":"이완기 혈압(최저)","low":60,"high":80,"range":"60-80","cat":"계측"},{"name":"체질량지수","func":"BMI — 18.5 미만이면 저체중","low":18.5,"high":24.9,"range":"18.5-24.9","cat":"계측"},{"name":"허리둘레","func":"복부비만 기준 — 여 85 이상","low":null,"high":85,"range":"85 미만(여)","cat":"계측"},{"name":"혈색소","func":"빈혈 — 여성 기준","low":12,"high":15.5,"range":"12.0-15.5(여)","cat":"혈액"},{"name":"공복혈당","func":"당뇨 — 100 미만","low":70,"high":100,"range":"100 미만","cat":"대사·당"},{"name":"혈청크레아티닌","func":"신장 기능","low":null,"high":1.5,"range":"1.5 이하","cat":"신장"},{"name":"eGFR","func":"추정 사구체여과율 · 신장 기능","low":60,"high":null,"range":"60 이상","cat":"신장"},{"name":"AST","func":"간기능","low":null,"high":40,"range":"40 이하","cat":"간"},{"name":"ALT","func":"간기능","low":null,"high":35,"range":"35 이하","cat":"간"},{"name":"γ-GTP","func":"간·담도 — 여성 기준","low":null,"high":35,"range":"35 이하(여)","cat":"간"}],"labValues":{"수축기혈압":[120],"이완기혈압":[80],"체질량지수":[17.4],"허리둘레":[63],"혈색소":[11.8],"공복혈당":[94],"혈청크레아티닌":[0.71],"eGFR":[90],"AST":[45],"ALT":[37],"γ-GTP":[23]}};
 var SAJU_SEED={birth:{solar:'1986-05-10',lunar:'1986-04-02',gender:'M'},natal:{year:'丙寅',month:'癸巳',day:'甲寅',hour:'乙亥'},ilgan:'甲',gongmang:['子','丑'],gyeok:'식신격',daeun:{startAge:9,dir:'순행',list:[[9,'甲午'],[19,'乙未'],[29,'丙申'],[39,'丁酉'],[49,'戊戌'],[59,'己亥'],[69,'庚子'],[79,'辛丑'],[89,'壬寅'],[99,'癸卯']]}};
 /* ⚠️ **마이그레이션 함수는 둘이다.** 순서: loadState → migrateDB → (마지막에) migrateV6
    ・ migrateDB  = 독립 시드가 있는 큰 구조 (health / saju / journal / posts / activity)
@@ -11908,6 +12016,31 @@ var SAJU_SEED={birth:{solar:'1986-05-10',lunar:'1986-04-02',gender:'M'},natal:{y
    그래서 로한이 지표를 추가·수정해도 **새로고침 한 번에 사라졌다.**
    지표 추가 UI 가 없던 것도 문제였지만, 있었어도 살아남지 못했을 구조다.
    🔒 코드가 사용자 데이터를 덮어쓰지 않는다. 시드는 **없는 것만 채운다.** */
+/* 👩 v4.45 — 엄마 칸은 **처음 한 번만** 만든다.
+   🔒 undefined 일 때만 채운다 — 로한이 지우고 null 로 두면 다시 살아나지 않는다.
+      (v2.1 사고: 매 로드마다 시드를 덮어써 로한의 수정이 새로고침 한 번에 사라졌다) */
+function healthPeopleSeed(d){
+  if(!d)return;
+  d.healthPeople=d.healthPeople||{};
+  if(d.healthPeople.mom===undefined)
+    d.healthPeople.mom=JSON.parse(JSON.stringify(MOM_SEED));
+  /* 길이 정합 — 값 배열이 검사일 수와 어긋나면 다른 날짜의 값으로 읽힌다 */
+  Object.keys(d.healthPeople).forEach(function(k){
+    var H=d.healthPeople[k]; if(!H||typeof H!=='object')return;
+    H.labDates=H.labDates||[]; H.labTypes=H.labTypes||[]; H.labVisits=H.labVisits||[];
+    H.labMeds=H.labMeds||[]; H.metrics=H.metrics||[]; H.labValues=H.labValues||{};
+    H.weights=H.weights||[]; H.events=H.events||[]; H.catOrder=H.catOrder||[];
+    var n=H.labDates.length;
+    while(H.labTypes.length<n)H.labTypes.push('');
+    while(H.labVisits.length<n)H.labVisits.push('');
+    while(H.labMeds.length<n)H.labMeds.push({am:[],pm:[]});
+    H.metrics.forEach(function(m){
+      var a=H.labValues[m.name]=H.labValues[m.name]||[];
+      while(a.length<n)a.push(null);
+      if(a.length>n)a.length=n;
+    });
+  });
+}
 function healthMergeSeed(H){
   H.metrics=H.metrics||[]; H.catOrder=H.catOrder||[]; H.labValues=H.labValues||{};
   var have={}; H.metrics.forEach(function(m){have[m.name]=1;});
@@ -11929,7 +12062,7 @@ function healthMergeSeed(H){
     if(a.length>n)a.length=n;
   });
 }
-function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health)healthMergeSeed(d.health);
+function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health)healthMergeSeed(d.health); healthPeopleSeed(d);
  if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=[]; if(d&&!d.routines)d.routines=[]; if(d&&!d.checks)d.checks={}; if(d)d=migrateV6(d); if(d)d=fixDupIds(d); return d; }
 
 /* ====== 마이그레이션 ======

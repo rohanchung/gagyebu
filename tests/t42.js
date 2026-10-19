@@ -1246,8 +1246,10 @@ async function boot(st){
   ok('Y3 문법 칸이 같은 탭에 있다',
      (await p.$eval('#v-study',e=>e.textContent)).indexOf('📖 문법')>=0);
   /* ② 풀 — 조건별로 갈린다 */
-  ok('Y4 접속사 풀 = slots 갖춘 6건',(await p.evaluate(()=>stGramPool('gconj').length))===6,
-     String(await p.evaluate(()=>stGramPool('gconj').length)));
+  /* 🔒 v4.45 — 개수를 박아두면 예문이 하나 늘거나 빠질 때마다 깨진다.
+     세어야 할 것은 **개수가 아니라 자격**이다 — slots 를 갖췄고 답이 새지 않는 것만 들어온다. */
+  ok('Y4 접속사 풀은 자격을 갖춘 것만',
+     await p.evaluate(()=>{var P=stGramPool('gconj');return P.length>0&&P.every(function(x){return stGSlots(x,'conj').length>0;});}),'');
   ok('Y5 어순 풀 = 4어절 이상 7건',(await p.evaluate(()=>stGramPool('gord').length))===7,
      String(await p.evaluate(()=>stGramPool('gord').length)));
   ok('Y6 3어절은 어순 풀에서 빠진다',
@@ -1265,9 +1267,52 @@ async function boot(st){
   await p.evaluate(()=>stDrillStart('gconj',6));await p.waitForTimeout(400);
   const q=await p.evaluate(()=>{const D=ST_DRILL,x=stGramQ(D,D.i);
     return {ja:x.ja,ans:x.ans,opts:x.opts,n:D.ids.length};});
-  ok('Y11 6문항이 잡혔다',q.n===6,String(q.n));
+  /* 🔴 v4.45 — 「それでは 席に 着いて ください。（　）、…」 정답 「では」는
+     빈칸을 제대로 가려도 **정답이 문장 앞에 그대로 남는다**(어절 경계를 지키니 당연하다).
+     고르는 문제가 아니라 베끼는 문제라 풀에서 뺀다 → 6개 중 하나가 빠져 5개다. */
+  ok('Y11 답이 새는 예문을 뺀 만큼만 잡힌다',q.n===5,String(q.n));
+  ok('Y11b 🔒 답이 새는 예문은 풀에서 빠진다',
+     (await p.evaluate(()=>stGramPool('gconj').some(x=>/それでは 席に/.test(x.ja))))===false);
   ok('Y12 문제에 빈칸이 있다',q.ja.indexOf('（　）')>=0,q.ja);
   ok('Y13 🔴 정답이 문제에 안 남아 있다',q.ja.indexOf(q.ans)<0,q.ja+' / '+q.ans);
+  /* ══ 🔒 v4.45 전수 검사 — 랜덤 샘플로는 **있는지 없는지** 알 수 없다 ══
+     로한: "자꾸 일본어 학습 쪽에서 뻑이 나는거야. 확실히 대비를 해"
+     이틀 연속 같은 결함이 **다른 자리**에서 터졌다(유의표현 → 슬롯 문항).
+     둘 다 랜덤이 그 항목을 뽑을 때만 드러나서, 고친 뒤에도 **남은 자리가 있는지 몰랐다**.
+     🔒 「정답이 문제에 남으면 안 된다」는 샘플링할 이유가 없는 불변식이다.
+        모든 모드 × 모든 예문 × 모든 슬롯을 **전수로** 돈다. 그러면 한 번에 다 걸린다.
+     (gord 어순은 빈칸이 없는 모드라 제외 — 보기가 문장 토막 자체다) */
+  const leak=await p.evaluate(()=>{
+    const bad=[];
+    ST_GMODES.forEach(function(m){
+      if(m.k==='gord')return;
+      let pool=[]; try{ pool=stGramPool(m.k); }catch(e){ bad.push(m.k+' 풀 예외: '+e.message); return; }
+      pool.forEach(function(sn){
+        let items=[null];
+        if(ST_GKIND[m.k])items=stGSlots(sn,ST_GKIND[m.k]).map(function(sl){return {slot:sl};});
+        else if(m.k==='gpart')items=stGParticles(sn).map(function(c){return {cand:c};});
+        items.forEach(function(it){
+          let qq=null;
+          try{ qq=stGMkQ(sn,m.k,it); }catch(e){ bad.push(m.k+' 예외: '+e.message); return; }
+          if(!qq||qq.ja==null||qq.ans==null)return;
+          /* 🔒 한 글자 정답(조사·종조사)은 문장 어디에나 나온다 — 그 규칙이 안 맞는다 */
+          if(String(qq.ans).length<2)return;
+          if(String(qq.ja).indexOf(String(qq.ans))>=0)
+            bad.push(m.k+' | '+qq.ja+' | 답:'+qq.ans);
+        });
+      });
+    });
+    return bad;
+  });
+  ok('Y13a 🔒 전수 — 어떤 모드·어떤 예문도 정답이 문제에 남지 않는다',
+     leak.length===0, leak.slice(0,3).join(' // ')+(leak.length>3?(' 외 '+(leak.length-3)+'건'):''));
+  /* 🔒 전수가 **실제로 돌았는지**도 잰다 — 0건을 돌고 「통과」라 하면 그게 거짓이다 */
+  const swept=await p.evaluate(()=>{
+    let n=0;
+    ST_GMODES.forEach(function(m){ if(m.k==='gord')return;
+      try{ n+=stGramPool(m.k).length; }catch(e){} });
+    return n;});
+  ok('Y13b 전수가 빈 채로 통과하지 않았다',swept>=10,String(swept));
   ok('Y14 보기 4개',q.opts.length===4,JSON.stringify(q.opts));
   ok('Y15 보기에 정답이 있다',q.opts.indexOf(q.ans)>=0,JSON.stringify(q.opts));
   ok('Y16 보기에 중복이 없다',new Set(q.opts).size===4,JSON.stringify(q.opts));
@@ -1311,7 +1356,7 @@ async function boot(st){
   const rec=await p.evaluate(()=>DB.study.drills);
   ok('Y27 드릴 기록 1건',rec.length===1,JSON.stringify(rec));
   ok('Y28 모드가 gconj 로 남는다',rec[0].mode==='gconj',JSON.stringify(rec[0]));
-  ok('Y29 문항 수가 맞다',rec[0].n===6,JSON.stringify(rec[0]));
+  ok('Y29 문항 수가 기록과 맞다',rec[0].n===q.n,JSON.stringify(rec[0])+' / 낸 문항 '+q.n);
   ok('Y30 모르겠다 수가 남는다',rec[0].dunno===1,JSON.stringify(rec[0]));
   ok('Y31 결과 화면이 뜬다',
      (await p.$eval('#v-study',e=>e.textContent)).indexOf('결과')>=0);
