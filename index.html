@@ -2417,7 +2417,40 @@ function cardCycleList(name){
    🔒 미결제는 '아직 안 낸 돈'이다. 이미 낸 회차는 부채가 아니다. txnOwed() 가 그 답을 이미 안다. */
 function cardPendingByCard(){var m={};DB.transactions.forEach(function(t){if(t.card&&t.type==='expense'&&txnIsCredit(t))m[t.method]=(m[t.method]||0)+txnOwed(t);});return m;}
 function cardPending(){var m=cardPendingByCard(),s=0;for(var k in m)s+=m[k];return s;}
-function totalDebt(){return DB.debts.reduce(function(s,d){return s+d.balance},0)+cardPending();}
+/* ══════ 💳 v4.46 — 부채 잔액은 **거래에서 나온다** ══════
+   🔴 [결함] 로한: "두 달째 빚을 갚고 있는데 계좌·채무 페이지랑 현황판의 부채 금액이 변동이 없다"
+      맞다. **거래와 부채가 이어져 있지 않았다** — debtId 를 쓰는 코드가 0건이었고,
+      balance 는 saveDebt() 에서 **손으로 넣은 값**만 들어갔다.
+      가계부에 상환을 아무리 적어도 부채는 영원히 그대로였다.
+      게다가 bankSchedule 도 그 balance 를 시작점으로 매번 새로 그려서,
+      **「아직 한 번도 안 갚은 상태」의 표**를 계속 보여주고 있었다.
+   🔒 잔액은 **파생이다.** 저장하지 않는다 — 계좌 잔액과 같은 이치다.
+      principal0(상환 시작 시점 원금) 에서 갚은 원금을 뺀다.
+   🔒 잔액을 묻는 함수는 **debtBalance 하나**다. 화면마다 따로 세면 반드시 어긋난다(원칙 2).
+   ⚠️ debts[].balance 는 더 이상 읽지 않는다 — 마이그레이션이 principal0 로 옮긴다.
+      칸을 지우지는 않는다(옛 백업을 복원할 때 필요하다). */
+function debtOrigin(d){
+  if(!d)return 0;
+  return (+d.principal0||0)||(+d.balance||0);
+}
+/* 그 부채에 묶인 거래가 갚은 **원금** 합계. 이자는 빚을 줄이지 않는다 */
+function debtPaid(id){
+  return (DB.transactions||[]).reduce(function(s,t){
+    if(!t||t.debtId!==id)return s;
+    return s+(+t.debtPrin||0);
+  },0);
+}
+function debtBalance(d){
+  if(!d)return 0;
+  var v=debtOrigin(d)-debtPaid(d.id);
+  return v>0?v:0;
+}
+/* 그 부채에 묶인 거래들 — 최근 것이 앞 */
+function debtTxns(id){
+  return (DB.transactions||[]).filter(function(t){return t&&t.debtId===id;})
+    .slice().sort(function(a,b){return String(a.date)<String(b.date)?1:-1;});
+}
+function totalDebt(){return DB.debts.reduce(function(s,d){return s+debtBalance(d)},0)+cardPending();}
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function usageBy(field){var m={};DB.transactions.forEach(function(t){var k=t[field];if(k)m[k]=(m[k]||0)+1;});return m;}
 function monthTxns(m){return DB.transactions.filter(function(t){return monthOf(t.date)===m});}
@@ -2546,7 +2579,8 @@ function renderDash(){
    +'</div>'
    +'<div class="sec"><h4>자산</h4>'+gh
    +'</div>'
-   +'<div class="sec"><h4>부채</h4>'+DB.debts.map(function(d){return '<div class="row"><span>'+d.name+' <span class="mut">'+(d.rate!=null?d.rate+'%':'')+(d.schedule?' · '+d.schedule.start+'부터 상환':' · 상환일정 없음')+'</span></span><span>'+won(d.balance)+'</span></div>'}).join('')+'</div>'
+   +debtLooseHtml()
+   +'<div class="sec"><h4>부채</h4>'+DB.debts.map(function(d){return '<div class="row"><span>'+d.name+' <span class="mut">'+(d.rate!=null?d.rate+'%':'')+(d.schedule?' · '+d.schedule.start+'부터 상환':' · 상환일정 없음')+'</span></span><span>'+won(debtBalance(d))+'</span></div>'}).join('')+'</div>'
    +'<div class="sec cardbox"><h4>💳 카드 미결제</h4>'
      +(cardRows||'<div class="mut">미결제 없음</div>')
           +'</div>';
@@ -2761,7 +2795,16 @@ function renderAcct(){
   var cardHtml=DB.cards.map(function(c){var cbc=cardPendingByCard();var _post=cardEverPost(c);var p=_post?(cbc[c.name]||0):0;var lk=c.acct?' <span class="chip auto">→'+acctName(c.acct)+'</span>':' <span class="chip check">연결계좌 미설정</span>';return '<div class="row"><span>'+c.name+' <span class="chip '+c.type+'">'+(c.type==='credit'?'신용':'체크')+'</span>'+(c.type!=='credit'&&_post?' <span class="chip check">후불분 있음</span>':'')+lk+'</span><span>'+(_post?'미결제 '+won(p):'즉시결제')+' <span class="acts"><span data-editcard="'+c.id+'">수정</span><span data-delcard="'+c.id+'">삭제</span></span></span></div>'}).join('');
   var debtHtml=DB.debts.map(function(d){
     var s=d.schedule,nx=(s&&s.bank)?bankNextPay(d):null,sc=s?('거치 '+s.grace+' · 상환시작 '+s.start+' · '+s.method+(nx?(' · 다음 '+nx.date+' <b>'+won(nx.total)+'</b> (원금 '+comma(nx.principal)+'+이자 '+comma(nx.interest)+')'):(' · 월 '+won(s.monthly)))+' · 잔여 '+s.remain+'회'):'상환일정 없음(수시상환·이자만)';
-    return '<div style="border:1px solid var(--line);border-radius:8px;padding:11px;margin-bottom:8px"><div class="row" style="border-bottom:0;padding:2px 0"><b>'+d.name+'</b><span>'+won(d.balance)+'</span></div><div class="mut" style="margin-top:4px">금리 '+(d.rate!=null?d.rate+'%':'-')+' · <b>'+sc+'</b></div><div style="margin-top:6px"><button class="ghost" data-editdebt="'+d.id+'">수정</button> <button class="ghost" data-sched="'+d.id+'">'+(s?'스케줄 수정':'스케줄 추가')+'</button> <button class="ghost" data-deldebt="'+d.id+'">삭제</button></div></div>';
+    var _pd=debtPaid(d.id), _tx=debtTxns(d.id);
+    return '<div style="border:1px solid var(--line);border-radius:8px;padding:11px;margin-bottom:8px"><div class="row" style="border-bottom:0;padding:2px 0"><b>'+d.name+'</b><span>'+won(debtBalance(d))+'</span></div>'
+    /* 💳 v4.46 — 🔒 **얼마에서 얼마를 갚아 얼마가 남았는지** 적는다.
+       숫자 하나만 보여주면 그게 맞는지 틀린지 알 길이 없다. */
+    +'<div class="mut" style="font-size:10.5px;margin-top:2px">최초 '+comma(debtOrigin(d))
+      +' − 갚은 원금 <b>'+comma(_pd)+'</b>'+(_tx.length?(' ('+_tx.length+'건)'):'')
+      +' = 남은 <b>'+comma(debtBalance(d))+'</b></div>'
+    +(_tx.length?('<div class="mut" style="font-size:10px;margin-top:3px">'
+       +_tx.slice(0,4).map(function(x){return x.date+' '+comma(x.amt)+(x.debtPrin?(' <b>(원금 '+comma(x.debtPrin)+')</b>'):' (이자만)');}).join('<br>')
+       +(_tx.length>4?('<br>… 외 '+(_tx.length-4)+'건'):'')+'</div>'):'')+'<div class="mut" style="margin-top:4px">금리 '+(d.rate!=null?d.rate+'%':'-')+' · <b>'+sc+'</b></div><div style="margin-top:6px"><button class="ghost" data-editdebt="'+d.id+'">수정</button> <button class="ghost" data-sched="'+d.id+'">'+(s?'스케줄 수정':'스케줄 추가')+'</button> <button class="ghost" data-deldebt="'+d.id+'">삭제</button></div></div>';
   }).join('');
   function catRow(c){var tag=c.type==='income'?'<span class="chip auto">수입·'+(c.incType||'-')+(c.taxCode?' '+c.taxCode:'')+'</span>':(c.deductible?'<span class="chip credit">경비·'+(c.taxAccount||'-')+'</span>':'<span class="chip check">개인</span>');return '<div class="row"><span>'+c.name+' '+tag+'</span><span class="acts"><span data-editcat="'+c.id+'">수정</span><span data-delcat="'+c.id+'">삭제</span></span></div>';}
   function catGrp(title,arr){if(!arr.length)return '';return '<div class="grp"><div class="ghd"><span>'+title+'</span><span class="mut">'+arr.length+'개</span></div>'+arr.map(catRow).join('')+'</div>';}
@@ -2772,6 +2815,7 @@ function renderAcct(){
   document.getElementById('v-acct').innerHTML=''
    +'<div class="sec"><h4>계좌·자산 <button class="ghost" id="addAccBtn">+ 추가</button></h4>'+accHtml+'</div>'
    +'<div class="sec"><h4>카드 <button class="ghost" id="addCardBtn">+ 추가</button></h4>'+cardHtml+'</div>'
+   +debtLooseHtml()
    +'<div class="sec"><h4>부채 <button class="ghost" id="addDebtBtn">+ 추가</button></h4>'+debtHtml+'<div class="mut" style="margin-top:6px">대출 0~N개 가변 · 상환 스케줄은 가계부에 예정 세출로 반영(2차).</div></div>'
    +'<div class="sec"><h4>카테고리(분류) <button class="ghost" id="addCatBtn">+ 추가</button></h4>'+catHtml+'<div class="mut" style="margin-top:6px">지출 카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 세무 탭에 자동 연결.</div></div>';
 }
@@ -10850,7 +10894,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.45';
+var APP_VERSION='4.46';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -10864,6 +10908,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.46',date:'2026-10-19',note:'<b>💳 부채 잔액을 거래에서 계산한다 — 두 달째 갚아도 안 줄던 이유.</b> 🔴 로한: 「두 달째 빚을 갚고 있는데 계좌·채무 페이지랑 현황판의 부채 금액이 변동이 없다」 · <b>거래와 부채가 이어져 있지 않았다</b> — <code>debtId</code> 를 쓰는 코드가 <b>0건</b>이었고 balance 는 saveDebt 에서 <b>손으로 넣은 값</b>만 들어갔다. 가계부에 아무리 적어도 빚은 영원히 그대로였다 · 🔴 게다가 bankSchedule 이 그 balance 를 시작점으로 매번 새로 그려서 <b>「아직 한 번도 안 갚은 상태」의 표</b>를 계속 보여주고 있었다 · 🔒 <b>잔액은 파생이다. 저장하지 않는다</b> — 최초 원금(principal0) − 갚은 원금. 계좌 잔액과 같은 이치다 · 🔒 <b>잔액을 묻는 함수는 debtBalance 하나</b> — 현황판·계좌·채무·총부채가 같은 값을 본다(원칙 2) · 거래 모달에 <b>💳 빚 갚기</b> — 빚을 고르면 그 달 회차의 <b>원금을 제안</b>하고(실제 낸 돈과 다르면 고쳐 적는다), 🔒 <b>이자는 빚을 줄이지 않는다</b>(원금분만 센다) · 🔒 <b>스케줄은 최초 원금에서 그린다</b> — 현재 잔액을 넣으면 갚을 때마다 표가 앞으로 밀려 회차가 거짓이 된다 · 🔒 <b>안 묶인 상환 후보를 숨기지 않는다</b> — 이자·대출 계정과목인데 빚이 지정 안 된 거래를 현황판과 계좌·채무 <b>양쪽</b>에 띄우고 <b>왜 안 줄어드는지</b>까지 적는다. 🚫 금액이 회차와 같다고 <b>내가 추측해서 자동으로 묶지는 않는다</b> — 고르는 것은 로한이다 · 실측: 9/21 502,944(원금 448,000) + 10/19 467,906(원금 416,000) 을 묶으면 <b>20,000,000 → 19,136,000</b> · 🔒 빚을 안 고르면 칸을 만들지 않는다(빈 서랍 금지) · <b>t56 22건 신설</b> · run.sh all 통과'},
   {v:'4.45',date:'2026-10-17',note:'<b>👪 피검사를 사람별로 가른다 — 🙋 나 · 👩 엄마.</b> 로한: 「엄마 건강검진 데이터를 받았는데 상단에 나, 엄마 이런식으로 탭으로 구분해서 데이터 분리 관리」 · 🔒 <b>DB.health 는 손대지 않는다</b> — 그게 「나」고 5년치 21회분이 거기 있다. 사람을 늘리자고 기존 데이터를 옮기면 <b>그 순간이 가장 위험하다</b>(데이터 보존 P0). 늘리는 쪽만 새로 만든다(DB.healthPeople) · 🔒 <b>HP() 는 피검사 화면이 보는 사람일 뿐, 앱 전체의 주인이 아니다</b> — 달력·몸 탭·목표·EMR·진료·아고라 요약은 전부 DB.health(나)를 본다. 안 그러면 엄마 탭을 켠 순간 <b>아고라 숫자까지 엄마 것</b>이 된다(치환 44곳 중 22곳을 되돌렸다) · 🔒 <b>참고치는 사람마다 다르다</b> — 혈색소 남 13.0~16.5 / 여 12.0~15.5, γ-GTP 남 63 이하 / 여 35 이하. 탭만 가르고 지표를 공유하면 <b>남의 기준으로 읽은 거짓 숫자</b>가 된다 → metrics 도 사람마다 따로 · 🔴 <b>labFlag 가 양쪽 기준이 다 있어야만 깃발을 띄웠다</b>. 그런데 국가검진 기준은 대부분 한쪽이다(「AST 40 이하」「eGFR 60 이상」) — 그래서 <b>엄마 AST 45 가 아무 표시 없이 지나갔다</b>. 한쪽만 알아도 그쪽은 판정한다(기존 지표는 전부 양쪽이 있거나 없어서 화면이 안 바뀐다) · 👩 <b>엄마 2026-05-21 국가검진</b>(오산한국병원 · 정상B 경계 · 유질환자) 11개 지표. <b>AST 45↑ · ALT 37↑ · 체질량지수 17.4↓ · 혈색소 11.8↓</b> 가 제대로 잡힌다. 🔒 지질 4종은 결과지에 「비해당」이라 <b>지표 자체를 만들지 않았다</b> — 측정 안 한 것을 빈 줄로 두면 「쟀는데 비었다」로 읽힌다 · 🔒 시드는 <b>처음 한 번만</b>(undefined 일 때만) 채운다 — 지우고 null 로 두면 다시 안 살아난다(v2.1 사고의 반대쪽) · t33 66 → <b>82건</b>(P절 16건 — 사람이 섞이지 않는 것을 잰다) · 🔴 <b>같은 결함의 세 번째 자리를 잡았다</b> — 로한: 「자꾸 일본어 학습 쪽에서 뻑이 나는거야. 확실히 대비를 해」. v4.40 유의표현 → v4.45 슬롯 문항 → <b>조사</b>까지 전부 <b>「정답이 문제에 남아 있다」</b>였다. 「雨が 降って いました。 そこで、 タクシー（　） 帰りました」 답 「で」인데 <b>そこで 에 답이 보인다</b> · 🔒 <b>진짜 문제는 간헐성이었다</b> — 드릴 테스트가 랜덤으로 몇 개만 뽑아 봐서, 고친 뒤에도 <b>남은 자리가 있는지 알 수 없었다</b>. 🔒 「정답이 문제에 남으면 안 된다」는 <b>샘플링할 이유가 없는 불변식</b>이다 → t42 에 <b>전수 검사</b>를 넣었다(모든 모드 × 모든 예문 × 모든 슬롯). 넣자마자 조사 쪽이 걸렸다 · 🔴 <b>처음 넣은 가드는 과했다</b> — 길이를 안 보고 막았더니 멀쩡한 조사 후보 9개가 날아가 t47·t48 이 깨졌다. <b>한 글자 정답(조사·종조사)은 문장 어디에나 나온다</b>(「か」는 かいぎ·いますか 에도 있다). 같은 자를 쓴다고 같은 규칙을 대면 그게 틀린 일반화다 → <b>두 글자 이상 표현에만</b> 적용한다. ⚠️ 남은 한계: 「そこで、タクシー（　）帰りました」 답 「で」처럼 <b>다른 단어 안에 답 글자가 보이는</b> 한 글자 문항은 아직 못 거른다 — 형태소 수준 판정이 필요하다. 알고 남겨 둔다 · 🔒 가리는 자리를 <b>하나로</b> 뽑았다(stGPartMask) — 자격 판정과 문항 생성이 각자 가리면 그 틈으로 샌다 · 🔒 테스트에서 <b>개수를 박아둔 단언을 불변식으로</b> 바꿨다 — 예문이 하나 늘거나 빠질 때마다 깨지던 자리다 · t42 344 → <b>347건</b> · run.sh all 통과'},
   {v:'4.44',date:'2026-10-16',note:'<b>🔴 찾았다 — 가신들이 사라진 진짜 원인은 오타 한 글자였다.</b> <code>agFigure</code> 안에 <code>TONE[tone].ic</code> 가 있었다. <b>AG_TONE 의 오타</b>다 · 🔒 그 줄은 <code>tone!==plain</code> 일 때만 탄다 — v4.33(가신회의)부터 넉 달치 코드에 있었지만 <b>한 번도 안 밟혔다</b>. 모든 글의 어조가 plain 이었기 때문이다 · 💥 2026-10-16 <b>생활사가 plead(간곡히 청한다) 로 처음 쓰자</b> renderAgora 가 통째로 터졌고, innerHTML 이 <b>머리만 쓰고 멈춰</b> 회의장이 아예 안 그려졌다(자리 0 · 기록 0). 로한: 「가신들이 다 제출했는데 아무도 없잖아」 — <b>글이 없던 게 아니라 그리다 죽은 것</b>이었다 · 🔒 <b>v4.35 로 열어도 똑같이 비어 보인 이유</b>가 이것이다. 바뀐 것은 코드가 아니라 <b>데이터가 처음으로 그 길을 밟은 것</b>이다 · 🧪 재현: 로한의 실제 구조(명단 7명·rohan 없음·plead 한 건)로 띄우니 <b>pageerror 한 줄</b>로 바로 잡혔다 · 🔒 <b>테스트 픽스처가 전부 plain 이라 못 잡았다</b> — 안 밟는 길은 없는 길이 아니라 <b>안 보이는 길</b>이다. 픽스처에 plead 를 넣고(되돌리면 t54 가 즉시 터지는 것을 확인했다), 다섯 어조 × 세 상태로 캐릭터·회의장·말풍선을 전부 그려 보는 Z2절 3건을 더했다 · t54 215 → <b>218건</b> · 🔙 가설 다섯(ym/phase·다른 계정·세션 만료·저장 충돌·라이브러리 버전)은 <b>전부 틀렸다</b>. 실제 데이터로 재현한 뒤에야 한 줄로 끝났다'},
   {v:'4.43',date:'2026-10-16',note:'<b>📌 supabase-js 버전을 고정했다 — 아고라가 비어 보이던 진짜 원인.</b> 🔴 로한: 「이런 버그가 생긴적이 없는데. 오늘 업데이트 전에서부터 추론을 생각해봐」 — 맞는 지적이었고, <b>내 코드가 아니었다</b> · 스크립트 태그가 <code>supabase-js@2</code>, 즉 <b>메이저 범위</b>였다. jsDelivr 가 최신 2.x 를 매번 준다 — <b>내가 한 줄도 안 건드려도 라이브러리가 바뀌면 앱이 바뀐다</b> · 🔎 <b>대조 실험으로 확정</b>: 앱이 받던 것은 <b>2.118.0</b>. 같은 조회를 <b>2.45.4</b> 로 고정한 진단 페이지에서는 <b>글 48건이 179ms 에 그대로</b> 왔고 세션·시계도 정상이었다. <b>v4.35(어제까지 멀쩡하던 판)로 열어도 똑같이 비어 보인 것</b>이 결정적이었다 — 그 판도 @2 를 쓴다 · 🔒 <b>버전을 범위로 쓰지 않는다</b>. 올릴 때는 내가 올리고, 올린 뒤 테스트를 돌린다. 고정하지 않으면 「어제는 됐는데 오늘 안 된다」가 언제든 다시 온다 · <b>당구 앱도 같은 @2 였다</b> — 같이 고정했다. b03 주석의 「새로고침 때 불러오는 중이 안 꺼지는 결함」도 같은 뿌리였을 수 있다 · 🔒 그동안 세운 가설 넷(ym/phase 어긋남 · 다른 계정 · 세션 만료 · 저장 충돌)은 <b>전부 틀렸다</b>. 증거 없이 설명부터 만든 탓이다 — 진단 페이지로 <b>실측</b>을 받고서야 갈렸다'},
@@ -11847,7 +11892,9 @@ function bankSchedule(d){
   var rate=(d.rate||0)/100, basis=b.basis||365, n=d.schedule.remain||0;
   var ym=((b.firstYM||d.schedule.start||'')+'').split('-'); if(ym.length<2)return null;
   var y=parseInt(ym[0],10), m=parseInt(ym[1],10);
-  var prev=new Date(b.prevDate+'T00:00:00Z'), bal=d.balance, rows=[], ti=0, tp=0;
+  /* 🔒 스케줄은 **처음부터 끝까지** 한 벌이다. 시작점은 최초 원금(principal0)이어야 한다.
+     여기에 현재 잔액을 넣으면 갚을 때마다 표 전체가 앞으로 밀려 **회차가 거짓**이 된다. */
+  var prev=new Date(b.prevDate+'T00:00:00Z'), bal=debtOrigin(d), rows=[], ti=0, tp=0;
   for(var i=0;i<n;i++){
     var dt=bankPayDate(y,m,b.payDay||19);
     var days=Math.round((dt-prev)/86400000);
@@ -11860,6 +11907,37 @@ function bankSchedule(d){
     if(bal<=0)break;
   }
   return {rows:rows,totalInterest:ti,totalPay:tp};
+}
+/* 🔒 그 날짜에 **해당하는 회차**를 찾는다 — 상환 거래의 원금분을 제안하는 자리.
+   납입일은 주말이면 밀리고 로한이 하루이틀 당겨 내기도 한다(10/19 ← 예정 10/21).
+   그래서 날짜가 정확히 같은 행이 아니라 **같은 달**의 행을 쓴다. */
+/* 🔒 **안 묶인 상환 후보**를 찾는다.
+   로한이 두 달 동안 갚았는데 빚이 안 줄어든 이유는 거래가 안 묶여서였다.
+   그걸 화면이 말해 줘야 한다 — 🚫 내가 추측해서 **자동으로 묶지는 않는다**.
+   금액이 회차와 같다고 그 빚이라는 보장이 없다. 고르는 것은 로한이다. */
+/* 🔒 같은 경고를 두 화면이 각자 그리면 한쪽만 고치는 날이 온다(원칙 2).
+   현황판과 계좌·채무가 **같은 함수**를 본다. */
+function debtLooseHtml(){
+  var L=debtLooseTxns(); if(!L.length)return '';
+  return '<div class="emrnotice" style="margin-bottom:10px">💳 <b>빚에 안 묶인 상환 후보가 '+L.length+'건 있다.</b>'
+    +'<div class="mut" style="font-size:10.5px;margin-top:4px">이자·대출 계정과목인데 <b>어느 빚인지 지정되지 않았다</b> — '
+    +'그래서 아무리 갚아도 잔액이 안 줄어든다. 거래를 눌러 「💳 빚 갚기」에서 골라 주면 그때부터 줄어든다.</div>'
+    +'<div class="mut" style="font-size:10px;margin-top:5px">'
+    +L.slice(0,5).map(function(x){return x.date+' '+comma(x.amt)+' · '+mdEsc(x.cat||'')+(x.memo?(' · '+mdEsc(x.memo)):'');}).join('<br>')
+    +(L.length>5?('<br>… 외 '+(L.length-5)+'건'):'')+'</div></div>';
+}
+function debtLooseTxns(){
+  var CATS=['이자비용','이자','대출상환','원금상환'];
+  return (DB.transactions||[]).filter(function(t){
+    if(!t||t.type!=='expense'||t.debtId)return false;
+    return CATS.indexOf(String(t.cat||''))>=0;
+  }).slice().sort(function(a,b){return String(a.date)<String(b.date)?1:-1;});
+}
+function bankRowOf(d,date){
+  var sc=bankSchedule(d); if(!sc)return null;
+  var ym=String(date||'').slice(0,7); if(!ym)return null;
+  for(var i=0;i<sc.rows.length;i++){ if(sc.rows[i].date.slice(0,7)===ym)return sc.rows[i]; }
+  return null;
 }
 function bankNextPay(d){var s=bankSchedule(d); if(!s)return null; var t=todayStr();
   for(var i=0;i<s.rows.length;i++){if(s.rows[i].date>=t)return s.rows[i];} return null;}
@@ -11883,7 +11961,7 @@ function computeMonthly(balance,ratePct,n,method){
 function schedModal(id){
   var d=DB.debts.filter(function(x){return x.id===id})[0];var s=d.schedule||{grace:'',start:'',method:'원금균등',remain:''};
   openModal('<div class="mtop"><h3>'+d.name+' 상환 스케줄</h3><span class="x" onclick="closeModal()">×</span></div>'
-   +'<div class="mut" style="margin-bottom:8px">잔액 '+won(d.balance)+'</div>'
+   +'<div class="mut" style="margin-bottom:8px">잔액 '+won(debtBalance(d))+'</div>'
    +'<div class="field"><label>거치기간(예: 3년·거치없음)</label><input id="s_grace" value="'+(s.grace||'')+'"></div>'
    +'<div class="field"><label>상환 시작(YYYY-MM)</label><input id="s_start" value="'+(s.start||'')+'"></div>'
    +'<div class="field"><label>상환 방식 <span class="mut">(원리금/원금균등 계산 다름)</span></label><select id="s_method" onchange="calcSched(\''+id+'\')"><option'+(s.method==='원금균등'?' selected':'')+'>원금균등</option><option'+(s.method==='원리금균등'?' selected':'')+'>원리금균등</option><option'+(s.method==='만기일시'?' selected':'')+'>만기일시</option></select></div>'
@@ -11896,14 +11974,14 @@ function schedModal(id){
 }
 function calcSched(id){
   var d=DB.debts.filter(function(x){return x.id===id})[0];
-  var res=computeMonthly(d.balance,numv('s_rate'),numv('s_remain'),document.getElementById('s_method').value);
+  var res=computeMonthly(debtBalance(d),numv('s_rate'),numv('s_remain'),document.getElementById('s_method').value);
   document.getElementById('s_out').innerHTML='월 상환액 <b>'+won(res.monthly)+'</b>';
   document.getElementById('s_note').textContent=res.note;
 }
 function saveSched(id){
   var d=DB.debts.filter(function(x){return x.id===id})[0];
   var method=document.getElementById('s_method').value,rate=numv('s_rate'),n=numv('s_remain');
-  var res=computeMonthly(d.balance,rate,n,method); d.rate=rate;
+  var res=computeMonthly(debtBalance(d),rate,n,method); d.rate=rate;
   d.schedule={grace:document.getElementById('s_grace').value,start:document.getElementById('s_start').value,method:method,monthly:res.monthly,remain:n};
   save();closeModal();renderAcct();renderDash();
 }
@@ -11989,12 +12067,15 @@ function debtModal(id){
   var d=id?DB.debts.filter(function(x){return x.id===id})[0]:{name:'',balance:'',rate:''};
   openModal('<div class="mtop"><h3>'+(id?'부채 수정':'부채 추가')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>이름</label><input id="db_name" value="'+(d.name||'')+'" placeholder="예: 신용대출 / 전세자금"></div>'
-   +'<div class="field"><label>잔액</label><input id="db_bal" value="'+(d.balance||'')+'" placeholder="0"></div>'
+   +'<div class="field"><label>최초 원금 <span class="mut">(상환 시작 시점)</span></label>'
+     +'<input id="db_bal" value="'+(debtOrigin(d)||'')+'" placeholder="0"></div>'
+   +'<div class="hint">🔒 지금 잔액은 여기 적지 않는다 — <b>갚은 거래에서 계산된다</b>. '
+     +'상환 거래를 넣을 때 이 빚을 골라 주면 그만큼 줄어든다.</div>'
    +'<div class="field"><label>금리(연 %)</label><input id="db_rate" value="'+(d.rate!=null?d.rate:'')+'" placeholder="예: 4.5"></div>'
    +'<button class="btn" onclick="saveDebt('+(id?"'"+id+"'":'null')+')">'+(id?'저장':'추가')+'</button>');
 }
-function saveDebt(id){var n=document.getElementById('db_name').value.trim();if(!n)return alert('이름을 입력하세요');if(id){var d=DB.debts.filter(function(x){return x.id===id})[0];d.name=n;d.balance=numv('db_bal');d.rate=numv('db_rate')||null;}else DB.debts.push({id:uid(),name:n,balance:numv('db_bal'),rate:numv('db_rate')||null,schedule:null});logAct((id?'부채수정':'부채추가')+' · '+n+' '+won(numv('db_bal')));save();closeModal();renderAcct();renderDash();}
-function delDebt(id){if(!confirm('삭제할까요?'))return;var _d=DB.debts.filter(function(d){return d.id===id})[0];logAct('부채삭제 · '+(_d?_d.name+' '+won(_d.balance):id));DB.debts=DB.debts.filter(function(d){return d.id!==id});save();renderAcct();renderDash();}
+function saveDebt(id){var n=document.getElementById('db_name').value.trim();if(!n)return alert('이름을 입력하세요');if(id){var d=DB.debts.filter(function(x){return x.id===id})[0];d.name=n;d.principal0=numv('db_bal');d.rate=numv('db_rate')||null;}else DB.debts.push({id:uid(),name:n,principal0:numv('db_bal'),rate:numv('db_rate')||null,schedule:null});logAct((id?'부채수정':'부채추가')+' · '+n+' '+won(numv('db_bal')));save();closeModal();renderAcct();renderDash();}
+function delDebt(id){if(!confirm('삭제할까요?'))return;var _d=DB.debts.filter(function(d){return d.id===id})[0];logAct('부채삭제 · '+(_d?_d.name+' '+won(debtBalance(_d)):id));DB.debts=DB.debts.filter(function(d){return d.id!==id});save();renderAcct();renderDash();}
 var INC_TYPES=['사업소득','근로소득','이자소득','배당소득','기타소득','연금소득'];
 var WEIGHT_IMPORT_2026=[{"date":"2026-01-01","kg":72.6,"memo":"식단 수행"},{"date":"2026-01-03","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-06","kg":72.8,"memo":"식단 수행"},{"date":"2026-01-07","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-08","kg":71.8,"memo":"식단 수행"},{"date":"2026-01-10","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-11","kg":72.6,"memo":"식단 수행"},{"date":"2026-01-12","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-13","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-14","kg":72.2,"memo":"식단 수행"},{"date":"2026-01-15","kg":71.8,"memo":"식단 수행"},{"date":"2026-01-16","kg":71.4,"memo":"식단 수행"},{"date":"2026-01-17","kg":71.6,"memo":"식단 수행"},{"date":"2026-01-20","kg":72.0,"memo":"식단 수행"},{"date":"2026-01-21","kg":71.0,"memo":"식단 수행"},{"date":"2026-01-23","kg":70.6,"memo":"식단 수행"},{"date":"2026-01-24","kg":70.4,"memo":"식단 수행"},{"date":"2026-01-25","kg":71.2,"memo":"식단 수행"},{"date":"2026-01-26","kg":70.2,"memo":"식단 수행"},{"date":"2026-01-27","kg":70.4,"memo":"식단 수행"},{"date":"2026-01-28","kg":70.2,"memo":"식단 수행"},{"date":"2026-01-29","kg":70.0,"memo":"식단 수행"},{"date":"2026-01-30","kg":69.8,"memo":"식단 수행"},{"date":"2026-01-31","kg":70.2,"memo":"식단 수행"},{"date":"2026-02-02","kg":70.4,"memo":"식단 수행"},{"date":"2026-02-03","kg":70.0,"memo":"식단 수행"},{"date":"2026-02-04","kg":70.0,"memo":"식단 수행"},{"date":"2026-02-05","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-06","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-07","kg":69.6,"memo":"식단 수행"},{"date":"2026-02-08","kg":69.4,"memo":"식단 수행"},{"date":"2026-02-09","kg":69.8,"memo":"식단 수행"},{"date":"2026-02-10","kg":69.6,"memo":"식단 수행"},{"date":"2026-02-11","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-12","kg":69.2,"memo":"식단 수행"},{"date":"2026-02-13","kg":69.2,"memo":"식단 수행"},{"date":"2026-02-20","kg":68.8,"memo":"식단 미수행 · 설 연휴"},{"date":"2026-02-21","kg":68.6,"memo":"식단 수행"},{"date":"2026-02-22","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-23","kg":69.0,"memo":"식단 수행"},{"date":"2026-02-24","kg":68.6,"memo":"식단 수행"},{"date":"2026-02-25","kg":68.2,"memo":"식단 수행"},{"date":"2026-02-26","kg":68.2,"memo":"식단 수행"},{"date":"2026-02-27","kg":67.6,"memo":"식단 수행"},{"date":"2026-02-28","kg":68.2,"memo":"식단 수행"},{"date":"2026-03-05","kg":68.0,"memo":"식단 미수행 · 피검사날"},{"date":"2026-03-07","kg":67.6,"memo":"식단 수행"},{"date":"2026-03-08","kg":68.0,"memo":"식단 수행"},{"date":"2026-03-10","kg":67.8,"memo":"식단 수행"},{"date":"2026-03-11","kg":67.8,"memo":"식단 수행"},{"date":"2026-03-15","kg":67.2,"memo":"식단 수행"},{"date":"2026-03-16","kg":67.4,"memo":"식단 수행"},{"date":"2026-03-17","kg":67.0,"memo":"식단 수행"},{"date":"2026-04-01","kg":68.8,"memo":"식단 미수행"},{"date":"2026-04-02","kg":68.0,"memo":"식단 수행"},{"date":"2026-04-07","kg":68.2,"memo":"식단 미수행 · 그냥"},{"date":"2026-04-10","kg":67.4,"memo":"식단 미수행"},{"date":"2026-04-13","kg":68.0,"memo":"식단 미수행 · 재시작"},{"date":"2026-05-10","kg":68.2,"memo":"식단 미수행"},{"date":"2026-05-12","kg":67.8,"memo":"식단 수행"},{"date":"2026-08-04","kg":69.0,"memo":"식단 미수행"},{"date":"2026-08-05","kg":68.2,"memo":"식단 수행"}];
 var HEALTH_SEED={"labDates":["2021-02-01","2021-02-08","2021-02-22","2021-03-31","2021-05-18","2021-07-13","2021-12-29","2022-03-08","2022-05-18","2022-05-27","2022-11-22","2023-03-16","2023-07-14","2023-11-16","2024-03-16","2024-06-11","2024-10-07","2025-03-27","2025-09-18","2026-03-12","2026-09-03"],"labTypes":["응급실","입원","외래","외래","외래","외래","외래","외래","응급실","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래","외래"],"labMeds":[{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙","리토바젯"],"pm":["엔트레스토","자디앙"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙 듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아모디핀","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":["딜라트렌","엔트레스토","아스피린","자디앙듀오","리토바젯"],"pm":["엔트레스토","자디앙듀오"]},{"am":[],"pm":[]}],"metrics":[{"name":"HDL-콜레스테롤","func":"좋은 콜레스테롤(높을수록 유리)","low":40.0,"high":85.0,"range":"40-85","cat":"지질"},{"name":"LDL-콜레스테롤","func":"나쁜 콜레스테롤(동맥경화 위험)","low":50.0,"high":159.0,"range":"50-159","cat":"지질"},{"name":"LDH","func":"젖산탈수소효소(간·심근·조직손상)","low":238.0,"high":422.0,"range":"238-422","cat":"심장"},{"name":"Triglyceride","func":"중성지방","low":35.0,"high":199.9,"range":"35-199.9","cat":"지질"},{"name":"AST(SGOT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Glucose(Quant)","func":"포도당","low":74.0,"high":106.0,"range":"74-106","cat":"대사·당"},{"name":"BUN","func":"혈액요소질소(신장)","low":7.0,"high":23.0,"range":"7-23","cat":"신장"},{"name":"Creatine (Serum)","func":"크레아티닌 · 신장 기능","low":0.7,"high":1.44,"range":"0.7-1.44","cat":"신장"},{"name":"eGFR","func":"추정 사구체여과율 · 신장 기능","low":null,"high":null,"range":"","cat":"신장"},{"name":"Uric Acid (Serum)","func":"요산(통풍·신장)","low":3.5,"high":7.2,"range":"3.5-7.2","cat":"신장"},{"name":"Total 콜레스테롤","func":"총 콜레스테롤","low":130.0,"high":239.9,"range":"130-239.9","cat":"지질"},{"name":"ALT(SGPT)","func":"간기능","low":3.0,"high":45.0,"range":"3-45","cat":"간"},{"name":"Trpopin T (HS)","func":"심근경색","low":0.0,"high":0.014,"range":"0-0.014","cat":"심장"},{"name":"CK-MB","func":"흉통, 심근경색","low":0.0,"high":4.87,"range":"0-4.87","cat":"심장"},{"name":"NT Pro BNP","func":"심부전 지표(심장 부담)","low":0.0,"high":125.0,"range":"0-125","cat":"심장"},{"name":"Na (Serum)","func":"나트륨","low":136.0,"high":146.0,"range":"136-146","cat":"전해질"},{"name":"K (Serum)","func":"칼륨","low":3.5,"high":5.1,"range":"3.5-5.1","cat":"전해질"},{"name":"CI","func":"염소(전해질)","low":98.0,"high":107.0,"range":"98-107","cat":"전해질"},{"name":"HbA1c","func":"당화혈색소","low":4.0,"high":6.0,"range":"4.0-6.0","cat":"대사·당"},{"name":"Total Ca (Serum)","func":"칼슘","low":8.8,"high":10.6,"range":"8.8-10.6","cat":"전해질"},{"name":"CRP(Quant HS)","func":"염증상태","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Total Protein","func":"총 단백질","low":6.6,"high":8.3,"range":"6.6-8.3","cat":"간"},{"name":"Albumin","func":"알부민(영양·간)","low":3.5,"high":5.2,"range":"3.5-5.2","cat":"간"},{"name":"CPK","func":"크레아틴키나제(근육·심장 부하)","low":43.0,"high":198.0,"range":"43-198","cat":"심장"},{"name":"P (Serum)","func":"인(혈중 인산염)","low":2.5,"high":4.5,"range":"2.5-4.5","cat":"전해질"},{"name":"Mg (Serum)","func":"마그네슘","low":0.73,"high":1.06,"range":"0.73-1.06","cat":"전해질"},{"name":"C-peptide(120min)","func":"식후 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"C-peptide(Basal)","func":"공복 인슐린 분비능","low":0.48,"high":3.3,"range":"0.48-3.30","cat":"대사·당"},{"name":"Glucose (PP2)","func":"식후 2시간 혈당","low":85.0,"high":120.0,"range":"85-120","cat":"대사·당"},{"name":"UA(7종) & Image Micro","func":"소변검사 종합 패널","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"Osmolality","func":"혈액 삼투질농도(수분·전해질 균형)","low":275.0,"high":295.0,"range":"275-295","cat":"전해질"},{"name":"Total Bilirubin","func":"총 빌리루빈(간·황달)","low":0.3,"high":1.4,"range":"0.3-1.4","cat":"간"},{"name":"Amylase","func":"아밀라제(췌장)","low":22.0,"high":80.0,"range":"22-80","cat":"간"},{"name":"CRP(Quant)","func":"감염","low":0.0,"high":5.0,"range":"0.0-5.0","cat":"염증·면역"},{"name":"Lactic Acid","func":"젖산(조직 산소부족)","low":0.5,"high":2.2,"range":"0.5-2.2","cat":"전해질"},{"name":"Total IgE(RIA)","func":"총 면역글로불린E(알레르기)","low":0.0,"high":100.0,"range":"0-100","cat":"염증·면역"},{"name":"UA SG","func":"소변 비중(농축 정도)","low":1.005,"high":1.03,"range":"1.005-1.030","cat":"소변(UA)"},{"name":"UA pH","func":"소변 산성도","low":5.0,"high":8.0,"range":"5.0-8.0","cat":"소변(UA)"},{"name":"UA Glucose","func":"요당(소변 속 포도당)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Bilirubin","func":"소변 빌리루빈(간·담도)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Ketone","func":"소변 케톤체(지방 대사)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Protein","func":"요단백(신장 손상 지표)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Urobilinogen","func":"소변 유로빌리노겐(간 기능)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA Nitrite","func":"소변 아질산염(요로감염)","low":null,"high":null,"range":"","cat":"소변(UA)"},{"name":"UA WBC","func":"소변 백혈구(요로 염증·감염)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"UMicro R.B.C","func":"소변 적혈구(혈뇨)","low":0.0,"high":4.0,"range":"0-4","cat":"소변(UA)"},{"name":"CBC[G]","func":"전혈구계산(CBC) 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"Hb(Colorimetry)","func":"혈색소(빈혈)","low":13.0,"high":17.0,"range":"13-17","cat":"혈액(CBC)"},{"name":"Hct","func":"적혈구용적률","low":39.0,"high":51.0,"range":"39-51","cat":"혈액(CBC)"},{"name":"RBC Court","func":"적혈구 수","low":4.2,"high":5.9,"range":"4.2-5.9","cat":"혈액(CBC)"},{"name":"MCV","func":"평균 적혈구 용적","low":80.0,"high":100.0,"range":"80-100","cat":"혈액(CBC)"},{"name":"MCH","func":"평균 적혈구 혈색소량","low":25.0,"high":34.0,"range":"25-34","cat":"혈액(CBC)"},{"name":"MCHC","func":"평균 적혈구 혈색소 농도","low":31.5,"high":35.0,"range":"31.5-35.0","cat":"혈액(CBC)"},{"name":"WBC Count","func":"백혈구 수(감염·염증)","low":4.0,"high":10.0,"range":"4.0-10","cat":"혈액(CBC)"},{"name":"PLT Count","func":"혈소판 수(지혈)","low":150.0,"high":400.0,"range":"150-400","cat":"혈액(CBC)"},{"name":"Eosinophil Count","func":"호산구 수(알레르기·기생충)","low":0.05,"high":0.5,"range":"0.05-0.50","cat":"혈액(CBC)"},{"name":"WBC Diff.Neut","func":"호중구 분율(세균 감염 반응)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Lymp","func":"림프구 분율(바이러스·면역)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Mono","func":"단핵구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC.Diff.Eosi","func":"호산구 분율(알레르기·기생충)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC Diff.Baso","func":"호염기구 분율","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"WBC ANC","func":"절대호중구수(감염 방어력)","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT & PT-STAT-Panel","func":"혈액응고 검사 패널","low":null,"high":null,"range":"","cat":"혈액(CBC)"},{"name":"aPTT","func":"활성화 부분트롬보플라스틴시간(응고)","low":30.7,"high":43.0,"range":"30.7-43.0","cat":"혈액(CBC)"},{"name":"PT Sec","func":"프로트롬빈 시간(초) · 응고","low":11.5,"high":14.5,"range":"11.5-14.5","cat":"혈액(CBC)"},{"name":"PT %","func":"프로트롬빈 활성도(%)","low":86.0,"high":143.0,"range":"86-143","cat":"혈액(CBC)"},{"name":"PT INR","func":"항응고 표준화 지표(INR)","low":0.8,"high":1.2,"range":"0.80-1.20","cat":"혈액(CBC)"},{"name":"ACTH(ECLIA)","func":"부신피질자극호르몬","low":7.2,"high":63.3,"range":"7.20-63.30","cat":"호르몬·내분비"},{"name":"Cortisol","func":"코르티솔(스트레스 호르몬)","low":null,"high":null,"range":"","cat":"호르몬·내분비"},{"name":"Free Cortisol","func":"유리 코르티솔","low":6.0,"high":75.0,"range":"6-75","cat":"호르몬·내분비"},{"name":"VMA(HPLC)","func":"소변 VMA(카테콜아민 대사물)","low":0.0,"high":8.0,"range":"0-8","cat":"호르몬·내분비"},{"name":"Total Metanephrine","func":"메타네프린(부신 종양 지표)","low":0.0,"high":0.8,"range":"0-0.8","cat":"호르몬·내분비"},{"name":"Epinephrine, Free","func":"에피네프린(아드레날린)","low":0.0,"high":17.0,"range":"0-17","cat":"호르몬·내분비"},{"name":"Norepinephrine, Free","func":"노르에피네프린","low":8.0,"high":79.0,"range":"8-79","cat":"호르몬·내분비"},{"name":"Lipoprotein","func":"지단백(a) · 심혈관 위험","low":0.0,"high":34.0,"range":"0-34","cat":"심장"},{"name":"Free T4(RIA)","func":"갑상선호르몬 T4","low":0.89,"high":1.79,"range":"0.89-1.79","cat":"호르몬·내분비"},{"name":"TSH(RIA)","func":"갑상선자극호르몬(TSH)","low":0.17,"high":4.05,"range":"0.17-4.05","cat":"호르몬·내분비"}],"labValues":{"HDL-콜레스테롤":[55.0,null,null,null,38.0,null,43.0,null,null,null,40.0,33.0,36.0,34.0,40.0,33.0,null,39.0,null,37.0,null],"LDL-콜레스테롤":[163.0,null,null,null,null,null,null,null,null,null,93.0,52.0,87.0,90.0,88.0,88.0,null,89.0,null,63.0,null],"LDH":[506.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Triglyceride":[155.0,null,null,null,99.0,null,82.0,null,null,null,110.0,94.0,144.0,145.0,103.0,130.0,null,90.0,null,138.0,null],"AST(SGOT)":[23.0,19.0,19.0,null,18.0,null,20.0,null,21.0,null,18.0,21.0,20.0,21.0,null,null,null,22.0,null,21.0,null],"Glucose(Quant)":[166.0,null,null,null,195.0,189.0,127.0,176.0,167.0,null,108.0,120.0,115.0,138.0,125.0,96.0,null,120.0,null,101.0,null],"BUN":[19.3,17.8,17.3,null,15.1,null,18.0,21.6,23.4,null,12.6,null,null,null,15.1,null,17.4,14.8,15.1,16.0,null],"Creatine (Serum)":[1.32,1.27,1.13,null,1.23,null,1.16,1.37,1.27,null,1.14,null,null,null,1.24,null,1.19,1.07,1.26,1.08,null],"eGFR":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,91.0,74.4,null,null],"Uric Acid (Serum)":[null,null,null,null,6.09,null,6.31,null,null,null,5.17,null,null,null,5.06,null,6.59,6.16,7.28,5.87,null],"Total 콜레스테롤":[242.0,null,null,null,144.0,null,132.0,null,null,null,152.0,97.0,134.0,138.0,147.0,133.0,null,139.0,null,111.0,null],"ALT(SGPT)":[28.0,17.0,23.0,null,25.0,null,17.0,null,20.0,null,17.0,20.0,22.0,27.0,null,null,null,29.0,null,22.0,null],"Trpopin T (HS)":[0.04,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CK-MB":[2.0,0.695,null,null,null,null,null,null,0.7,null,null,null,null,null,null,null,null,null,null,null,null],"NT Pro BNP":[1447.0,169.0,null,null,17.6,null,5.0,null,5.0,null,6.34,null,5.0,null,null,null,5.0,null,5.0,null,null],"Na (Serum)":[138.0,141.0,139.0,null,141.0,null,138.0,143.0,139.0,null,139.0,null,null,null,138.0,null,139.0,139.0,138.0,138.0,null],"K (Serum)":[4.1,3.9,3.9,null,4.7,null,4.4,4.4,4.0,null,4.6,null,null,null,4.8,null,5.0,4.8,5.3,5.1,null],"CI":[100.0,104.0,101.0,null,null,null,null,null,103.0,null,null,null,null,null,null,null,null,null,null,null,null],"HbA1c":[null,null,null,null,null,6.8,6.5,6.6,null,null,6.1,6.6,6.2,7.0,7.4,6.4,null,6.4,6.3,6.0,null],"Total Ca (Serum)":[null,9.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant HS)":[null,11.43,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.82,null,0.47,null],"Total Protein":[7.4,7.2,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Albumin":[4.6,4.1,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"CPK":[102.0,48.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"P (Serum)":[null,3.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Mg (Serum)":[null,0.9,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(120min)":[null,null,null,null,null,9.11,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"C-peptide(Basal)":[null,null,null,null,null,4.94,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Glucose (PP2)":[null,null,null,null,null,209.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA(7종) & Image Micro":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Osmolality":[292.0,null,null,null,null,null,null,null,295.0,null,null,null,null,null,null,null,null,null,null,null,null],"Total Bilirubin":[1.37,1.25,null,null,null,null,null,null,0.63,null,null,null,null,null,null,null,null,null,null,null,null],"Amylase":[42.0,null,null,null,null,null,null,null,40.0,null,null,null,null,null,null,null,null,null,null,null,null],"CRP(Quant)":[6.22,null,null,null,null,null,null,null,2.61,null,null,null,null,null,null,null,null,null,null,null,null],"Lactic Acid":[1.6,null,null,null,null,null,null,null,1.1,null,null,null,null,null,null,null,null,null,null,null,null],"Total IgE(RIA)":[null,null,null,null,null,null,null,null,null,20.5,null,null,null,null,null,null,null,null,null,null,null],"UA SG":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.034,null],"UA pH":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,5.5,null],"UA Glucose":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"3+",null],"UA Bilirubin":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Ketone":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"1+",null],"UA Protein":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Urobilinogen":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA Nitrite":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"UA WBC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"UMicro R.B.C":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"0-4",null],"CBC[G]":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Hb(Colorimetry)":[16.3,null,15.2,null,14.9,null,15.0,null,16.0,15.4,null,null,null,null,null,16.2,null,null,16.5,null,null],"Hct":[49.1,null,44.8,null,42.9,null,44.7,null,46.4,44.8,null,null,null,null,null,47.6,null,null,47.9,null,null],"RBC Court":[5.51,null,5.18,null,5.0,null,4.98,null,5.42,5.1,null,null,null,null,null,5.26,null,null,5.35,null,null],"MCV":[89.0,null,86.5,null,85.8,null,89.8,null,85.6,87.9,null,null,null,null,null,90.6,null,null,89.7,null,null],"MCH":[29.6,null,29.3,null,29.8,null,30.1,null,29.5,30.2,null,null,null,null,null,30.8,null,null,30.8,null,null],"MCHC":[33.3,null,33.9,null,34.7,null,33.6,null,34.5,34.3,null,null,null,null,null,34.0,null,null,34.3,null,null],"WBC Count":[10.03,null,11.37,null,7.61,null,7.93,null,1.1,7.14,null,null,null,null,null,8.99,null,null,7.35,null,null],"PLT Count":[224.0,null,295.0,null,259.0,null,249.0,null,241.0,232.0,null,null,null,null,null,212.0,null,null,228.0,null,null],"Eosinophil Count":[null,null,null,null,null,null,null,null,null,0.29,null,null,null,null,null,null,null,null,0.22,null,null],"WBC Diff.Neut":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,59.3,null,null],"WBC Diff.Lymp":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,27.2,null,null],"WBC Diff.Mono":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,9.8,null,null],"WBC.Diff.Eosi":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.0,null,null],"WBC Diff.Baso":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,0.7,null,null],"WBC ANC":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,4359.0,null,null],"aPTT & PT-STAT-Panel":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"aPTT":[31.9,34.1,null,null,null,null,null,null,32.3,null,null,null,null,null,null,null,null,null,null,null,null],"PT Sec":[12.5,13.1,null,null,null,null,null,null,12.8,null,null,null,null,null,null,null,null,null,null,null,null],"PT %":[104.0,94.0,null,null,null,null,null,null,99.0,null,null,null,null,null,null,null,null,null,null,null,null],"PT INR":[0.97,1.04,null,null,null,null,null,null,1.0,null,null,null,null,null,null,null,null,null,null,null,null],"ACTH(ECLIA)":[null,null,null,54.06,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Cortisol":[null,null,null,19.27,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Free Cortisol":[null,100.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"VMA(HPLC)":[null,5.7,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Total Metanephrine":[null,0.8,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Epinephrine, Free":[null,13.3,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Norepinephrine, Free":[null,98.0,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],"Lipoprotein":[null,null,null,null,null,null,null,null,null,null,null,null,27.5,null,null,null,null,null,null,null,null],"Free T4(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,1.26,null],"TSH(RIA)":[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,3.45,null]},"weights":[{"date":"2021-02-01","kg":78.0},{"date":"2021-02-08","kg":74.0},{"date":"2021-12-29","kg":73.9},{"date":"2022-05-18","kg":73.8},{"date":"2022-11-22","kg":71.25},{"date":"2023-03-16","kg":73.4},{"date":"2023-07-14","kg":73.5},{"date":"2023-11-16","kg":74.9},{"date":"2024-03-16","kg":74.1},{"date":"2024-06-11","kg":74.5},{"date":"2025-03-27","kg":74.0},{"date":"2025-09-18","kg":74.0},{"date":"2026-03-12","kg":68.2}],"events":[],"catOrder":["심장","신장","전해질","대사·당","지질","간","염증·면역","혈액(CBC)","소변(UA)","호르몬·내분비"]};
@@ -12351,6 +12432,14 @@ function migrateV6(d){
     });
     d.actTzFixed=1;
   }
+  /* 💳 v4.46 — 부채 잔액이 파생이 됐다. 저장돼 있던 balance 는 **상환 시작 시점 원금**이다
+     (스케줄이 그 값을 시작점으로 그리고 있었으니, 그것이 곧 최초 원금이다).
+     🔒 멱등하다 — principal0 가 이미 있으면 건드리지 않는다.
+     🔒 balance 칸은 **지우지 않는다**. 옛 백업을 복원할 때 되살릴 근거가 된다. */
+  (d.debts||[]).forEach(function(x){
+    if(!x||typeof x!=='object')return;
+    if(x.principal0==null)x.principal0=(+x.balance||0);
+  });
   if(!d.ui||typeof d.ui!=='object')d.ui={};
   if(!d.ui.month)d.ui.month=todayStr().slice(0,7);
   if(!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점'];
@@ -12448,6 +12537,18 @@ function txnModal(id){
    +'<div class="field" id="incomeOnly" style="display:'+(isInc?'block':'none')+'"><label>소득구분 <span class="mut">(종합소득세 연동)</span></label><div id="fIncInfo" class="autoNote" style="margin-top:0"></div></div>'
    /* ── 결제수단 · 계좌 ── */
    +'<div class="field" id="methodField" style="display:'+(isInc?'none':'block')+'"><label>결제수단</label><select id="fMethod" onchange="methodChange()">'+methOpts+'</select></div>'
+   /* 💳 v4.46 — 🔒 이 거래가 어느 빚을 갚은 것인지 **여기서** 묶는다.
+      안 묶으면 가계부엔 남고 빚은 그대로다 — 두 달 동안 그랬다. */
+   +'<div class="field" id="debtField" style="display:'+((isInc||isTr)?'none':'block')+'">'
+     +'<label>💳 빚 갚기 <span class="mut">(고르면 그만큼 빚이 줄어든다)</span></label>'
+     +'<select id="fDebt" onchange="debtPick()">'
+       +'<option value="">해당 없음</option>'
+       +(DB.debts||[]).map(function(dd){return '<option value="'+dd.id+'"'+((t.debtId===dd.id)?' selected':'')+'>'+mdEsc(dd.name)+' · 남은 '+won(debtBalance(dd))+'</option>';}).join('')
+     +'</select>'
+     +'<div id="debtPrinWrap" style="display:'+(t.debtId?'block':'none')+';margin-top:7px">'
+       +'<label>그중 <b>원금</b> <span class="mut">(이자는 빚을 줄이지 않는다)</span></label>'
+       +'<input id="fDebtPrin" value="'+(t.debtPrin!=null?t.debtPrin:'')+'" placeholder="0">'
+       +'<div class="hint" id="debtHint"></div></div></div>'
    +'<div class="field" id="acctField"><label id="acctLabel">'+(isInc?'입금계좌':'출금계좌')+'</label><select id="fAcct">'+cashOpts(defAcct)+'</select></div>'
    +'<div id="acctNote" class="autoNote" style="margin-top:0;display:none"></div>'
    +'<div class="field" id="payKindField" style="display:none"><label>결제 성격 <span class="mut">이 건은 언제 통장에서 빠지나</span></label>'
@@ -12688,6 +12789,27 @@ function selOpt(sel,val){
   for(var i=0;i<sel.options.length;i++)if(sel.options[i].value===val||sel.options[i].text===val){sel.selectedIndex=i;return true;}
   return false;
 }
+/* 🔒 제안일 뿐이다 — 로한이 고쳐 쓸 수 있어야 한다. 실제로 낸 돈이 스케줄과 다를 수 있다 */
+function debtPick(){
+  var sel=document.getElementById('fDebt'), wrap=document.getElementById('debtPrinWrap');
+  var inp=document.getElementById('fDebtPrin'), hint=document.getElementById('debtHint');
+  if(!sel||!wrap)return;
+  var id=sel.value;
+  wrap.style.display=id?'block':'none';
+  if(!id){ if(inp)inp.value=''; return; }
+  var d=(DB.debts||[]).filter(function(x){return x.id===id;})[0]; if(!d)return;
+  var date=(document.getElementById('fDate')||{}).value||todayStr();
+  var amt=parseFloat(((document.getElementById('fAmt')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+  var row=bankRowOf(d,date);
+  if(hint){
+    hint.innerHTML = row
+      ? ('🏦 '+row.date+' 회차: 원금 <b>'+comma(row.principal)+'</b> + 이자 '+comma(row.interest)+' = '+comma(row.total)
+         +(amt&&amt!==row.total?(' · <b>실제 낸 돈 '+comma(amt)+'</b> — 다르면 원금을 고쳐 적어라'):''))
+      : (d.schedule?'이 달에 해당하는 회차가 스케줄에 없다 — 원금을 직접 적어라'
+                   :'상환일정이 없는 빚이다. <b>이자만 냈으면 원금은 0</b>, 원금을 갚았으면 그 금액을 적어라');
+  }
+  if(inp&&!inp.value)inp.value=row?row.principal:0;
+}
 function saveTxn(id){
   var amt=parseFloat((document.getElementById('fAmt').value||'').replace(/[^0-9.]/g,'')),date=document.getElementById('fDate').value.trim();
   if(isNaN(amt)||!date)return alert('금액과 날짜 입력');
@@ -12712,6 +12834,12 @@ function saveTxn(id){
   else if(cardObj)acct=undefined;
   else acct=acctEl?acctEl.value:undefined; // 현금·이체
   var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
+  /* 💳 v4.46 — 어느 빚을 갚았는지. 🔒 안 고르면 **칸을 만들지 않는다**(빈 서랍 금지) */
+  var _dSel=((document.getElementById('fDebt')||{}).value||'');
+  if(_dSel&&modal._type==='expense'){
+    rec.debtId=_dSel;
+    rec.debtPrin=Math.max(0,parseFloat(((document.getElementById('fDebtPrin')||{}).value||'').replace(/[^0-9.]/g,''))||0);
+  }else{ delete rec.debtId; delete rec.debtPrin; }
   /* 🔒 카드 기본값과 같으면 저장하지 않는다 — 빈 서랍을 남기지 않고, 카드 설정을 바꿔도 따라온다 */
   /* ⚠️ undefined 를 넣으면 **키는 남는다**. 빈 서랍을 남기지 않으려면 지워야 한다 — t40-C2 가 잡았다. */
   if(cardObj&&modal._type==='expense'&&_cr!==(cardObj.type==='credit'))rec.credit=!!_cr;
