@@ -70,12 +70,23 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  const btns=await p.evaluate(()=>[...document.querySelectorAll('.gmode button')].map(x=>x.textContent));
  /* v4.30 — 문형·유의표현이 늘었다. 이 fixture 에는 그 데이터가 없으니 **off 로 그려져야** 한다.
     🔒 아예 안 그리면 "그런 드릴이 없다"로 읽힌다 — 있는데 재료가 없는 것과 다르다(빈 서랍 금지의 반대쪽) */
- ok('D1 문법 모드 6개',btns.length===6
+ /* 🔒 v4.50 — **개수를 박지 않는다.** 모드가 하나 늘 때마다 깨지는 단언은 결함을 못 잡고
+    사람을 부른다(v4.45 교훈). 「목록에 있는 모드는 전부 그려진다」가 불변식이다. */
+ ok('D1 문법 모드가 빠짐없이 그려진다',btns.length===(await p.evaluate(()=>ST_GMODES.length))
     &&['조사','접속사','부사','문형','유의표현','문장'].every(k=>btns.some(t=>t.includes(k))),JSON.stringify(btns));
  const offb=await p.evaluate(()=>[...document.querySelectorAll('.gmode button')]
    .filter(x=>x.disabled).map(x=>x.textContent));
- ok('D1b 재료 없는 문형·유의표현은 눌리지 않는다',offb.length===2
-    &&offb.some(t=>t.includes('문형'))&&offb.some(t=>t.includes('유의표현')),JSON.stringify(offb));
+ /* 🔒 v4.50 — 개수가 아니라 **규칙**을 잰다: 문항이 0개인 모드는 전부 꺼져 있고,
+    1개라도 있는 모드는 전부 켜져 있다. 모드가 늘어도 이 단언은 그대로 유효하다. */
+ const want=await p.evaluate(()=>ST_GMODES.filter(m=>stGramItems(m.k).length===0).map(m=>m.label));
+ ok('D1b 재료 없는 모드는 눌리지 않는다 (0문항인 것 전부)',
+    offb.length===want.length&&want.every(l=>offb.some(t=>t.indexOf(l)>=0)),
+    JSON.stringify({off:offb,want:want}));
+ const onb=await p.evaluate(()=>[...document.querySelectorAll('.gmode button')]
+   .filter(x=>!x.disabled).map(x=>x.textContent));
+ ok('D1c 재료 있는 모드는 전부 눌린다',
+    onb.length===(await p.evaluate(()=>ST_GMODES.filter(m=>stGramItems(m.k).length>0).length)),
+    JSON.stringify(onb));
  for(const m of ['gpart','gadv']){
    await p.evaluate(mm=>stDrillStart(mm,2),m);await p.waitForTimeout(200);
    const view=await p.evaluate(()=>({gbl:!!document.querySelector('#v-study .gbl'),star:!!document.querySelector('#v-study .gslot'),n:document.querySelectorAll('#v-study .stdopt button').length}));

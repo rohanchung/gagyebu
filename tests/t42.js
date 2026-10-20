@@ -1571,6 +1571,302 @@ async function boot(st){
   await b.close();
  }
 
+ /* ── 📝 CTX. 문맥규정 드릴 (v4.50 · 학습방 v22·v23) ──
+    로한: *"이 문장에 내가 모르는게 없었으면 좋겠거든. … 정답을 클릭하고 다음엔 각각의 단어에
+    하이라이트 되면서 4지선다로 뜻을 물어보는거지. 사실상 문제는 1문제이지만 하부 문제까지 하면 5-6문제"*
+    🔒 픽스처는 **서버 실물**이다(x71-01·09·05). 짧게 만든 가짜로는 이 결함이 안 나온다. */
+ {
+  const CTX=[
+   {id:'x71-01',ja:'テストの けっかを 聞いて、すこし あんしん しました。',
+    ko:'시험 결과를 듣고 조금 안심했습니다.',lv:'N4',src:'b1:71',seen:0,miss:0,streak:0,lastSeen:null,
+    gloss:[{w:'テスト',ko:'시험, 테스트',base:'テスト',orig:'test'},
+           {w:'けっか',ko:'결과',unk:true,base:'けっか',kanji:'結果',wordId:'w0859'},
+           {w:'聞いて',ko:'듣다',base:'きく',note:'て형 (く→いて)',kanji:'聞く'},
+           {w:'すこし',ko:'조금',base:'すこし',kanji:'少し',wordId:'w0690'},
+           {w:'あんしん',ko:'안심',base:'あんしん',kanji:'安心',wordId:'w0595'},
+           {w:'しました',ko:'하다',base:'する',note:'ます형 과거'}],
+    slots:[{kind:'ctx',form:'noun',target:'あんしん',wordId:'w0595',
+            opts:['あんてい','せつめい','でんとう'],why:'결과를 듣고 마음이 놓였다는 뜻이라 안심.'}],
+    koOpts:['시험 설명을 듣고 조금 안심했습니다.','시험 결과를 듣고 조금 실망했습니다.',
+            '시험 결과를 말하고 조금 안심했습니다.']},
+   {id:'x71-09',ja:'ネットニュースに、わたしの クラブの かつどうが のりました。',
+    ko:'인터넷 뉴스에 우리 동아리 활동이 실렸습니다.',lv:'N4',src:'b1:71',seen:0,miss:0,streak:0,lastSeen:null,
+    gloss:[{w:'ネットニュース',ko:'인터넷 뉴스',base:'ネットニュース',orig:'net + news'},
+           {w:'クラブ',ko:'동아리, 클럽',base:'クラブ',orig:'club'},
+           {w:'かつどう',ko:'활동',unk:true,base:'かつどう',kanji:'活動',wordId:'w1041'},
+           {w:'のりました',ko:'실리다',base:'のる',note:'ます형 과거',kanji:'載る',wordId:'w1038'}],
+    slots:[{kind:'ctx',form:'masu-past',target:'のりました',wordId:'w1038',
+            opts:['のせました','あけました','つきました'],why:'載る는 자동사라 が가 온다.'}],
+    koOpts:['인터넷 뉴스를 보고 우리 동아리에 가입했습니다.','인터넷 뉴스에 우리 동아리 활동을 실었습니다.',
+            '인터넷 뉴스에 우리 동아리 활동이 취소되었습니다.']},
+   {id:'x71-05',ja:'いえから バスていまで とおくて、とても ふべんです。',
+    ko:'집에서 버스 정류장까지 멀어서 아주 불편합니다.',lv:'N4',src:'b1:71',seen:0,miss:0,streak:0,lastSeen:null,
+    gloss:[{w:'いえ',ko:'집',base:'いえ',kanji:'家'},
+           {w:'バスてい',ko:'버스 정류장',base:'バスてい',orig:'bus + 停',kanji:'バス停'},
+           {w:'とおくて',ko:'멀다',base:'とおい',note:'い형용사 연결',kanji:'遠い',wordId:'w0713'},
+           {w:'ふべん',ko:'불편함',base:'ふべん',kanji:'不便',wordId:'w1000'}],
+    slots:[{kind:'ctx',form:'noun',target:'ふべん',wordId:'w1000',
+            opts:['だいじ','てきとう','ねっしん'],why:'멀어서 → 불편.'}],
+    koOpts:['집에서 버스 정류장까지 가까워서 아주 편리합니다.','집에서 버스 정류장까지 멀어서 아주 즐겁습니다.',
+            '집에서 역까지 멀어서 아주 불편합니다.']}];
+  const CW=[
+   {id:'w0595',kana:'あんしん',kanji:'安心',ko:'안심',pos:'noun',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'w0859',kana:'けっか',kanji:'結果',ko:'결과',pos:'noun',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'w0690',kana:'すこし',kanji:'少し',ko:'조금',pos:'adv',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'w1041',kana:'かつどう',kanji:'活動',ko:'활동',pos:'noun',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'w1038',kana:'のる',kanji:'載る',ko:'실리다',pos:'verb',vgroup:1,homophone:true,seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'w0728',kana:'のる',kanji:'乗る',ko:'타다',pos:'verb',vgroup:1,homophone:true,seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'w0713',kana:'とおい',kanji:'遠い',ko:'멀다',pos:'adj-i',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'w1000',kana:'ふべん',kanji:'不便',ko:'불편함',pos:'noun',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx01',kana:'けいけん',kanji:'経験',ko:'경험',pos:'noun',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx02',kana:'きかい',kanji:'機会',ko:'기회',pos:'noun',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx03',kana:'せつめい',kanji:'説明',ko:'설명',pos:'noun',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx04',kana:'ゆっくり',ko:'천천히',pos:'adv',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx05',kana:'すぐ',ko:'바로',pos:'adv',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx06',kana:'たまに',ko:'때때로',pos:'adv',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx07',kana:'ちかい',kanji:'近い',ko:'가깝다',pos:'adj-i',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx08',kana:'たかい',kanji:'高い',ko:'비싸다',pos:'adj-i',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx09',kana:'ひろい',kanji:'広い',ko:'넓다',pos:'adj-i',seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx10',kana:'かえる',kanji:'帰る',ko:'돌아가다',pos:'verb',vgroup:1,seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx11',kana:'あける',kanji:'開ける',ko:'열다',pos:'verb',vgroup:2,seen:0,miss:0,streak:0,lastSeen:null},
+   {id:'wx12',kana:'つく',kanji:'着く',ko:'도착하다',pos:'verb',vgroup:1,seen:0,miss:0,streak:0,lastSeen:null}];
+  const st=BASE();
+  st.study.sents=JSON.parse(JSON.stringify(CTX));
+  st.study.words=JSON.parse(JSON.stringify(CW));
+  const {b,p,errs}=await boot(st);
+  await p.evaluate(()=>{gotoTab('study');setStTab('word');});
+  await p.waitForTimeout(350);
+  /* ① 모드가 생겼고 문항 수를 정직하게 말한다 */
+  ok('CTX1 문맥규정 모드가 있다',(await p.evaluate(()=>stGModeOK('gctx')))===true);
+  ok('CTX2 ctx 슬롯 3문항을 센다',(await p.evaluate(()=>stGramItems('gctx').length))===3);
+  ok('CTX3 시작 칸에 모드가 보인다',
+     (await p.$eval('#v-study .gmode',e=>e.textContent)).indexOf('문맥규정')>=0);
+  /* ② 🔒 문장은 가나 그대로 — 한자를 덧붙이지 않는다(v22 핵심) */
+  const q1=await p.evaluate(()=>stGMkQ(stSentById('x71-09'),'gctx',{slot:stGSlot(stSentById('x71-09'),'ctx')}));
+  ok('CTX4 빈칸이 뚫린다',q1&&q1.ja.indexOf('（　）')>=0,JSON.stringify(q1&&q1.ja));
+  ok('CTX5 🔒 정답이 문제에 남아 있지 않다',q1&&q1.ja.indexOf('のりました')<0,JSON.stringify(q1&&q1.ja));
+  ok('CTX6 보기 4개',q1&&q1.opts.length===4,JSON.stringify(q1&&q1.opts));
+  /* ③ 하부 문항 — 🔴 로한이 말한 「5-6문제」가 실제로 나오는지 */
+  const subs=await p.evaluate(()=>stCtxSubs(stSentById('x71-01'),'あんしん').map(x=>({k:x.kind,w:x.w||'',n:x.opts.length,unk:!!(x.g&&x.g.unk)})));
+  ok('CTX7 한 문장이 하부 5~6문항이 된다',subs.length>=5&&subs.length<=6,JSON.stringify(subs));
+  ok('CTX8 🔒 빈칸으로 맞힌 단어는 다시 묻지 않는다',
+     !subs.some(x=>x.w==='あんしん'),JSON.stringify(subs));
+  ok('CTX9 마지막은 문장 번역이다',subs[subs.length-1].k==='ko',JSON.stringify(subs[subs.length-1]));
+  ok('CTX10 하부도 전부 4지선다',subs.every(x=>x.n===4),JSON.stringify(subs.map(x=>x.n)));
+  /* 🔒 v4.50 — 로한: "형광펜 신경쓰지말고, 걍 내 말대로 해"
+     문장에 나온 **순서 그대로** 묻는다. unk 로 앞에 끌어오면 읽는 흐름이 끊긴다. */
+  const order=await p.evaluate(()=>{
+    const s=stSentById('x71-01');
+    const want=stCtxGloss(s).map(g=>g.w).filter(w=>w!=='あんしん');
+    const got=stCtxSubs(s,'あんしん').filter(x=>x.kind==='word').map(x=>x.w);
+    return {want:want,got:got};});
+  ok('CTX11 문장에 나온 순서 그대로 묻는다',
+     JSON.stringify(order.got)===JSON.stringify(order.want),JSON.stringify(order));
+  ok('CTX11b 묻기 전에 🖍 로 힌트를 주지 않는다',
+     (await p.evaluate(()=>{
+       const s=stSentById('x71-01'), it=stCtxSubs(s,'あんしん')[0];
+       ST_DRILL={mode:'gctx',ids:[s.id],qs:[{ans:'あんしん',ja:s.ja,opts:[],why:''}],
+         i:0,res:[{id:s.id,ok:true,my:'あんしん'}],show:true,fin:false,start:Date.now(),
+         sub:{list:[it],j:0,show:false,bad:0}};
+       const h=stCtxRun(); ST_DRILL=null; return h.indexOf('🖍')<0;}))===true);
+  /* ④ 🔴 unk 가 0개인 문장도 하부가 나온다 — 스펙 v23(unk 만)을 그대로 따르면 0이 된다 */
+  const s05=await p.evaluate(()=>({
+     unk:(stSentById('x71-05').gloss||[]).filter(g=>g.unk).length,
+     subs:stCtxSubs(stSentById('x71-05'),'ふべん').length}));
+  ok('CTX12 🔴 형광펜이 0개인 문장도 전 단어를 묻는다',s05.unk===0&&s05.subs>=3,JSON.stringify(s05));
+  /* ⑤ 🔒 전수 검사 — 모든 ctx 문장 × 모든 하부문항. 샘플링하지 않는다(v4.45 교훈) */
+  const sweep=await p.evaluate(()=>{
+    const bad=[];
+    stSents().forEach(function(s){
+      const sl=stGSlot(s,'ctx'); if(!sl)return;
+      const q=stGMkQ(s,'gctx',{slot:sl});
+      if(!q){bad.push(s.id+':문항없음');return;}
+      if(String(q.ja).indexOf(String(q.ans))>=0)bad.push(s.id+':정답이 문제에 남았다');
+      if(q.opts.length!==4)bad.push(s.id+':보기 '+q.opts.length);
+      if(new Set(q.opts).size!==4)bad.push(s.id+':보기 중복');
+      stCtxSubs(s,q.ans).forEach(function(it){
+        if(it.opts.length!==4)bad.push(s.id+'/'+(it.w||'ko')+':보기 '+it.opts.length);
+        if(new Set(it.opts).size!==4)bad.push(s.id+'/'+(it.w||'ko')+':보기 중복');
+        if(it.opts.indexOf(it.ans)<0)bad.push(s.id+'/'+(it.w||'ko')+':정답이 보기에 없다');
+        if(it.kind==='word'){
+          if(stCtxHits(s.ja,it.w)!==1)bad.push(s.id+'/'+it.w+':문장에 '+stCtxHits(s.ja,it.w)+'번');
+          const h=stCtxHl(s.ja,it.w);
+          if(h.indexOf('ghl')<0)bad.push(s.id+'/'+it.w+':칠하지 못했다');
+        }
+      });
+    });
+    return bad;});
+  ok('CTX13 🔒 전수: 정답 노출·보기 중복·하이라이트 전부 깨끗',sweep.length===0,JSON.stringify(sweep));
+  /* ⑥ 실제로 돌려본다 — 빈칸 맞히고 해설, 그다음 하부 사슬 */
+  await p.evaluate(()=>stDrillStart('gctx',3));
+  await p.waitForTimeout(350);
+  const ans=await p.evaluate(()=>stGramQ(ST_DRILL,0).ans);
+  const sid=await p.evaluate(()=>ST_DRILL.ids[ST_DRILL.i]);   /* 🔒 순서가 랜덤이다 — 읽어둔다 */
+  await p.evaluate(a=>stDrillGrade(a),ans);
+  await p.waitForTimeout(300);
+  const whyTxt=await p.$eval('#v-study .stdq',e=>e.textContent);
+  ok('CTX14 🔒 맞혀도 해설이 뜬다 (단어 분해)',whyTxt.indexOf('단어 분해')>=0,whyTxt.slice(0,90));
+  /* 🔴 보기가 활용형(のせました)이면 words(사전형 のる) 조회가 안 된다 — **그게 정상이다**.
+     드릴 순서는 랜덤이라 어느 문장이 먼저 올지 모른다 → 사전형 보기를 쓰는 문장으로 직접 단언한다. */
+  const why01=await p.evaluate(()=>stCtxWhy(stSentById('x71-01'),
+     stGMkQ(stSentById('x71-01'),'gctx',{slot:stGSlot(stSentById('x71-01'),'ctx')})));
+  ok('CTX15 보기의 뜻도 보여준다 (사전형 보기)',why01.indexOf('보기의 뜻')>=0&&why01.indexOf('설명')>=0,
+     why01.slice(0,80));
+  const why09=await p.evaluate(()=>stCtxWhy(stSentById('x71-09'),
+     stGMkQ(stSentById('x71-09'),'gctx',{slot:stGSlot(stSentById('x71-09'),'ctx')})));
+  ok('CTX15b 못 찾은 보기는 빈 줄로 남기지 않는다',why09.indexOf('보기의 뜻')<0,why09.slice(0,80));
+  ok('CTX16 다음은 「문장 점검」이다',whyTxt.indexOf('문장 점검')>=0);
+  await p.evaluate(()=>stCtxGo());await p.waitForTimeout(300);
+  ok('CTX17 점검 화면으로 들어간다',(await p.evaluate(()=>!!(ST_DRILL.sub&&ST_DRILL.sub.list.length)))===true);
+  ok('CTX18 묻는 단어가 칠해진다',(await p.$$('#v-study .ghl')).length===1);
+  /* 하부를 전부 맞힌다 → 통과 */
+  const walk=async()=>{
+    for(let k=0;k<12;k++){
+      const st=await p.evaluate(()=>{
+        const S=ST_DRILL&&ST_DRILL.sub; if(!S)return null;
+        return {j:S.j,n:S.list.length,show:!!S.show,ans:S.list[S.j]?S.list[S.j].ans:null};});
+      if(!st)return;
+      if(!st.show)await p.evaluate(a=>stCtxGrade(a),st.ans);
+      else await p.evaluate(()=>stCtxNext());
+      await p.waitForTimeout(90);
+    }
+  };
+  await walk();
+  const c1=await p.evaluate(i=>stCompOf(stSentById(i)),sid);
+  ok('CTX19 전부 맞히면 통과가 1 쌓인다',c1.streak===1&&!c1.mastered,JSON.stringify(c1));
+  ok('CTX20 통과한 날을 적어둔다 (「다른 날」을 판정하려면 필요하다)',
+     c1.last===(await p.evaluate(()=>todayStr())),JSON.stringify(c1));
+  /* ⑦ 🔒 같은 날 또 통과해도 숙달이 되지 않는다 — 「서로 다른 날 2연속」이다 */
+  const same=await p.evaluate(i=>{const s=stSentById(i);stCompMark(s,true);return stCompOf(s);},sid);
+  ok('CTX21 🔒 같은 날 두 번은 숙달이 아니다',same.streak===1&&!same.mastered,JSON.stringify(same));
+  const nextDay=await p.evaluate(i=>{
+    const s=stSentById(i); s.comp.last='2000-01-01';
+    stCompMark(s,true); return stCompOf(s);},sid);
+  ok('CTX22 다른 날 통과하면 숙달이다',nextDay.streak===2&&nextDay.mastered===true,JSON.stringify(nextDay));
+  /* ⑧ 하나라도 틀리면 연속이 끊긴다 */
+  const brk=await p.evaluate(i=>{
+    const s=stSents().filter(function(x){return x.id!==i;})[0];
+    stCompMark(s,true);stCompMark(s,false);return stCompOf(s);},sid);
+  ok('CTX23 🔒 하나라도 틀리면 0 으로 돌아간다',brk.streak===0,JSON.stringify(brk));
+  /* ⑨ 단어 카운터 — 하부 오답이 words 에 쌓인다 */
+  const wc=await p.evaluate(()=>{
+    const w=stWordById('w0859'), before=+w.miss||0;
+    stCtxWordHit({wordId:'w0859'},false);
+    return {before:before,after:+stWordById('w0859').miss||0,seen:+stWordById('w0859').seen||0};});
+  ok('CTX24 하부 오답이 단어에 쌓인다',wc.after===wc.before+1&&wc.seen>=1,JSON.stringify(wc));
+  /* ⑩ 🔒 본문항 수가 하부로 부풀지 않는다 */
+  ok('CTX25 🔒 「3문항」이면 빈칸이 3개다 (하부로 부풀리지 않는다)',
+     (await p.evaluate(()=>ST_DRILL?ST_DRILL.ids.length:-1))===3);
+  /* ⑪ 동음이의어 병기 */
+  const hom=await p.evaluate(()=>stCtxWhy(stSentById('x71-09'),stGMkQ(stSentById('x71-09'),'gctx',{slot:stGSlot(stSentById('x71-09'),'ctx')})));
+  ok('CTX26 동음이의어를 병기한다 (載る↔乗る)',hom.indexOf('乗る')>=0&&hom.indexOf('같은 소리')>=0);
+  /* ⑫ 숙달 지표 */
+  /* 🔒 드릴을 닫고 봐야 시작 칸이 나온다 — 드릴 중엔 그 화면이 판을 차지한다 */
+  await p.evaluate(()=>{ST_DRILL=null;setStTab('word');renderStudy();});await p.waitForTimeout(300);
+  const stat=await p.evaluate(()=>stCtxStat());
+  ok('CTX27 숙달 집계는 파생이다 (3문장 중 1개 숙달)',stat.n===3&&stat.mastered===1,JSON.stringify(stat));
+  ok('CTX28 화면이 숙달을 말한다',
+     (await p.$eval('#v-study',e=>e.textContent)).indexOf('문맥구성 숙달')>=0);
+  /* ⑬ 📝 로한 질문(푸쉬 전): "각 단어 별로 내가 정답 고르면 **바로 그자리에서** 정오답
+     가려내야돼. 다 선택하고 제출 하면 나오는게 아니라. 그리고 **그 오답 데이터들도 모아져야**되고"
+     🔒 ① 고르는 즉시 채점 — 제출 단추가 없다
+     🔒 ② 틀린 것은 단어은행 + 드릴 기록 **둘 다**에 남는다.
+        🔴 처음 구현은 words.miss 만 올렸다. wordId 가 없는 항목(54 중 24)은 아무데도
+           안 쌓였고, 창을 닫으면 '무엇을 틀렸는지'가 통째로 사라졌다. */
+  await p.evaluate(()=>{ST_DRILL=null;DB.study.drills=[];
+    stSents().forEach(function(x){delete x.comp;});
+    stWords().forEach(function(w){w.miss=0;w.seen=0;w.streak=0;w.lastSeen=null;});
+    stDrillStart('gctx',1);});
+  await p.waitForTimeout(300);
+  const sid2=await p.evaluate(()=>ST_DRILL.ids[0]);
+  await p.evaluate(()=>stDrillGrade(stGramQ(ST_DRILL,0).ans));
+  await p.evaluate(()=>stCtxGo());await p.waitForTimeout(250);
+  /* ① 제출 단추가 없다 — 보기를 누르기 전에는 ○/✗ 도 없다 */
+  const pre=await p.evaluate(()=>({
+    submit:/제출/.test(document.querySelector('#v-study').textContent),
+    mark:document.querySelectorAll('#v-study .stdmark').length,
+    opts:document.querySelectorAll('#v-study .stdopt button').length}));
+  ok('CTX30 제출 단추가 없다 (모아서 내지 않는다)',pre.submit===false,JSON.stringify(pre));
+  ok('CTX31 고르기 전엔 정오답 표시가 없다',pre.mark===0&&pre.opts===4,JSON.stringify(pre));
+  /* 🔴 일부러 **틀리게** 고른다 — 그 자리에서 ✗ 가 떠야 한다 */
+  const bad1=await p.evaluate(()=>{
+    const it=ST_DRILL.sub.list[0];
+    return {w:it.w,ans:it.ans,wrong:it.opts.filter(o=>o!==it.ans)[0],
+            bank:!!(it.g&&it.g.wordId),wid:(it.g||{}).wordId||''};});
+  await p.evaluate(a=>stCtxGrade(a),bad1.wrong);
+  await p.waitForTimeout(200);
+  const post=await p.evaluate(()=>({
+    mark:(document.querySelector('#v-study .stdmark')||{}).textContent||'',
+    body:document.querySelector('#v-study .stdq').textContent}));
+  ok('CTX32 🔴 고른 즉시 그 자리에서 틀렸다고 말한다',/틀림/.test(post.mark),JSON.stringify(post.mark));
+  ok('CTX33 내 답과 정답을 같이 보여준다',
+     post.body.indexOf(bad1.ans)>=0&&post.body.indexOf(bad1.wrong)>=0);
+  ok('CTX34 어디에 쌓였는지 말한다',
+     /단어은행/.test(post.body),post.body.slice(-120));
+  /* ② 단어은행 카운터 — wordId 가 있을 때만 */
+  if(bad1.bank){
+    const wc2=await p.evaluate(i=>{const w=stWordById(i);return {miss:+w.miss||0,seen:+w.seen||0,streak:+w.streak||0};},bad1.wid);
+    ok('CTX35 틀림이 단어은행에 즉시 쌓인다',wc2.miss===1&&wc2.seen===1&&wc2.streak===0,JSON.stringify(wc2));
+  }else{
+    ok('CTX35 (이 항목은 단어은행에 없다 — 기록 쪽에서 잡는다)',true);
+  }
+  /* 세션 집계가 즉시 쌓인다 */
+  const sa=await p.evaluate(()=>JSON.parse(JSON.stringify(ST_DRILL.subAll||{})));
+  ok('CTX36 세션 집계에 바로 들어간다',sa.n===1&&sa.bad===1&&sa.wrong.length===1,JSON.stringify(sa));
+  ok('CTX37 무엇을·어떻게 틀렸는지 남는다 (내 답까지)',
+     sa.wrong[0].q===bad1.w&&sa.wrong[0].ans===bad1.ans&&sa.wrong[0].my===bad1.wrong,
+     JSON.stringify(sa.wrong[0]));
+  ok('CTX38 어느 문장이었는지도 남는다',sa.wrong[0].sid===sid2,JSON.stringify(sa.wrong[0]));
+  ok('CTX39 🔒 단어은행에 없으면 그 사실을 적는다 (조용히 흘리지 않는다)',
+     bad1.bank?(sa.wrong[0].wordId===bad1.wid&&!('nobank' in sa.wrong[0]))
+              :(sa.wrong[0].nobank===true&&!('wordId' in sa.wrong[0])),JSON.stringify(sa.wrong[0]));
+  /* 나머지 하부를 전부 틀리게 밀어 끝까지 간다 */
+  for(let k=0;k<14;k++){
+    const st2=await p.evaluate(()=>{
+      const S=ST_DRILL&&ST_DRILL.sub; if(!S)return null;
+      const it=S.list[S.j];
+      return {show:!!S.show,wrong:it?it.opts.filter(o=>o!==it.ans)[0]:null};});
+    if(!st2)break;
+    if(!st2.show)await p.evaluate(a=>stCtxGrade(a),st2.wrong);
+    else await p.evaluate(()=>stCtxNext());
+    await p.waitForTimeout(80);
+  }
+  /* ③ 🔴 드릴 기록에 남는다 — 창을 닫아도 사라지지 않는다 */
+  const rec3=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
+  ok('CTX40 🔴 드릴 기록에 하부 집계가 남는다',
+     !!(rec3&&rec3.sub&&rec3.sub.n>=1&&rec3.sub.bad===rec3.sub.n),JSON.stringify(rec3&&rec3.sub));
+  ok('CTX41 🔴 틀린 항목 목록이 남는다 (오답노트 재료)',
+     !!(rec3&&rec3.subWrong&&rec3.subWrong.length===rec3.sub.bad),
+     JSON.stringify(rec3&&(rec3.subWrong||[]).map(x=>x.q)));
+  ok('CTX42 🔒 본문항 수는 하부로 부풀지 않는다 (1문항 그대로)',rec3.n===1,JSON.stringify({n:rec3.n,sub:rec3.sub}));
+  ok('CTX43 전부 틀렸으니 숙달이 아니다',
+     (await p.evaluate(i=>stCompOf(stSentById(i)).streak,sid2))===0);
+  /* ④ 화면이 하부를 말한다 */
+  await p.evaluate(()=>{ST_DRILL=null;setStTab('word');renderStudy();});
+  await p.waitForTimeout(250);
+  ok('CTX44 최근 드릴 줄이 하부도 말한다',
+     /단어 \d+\/\d+/.test(await p.$eval('#v-study',e=>e.textContent)));
+  /* ⑤ 🔒 전부 맞힌 세션에는 하부 오답 서랍을 만들지 않는다 */
+  await p.evaluate(()=>{DB.study.drills=[];stDrillStart('gctx',1);});
+  await p.waitForTimeout(250);
+  await p.evaluate(()=>stDrillGrade(stGramQ(ST_DRILL,0).ans));
+  await p.evaluate(()=>stCtxGo());await p.waitForTimeout(200);
+  for(let k=0;k<14;k++){
+    const st3=await p.evaluate(()=>{
+      const S=ST_DRILL&&ST_DRILL.sub; if(!S)return null;
+      return {show:!!S.show,ans:S.list[S.j]?S.list[S.j].ans:null};});
+    if(!st3)break;
+    if(!st3.show)await p.evaluate(a=>stCtxGrade(a),st3.ans);
+    else await p.evaluate(()=>stCtxNext());
+    await p.waitForTimeout(80);
+  }
+  const rec4=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
+  ok('CTX45 ⚠️ 다 맞히면 빈 서랍을 안 만든다',
+     !!rec4.sub&&rec4.sub.bad===0&&!('subWrong' in rec4),JSON.stringify(rec4.sub));
+  ok('CTX29 에러 0',errs.length===0,errs.join('|'));
+  await b.close();
+ }
+
  console.log(fail?('✗ 실패 '+fail+'/'+(pass+fail)+'\n  '+bad.join('\n  ')):('전부 통과 ('+pass+'건)'));
  process.exit(fail?1:0);
 })();
