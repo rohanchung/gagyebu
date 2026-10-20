@@ -284,6 +284,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .sccoach{margin-top:12px;background:var(--warn-bg);border:1px solid #f0dfae;border-radius:10px;
   padding:9px 11px;font-size:11.5px;line-height:1.55;color:#6b5412;white-space:pre-wrap}
 .scct{font-size:10px;font-weight:800;color:#8a6d16;margin-bottom:3px}
+/* ⏱ v4.48 — 연장 중 표시. 🔒 색만으로 말하지 않는다(글자로도 '연장 중') */
+.pmclock.over{color:#c2410c}
+.pmovr{font-size:10.5px;color:#c2410c;font-weight:700}
 /* v3.7 ⏱ 뽀모 전체화면 — 🔒 base 규칙부터 */
 .pomoov{position:fixed;inset:0;background:rgba(246,248,252,.97);z-index:120;display:none;
   overflow:auto;padding:22px 16px}
@@ -6019,6 +6022,13 @@ function stCalSide(ds){
 var ST_POMO_PRESETS=[[25,5],[50,10],[10,3],[15,5],[45,15]];
 var ST_POMO_TICK=null;
 
+/* 🔒 「이 단계는 몇 초인가」를 묻는 함수는 **하나**다(원칙 2).
+   같은 식이 tick·face·render 세 곳에 적혀 있었다 — 한 곳만 고치는 날이 온다. */
+function stPomoLim(r){
+  r=r||stPomoRun(); if(!r)return 0;
+  return (r.phase==='brk'?(+r.brk||0):(+r.focus||25))*60;
+}
+
 function stPomoCfg(){
   var u=(DB.ui&&DB.ui.pomo)||{};
   var f=+u.focus||25, b=(u.brk==null?5:+u.brk);
@@ -6052,7 +6062,8 @@ function stPomoOpen(ds){
 }
 function stPomoClose(){
   var r=stPomoRun();
-  if(r&&!r.done&&stPomoElapsedSec()>=60){
+  /* ⏱ v4.48 — 휴식은 기록하지 않으므로 묻는 말도 달라야 한다. 🔒 안 남는 걸 남는다고 말하지 않는다 */
+  if(r&&r.phase==='focus'&&stPomoElapsedSec()>=60){
     if(!confirm('진행 중인 뽀모가 있다. 닫으면 그때까지의 시간을 기록하고 끝낸다.'))return;
     stPomoStop();
   }else if(r){ DB.ui.pomoRun=null; save(); }
@@ -6118,20 +6129,31 @@ function stPomoLog(rec){
 function stPomoBackfill(){
   var n=0; stPomos().forEach(function(x){if(x&&!x.tl){stPomoLog(x);n++;}}); return n;
 }
-/* 집중이 끝나면 휴식으로, 휴식이 끝나면 다음 집중 대기 */
+/* ⏱ v4.48 — 🔴 [결함] 설정 시간이 지나면 **공부 중인데 혼자 휴식으로 넘어갔다.**
+   로한: 「25분으로 설정해놓으면 공부하다가 그 시간이 지나잖아? 그럼 자동으로 쉬는 시간으로 바껴.
+         <b>공부하고 있는데.</b>」
+   🔒 시간이 지난 것은 **끝난 것이 아니다.** 25분이 지나도 계속 집중이고, 그 시간도 기록에 들어간다.
+      (기록은 stPomoStop 이 **실제 경과**로 남긴다 — 넘긴 시간이 버려지지 않는다)
+   🔒 단계를 넘기는 것은 **사람이 누른다**(stPomoEnd) — 집중 종료 → 휴식, 휴식 종료 → 다음 집중.
+   🔒 소리는 **한 번만**. r.rang 로 표시한다 — 지난 뒤로도 계속 도니 매 틱마다 울면 고문이다. */
 function stPomoTick(){
   var r=stPomoRun(); if(!r||r.paused)return;
-  var lim=(r.phase==='focus'?(+r.focus||25):(+r.brk||0))*60;
-  if(lim>0&&stPomoElapsedSec()>=lim){
-    if(r.phase==='focus'){
-      stPomoStop();                 /* 기록하고 */
-      var c=stPomoCfg();
-      if(c.brk>0){ stPomoStart('brk'); stPomoBeep(); return; }
-      stPomoBeep(); stPomoRender(); return;
-    }
-    DB.ui.pomoRun=null; save(); stPomoBeep(); stPomoRender(); return;
+  var lim=stPomoLim(r);
+  if(lim>0&&!r.rang&&stPomoElapsedSec()>=lim){
+    r.rang=true; save(); stPomoBeep(); stPomoRender(); return;
   }
   stPomoFace();
+}
+/* ⏱ v4.48 — 단계를 끝낸다. 집중이면 기록하고 휴식으로, 휴식이면 다음 집중으로.
+   🔒 휴식은 기록하지 않는다 — stPomoStop 이 phase==='focus' 만 남긴다. */
+function stPomoEnd(){
+  var r=stPomoRun(); if(!r)return;
+  var ph=r.phase, c=stPomoCfg();
+  stPomoStop();                       /* 집중분을 기록하고 비운다 */
+  if(ph==='focus'){
+    if(c.brk>0){ stPomoStart('brk'); return; }   /* 휴식 0분이면 대기로 */
+  }else{ stPomoStart('focus'); return; }
+  stPomoRender();
 }
 /* 끝났다는 신호 — 🚫 알림(Notification)은 폐기됐다. 페이지 안에서 나는 소리는 다른 층이다 */
 function stPomoBeep(){
@@ -6153,9 +6175,11 @@ function stPomoMMSS(sec){
 /* 숫자만 1초마다 갈아끼운다 — 전체를 다시 그리면 입력칸이 리셋된다 */
 function stPomoFace(){
   var r=stPomoRun(); if(!r)return;
-  var lim=(r.phase==='focus'?(+r.focus||25):(+r.brk||0))*60;
+  var lim=stPomoLim(r), sec=stPomoElapsedSec();
   var el=document.getElementById('pomoClock');
-  if(el)el.textContent=stPomoMMSS(lim-stPomoElapsedSec());
+  /* ⏱ v4.48 — 지난 시간은 **+** 로 보여준다. 00:00 에서 멈춰 있으면 그것도 거짓말이다 */
+  if(el)el.textContent=(sec>lim?'+':'')+stPomoMMSS(sec>lim?sec-lim:lim-sec);
+  if(el)el.className='pmclock'+(sec>lim?' over':'');
   var ring=document.getElementById('pomoRing');
   if(ring&&lim>0){
     var pct=Math.min(100,stPomoElapsedSec()/lim*100);
@@ -6169,19 +6193,28 @@ function stPomoRender(){
   var todayMin=stPomoMinsOn(ds), n=stPomos().filter(function(x){return x.date===ds;}).length;
 
   if(r){
-    var lim=(r.phase==='focus'?(+r.focus||25):(+r.brk||0))*60;
+    var lim=stPomoLim(r), sec=stPomoElapsedSec(), over=sec>lim;
     var u=r.unitId?stUnitById(r.unitId):null;
     box.innerHTML='<div class="pmph'+(r.phase==='brk'?' brk':'')+'">'
-       +(r.phase==='brk'?'☕ 휴식':'🔥 집중')+' · '+(r.phase==='brk'?r.brk:r.focus)+'분</div>'
-     +'<div class="pmring" id="pomoRing"><div class="pmclock" id="pomoClock">'+stPomoMMSS(lim-stPomoElapsedSec())+'</div></div>'
+       +(r.phase==='brk'?'☕ 휴식':'🔥 집중')+' · '+(r.phase==='brk'?r.brk:r.focus)+'분'
+       +(over?' <span class="pmovr">+ 연장 중</span>':'')+'</div>'
+     +'<div class="pmring" id="pomoRing"><div class="pmclock'+(over?' over':'')+'" id="pomoClock">'
+       +(over?'+':'')+stPomoMMSS(over?sec-lim:lim-sec)+'</div></div>'
      +(u?'<div class="pmunit">'+mdEsc(u.title||'')+'</div>':'<div class="pmunit mut">과제 선택 없음</div>')
      +'<div class="pmbtns">'
        +(r.paused?'<button class="btn" onclick="stPomoResume()">▶ 계속</button>'
                  :'<button class="ghost" onclick="stPomoPause()">⏸ 일시정지</button>')
-       +'<button class="ghost" onclick="stPomoStop()">■ 끝내고 기록</button></div>'
+       /* ⏱ v4.48 — 단계를 넘기는 단추. 🔒 저절로 넘어가지 않는다 */
+       +(r.phase==='brk'
+          ?'<button class="btn" onclick="stPomoEnd()">■ 휴식 종료 · 뽀모 시작</button>'
+          :'<button class="btn" onclick="stPomoEnd()">■ 뽀모 종료'+((+r.brk||0)>0?' · 휴식 시작':' (기록)')+'</button>')
+       +'</div>'
      +'<div class="mut" style="font-size:10.5px;margin-top:10px">'
        +(r.paused?'멈춤 상태다. ':'')
-       +'🔒 화면을 벗어나도 시간은 정확하다 — 시작 시각으로 계산한다.</div>';
+       +(r.phase==='brk'
+          ?'🔒 쉬는 시간이 지나도 저절로 안 넘어간다 — <b>휴식 종료</b>를 누르면 다음 뽀모가 시작된다.'
+          :'🔒 '+(+r.focus||25)+'분이 지나도 <b>계속 집중</b>이다 — 지난 시간도 그대로 기록된다. 끝낼 때 눌러라.')
+       +'<br>🔒 화면을 벗어나도 시간은 정확하다 — 시작 시각으로 계산한다.</div>';
     stPomoFace();
     return;
   }
@@ -6208,6 +6241,7 @@ function stPomoRender(){
    +'<div class="pmbtns"><button class="btn" onclick="stPomoStart(\'focus\')">▶ 시작</button></div>'
    +'<div class="mut" style="font-size:10.5px;margin-top:12px">'
      +(n?('이 날 '+n+'회 · '+todayMin+'분 기록됨'):'이 날 기록 없음')
+     +' · ⏱ 시간이 지나면 <b>소리만 울리고 계속 센다</b>(저절로 휴식으로 안 넘어간다)'
      +' · 🔒 <b>timelog 에는 안 쓴다</b> — 한 칸이 30분이라 25·50분을 찍으면 학습시간이 부푼다.</div>';
 }
 
@@ -10904,7 +10938,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.47';
+var APP_VERSION='4.48';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -10918,6 +10952,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.48',date:'2026-10-20',note:'<b>⏱ 설정 시간이 지나도 공부시간이다 — 뽀모가 혼자 쉬는 시간으로 넘어가지 않는다.</b> 로한: 「25분으로 설정해놓으면 공부하다가 그 시간이 지나잖아? 그럼 자동으로 쉬는 시간으로 바껴. <b>공부하고 있는데.</b> 설정해놓은 시간이 지나도 공부시간으로 인정해야되고, 뽀모 종료 누르면 쉬는시간으로 전환 되어야지 그리고 쉬는시간 종료 하면 다시 뽀모 시작하는거고」 · 🔴 [결함] 25분이 차면 앱이 <b>스스로 기록을 끊고</b> 휴식을 시작했다. 공부는 계속하고 있는데 그 뒤의 시간이 어디에도 안 남았다 — <b>시간이 지난 것은 끝난 것이 아니다</b> · 이제 한도가 차면 <b>소리만 한 번</b> 울리고 계속 센다. 시계는 <code>+03:12</code> 처럼 지난 만큼을 보여주고 「연장 중」이라고 글자로 말한다 (🔒 색만으로 말하지 않는다) · <b>「뽀모 종료 · 휴식 시작」</b>을 누르면 그때까지의 <b>실제 분</b>을 기록하고 휴식으로, <b>「휴식 종료 · 뽀모 시작」</b>을 누르면 다음 집중이 0초부터 시작된다 — <b>넘기는 것은 사람이 누른다</b> · 🔒 휴식은 기록하지 않는다(학습시간이 부풀면 그게 거짓말이다). 닫을 때 묻는 말도 집중일 때만 「기록하고 끝낸다」로 바뀐다 · 🔒 소리는 <b>한 번만</b> — 지난 뒤로도 계속 도니 매 틱마다 울면 고문이다 · 🔒 「이 단계는 몇 초인가」를 묻는 함수를 <b>stPomoLim 하나</b>로 모았다(원칙 2) — 같은 식이 tick·시계·화면 세 곳에 적혀 있었다 · t42 347 → <b>362건</b>(지난 뒤에도 안 끊긴다 · 지난 시간까지 기록된다 · 휴식도 저절로 안 끝난다) · ⏱ 함께: 검수 러너를 <b>배치 → 작업 풀</b>로 바꾸고 브라우저 기동을 재사용해 <b>496초 → 217초</b>. 작업 중엔 <code>./run.sh auto</code>(바뀐 것만), 배포 전엔 반드시 <code>all</code> · run.sh all 통과'},
   {v:'4.47',date:'2026-10-19',note:'<b>🔔 알림을 종 안으로 — 본문에 눌러앉던 띠를 걷었다.</b> 로한: 「빚에 안묶인 어쩌고 2개 페이지에 떠있는거 … 현황판 맨 위 헤더 오른쪽에 종 하나 아이콘, 눌러 누르면 공지뜨게 해서 내가 확인한건 지울 수 있게 해. <b>아니 계속 떠있잖아</b>」 · 🔴 맞는 지적이다 — 알릴 것이 생길 때마다 본문 맨 위에 띠가 눌러앉으면 <b>정작 보려던 것이 아래로 밀리고</b>, 고칠 때까지 매번 같은 띠를 본다 · 현황판 머리 <b>오른쪽 끝에 🔔</b>, 안 읽은 수를 빨간 숫자로. 누르면 목록이 뜨고 줄마다 <b>「거래 열기」·「확인」</b> · 🔒 <b>확인해도 목록에서 사라지지 않는다</b> — 종의 숫자에서만 빠지고 「확인함」으로 남는다. 지웠다고 없는 일이 되면 그게 거짓말이다 · 🔒 <b>고치면 알림 자체가 사라진다</b> — 빚에 묶는 순간 그 줄이 목록에서 빠진다. 그게 「확인」보다 나은 끝이다 · 🔒 알릴 것이 없으면 <b>종 자체가 안 뜬다</b> · 🔒 사라진 알림의 확인 표시는 치운다 — 안 쓰는 찌꺼기를 남기지 않는다 · 🔒 알림 종류가 늘어도 <b>noteList 한 곳</b>에 더한다(원칙 2) · 🗑 <b>debtLooseHtml() 을 지웠다</b> — 화면에 그리는 자리가 둘이면 한쪽만 고치는 날이 온다. ⚠️ 지우다가 바로 옆에 있던 종 함수까지 함께 날려 테스트가 잡았다(범위를 넓게 잘랐다) · 💳 <b>남은 상환 3건을 빚에 묶었다</b> — 8/19 52,827 은 정책자금(거치기간 이자), 8/25·9/28 92,957 은 보험대출(이자만). 전부 원금 0 이라 잔액은 그대로이고 <b>안 묶인 알림이 0건</b>이 된다 · t56 22 → <b>31건</b> · run.sh all 통과'},
   {v:'4.46',date:'2026-10-19',note:'<b>💳 부채 잔액을 거래에서 계산한다 — 두 달째 갚아도 안 줄던 이유.</b> 🔴 로한: 「두 달째 빚을 갚고 있는데 계좌·채무 페이지랑 현황판의 부채 금액이 변동이 없다」 · <b>거래와 부채가 이어져 있지 않았다</b> — <code>debtId</code> 를 쓰는 코드가 <b>0건</b>이었고 balance 는 saveDebt 에서 <b>손으로 넣은 값</b>만 들어갔다. 가계부에 아무리 적어도 빚은 영원히 그대로였다 · 🔴 게다가 bankSchedule 이 그 balance 를 시작점으로 매번 새로 그려서 <b>「아직 한 번도 안 갚은 상태」의 표</b>를 계속 보여주고 있었다 · 🔒 <b>잔액은 파생이다. 저장하지 않는다</b> — 최초 원금(principal0) − 갚은 원금. 계좌 잔액과 같은 이치다 · 🔒 <b>잔액을 묻는 함수는 debtBalance 하나</b> — 현황판·계좌·채무·총부채가 같은 값을 본다(원칙 2) · 거래 모달에 <b>💳 빚 갚기</b> — 빚을 고르면 그 달 회차의 <b>원금을 제안</b>하고(실제 낸 돈과 다르면 고쳐 적는다), 🔒 <b>이자는 빚을 줄이지 않는다</b>(원금분만 센다) · 🔒 <b>스케줄은 최초 원금에서 그린다</b> — 현재 잔액을 넣으면 갚을 때마다 표가 앞으로 밀려 회차가 거짓이 된다 · 🔒 <b>안 묶인 상환 후보를 숨기지 않는다</b> — 이자·대출 계정과목인데 빚이 지정 안 된 거래를 현황판과 계좌·채무 <b>양쪽</b>에 띄우고 <b>왜 안 줄어드는지</b>까지 적는다. 🚫 금액이 회차와 같다고 <b>내가 추측해서 자동으로 묶지는 않는다</b> — 고르는 것은 로한이다 · 실측: 9/21 502,944(원금 448,000) + 10/19 467,906(원금 416,000) 을 묶으면 <b>20,000,000 → 19,136,000</b> · 🔒 빚을 안 고르면 칸을 만들지 않는다(빈 서랍 금지) · <b>t56 22건 신설</b> · run.sh all 통과'},
   {v:'4.45',date:'2026-10-17',note:'<b>👪 피검사를 사람별로 가른다 — 🙋 나 · 👩 엄마.</b> 로한: 「엄마 건강검진 데이터를 받았는데 상단에 나, 엄마 이런식으로 탭으로 구분해서 데이터 분리 관리」 · 🔒 <b>DB.health 는 손대지 않는다</b> — 그게 「나」고 5년치 21회분이 거기 있다. 사람을 늘리자고 기존 데이터를 옮기면 <b>그 순간이 가장 위험하다</b>(데이터 보존 P0). 늘리는 쪽만 새로 만든다(DB.healthPeople) · 🔒 <b>HP() 는 피검사 화면이 보는 사람일 뿐, 앱 전체의 주인이 아니다</b> — 달력·몸 탭·목표·EMR·진료·아고라 요약은 전부 DB.health(나)를 본다. 안 그러면 엄마 탭을 켠 순간 <b>아고라 숫자까지 엄마 것</b>이 된다(치환 44곳 중 22곳을 되돌렸다) · 🔒 <b>참고치는 사람마다 다르다</b> — 혈색소 남 13.0~16.5 / 여 12.0~15.5, γ-GTP 남 63 이하 / 여 35 이하. 탭만 가르고 지표를 공유하면 <b>남의 기준으로 읽은 거짓 숫자</b>가 된다 → metrics 도 사람마다 따로 · 🔴 <b>labFlag 가 양쪽 기준이 다 있어야만 깃발을 띄웠다</b>. 그런데 국가검진 기준은 대부분 한쪽이다(「AST 40 이하」「eGFR 60 이상」) — 그래서 <b>엄마 AST 45 가 아무 표시 없이 지나갔다</b>. 한쪽만 알아도 그쪽은 판정한다(기존 지표는 전부 양쪽이 있거나 없어서 화면이 안 바뀐다) · 👩 <b>엄마 2026-05-21 국가검진</b>(오산한국병원 · 정상B 경계 · 유질환자) 11개 지표. <b>AST 45↑ · ALT 37↑ · 체질량지수 17.4↓ · 혈색소 11.8↓</b> 가 제대로 잡힌다. 🔒 지질 4종은 결과지에 「비해당」이라 <b>지표 자체를 만들지 않았다</b> — 측정 안 한 것을 빈 줄로 두면 「쟀는데 비었다」로 읽힌다 · 🔒 시드는 <b>처음 한 번만</b>(undefined 일 때만) 채운다 — 지우고 null 로 두면 다시 안 살아난다(v2.1 사고의 반대쪽) · t33 66 → <b>82건</b>(P절 16건 — 사람이 섞이지 않는 것을 잰다) · 🔴 <b>같은 결함의 세 번째 자리를 잡았다</b> — 로한: 「자꾸 일본어 학습 쪽에서 뻑이 나는거야. 확실히 대비를 해」. v4.40 유의표현 → v4.45 슬롯 문항 → <b>조사</b>까지 전부 <b>「정답이 문제에 남아 있다」</b>였다. 「雨が 降って いました。 そこで、 タクシー（　） 帰りました」 답 「で」인데 <b>そこで 에 답이 보인다</b> · 🔒 <b>진짜 문제는 간헐성이었다</b> — 드릴 테스트가 랜덤으로 몇 개만 뽑아 봐서, 고친 뒤에도 <b>남은 자리가 있는지 알 수 없었다</b>. 🔒 「정답이 문제에 남으면 안 된다」는 <b>샘플링할 이유가 없는 불변식</b>이다 → t42 에 <b>전수 검사</b>를 넣었다(모든 모드 × 모든 예문 × 모든 슬롯). 넣자마자 조사 쪽이 걸렸다 · 🔴 <b>처음 넣은 가드는 과했다</b> — 길이를 안 보고 막았더니 멀쩡한 조사 후보 9개가 날아가 t47·t48 이 깨졌다. <b>한 글자 정답(조사·종조사)은 문장 어디에나 나온다</b>(「か」는 かいぎ·いますか 에도 있다). 같은 자를 쓴다고 같은 규칙을 대면 그게 틀린 일반화다 → <b>두 글자 이상 표현에만</b> 적용한다. ⚠️ 남은 한계: 「そこで、タクシー（　）帰りました」 답 「で」처럼 <b>다른 단어 안에 답 글자가 보이는</b> 한 글자 문항은 아직 못 거른다 — 형태소 수준 판정이 필요하다. 알고 남겨 둔다 · 🔒 가리는 자리를 <b>하나로</b> 뽑았다(stGPartMask) — 자격 판정과 문항 생성이 각자 가리면 그 틈으로 샌다 · 🔒 테스트에서 <b>개수를 박아둔 단언을 불변식으로</b> 바꿨다 — 예문이 하나 늘거나 빠질 때마다 깨지던 자리다 · t42 344 → <b>347건</b> · run.sh all 통과'},

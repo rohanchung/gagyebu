@@ -1215,6 +1215,51 @@ async function boot(st){
      (await p.evaluate(()=>{DB.ui.pomo.unitId='';stPomoStart('focus');
        DB.ui.pomoRun.at=Date.now()-5*60*1000;stPomoStop();
        const r=DB.study.pomos[DB.study.pomos.length-1];return !('unitId' in r);}))===true);
+  /* ⑩ ⏱ v4.48 — 🔴 설정 시간이 지나도 **공부 중이다**.
+     로한: 「25분으로 설정해놓으면 공부하다가 그 시간이 지나잖아? 그럼 자동으로 쉬는 시간으로 바껴. 공부하고 있는데.」
+     🔒 저절로 넘어가지 않는다 · 지난 시간도 기록에 들어간다 · 넘기는 건 사람이 누른다. */
+  await p.evaluate(()=>{DB.study.pomos=[];DB.timelog={};
+    DB.ui.pomo={focus:25,brk:5,date:todayStr(),unitId:''};
+    stPomoStart('focus');DB.ui.pomoRun.at=Date.now()-31*60*1000;});
+  await p.evaluate(()=>stPomoTick());await p.waitForTimeout(250);
+  const ov=await p.evaluate(()=>DB.ui.pomoRun);
+  ok('X28 25분이 지나도 집중이다 (휴식으로 안 넘어간다)',!!ov&&ov.phase==='focus',JSON.stringify(ov));
+  ok('X29 소리는 울렸다고 표시한다 (매 틱마다 울지 않게)',ov.rang===true);
+  ok('X30 지난 뒤에도 기록은 0건이다 (혼자 끊지 않았다)',
+     (await p.evaluate(()=>DB.study.pomos.length))===0);
+  ok('X31 지난 시간은 + 로 보여준다',
+     /^\+\d{2}:\d{2}$/.test(await p.$eval('#pomoClock',e=>e.textContent.trim())),
+     await p.$eval('#pomoClock',e=>e.textContent.trim()));
+  ok('X32 연장 중이라고 글자로 말한다 (색만으로 말하지 않는다)',
+     (await p.$eval('#pomoBody',e=>e.textContent)).indexOf('연장 중')>=0);
+  /* 🔒 두 번 울지 않는다 */
+  await p.evaluate(()=>{stPomoTick();stPomoTick();});
+  ok('X33 여전히 집중 · 기록 0건',
+     (await p.evaluate(()=>DB.ui.pomoRun&&DB.ui.pomoRun.phase==='focus'&&DB.study.pomos.length===0))===true);
+  /* ⑪ 뽀모 종료를 누르면 — 지난 시간까지 기록하고 휴식으로 */
+  await p.evaluate(()=>stPomoEnd());await p.waitForTimeout(300);
+  const rc2=await p.evaluate(()=>DB.study.pomos[DB.study.pomos.length-1]);
+  ok('X34 끝내면 **지난 시간까지** 기록된다 (31분)',!!rc2&&rc2.mins===31,JSON.stringify(rc2));
+  ok('X35 계획(25)보다 길었으니 cut 이 아니다',!rc2.cut,JSON.stringify(rc2));
+  ok('X36 학습시간에 31분이 들어간다',(await p.evaluate(()=>stStudyMins(todayStr())))===31);
+  ok('X37 끝내면 휴식이 시작된다',
+     (await p.evaluate(()=>DB.ui.pomoRun&&DB.ui.pomoRun.phase==='brk'))===true);
+  /* ⑫ 휴식도 저절로 안 끝난다 — 종료를 누르면 다음 뽀모 */
+  await p.evaluate(()=>{DB.ui.pomoRun.at=Date.now()-9*60*1000;stPomoTick();});
+  await p.waitForTimeout(250);
+  ok('X38 쉬는 시간이 지나도 저절로 안 끝난다',
+     (await p.evaluate(()=>DB.ui.pomoRun&&DB.ui.pomoRun.phase==='brk'))===true);
+  ok('X39 휴식은 기록하지 않는다 (기록은 1건 그대로)',
+     (await p.evaluate(()=>DB.study.pomos.length))===1);
+  await p.evaluate(()=>stPomoEnd());await p.waitForTimeout(300);
+  ok('X40 휴식 종료를 누르면 다음 뽀모가 시작된다',
+     (await p.evaluate(()=>DB.ui.pomoRun&&DB.ui.pomoRun.phase==='focus'))===true);
+  ok('X41 새 뽀모는 0초부터 센다',(await p.evaluate(()=>stPomoElapsedSec()))<5);
+  /* 🔒 한도를 묻는 함수는 하나다 */
+  ok('X42 stPomoLim 이 단계별 한도를 말한다',
+     (await p.evaluate(()=>{const f=stPomoLim(DB.ui.pomoRun);
+       const b=stPomoLim({phase:'brk',brk:5,focus:25});return f===25*60&&b===5*60;}))===true);
+  await p.evaluate(()=>{DB.ui.pomoRun=null;});
   ok('X27 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }

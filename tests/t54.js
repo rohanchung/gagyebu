@@ -629,7 +629,12 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
 
  /* 🔒 되돌아가면 가로로 — 그리고 **듣던 자리를 지킨다** */
  await p.evaluate(()=>{AG_CUR.i=3;agApply();}); await p.waitForTimeout(150);
- await p.setViewportSize({width:1500,height:1200}); await p.waitForTimeout(700);
+ await p.setViewportSize({width:1500,height:1200});
+ /* ⏱ v4.48 — 🔒 **다시 그려질 때까지** 기다린다. 고정 700ms 는 8개를 동시에 돌릴 때 거짓말을 했다
+    (agLay().tall 은 이미 false 인데 viewBox 가 아직 세로였다 — 앱이 아니라 테스트가 덜 기다렸다). */
+ await p.waitForFunction(()=>{
+   const sv=document.querySelector('#aghall svg');
+   return sv&&/1180/.test(sv.getAttribute('viewBox')||'');},null,{timeout:15000});
  const back=await p.evaluate(()=>({tall:agLay().tall,
    vb:document.querySelector('#aghall svg').getAttribute('viewBox'),
    i:AG_CUR?AG_CUR.i:-1,who:AG_CUR&&AG_CUR.seq[AG_CUR.i].who}));
@@ -765,7 +770,12 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
        const r=e.getBoundingClientRect(); return r.bottom>bb.top+6 && r.top<bb.bottom;}).length};});
  ok('T10 좁은 화면에서 말풍선이 자리를 가리지 않는다',
     nb.tall&&nb.가려진자리===0,JSON.stringify(nb));
- await p.setViewportSize({width:1500,height:1200}); await p.waitForTimeout(700);
+ await p.setViewportSize({width:1500,height:1200});
+ /* ⏱ v4.48 — 🔒 **다시 그려질 때까지** 기다린다. 고정 700ms 는 8개를 동시에 돌릴 때 거짓말을 했다
+    (agLay().tall 은 이미 false 인데 viewBox 가 아직 세로였다 — 앱이 아니라 테스트가 덜 기다렸다). */
+ await p.waitForFunction(()=>{
+   const sv=document.querySelector('#aghall svg');
+   return sv&&/1180/.test(sv.getAttribute('viewBox')||'');},null,{timeout:15000});
 
  /* ══ U) 🕐 안 온 차례를 「미제출」이라 부르지 않는다 ══
       🔴 로한: "회의장에 아무도 없는데?? 버그인가? 기록도 다 비어있고"
