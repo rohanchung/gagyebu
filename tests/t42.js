@@ -1169,17 +1169,20 @@ async function boot(st){
   ok('X9 프리셋을 누르면 둘 다 바뀐다',
      (await p.evaluate(()=>{const c=stPomoCfg();return c.focus===50&&c.brk===10;}))===true);
   ok('X10 고른 프리셋이 표시된다',(await p.$$('#pomoBody .pmpre.on')).length===1);
-  /* ④ 과제 선택 */
-  await p.evaluate(()=>stPomoSet('unitId','k1'));await p.waitForTimeout(250);
-  ok('X11 과제를 고를 수 있다',(await p.evaluate(()=>stPomoCfg().unitId))==='k1');
+  /* ④ ⏱ v4.49 — 🔴 과제를 **더 묻지 않는다**. 고른 값이 그대로 박혀 9건이 전부 같은 과제로 적혔다
+     (서버 실측: pomos 12건 전부 unitId:'u031'). 누르면 바로 시작한다. */
+  ok('X11 과제를 묻지 않는다 (고르는 칸이 없다)',
+     (await p.$$('#pomoBody .pmsel')).length===0);
+  ok('X11b 설정에 unitId 가 없다',
+     (await p.evaluate(()=>!('unitId' in stPomoCfg())))===true);
   /* ⑤ 시작 — 시작 시각만 저장한다 */
   await p.evaluate(()=>stPomoStart('focus'));await p.waitForTimeout(400);
   const run=await p.evaluate(()=>DB.ui.pomoRun);
   ok('X12 시작 시각을 저장한다 (카운터가 아니다)',!!run&&typeof run.at==='number',JSON.stringify(run));
   ok('X13 남은 시간이 보인다',/^\d{2}:\d{2}$/.test(await p.$eval('#pomoClock',e=>e.textContent.trim())),
      await p.$eval('#pomoClock',e=>e.textContent.trim()));
-  ok('X14 고른 과제 제목이 보인다',
-     (await p.$eval('#pomoBody',e=>e.textContent)).indexOf('예상어휘 p160')>=0);
+  ok('X14 진행 화면에 과제 이름이 없다 (물어본 적이 없으니 보일 수도 없다)',
+     (await p.$eval('#pomoBody',e=>e.textContent)).indexOf('예상어휘 p160')<0);
   /* 🔒 경과는 시각 차이로 계산한다 — 시간을 앞으로 돌려도 맞아야 한다 */
   const el=await p.evaluate(()=>{DB.ui.pomoRun.at=Date.now()-7*60*1000;return stPomoElapsedSec();});
   ok('X15 경과를 시각 차이로 계산한다 (7분)',el>=418&&el<=422,String(el));
@@ -1196,9 +1199,14 @@ async function boot(st){
   await p.waitForTimeout(400);
   const rec=await p.evaluate(()=>DB.study.pomos[0]);
   ok('X18 중단분이 기록된다 (12분)',!!rec&&rec.mins===12,JSON.stringify(rec));
-  ok('X19 어느 과제였는지 남는다',rec.unitId==='k1');
+  ok('X19 과제를 저장하지 않는다 (빈 서랍도 안 만든다)',!('unitId' in rec),JSON.stringify(rec));
   ok('X20 계획보다 짧으면 cut 표시',rec.cut===true,JSON.stringify(rec));
-  ok('X21 날짜가 남는다',rec.date===(await p.evaluate(()=>todayStr())));
+  /* ⏱ v4.49 — 🔒 **파생은 저장하지 않는다.** 날짜는 at 하나에서만 나온다.
+     🔴 전엔 date 를 박아 저장했고, DB.ui.pomo.date 가 9/22 로 굳어 10월 기록 9건이
+        전부 9/22 로 적혔다(서버 실측). 저장하지 않으면 어긋날 자리가 없다. */
+  ok('X21 날짜를 저장하지 않는다',!('date' in rec),JSON.stringify(rec));
+  ok('X21b 날짜는 at 에서 나온다',
+     (await p.evaluate(()=>stPomoDate(DB.study.pomos[0])))===(await p.evaluate(()=>todayStr())));
   /* v4.12 — 뽀모는 timelog 에 남긴다(로한: 미리 채운 로그에 반영이 안 된다). 세기는 뽀모 분이라 부풀지 않는다 */
   ok('X22 timelog 에 뽀모 study 블록이 남는다',
      (await p.evaluate(()=>Object.values(DB.timelog||{}).some(a=>a.some(b=>b.tag==='study'&&/^뽀모/.test(b.title))))));
@@ -1260,6 +1268,64 @@ async function boot(st){
      (await p.evaluate(()=>{const f=stPomoLim(DB.ui.pomoRun);
        const b=stPomoLim({phase:'brk',brk:5,focus:25});return f===25*60&&b===5*60;}))===true);
   await p.evaluate(()=>{DB.ui.pomoRun=null;});
+  /* ⑬ ⏱ v4.49 — 🔴 [실측 재현] 서버에 있던 썩음을 그대로 박는다.
+     2026-10-20 서버: pomos 12건 중 9건이 date:'2026-09-22' 인데 at 은 10/15~10/20 이었다.
+     DB.ui.pomo.date 가 9/22 로 굳어 그 뒤 모든 기록에 따라붙었다.
+     그 결과 두 가지 거짓말이 동시에 났다:
+       ① 9/22 에 167분 — 아무것도 안 한 날에 공부한 것으로 보였다
+       ② 10/16 은 뽀모 분(70분)이 빠진 채 timelog 칸으로 210분으로 부풀었다
+     🔒 둘 다 「날짜를 저장했다」는 한 가지 원인에서 나왔다. */
+  const rot=await p.evaluate(()=>{
+    DB.study.pomos=[
+      {id:'r1',date:'2026-09-22',mins:26,plan:25,unitId:'u031',tl:true,at:'2026-10-16T00:59:32.543Z'},
+      {id:'r2',date:'2026-09-22',mins:2, plan:10,unitId:'u031',tl:true,at:'2026-10-16T01:28:42.071Z'}];
+    /* 그 뽀모가 timelog 에 남긴 블록(실제 서버 값) */
+    DB.timelog={'2026-10-16':[{s:19,e:20,tag:'study',title:'뽀모'}]};
+    studyDB();                         /* 정정이 돈다 */
+    return {
+      dateGone:DB.study.pomos.every(x=>!('date' in x)),
+      minsKept:DB.study.pomos.map(x=>x.mins),
+      atKept:DB.study.pomos.every(x=>!!x.at),
+      unitKept:DB.study.pomos.every(x=>x.unitId==='u031'),
+      derived:DB.study.pomos.map(x=>stPomoDate(x)),
+      oct16:stStudyMins('2026-10-16'),
+      sep22:stStudyMins('2026-09-22'),
+      minsOn16:stPomoMinsOn('2026-10-16')};});
+  ok('X43 썩은 date 를 치운다 (파생은 저장하지 않는다)',rot.dateGone,JSON.stringify(rot));
+  ok('X44 🔒 분은 한 톨도 안 버린다',JSON.stringify(rot.minsKept)==='[26,2]',JSON.stringify(rot.minsKept));
+  ok('X45 🔒 시각(at)도 그대로 둔다',rot.atKept===true);
+  ok('X46 🔒 옛 기록의 unitId 는 지우지 않는다 (새로 안 쓸 뿐이다)',rot.unitKept===true);
+  ok('X47 날짜가 제 날로 돌아온다 (10/16)',
+     JSON.stringify(rot.derived)==='["2026-10-16","2026-10-16"]',JSON.stringify(rot.derived));
+  ok('X48 🔴 9/22 에 얹혀 있던 분이 빠진다 (안 한 날은 0분)',rot.sep22===0,String(rot.sep22));
+  ok('X49 🔴 10/16 은 부풀지 않는다 — 칸 30분이 아니라 뽀모 분(28분)',
+     rot.oct16===28,String(rot.oct16)+' (칸으로 세면 60분이 된다)');
+  ok('X50 그날 뽀모 분도 at 기준이다',rot.minsOn16===28,String(rot.minsOn16));
+  /* ⑭ at 이 없는 옛 기록 — 🔒 단서가 date 뿐이라 **버리지 않는다** */
+  const old=await p.evaluate(()=>{
+    DB.study.pomos=[{id:'o1',date:'2026-09-01',mins:40}];
+    DB.timelog={}; studyDB();
+    return {kept:DB.study.pomos[0].date,d:stPomoDate(DB.study.pomos[0]),
+            mins:stStudyMins('2026-09-01')};});
+  ok('X51 at 이 없으면 date 를 지킨다',old.kept==='2026-09-01',JSON.stringify(old));
+  ok('X52 그 분도 센다 (칸은 몰라도 분은 안다)',old.mins===40,String(old.mins));
+  /* ⑮ 🔴 못 남겼는데 「남겼다」고 적지 않는다 */
+  const lie=await p.evaluate(()=>{
+    const bad={id:'b1',mins:25};          /* at 이 없다 — 어느 칸인지 모른다 */
+    stPomoLog(bad);
+    const good={id:'g1',mins:25,at:new Date().toISOString()};
+    stPomoLog(good);
+    return {bad:('tl' in bad),good:good.tl===true};});
+  ok('X53 🔒 못 남겼으면 tl 을 안 찍는다 (소급이 다시 볼 수 있어야 한다)',lie.bad===false,JSON.stringify(lie));
+  ok('X54 남겼으면 찍는다',lie.good===true);
+  /* ⑯ 제목은 「뽀모」 하나다 */
+  const ttl=await p.evaluate(()=>{
+    DB.timelog={}; DB.study.pomos=[];
+    DB.ui.pomo={focus:25,brk:0};
+    stPomoStart('focus');DB.ui.pomoRun.at=Date.now()-25*60*1000;stPomoEnd();
+    const all=[];Object.keys(DB.timelog).forEach(k=>(DB.timelog[k]||[]).forEach(b=>all.push(b)));
+    return all.map(b=>b.title);});
+  ok('X55 timelog 제목은 「뽀모」다',JSON.stringify(ttl)==='["뽀모"]',JSON.stringify(ttl));
   ok('X27 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }

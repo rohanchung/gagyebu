@@ -42,10 +42,10 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('B1 학습시간 25분',await p.evaluate(d=>stStudyMins(d),D)===25);
  ok('B2 timelog 만 보면 60분(표시일 뿐)',await p.evaluate(d=>stMinsOn(d),D)===60);
 
- /* ③ 빈 칸 → study 블록, 과제 이름을 제목으로 */
+ /* ③ 빈 칸 → study 블록. ⏱ v4.49 — 제목은 「뽀모」 하나다(과제를 더 묻지 않는다) */
  await p.evaluate(({d,at})=>{const r={id:'p2',date:d,mins:10,plan:10,unitId:'u031',at};DB.study.pomos.push(r);stPomoLog(r);},{d:D,at:kst(D,'08:05')});
  ok('C1 빈 칸 study 블록',(await tl()).includes('16-16:study'));
- ok('C2 제목 = 뽀모 · 과제',await p.evaluate(d=>DB.timelog[d].find(b=>b.s===16).title==='뽀모 · 단어 p160',D));
+ ok('C2 제목은 「뽀모」다',await p.evaluate(d=>DB.timelog[d].find(b=>b.s===16).title==='뽀모',D));
  ok('C3 누적 35분',await p.evaluate(d=>stStudyMins(d),D)===35);
 
  /* ④ 서브 활동이 이미 있는 칸(식사+휴식)은 그대로 — 시간은 뽀모로 센다 */
@@ -69,13 +69,20 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('G1 마지막 칸 study',(await tl()).includes('47-47:study'));
  ok('G2 넘친 분도 센다(+25)',await p.evaluate(d=>stStudyMins(d),D)===85);
 
- /* ⑧ 다른 날짜로 연 뽀모 — 그 날짜에 분만 센다 */
+ /* ⑧ ⏱ v4.49 — 🔴 [실측] 저장된 date 가 실제 시각(at)과 어긋난 기록이 서버에 9건 있었다
+      (date:'2026-09-22' · at:10/15~10/20). 캘린더에서 한 번 고른 날짜가 굳어 따라붙은 것이다.
+      그때 9/22 에는 167분이 얹히고 10월 날짜들은 뽀모 분이 빠진 채 칸으로 부풀었다.
+   🔒 이제 **at 이 이긴다** — 날짜를 묻는 자리가 하나(stPomoDate)뿐이라 어긋날 수 없다. */
  await p.evaluate(({at})=>{const r={id:'p6',date:'2026-09-10',mins:12,plan:12,at};DB.study.pomos.push(r);},{at:kst(D,'13:00')});
- ok('H1 연 날짜에 12분',await p.evaluate(()=>stStudyMins('2026-09-10'))===12);
- ok('H2 실제 날짜엔 안 섞인다',await p.evaluate(d=>stStudyMins(d),D)===85);
+ ok('H1 🔴 엉뚱한 date 가 박혀 있어도 그 날에 얹히지 않는다',
+    await p.evaluate(()=>stStudyMins('2026-09-10'))===0);
+ ok('H2 실제 시각의 날로 센다 (85 + 12분 칸)',
+    await p.evaluate(d=>stStudyMins(d),D)===97,String(await p.evaluate(d=>stStudyMins(d),D)));
+ ok('H3 날짜는 at 에서 나온다',
+    await p.evaluate(()=>stPomoDate(DB.study.pomos.find(x=>x.id==='p6')))===D);
 
  /* ⑨ 뽀모를 끝내면(stPomoStop) 바로 남는다 */
- await p.evaluate(d=>{DB.timelog={};DB.study.pomos=[];DB.ui.pomo={focus:25,brk:0,date:d,unitId:''};stPomoStart('focus');DB.ui.pomoRun.at=Date.now()-20*60*1000;stPomoStop();},D);
+ await p.evaluate(d=>{DB.timelog={};DB.study.pomos=[];DB.ui.pomo={focus:25,brk:0};stPomoStart('focus');DB.ui.pomoRun.at=Date.now()-20*60*1000;stPomoStop();},D);
  ok('I1 종료 즉시 타임로그에 남는다',await p.evaluate(()=>Object.values(DB.timelog).some(a=>a.some(b=>b.tag==='study'&&b.title==='뽀모'))));
  ok('I2 종료분 tl 표시',await p.evaluate(()=>DB.study.pomos[0].tl===true));
 
