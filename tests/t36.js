@@ -40,8 +40,15 @@ const BASE=()=>({schemaVersion:7,ui:{month:'2026-09',date:D},
   wImport2026:1,
   weights:[{date:'2026-09-02',kg:68.2}],events:[]}});
 
+let __BR=null;
 async function boot(st){
-  const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
+  /* ⏱ v4.48 — 🔴 블록마다 크로미움을 새로 띄웠다. 기동 ~2초가 블록 수만큼 쌓였다.
+     테스트가 느린 게 아니라 **준비가 느렸다**.
+     🔒 브라우저는 하나, context 만 새로 만든다 — 쿠키·스토리지는 context 단위라 격리는 그대로고,
+        상태는 addInitScript 로 매번 새로 넣으니 섞이지 않는다.
+     🔒 b 자리에 context 를 돌려준다 — 호출부의 await b.close() 가 그대로 돈다. */
+  if(!__BR)__BR=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
+  const b=__BR;
   const c=await b.newContext({viewport:{width:1440,height:1000}});
   await c.addInitScript(({s})=>{const store={v:s};
    function mk(t){let _m=null,_p=null;
@@ -54,8 +61,11 @@ async function boot(st){
    window.supabase={createClient:()=>({from:t=>mk(t),auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};},{s:st});
   const p=await c.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('dialog',d=>d.accept());
   await p.route('**/*supabase*',r=>r.abort());
-  await p.goto('file://'+file);await p.waitForTimeout(1500);
-  return {b,p,errs};
+  /* ⏱ 🔒 **뜰 때까지**만 기다린다 — 1500ms 를 꽉 기다릴 이유가 없다.
+     안 뜨면 더 기다려도 어차피 실패한다. */
+  await p.goto('file://'+file);
+  await p.waitForFunction(()=>typeof DB!=='undefined'&&DB,null,{timeout:15000});
+  return {b:c,p,errs};
 }
 
 (async()=>{
