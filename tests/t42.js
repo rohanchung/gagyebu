@@ -1705,12 +1705,27 @@ async function boot(st){
   await p.evaluate(a=>stDrillGrade(a),ans);
   await p.waitForTimeout(300);
   const whyTxt=await p.$eval('#v-study .stdq',e=>e.textContent);
-  ok('CTX14 🔒 맞혀도 해설이 뜬다 (단어 분해)',whyTxt.indexOf('단어 분해')>=0,whyTxt.slice(0,90));
+  /* 🔴 v4.51 [결함] 여기서 해설을 통째로 띄웠다. 그 표에 문장의 모든 단어 뜻이 적혀 있는데,
+     그걸 보여준 다음에 「이 단어 뜻은?」을 물으면 **방금 본 표를 보고 맞힌다.**
+     로한: "정답을 누르고, 정답만 정오답을 알려주고, 구성요소 물어보고, 그다음 최종 정리된걸"
+     🔒 채점 직후에는 빈칸의 정오답만. 해설은 점검이 **끝난 뒤** 정리 화면에서. */
+  ok('CTX14 🔴 채점 직후엔 단어 분해표가 없다 (보고 맞히면 점검이 아니다)',
+     whyTxt.indexOf('단어 분해')<0,whyTxt.slice(0,120));
+  ok('CTX14b 보기의 뜻도 아직 안 보여준다',whyTxt.indexOf('보기의 뜻')<0);
+  ok('CTX14c 정답은 말해준다 (정오답은 즉시)',
+     /맞음|틀림/.test(whyTxt)&&whyTxt.indexOf(ans)>=0,whyTxt.slice(0,80));
+  /* 🔒 묻기 전 화면에 **하부 정답이 하나도 안 보인다** — 전수로 본다 */
+  const leak=await p.evaluate(i=>{
+    const s=stSentById(i), q=stGramQ(ST_DRILL,ST_DRILL.i);
+    const txt=document.querySelector('#v-study .stdq').textContent;
+    return stCtxSubs(s,q.ans).filter(function(it){return txt.indexOf(it.ans)>=0;})
+      .map(function(it){return (it.w||'ko')+'→'+it.ans;});},sid);
+  ok('CTX14d 🔒 묻기 전 화면에 하부 정답이 새지 않는다 (전수)',leak.length===0,JSON.stringify(leak));
   /* 🔴 보기가 활용형(のせました)이면 words(사전형 のる) 조회가 안 된다 — **그게 정상이다**.
      드릴 순서는 랜덤이라 어느 문장이 먼저 올지 모른다 → 사전형 보기를 쓰는 문장으로 직접 단언한다. */
   const why01=await p.evaluate(()=>stCtxWhy(stSentById('x71-01'),
      stGMkQ(stSentById('x71-01'),'gctx',{slot:stGSlot(stSentById('x71-01'),'ctx')})));
-  ok('CTX15 보기의 뜻도 보여준다 (사전형 보기)',why01.indexOf('보기의 뜻')>=0&&why01.indexOf('설명')>=0,
+  ok('CTX15 해설 자체는 만들어진다 (정리 화면용 · 사전형 보기)',why01.indexOf('보기의 뜻')>=0&&why01.indexOf('설명')>=0,
      why01.slice(0,80));
   const why09=await p.evaluate(()=>stCtxWhy(stSentById('x71-09'),
      stGMkQ(stSentById('x71-09'),'gctx',{slot:stGSlot(stSentById('x71-09'),'ctx')})));
@@ -1721,7 +1736,7 @@ async function boot(st){
   ok('CTX18 묻는 단어가 칠해진다',(await p.$$('#v-study .ghl')).length===1);
   /* 하부를 전부 맞힌다 → 통과 */
   const walk=async()=>{
-    for(let k=0;k<12;k++){
+    for(let k=0;k<16;k++){
       const st=await p.evaluate(()=>{
         const S=ST_DRILL&&ST_DRILL.sub; if(!S)return null;
         return {j:S.j,n:S.list.length,show:!!S.show,ans:S.list[S.j]?S.list[S.j].ans:null};});
@@ -1732,6 +1747,16 @@ async function boot(st){
     }
   };
   await walk();
+  /* 🔴 v4.51 — 점검이 끝나면 **정리 화면**이다. 여기서 처음 해설이 펼쳐진다 */
+  const sum=await p.evaluate(()=>({on:!!(ST_DRILL&&ST_DRILL.sum),
+     txt:document.querySelector('#v-study .stdq').textContent}));
+  ok('CTX18b 점검이 끝나면 정리 화면으로 간다 (바로 다음 문항이 아니다)',sum.on===true);
+  ok('CTX18c 정리에서 비로소 단어 분해표가 펼쳐진다',sum.txt.indexOf('단어 분해')>=0,sum.txt.slice(0,100));
+  ok('CTX18d 정리에 번역과 숙달 상태가 있다',
+     /숙달|통과/.test(sum.txt),sum.txt.slice(-90));
+  await p.evaluate(()=>stCtxSumNext());await p.waitForTimeout(200);
+  ok('CTX18e 「다음 문장」을 누르면 정리가 닫힌다',
+     (await p.evaluate(()=>!(ST_DRILL&&ST_DRILL.sum)))===true);
   const c1=await p.evaluate(i=>stCompOf(stSentById(i)),sid);
   ok('CTX19 전부 맞히면 통과가 1 쌓인다',c1.streak===1&&!c1.mastered,JSON.stringify(c1));
   ok('CTX20 통과한 날을 적어둔다 (「다른 날」을 판정하려면 필요하다)',
@@ -1765,7 +1790,8 @@ async function boot(st){
   await p.evaluate(()=>{ST_DRILL=null;setStTab('word');renderStudy();});await p.waitForTimeout(300);
   const stat=await p.evaluate(()=>stCtxStat());
   ok('CTX27 숙달 집계는 파생이다 (3문장 중 1개 숙달)',stat.n===3&&stat.mastered===1,JSON.stringify(stat));
-  ok('CTX28 화면이 숙달을 말한다',
+  ok('CTX28 화면이 숙달을 말한다 (.mstbar — 🔴 .ctxbar 는 목표 진척 막대가 이미 쓰는 이름이었다)',
+     (await p.$$('#v-study .mstbar')).length===1&&
      (await p.$eval('#v-study',e=>e.textContent)).indexOf('문맥구성 숙달')>=0);
   /* ⑬ 📝 로한 질문(푸쉬 전): "각 단어 별로 내가 정답 고르면 **바로 그자리에서** 정오답
      가려내야돼. 다 선택하고 제출 하면 나오는게 아니라. 그리고 **그 오답 데이터들도 모아져야**되고"
@@ -1831,6 +1857,10 @@ async function boot(st){
     else await p.evaluate(()=>stCtxNext());
     await p.waitForTimeout(80);
   }
+  /* 🔒 정리 화면을 닫아야 기록이 쌓인다(마지막 문항이면 stDrillFinish 로 간다) */
+  if(await p.evaluate(()=>!!(ST_DRILL&&ST_DRILL.sum)))
+    await p.evaluate(()=>stCtxSumNext());
+  await p.waitForTimeout(150);
   /* ③ 🔴 드릴 기록에 남는다 — 창을 닫아도 사라지지 않는다 */
   const rec3=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
   ok('CTX40 🔴 드릴 기록에 하부 집계가 남는다',
@@ -1860,6 +1890,9 @@ async function boot(st){
     else await p.evaluate(()=>stCtxNext());
     await p.waitForTimeout(80);
   }
+  if(await p.evaluate(()=>!!(ST_DRILL&&ST_DRILL.sum)))
+    await p.evaluate(()=>stCtxSumNext());
+  await p.waitForTimeout(150);
   const rec4=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
   ok('CTX45 ⚠️ 다 맞히면 빈 서랍을 안 만든다',
      !!rec4.sub&&rec4.sub.bad===0&&!('subWrong' in rec4),JSON.stringify(rec4.sub));
