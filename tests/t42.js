@@ -1704,8 +1704,6 @@ async function boot(st){
         if(it.opts.indexOf(it.ans)<0)bad.push(s.id+'/'+(it.w||'ko')+':정답이 보기에 없다');
         if(it.kind==='word'){
           if(stCtxHits(s.ja,it.w)!==1)bad.push(s.id+'/'+it.w+':문장에 '+stCtxHits(s.ja,it.w)+'번');
-          const h=stCtxHl(s.ja,it.w);
-          if(h.indexOf('ghl')<0)bad.push(s.id+'/'+it.w+':칠하지 못했다');
         }
         /* 📝 v4.52 — 보기 문항: 보기에 있던 말이어야 하고, 뜻이 정확해야 한다 */
         if(it.kind==='opt'){
@@ -1764,7 +1762,18 @@ async function boot(st){
   ok('CTX16 다음은 「문장 점검」이다',whyTxt.indexOf('문장 점검')>=0);
   await p.evaluate(()=>stCtxGo());await p.waitForTimeout(300);
   ok('CTX17 점검 화면으로 들어간다',(await p.evaluate(()=>!!(ST_DRILL.sub&&ST_DRILL.sub.list.length)))===true);
-  ok('CTX18 묻는 단어가 칠해진다',(await p.$$('#v-study .ghl')).length===1);
+  /* 🔴 v4.53 — 칠하는 게 아니라 **가린다**. 로한: "4지선다로 보여주니까 문장상에서
+     추론이 돼서 엄청 쉬워진다" — 실측 빈칸 0/3 인데 구성요소 13/15 였다. */
+  const hide=await p.evaluate(()=>{
+    const it=ST_DRILL.sub.list[ST_DRILL.sub.j];
+    const q=document.querySelector('#v-study .gja').textContent;
+    return {q:q,w:it.w,ja:stDrillItem(ST_DRILL,ST_DRILL.i).ja,kind:it.kind};});
+  ok('CTX18 🔴 묻는 단어만 띄운다 (문장은 가린다)',
+     hide.q.trim()===String(hide.w).trim(),JSON.stringify(hide));
+  ok('CTX18a 문장이 화면에 없다',
+     (await p.$eval('#v-study .stdq',e=>e.textContent)).indexOf(hide.ja)<0);
+  ok('CTX18f 하이라이트 자체가 사라졌다 (칠할 자리가 없다)',
+     (await p.$$('#v-study .ghl')).length===0);
   /* 하부를 전부 맞힌다 → 통과 */
   const walk=async()=>{
     for(let k=0;k<48;k++){
@@ -1971,6 +1980,77 @@ async function boot(st){
     return stCtxWhy(s,stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')}));});
   ok('CTX52 단어은행에 없는 보기도 줄은 남긴다',
      miss.indexOf('단어은행에 없다')>=0,miss.slice(0,100));
+  /* ⑱ 🔴 v4.53 학습방 v24 — **힌트로 맞힌 정답은 증거가 아니다.**
+     로한: "히라가나만 있을 땐 모르던 게 구성요소마다 4지선다로 보여주니까
+     문장상에서 추론이 돼서 엄청 쉬워진다. … 추측으로 맞추는거지"
+     실측(10/21): 빈칸 0/3(전부 모르겠다) · 구성요소 13/15(87%).
+     🔴 그 정답들이 words 카운터에 「맞힘」으로 쌓여 5개 단어(けっか·てちょう·あたためる·
+        まいにち·あたらしい)가 streak:1 이 됐고, 단어 드릴의 「미출제 우선」에서 빠졌다. */
+  const asym=await p.evaluate(()=>{
+    const w=stWordById('w0859');
+    w.seen=0;w.miss=0;w.streak=0;w.lastSeen=null;delete w.retestOn;
+    stCtxWordHit({wordId:'w0859'},true);              /* 힌트로 맞힘 */
+    const after=JSON.parse(JSON.stringify(stWordById('w0859')));
+    stCtxWordHit({wordId:'w0859'},false);             /* 틀림 */
+    const bad=JSON.parse(JSON.stringify(stWordById('w0859')));
+    return {ok:after,bad:bad};});
+  ok('CTX53 🔴 힌트로 맞힌 정답은 카운터를 건드리지 않는다',
+     asym.ok.seen===0&&asym.ok.streak===0&&!asym.ok.lastSeen,JSON.stringify(asym.ok));
+  ok('CTX54 🔒 「미출제 우선」에서 빠지지 않는다 (seen 이 0 그대로)',asym.ok.seen===0);
+  ok('CTX55 틀린 것은 그대로 센다',asym.bad.miss===1&&asym.bad.streak===0&&asym.bad.seen===1,
+     JSON.stringify(asym.bad));
+  ok('CTX56 🔁 틀리면 **내일** 문맥 없이 다시 묻는다',
+     asym.bad.retestOn===(await p.evaluate(()=>addDays(todayStr(),1))),JSON.stringify(asym.bad));
+  /* ⑲ 재점검 — 🔒 문맥 없는 r2m 에서 맞혀야 「알게 됐다」 */
+  const rt=await p.evaluate(()=>{
+    const w=stWordById('w0859');
+    w.seen=1;w.miss=1;w.streak=0;w.retestOn=addDays(todayStr(),-1);   /* 어제부터 밀린 재점검 */
+    const due=stRetestDue(w);
+    const score=stWordScore(w,todayStr());
+    const other=stWordById('wx01'); other.seen=0;other.miss=0;delete other.retestOn;
+    const scoreFresh=stWordScore(other,todayStr());
+    return {due:due,score:score,scoreFresh:scoreFresh};});
+  ok('CTX57 재점검이 밀렸으면 due 다',rt.due===true);
+  ok('CTX58 🔒 재점검이 **미출제보다도** 먼저다',rt.score>rt.scoreFresh,
+     JSON.stringify(rt));
+  /* 🔒 문맥 없는 r2m 에서 맞히면 풀린다 */
+  const pass=await p.evaluate(()=>{
+    const w=stWordById('w0859');
+    w.retestOn=todayStr(); w.streak=0;
+    ST_DRILL={mode:'r2m',ids:['w0859'],opts:[[]],i:0,res:[],show:false,fin:false,start:Date.now()};
+    stDrillRecord(true,'결과',false);
+    const a=JSON.parse(JSON.stringify(stWordById('w0859')));
+    ST_DRILL=null; return a;});
+  ok('CTX59 🔁 문맥 없이 맞히면 재점검이 풀린다',!('retestOn' in pass),JSON.stringify(pass));
+  ok('CTX60 그때 비로소 streak 가 오른다',pass.streak===1,JSON.stringify(pass));
+  const fail=await p.evaluate(()=>{
+    const w=stWordById('w0859');
+    w.retestOn=todayStr(); w.streak=0;
+    ST_DRILL={mode:'r2m',ids:['w0859'],opts:[[]],i:0,res:[],show:false,fin:false,start:Date.now()};
+    stDrillRecord(false,'엉뚱',false);
+    const a=JSON.parse(JSON.stringify(stWordById('w0859')));
+    ST_DRILL=null; return a;});
+  ok('CTX61 틀리면 내일 또 묻는다',
+     fail.retestOn===(await p.evaluate(()=>addDays(todayStr(),1))),JSON.stringify(fail));
+  /* 🔒 문맥이 있는 모드(gctx)에서는 재점검이 안 풀린다 */
+  const notClear=await p.evaluate(()=>{
+    const w=stWordById('w0859'); w.retestOn=todayStr();
+    stCtxWordHit({wordId:'w0859'},true);
+    return JSON.parse(JSON.stringify(stWordById('w0859')));});
+  ok('CTX62 🔒 문맥 안에서 맞혀도 재점검은 안 풀린다',
+     notClear.retestOn===(await p.evaluate(()=>todayStr())),JSON.stringify(notClear));
+  /* ⑳ 모르는 단어(unk)를 문장에서 만나면 그 자체로 재점검 사유 */
+  const unkSet=await p.evaluate(()=>{
+    stWords().forEach(function(w){delete w.retestOn;});
+    const s=stSentById('x71-01');
+    const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    ST_DRILL={mode:'gctx',ids:[s.id],qs:[q],i:0,res:[{id:s.id,ok:true,my:q.ans}],
+      show:true,fin:false,start:Date.now()};
+    stCtxGo();
+    const out=stWords().filter(w=>w.retestOn).map(w=>w.id);
+    ST_DRILL=null; return out;});
+  ok('CTX63 🔁 문장에서 만난 모르는 단어는 내일 다시 묻는다 (けっか)',
+     unkSet.indexOf('w0859')>=0,JSON.stringify(unkSet));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
