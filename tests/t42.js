@@ -1647,10 +1647,21 @@ async function boot(st){
   ok('CTX5 🔒 정답이 문제에 남아 있지 않다',q1&&q1.ja.indexOf('のりました')<0,JSON.stringify(q1&&q1.ja));
   ok('CTX6 보기 4개',q1&&q1.opts.length===4,JSON.stringify(q1&&q1.opts));
   /* ③ 하부 문항 — 🔴 로한이 말한 「5-6문제」가 실제로 나오는지 */
-  const subs=await p.evaluate(()=>stCtxSubs(stSentById('x71-01'),'あんしん').map(x=>({k:x.kind,w:x.w||'',n:x.opts.length,unk:!!(x.g&&x.g.unk)})));
-  ok('CTX7 한 문장이 하부 5~6문항이 된다',subs.length>=5&&subs.length<=6,JSON.stringify(subs));
-  ok('CTX8 🔒 빈칸으로 맞힌 단어는 다시 묻지 않는다',
-     !subs.some(x=>x.w==='あんしん'),JSON.stringify(subs));
+  const Q01="stGMkQ(stSentById('x71-01'),'gctx',{slot:stGSlot(stSentById('x71-01'),'ctx')})";
+  const subs=await p.evaluate(()=>stCtxSubs(stSentById('x71-01'),
+     stGMkQ(stSentById('x71-01'),'gctx',{slot:stGSlot(stSentById('x71-01'),'ctx')}))
+     .map(x=>({k:x.kind,w:x.w||'',n:x.opts.length,unk:!!(x.g&&x.g.unk)})));
+  /* 📝 v4.52 — 문장 속 단어 5 + 보기 4 + 번역 1. 보기 중 단어은행에 없는 건 빠진다 */
+  ok('CTX7 한 문장이 하부 여러 문항이 된다 (단어 + 보기 + 번역)',
+     subs.filter(x=>x.k==='word').length>=4&&subs.some(x=>x.k==='opt')&&subs.some(x=>x.k==='ko'),
+     JSON.stringify(subs));
+  /* 📝 v4.52 — 정답 단어는 **문장 쪽에서는** 안 묻는다(같은 자리를 두 번 묻는 꼴이라).
+     대신 **보기 쪽에서 한 번** 묻는다 — 빈칸을 맞혔다고 뜻을 아는 건 아니다(문맥으로 찍을 수 있다).
+     🔒 어느 쪽이든 **두 번은 안 묻는다**. */
+  ok('CTX8 정답 단어를 문장 쪽에서 또 묻지 않는다',
+     !subs.some(x=>x.k==='word'&&x.w==='あんしん'),JSON.stringify(subs));
+  ok('CTX8b 대신 보기 쪽에서 정확히 한 번 묻는다',
+     subs.filter(x=>x.w==='あんしん').length===1,JSON.stringify(subs.filter(x=>x.w==='あんしん')));
   ok('CTX9 마지막은 문장 번역이다',subs[subs.length-1].k==='ko',JSON.stringify(subs[subs.length-1]));
   ok('CTX10 하부도 전부 4지선다',subs.every(x=>x.n===4),JSON.stringify(subs.map(x=>x.n)));
   /* 🔒 v4.50 — 로한: "형광펜 신경쓰지말고, 걍 내 말대로 해"
@@ -1658,13 +1669,15 @@ async function boot(st){
   const order=await p.evaluate(()=>{
     const s=stSentById('x71-01');
     const want=stCtxGloss(s).map(g=>g.w).filter(w=>w!=='あんしん');
-    const got=stCtxSubs(s,'あんしん').filter(x=>x.kind==='word').map(x=>x.w);
+    const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    const got=stCtxSubs(s,q).filter(x=>x.kind==='word').map(x=>x.w);
     return {want:want,got:got};});
   ok('CTX11 문장에 나온 순서 그대로 묻는다',
      JSON.stringify(order.got)===JSON.stringify(order.want),JSON.stringify(order));
   ok('CTX11b 묻기 전에 🖍 로 힌트를 주지 않는다',
      (await p.evaluate(()=>{
-       const s=stSentById('x71-01'), it=stCtxSubs(s,'あんしん')[0];
+       const s=stSentById('x71-01');
+       const it=stCtxSubs(s,stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')}))[0];
        ST_DRILL={mode:'gctx',ids:[s.id],qs:[{ans:'あんしん',ja:s.ja,opts:[],why:''}],
          i:0,res:[{id:s.id,ok:true,my:'あんしん'}],show:true,fin:false,start:Date.now(),
          sub:{list:[it],j:0,show:false,bad:0}};
@@ -1672,11 +1685,12 @@ async function boot(st){
   /* ④ 🔴 unk 가 0개인 문장도 하부가 나온다 — 스펙 v23(unk 만)을 그대로 따르면 0이 된다 */
   const s05=await p.evaluate(()=>({
      unk:(stSentById('x71-05').gloss||[]).filter(g=>g.unk).length,
-     subs:stCtxSubs(stSentById('x71-05'),'ふべん').length}));
+     subs:stCtxSubs(stSentById('x71-05'),
+       stGMkQ(stSentById('x71-05'),'gctx',{slot:stGSlot(stSentById('x71-05'),'ctx')})).length}));
   ok('CTX12 🔴 형광펜이 0개인 문장도 전 단어를 묻는다',s05.unk===0&&s05.subs>=3,JSON.stringify(s05));
   /* ⑤ 🔒 전수 검사 — 모든 ctx 문장 × 모든 하부문항. 샘플링하지 않는다(v4.45 교훈) */
   const sweep=await p.evaluate(()=>{
-    const bad=[];
+    const bad=[], seen={};
     stSents().forEach(function(s){
       const sl=stGSlot(s,'ctx'); if(!sl)return;
       const q=stGMkQ(s,'gctx',{slot:sl});
@@ -1684,7 +1698,7 @@ async function boot(st){
       if(String(q.ja).indexOf(String(q.ans))>=0)bad.push(s.id+':정답이 문제에 남았다');
       if(q.opts.length!==4)bad.push(s.id+':보기 '+q.opts.length);
       if(new Set(q.opts).size!==4)bad.push(s.id+':보기 중복');
-      stCtxSubs(s,q.ans).forEach(function(it){
+      stCtxSubs(s,q).forEach(function(it){
         if(it.opts.length!==4)bad.push(s.id+'/'+(it.w||'ko')+':보기 '+it.opts.length);
         if(new Set(it.opts).size!==4)bad.push(s.id+'/'+(it.w||'ko')+':보기 중복');
         if(it.opts.indexOf(it.ans)<0)bad.push(s.id+'/'+(it.w||'ko')+':정답이 보기에 없다');
@@ -1692,6 +1706,20 @@ async function boot(st){
           if(stCtxHits(s.ja,it.w)!==1)bad.push(s.id+'/'+it.w+':문장에 '+stCtxHits(s.ja,it.w)+'번');
           const h=stCtxHl(s.ja,it.w);
           if(h.indexOf('ghl')<0)bad.push(s.id+'/'+it.w+':칠하지 못했다');
+        }
+        /* 📝 v4.52 — 보기 문항: 보기에 있던 말이어야 하고, 뜻이 정확해야 한다 */
+        if(it.kind==='opt'){
+          if(q.opts.indexOf(it.w)<0)bad.push(s.id+'/'+it.w+':보기에 없는 말');
+          const w=stWordByKana(it.w);
+          if(!w)bad.push(s.id+'/'+it.w+':단어은행에 없는데 물었다');
+          else if(stNorm(w.ko)!==it.ans)bad.push(s.id+'/'+it.w+':뜻이 다르다');
+        }
+        /* 🔒 같은 말을 두 번 묻지 않는다 */
+        if(it.kind!=='ko'){
+          const key=stNorm(it.w);
+          seen[s.id]=seen[s.id]||{};
+          if(seen[s.id][key])bad.push(s.id+'/'+it.w+':두 번 물었다');
+          seen[s.id][key]=1;
         }
       });
     });
@@ -1718,7 +1746,7 @@ async function boot(st){
   const leak=await p.evaluate(i=>{
     const s=stSentById(i), q=stGramQ(ST_DRILL,ST_DRILL.i);
     const txt=document.querySelector('#v-study .stdq').textContent;
-    return stCtxSubs(s,q.ans).filter(function(it){return txt.indexOf(it.ans)>=0;})
+    return stCtxSubs(s,q).filter(function(it){return txt.indexOf(it.ans)>=0;})
       .map(function(it){return (it.w||'ko')+'→'+it.ans;});},sid);
   ok('CTX14d 🔒 묻기 전 화면에 하부 정답이 새지 않는다 (전수)',leak.length===0,JSON.stringify(leak));
   /* 🔴 보기가 활용형(のせました)이면 words(사전형 のる) 조회가 안 된다 — **그게 정상이다**.
@@ -1729,14 +1757,17 @@ async function boot(st){
      why01.slice(0,80));
   const why09=await p.evaluate(()=>stCtxWhy(stSentById('x71-09'),
      stGMkQ(stSentById('x71-09'),'gctx',{slot:stGSlot(stSentById('x71-09'),'ctx')})));
-  ok('CTX15b 못 찾은 보기는 빈 줄로 남기지 않는다',why09.indexOf('보기의 뜻')<0,why09.slice(0,80));
+  /* 📝 v4.52 — 🔴 전엔 못 찾은 보기를 **조용히 뺐다**. 그러면 「이 보기는 뜻을 모른다」는
+     사실까지 사라진다 — 학습방이 그걸 보고 단어은행에 넣어야 한다. 이제 줄로 남긴다. */
+  ok('CTX15b 못 찾은 보기도 「단어은행에 없다」로 남긴다',
+     why09.indexOf('보기의 뜻')>=0&&why09.indexOf('단어은행에 없다')>=0,why09.slice(0,120));
   ok('CTX16 다음은 「문장 점검」이다',whyTxt.indexOf('문장 점검')>=0);
   await p.evaluate(()=>stCtxGo());await p.waitForTimeout(300);
   ok('CTX17 점검 화면으로 들어간다',(await p.evaluate(()=>!!(ST_DRILL.sub&&ST_DRILL.sub.list.length)))===true);
   ok('CTX18 묻는 단어가 칠해진다',(await p.$$('#v-study .ghl')).length===1);
   /* 하부를 전부 맞힌다 → 통과 */
   const walk=async()=>{
-    for(let k=0;k<16;k++){
+    for(let k=0;k<48;k++){
       const st=await p.evaluate(()=>{
         const S=ST_DRILL&&ST_DRILL.sub; if(!S)return null;
         return {j:S.j,n:S.list.length,show:!!S.show,ans:S.list[S.j]?S.list[S.j].ans:null};});
@@ -1847,7 +1878,7 @@ async function boot(st){
      bad1.bank?(sa.wrong[0].wordId===bad1.wid&&!('nobank' in sa.wrong[0]))
               :(sa.wrong[0].nobank===true&&!('wordId' in sa.wrong[0])),JSON.stringify(sa.wrong[0]));
   /* 나머지 하부를 전부 틀리게 밀어 끝까지 간다 */
-  for(let k=0;k<14;k++){
+  for(let k=0;k<48;k++){
     const st2=await p.evaluate(()=>{
       const S=ST_DRILL&&ST_DRILL.sub; if(!S)return null;
       const it=S.list[S.j];
@@ -1881,7 +1912,7 @@ async function boot(st){
   await p.waitForTimeout(250);
   await p.evaluate(()=>stDrillGrade(stGramQ(ST_DRILL,0).ans));
   await p.evaluate(()=>stCtxGo());await p.waitForTimeout(200);
-  for(let k=0;k<14;k++){
+  for(let k=0;k<48;k++){
     const st3=await p.evaluate(()=>{
       const S=ST_DRILL&&ST_DRILL.sub; if(!S)return null;
       return {show:!!S.show,ans:S.list[S.j]?S.list[S.j].ans:null};});
@@ -1896,6 +1927,50 @@ async function boot(st){
   const rec4=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
   ok('CTX45 ⚠️ 다 맞히면 빈 서랍을 안 만든다',
      !!rec4.sub&&rec4.sub.bad===0&&!('subWrong' in rec4),JSON.stringify(rec4.sub));
+  /* ⑰ 📝 v4.52 — 🔴 보기의 뜻을 **보여주기만** 했다.
+     로한: "보기는 무슨 뜻인지 안물어본다. 보기의 뜻을 다 알거라고 생각하면 안되잖아.
+     맞든 틀리든 **무조건 다 물어봐야지**" — 보기 4개는 시험에 실제로 나오는 선택지다. */
+  const opq=await p.evaluate(()=>{
+    const s=stSentById('x71-01');
+    const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    const subs=stCtxSubs(s,q);
+    const asked=subs.filter(x=>x.kind==='opt').map(x=>x.w);
+    const bankable=q.opts.filter(o=>{const w=stWordByKana(o);return !!(w&&stNorm(w.ko));});
+    return {opts:q.opts,asked:asked,bankable:bankable,ans:q.ans,
+      right:subs.filter(x=>x.kind==='opt'&&x.right).map(x=>x.w),
+      order:subs.map(x=>x.kind)};});
+  ok('CTX46 🔴 단어은행에 있는 보기는 **전부** 묻는다',
+     opq.bankable.length>0&&opq.bankable.every(o=>opq.asked.indexOf(o)>=0),JSON.stringify(opq));
+  ok('CTX47 정답이었던 보기도 묻는다 (맞혔다고 뜻을 아는 건 아니다)',
+     opq.asked.indexOf(opq.ans)>=0&&opq.right.length===1,JSON.stringify({asked:opq.asked,ans:opq.ans}));
+  ok('CTX48 순서는 문장 단어 → 보기 → 번역이다',
+     /^word+opt+ko$/.test(opq.order.join('').replace(/word/g,'word+').replace(/opt/g,'opt+')
+       .replace(/\+\+/g,'+').replace(/word\+/g,'word').replace(/opt\+/g,'opt'))
+     ||(function(){const i=opq.order.lastIndexOf('word'),j=opq.order.indexOf('opt');
+         return j>i&&opq.order[opq.order.length-1]==='ko';})(),JSON.stringify(opq.order));
+  /* 🔒 묻기 전에 정답/오답인지 말하지 않는다 */
+  const ophtml=await p.evaluate(()=>{
+    const s=stSentById('x71-01');
+    const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    const it=stCtxSubs(s,q).filter(x=>x.kind==='opt'&&x.right)[0];
+    ST_DRILL={mode:'gctx',ids:[s.id],qs:[q],i:0,res:[{id:s.id,ok:true,my:q.ans}],
+      show:true,fin:false,start:Date.now(),sub:{list:[it],j:0,show:false,bad:0}};
+    const pre=stCtxRun();
+    ST_DRILL.sub.show=true;ST_DRILL.sub.ok=true;ST_DRILL.sub.my=it.ans;
+    const post=stCtxRun(); ST_DRILL=null;
+    return {pre:pre,post:post,ans:it.ans};});
+  /* 🔴 내 단언이 틀렸었다: 정답 **뜻**은 4지선다 보기 안에 당연히 들어 있다(그게 4지선다다).
+     볼 것은 「이게 빈칸의 정답이었다」는 **말**을 미리 흘리지 않는가 하나다. */
+  ok('CTX49 🔒 묻기 전엔 그게 정답이었다고 말하지 않는다',
+     ophtml.pre.indexOf('빈칸의 정답')<0,ophtml.pre.slice(0,120));
+  ok('CTX50 답한 뒤에는 말해준다',ophtml.post.indexOf('빈칸의 정답')>=0);
+  ok('CTX51 보기 문항엔 하이라이트가 없다 (문장에 없는 말이다)',ophtml.pre.indexOf('ghl')<0);
+  /* 🔒 못 물은 보기는 정리에서 **줄로 남는다** — 조용히 빼면 모른다는 사실까지 사라진다 */
+  const miss=await p.evaluate(()=>{
+    const s=stSentById('x71-09');
+    return stCtxWhy(s,stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')}));});
+  ok('CTX52 단어은행에 없는 보기도 줄은 남긴다',
+     miss.indexOf('단어은행에 없다')>=0,miss.slice(0,100));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
