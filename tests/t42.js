@@ -2194,6 +2194,58 @@ async function boot(st){
     DB.study.sents=keep; return r;});
   ok('AUTO8 🔒 아직 안 맞힌 수동 문항이 많으면 자동으로 안 만든다',
      zero.need===0&&zero.items===0,JSON.stringify(zero));
+  /* ㉓ 🔴 v4.56 — 한 세트는 10문항이다.
+     로한: "내가 문장을 계속 만들라고 했지 **무조건 낸 문장을 다 시험 보게 하면 어케해**.
+     10문항 기준으로, 그 문제 중에 10문항을 골라서 내야지. 나중에 그럼 **100문항 내면
+     맨날 100문항 풀게할꺼냐**?"  🔒 풀과 세트는 다른 것이다. */
+  const big=await p.evaluate(()=>{
+    /* 수동 30문항을 만든다 — 아직 한 번도 안 맞힌 것으로 */
+    const many=[];
+    for(let i=0;i<30;i++)many.push({id:'b'+i,
+      ja:'テストの けっかを 聞いて、すこし あんしん しました。',ko:'…',lv:'N4',src:'b1:71',
+      seen:0,miss:0,streak:0,lastSeen:null,
+      slots:[{kind:'ctx',target:'あんしん',opts:['あんてい','せつめい','でんとう'],why:'…'}]});
+    DB.study.sents=many;
+    const pool=stGramItems('gctx').length;
+    stDrillStart('gctx',Math.min(ST_SET,pool));
+    const set=ST_DRILL?ST_DRILL.ids.length:-1;
+    ST_DRILL=null;
+    return {pool:pool,set:set,ST_SET:ST_SET};});
+  ok('SET1 풀은 30문항이다 (정직하게 센다)',big.pool===30,JSON.stringify(big));
+  ok('SET2 🔴 한 세트는 10문항이다 (풀이 커져도)',big.set===10,JSON.stringify(big));
+  /* 화면 단추가 세트 크기로 시작하는지 — 숫자를 손으로 적지 않는다 */
+  const btn=await p.evaluate(()=>{
+    setStTab('word');renderStudy();
+    const b=[...document.querySelectorAll('.gmode button')]
+      .filter(x=>x.textContent.indexOf('문맥규정')>=0)[0];
+    return b?b.getAttribute('onclick'):'(없음)';});
+  ok('SET3 시작 단추가 세트 크기로 연다',/stDrillStart\('gctx',10\)/.test(btn),btn);
+  /* 🔴 자동이 **실제로 세트에 들어온다** — 수동이 다 차면 영원히 안 나오던 자리 */
+  const mix=await p.evaluate(CTXIN=>{
+    DB.study.sents=JSON.parse(JSON.stringify(CTXIN)).concat([
+      {id:'g1',ja:'きょうは しゅくだいが おおくて たいへんです。',ko:'오늘은 숙제가 많아서 힘듭니다.',
+       lv:'N4',src:'b1:200',seen:0,miss:0,streak:0,lastSeen:null,slots:[]},
+      {id:'g2',ja:'まいにち けいけんを つみたいです。',ko:'매일 경험을 쌓고 싶습니다.',
+       lv:'N4',src:'b1:201',seen:0,miss:0,streak:0,lastSeen:null,slots:[]}]);
+    /* 수동 3개를 전부 2번씩 맞혔다 — 서버의 지금 상태와 같은 꼴 */
+    stSents().forEach(function(x){
+      if(stGSlots(x,'ctx').length){x.seen=4;x.miss=0;x.comp={streak:1,mastered:false,last:todayStr()};}
+    });
+    const items=stGramItems('gctx');
+    return {total:items.length,auto:items.filter(x=>x.auto).length,
+            manual:items.filter(x=>!x.auto).map(x=>x.s.id)};},CTX);
+  ok('SET4 🔴 다 맞힌 수동 문항은 풀에서 빠진다',mix.manual.length===0,JSON.stringify(mix));
+  ok('SET5 🔴 그 자리를 자동이 채운다 (전엔 영원히 안 나왔다)',mix.auto>=1,JSON.stringify(mix));
+  /* 🔒 아직 덜 맞힌 교재 문장은 자동보다 앞이다 */
+  const order2=await p.evaluate(()=>{
+    stSents().forEach(function(x){
+      if(stGSlots(x,'ctx').length){x.seen=0;x.miss=0;delete x.comp;}});
+    const items=stGramItems('gctx');
+    const firstAuto=items.findIndex(x=>x.auto);
+    const lastManual=items.map(x=>!!x.auto).lastIndexOf(false);
+    return {firstAuto:firstAuto,lastManual:lastManual,n:items.length};});
+  ok('SET6 🔒 수동이 자동보다 앞이다',
+     order2.firstAuto<0||order2.firstAuto>order2.lastManual,JSON.stringify(order2));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
