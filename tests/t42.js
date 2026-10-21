@@ -2051,6 +2051,122 @@ async function boot(st){
     ST_DRILL=null; return out;});
   ok('CTX63 🔁 문장에서 만난 모르는 단어는 내일 다시 묻는다 (けっか)',
      unkSet.indexOf('w0859')>=0,JSON.stringify(unkSet));
+  /* ㉑ ⌨ v4.54 — 키보드. 로한: "마우스 클릭하는 것 조차 손만 아프다"
+     1·2·3·4 고르기 / 스페이스 모르겠다 / 엔터 다음. 🔒 **눌러서** 잰다. */
+  await p.evaluate(()=>{ST_DRILL=null;DB.study.drills=[];
+    stSents().forEach(x=>{delete x.comp;});
+    stWords().forEach(w=>{w.seen=0;w.miss=0;w.streak=0;w.lastSeen=null;delete w.retestOn;});
+    stDrillStart('gctx',2);});
+  await p.waitForTimeout(300);
+  const before=await p.evaluate(()=>({
+    opts:[...document.querySelectorAll('#v-study .stdopt button')].map(b=>b.textContent.trim()),
+    ans:stGramQ(ST_DRILL,ST_DRILL.i).ans}));
+  ok('KEY1 보기에 번호가 보인다',
+     (await p.$$('#v-study .stdopt button .optk')).length===4,JSON.stringify(before.opts));
+  /* 🔒 2번 키를 누르면 **두 번째** 보기를 고른 것이다 */
+  const second=await p.evaluate(()=>
+    document.querySelectorAll('#v-study .stdopt button')[1].textContent.replace(/^\s*2\s*/,'').trim());
+  await p.keyboard.press('2');await p.waitForTimeout(250);
+  const g1=await p.evaluate(()=>({show:!!ST_DRILL.show,my:(ST_DRILL.res[0]||{}).my}));
+  ok('KEY2 ⌨ 숫자키로 고른다 (2 → 두 번째 보기)',g1.show&&g1.my===second,
+     JSON.stringify({got:g1.my,want:second}));
+  /* 🔒 채점 뒤엔 숫자가 안 먹는다 — 다음 문항 답을 모르고 찍게 되면 안 된다 */
+  await p.keyboard.press('1');await p.waitForTimeout(150);
+  ok('KEY3 🔒 채점 뒤엔 숫자가 안 먹는다',
+     (await p.evaluate(()=>ST_DRILL.res.length))===1);
+  /* 엔터로 다음 — 문맥규정이라 「문장 점검」으로 간다 */
+  await p.keyboard.press('Enter');await p.waitForTimeout(300);
+  ok('KEY4 ⌨ 엔터로 넘어간다',
+     (await p.evaluate(()=>!!(ST_DRILL.sub||ST_DRILL.sum)))===true);
+  /* 점검 화면에서도 숫자·스페이스가 산다 */
+  const inSub=await p.evaluate(()=>!!(ST_DRILL.sub&&ST_DRILL.sub.list.length));
+  if(inSub){
+    await p.keyboard.press(' ');await p.waitForTimeout(250);
+    ok('KEY5 ⌨ 스페이스가 「모르겠다」다 (점검에서도)',
+       (await p.evaluate(()=>!!(ST_DRILL.sub&&ST_DRILL.sub.show&&ST_DRILL.sub.ok===false)))===true);
+    await p.keyboard.press('Enter');await p.waitForTimeout(250);
+    ok('KEY6 점검도 엔터로 넘어간다',
+       (await p.evaluate(()=>!(ST_DRILL.sub&&ST_DRILL.sub.show)))===true);
+  }else{ ok('KEY5 (점검 문항이 없는 문장이었다)',true); ok('KEY6 (같음)',true); }
+  /* 🔒 글을 쓰는 중에는 키가 문항을 건드리지 않는다 */
+  const typed=await p.evaluate(()=>{
+    const i=document.createElement('input');document.body.appendChild(i);i.focus();
+    const busy=stKeyBusy(); i.remove(); return busy;});
+  ok('KEY7 🔒 입력칸에 쓰는 중이면 드릴 키를 안 먹는다',typed===true);
+  const inModal=await p.evaluate(()=>{
+    openModal('<div>x</div>'); const b=stKeyBusy(); closeModal(); return b;});
+  ok('KEY8 🔒 모달이 떠 있으면 드릴 키가 아니다',inModal===true);
+  await p.evaluate(()=>{ST_DRILL=null;renderStudy();});
+  /* ㉒ 🤖 v4.54 자동 생성 — 로한: "10문항 중에서도 내가 **2-3번 맞추면** 문장 생성 해야겠다.
+     똑같은 문장을 계속하니 확실히 도움이 되는데, 이제 **완전히 맞춘건 별로 도움이 안된다**"
+     🔒 새 문장을 만들지 않는다 — 이미 있는 예문에 빈칸을 뚫는다. */
+  await p.evaluate(CTXIN=>{
+    ST_DRILL=null;
+    /* 다른 kind 로만 쓰이던 예문 둘을 넣는다 — 여기서 ctx 문항이 나와야 한다 */
+    DB.study.sents=JSON.parse(JSON.stringify(CTXIN)).concat([
+      {id:'g1',ja:'きょうは しゅくだいが おおくて たいへんです。',ko:'오늘은 숙제가 많아서 힘듭니다.',
+       lv:'N4',src:'b1:200',seen:0,miss:0,streak:0,lastSeen:null,
+       slots:[{kind:'conj',target:'おおくて',opts:['すくなくて','ちかくて','とおくて'],why:'…'}]},
+      {id:'g2',ja:'まいにち けいけんを つみたいです。',ko:'매일 경험을 쌓고 싶습니다.',
+       lv:'N4',src:'b1:201',seen:0,miss:0,streak:0,lastSeen:null,slots:[]}]);
+    stSents().forEach(x=>{delete x.comp;});},CTX);
+  const need0=await p.evaluate(()=>({need:stAutoNeed(),items:stGramItems('gctx').length}));
+  ok('AUTO1 🔒 미숙달 수동 문항이 모자랄 때만 채운다 (3개뿐이라 7개 필요)',
+     need0.need===7,JSON.stringify(need0));
+  const made=await p.evaluate(()=>stAutoItems().map(x=>({id:x.s.id,t:x.slot.target,
+     n:x.slot.opts.length,auto:!!x.slot.auto})));
+  ok('AUTO2 🤖 있는 예문에서 문항이 나온다',made.length>=1,JSON.stringify(made));
+  ok('AUTO3 보기가 3개 붙는다 (2지선다를 안 만든다)',
+     made.every(x=>x.n===3),JSON.stringify(made));
+  ok('AUTO4 손으로 올린 문항이 있는 문장은 건드리지 않는다',
+     made.every(x=>['g1','g2'].indexOf(x.id)>=0),JSON.stringify(made));
+  /* 🔒 전수 — 자동 문항도 정답이 문제에 남으면 안 된다 */
+  const asweep=await p.evaluate(()=>{
+    const bad=[];
+    stAutoItems().forEach(function(it){
+      const q=stGMkQ(it.s,'gctx',it);
+      if(!q){bad.push(it.s.id+':문항없음');return;}
+      if(String(q.ja).indexOf(String(q.ans))>=0)bad.push(it.s.id+':정답이 문제에 남았다');
+      if(q.ja.indexOf('（　）')<0)bad.push(it.s.id+':빈칸이 없다');
+      if(q.opts.length!==4)bad.push(it.s.id+':보기 '+q.opts.length);
+      if(new Set(q.opts).size!==4)bad.push(it.s.id+':보기 중복');
+      if(!q.auto)bad.push(it.s.id+':자동 표시가 없다');
+      q.opts.forEach(function(o){
+        if(o!==q.ans&&String(it.s.ja).indexOf(o)>=0)bad.push(it.s.id+'/'+o+':오답이 문장에 이미 있다');
+      });
+    });
+    return bad;});
+  ok('AUTO5 🔒 전수: 정답 노출·보기 중복·오답 누수 없음',asweep.length===0,JSON.stringify(asweep));
+  /* 🔒 자동 문항은 숙달을 쌓지 않는다 */
+  const noComp=await p.evaluate(()=>{
+    const it=stAutoItems()[0]; if(!it)return null;
+    const q=stGMkQ(it.s,'gctx',it);
+    ST_DRILL={mode:'gctx',ids:[it.s.id],qs:[q],i:0,res:[{id:it.s.id,ok:true,my:q.ans}],
+      show:true,fin:false,start:Date.now(),sub:{list:[],j:0,show:false,bad:0}};
+    stCtxDone();
+    const c=stCompOf(stSentById(it.s.id)); ST_DRILL=null;
+    return {id:it.s.id,streak:c.streak,mastered:c.mastered};});
+  ok('AUTO6 🔒 자동 문항은 숙달을 안 쌓는다 (점검이 반쪽이라)',
+     !noComp||noComp.streak===0,JSON.stringify(noComp));
+  /* 🔒 숙달이 늘면 자동분이 준다 — 로한이 원한 방향 그대로 */
+  const less=await p.evaluate(()=>{
+    const before=stAutoNeed();
+    stSents().filter(x=>stGSlots(x,'ctx').length).forEach(function(x){
+      x.comp={streak:2,mastered:true,last:todayStr()};});
+    return {before:before,after:stAutoNeed()};});
+  ok('AUTO7 🔴 숙달한 만큼 자동으로 더 채운다',less.after>less.before,JSON.stringify(less));
+  /* 🔒 수동 미숙달이 충분하면 자동은 0 */
+  const zero=await p.evaluate(()=>{
+    const keep=DB.study.sents;
+    const many=[];
+    for(let i=0;i<12;i++)many.push({id:'m'+i,ja:'テストの けっかを 聞いて、すこし あんしん しました。',
+      ko:'…',lv:'N4',src:'b1:71',seen:0,miss:0,streak:0,lastSeen:null,
+      slots:[{kind:'ctx',target:'あんしん',opts:['あんてい','せつめい','でんとう'],why:'…'}]});
+    DB.study.sents=many;
+    const r={need:stAutoNeed(),items:stAutoItems().length};
+    DB.study.sents=keep; return r;});
+  ok('AUTO8 🔒 아직 배울 게 많으면 자동으로 안 만든다',
+     zero.need===0&&zero.items===0,JSON.stringify(zero));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }

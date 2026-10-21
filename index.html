@@ -284,6 +284,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .sccoach{margin-top:12px;background:var(--warn-bg);border:1px solid #f0dfae;border-radius:10px;
   padding:9px 11px;font-size:11.5px;line-height:1.55;color:#6b5412;white-space:pre-wrap}
 .scct{font-size:10px;font-weight:800;color:#8a6d16;margin-bottom:3px}
+/* 🤖 v4.54 자동 생성 표시 */
+.autotag{font-size:10.5px;font-weight:700;color:#8a6d1f;background:#fff8e1;
+  border:1px solid #f0e0b0;border-radius:7px;padding:4px 8px;margin-bottom:8px}
+/* ⌨ v4.54 — 키 안내. 🔒 작게, 그러나 **보이게** — 안 보이면 있어도 못 쓴다 */
+.optk{display:inline-block;min-width:14px;padding:0 4px;margin-right:6px;border-radius:4px;
+  background:var(--soft);color:#7a869a;font-size:10px;font-weight:700;text-align:center;
+  font-variant-numeric:tabular-nums}
+@media(hover:none){.optk{display:none}}   /* 손가락으로 쓰는 화면엔 키가 없다 */
 /* 📝 v4.50 문맥규정 숙달 띠
    🔴 [회귀] 처음에 `.ctxbar` 로 지었다. **그 이름은 이미 쓰고 있었다** — 목표 페이지의
    진척 막대(.ctxrow/.ctxnm/.ctxr 가족, 아래쪽에 선언)다. 같은 이름을 두 번 선언하면
@@ -5156,6 +5164,55 @@ function stDrillGrade(my){
 /* 「모르겠다」 — 5번째 선택지가 아니라 **별도 버튼**이다.
    🔒 처리는 오답과 완전히 같다(`miss+1`, `streak=0`). **목적은 찍기 제거다** —
       찍어서 맞히면 `miss` 가 안 쌓이고, 그러면 약점 탐지가 죽는다. */
+/* ══════ ⌨ v4.54 드릴 키보드 ══════
+   로한: *"4지선다잖아? 왼쪽부터 키보드로도 선택할 수 있게 해라(피시기준) 1,2,3,4번 숫자키로.
+   **마우스 클릭하는 것 조차 손만 아프다.** 그리고 모른다는 스페이스, 답 확인은 엔터"*
+   🔒 **DOM 을 보고 움직인다.** 지금 화면에 보기 버튼이 있으면 그게 문항이다 —
+      모드(단어·문법·활용·문맥·점검)마다 따로 적으면 모드를 늘릴 때 반드시 빠뜨린다(원칙 2).
+   🔒 글을 쓰는 중이면 손대지 않는다 — 뽀모 메모·검색칸에 「1」을 치는 것이 문항 선택이 되면 안 된다.
+   🔒 모달이 떠 있으면 드릴 키가 아니다. */
+function stKeyBusy(){
+  var e=document.activeElement;
+  if(e&&/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName))return true;
+  if(e&&e.isContentEditable)return true;
+  /* 🔒 모달 열림 표시는 #modal 이 아니라 **덮개(#ov)** 에 붙는다(openModal) */
+  var m=document.getElementById('ov');
+  if(m&&m.classList&&m.classList.contains('on'))return true;
+  return false;
+}
+/* 지금 화면의 드릴 조작부 — 보기들·모르겠다·다음 */
+function stKeyParts(){
+  var box=document.querySelector('#v-study .stdq'); if(!box)return null;
+  var opts=[].slice.call(box.querySelectorAll('.stdopt button'));
+  var dunno=null, next=null;
+  [].slice.call(box.querySelectorAll('button')).forEach(function(b){
+    var t=(b.textContent||'').trim();
+    if(!dunno&&t.indexOf('모르겠다')>=0)dunno=b;
+    if(!next&&b.className.indexOf('btn')>=0&&opts.indexOf(b)<0&&t.indexOf('모르겠다')<0)next=b;
+  });
+  return {opts:opts,dunno:dunno,next:next};
+}
+function stDrillKey(ev){
+  if(!ST_DRILL||ST_DRILL.fin)return;
+  if(ev.ctrlKey||ev.metaKey||ev.altKey)return;
+  if(stKeyBusy())return;
+  var p=stKeyParts(); if(!p)return;
+  var k=ev.key;
+  /* 🔒 보기가 떠 있을 때만 숫자·스페이스가 산다. 채점 뒤에는 엔터만 —
+     채점 화면에서 숫자가 또 먹으면 다음 문항의 답을 모르고 찍게 된다. */
+  if(p.opts.length){
+    if(k>='1'&&k<=String(Math.min(9,p.opts.length))){
+      ev.preventDefault(); p.opts[+k-1].click(); return;
+    }
+    if(k===' '||k==='Spacebar'){
+      ev.preventDefault();
+      if(p.dunno)p.dunno.click();
+      return;
+    }
+    return;
+  }
+  if(k==='Enter'){ ev.preventDefault(); if(p.next)p.next.click(); }
+}
 function stDrillDunno(){
   /* 🔁 v4.53 — 빈칸에서 「모르겠다」가 나온 단어는 **내일 문맥 없이** 다시 묻는다(학습방 v24) */
   try{
@@ -5237,7 +5294,7 @@ function stDrillRun(){
       +(stTtsReady()&&stNorm(w.kana)?'<div style="margin-top:10px"><button class="ghost sm" '
         +'onclick="stSpeak('+JSON.stringify(String(w.kana)).replace(/"/g,'&quot;')+')">🔊 다시 듣기</button></div>':'')
       +'<div style="margin-top:12px"><button class="btn" onclick="stDrillNext()">'
-        +(D.i+1>=D.ids.length?'결과 보기':'다음 →')+'</button></div>';
+        +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 → <span class="optk">↵</span>')+'</button></div>';
   }else{
     /* 🔊 음성 모드는 글자가 없다. 청해는 한 번에 안 들리니 반복 버튼은 필수 */
     body=(D.mode==='a2m'?'<div style="margin:6px 0 2px"><button class="btn" onclick="stSpeakCur()">🔊 다시 듣기</button></div>':'')
@@ -5526,8 +5583,10 @@ function stGMkQ(s,mode,it){
   if(ST_GKIND[mode]){
     var sl=(it&&it.slot)||stGSlot(s,ST_GKIND[mode]);
     if(!sl)return null;
-    return {ans:sl.target, ja:stGMask(s.ja,sl.target,sl.nth), why:String(sl.why||''),
+    var _q={ans:sl.target, ja:stGMask(s.ja,sl.target,sl.nth), why:String(sl.why||''),
             opts:stGShuffle([sl.target].concat(sl.opts.slice(0,3)))};
+    if(sl.auto)_q.auto=true;              /* 🤖 어디서 왔는지 잃지 않는다 */
+    return _q;
   }
   if(mode==='gsyn')return stSynQ(s);
   if(mode==='gpart')return stGPartQ(s,it&&it.cand);
@@ -5550,6 +5609,9 @@ function stGramItems(mode){
     else if(mode==='gpart')stGParticles(s).forEach(function(c){out.push({s:s,cand:c});});
     else out.push({s:s});                      /* gord — 한 문장이 한 문항이다 */
   });
+  /* 🤖 v4.54 — 문맥규정만: 손으로 올린 미숙달 문항이 모자라면 자동으로 채운다.
+     🔒 **수동이 먼저다.** 로한이 실제로 본 교재 문장이 자동 문항에 밀리면 안 된다. */
+  if(mode==='gctx')out=out.concat(stAutoItems());
   return out;
 }
 /* 🔒 같은 문장을 연달아 내지 않는다 — 한 바퀴 돌고 두 번째 슬롯으로 간다.
@@ -5681,6 +5743,80 @@ function stCtxSubs(s,q){
     out.push({kind:'ko',ans:ko,opts:stGShuffle([ko].concat(kos.slice(0,3)))});
   return out;
 }
+/* ══════ 🤖 v4.54 문맥규정 문항 **자동 생성** ══════
+   로한: *"10문항 중에서도 내가 **2-3번 맞추면** 문장 생성 해야겠다. 똑같은 문장을 계속하니
+   확실히 도움이 되는데, 이제 **완전히 맞춘건 별로 도움이 안된다**"*
+   *"내가 스캔 준것만 문장을 하게 되면 내가 책 전체를 스캔해서 주란소린데, 이게 말이되냐고"*
+   🔒 **새 문장을 만들지 않는다.** 이미 326개 예문이 있다(조사·접속사·부사·문형·어순용).
+      거기에 빈칸을 뚫는다 — 학습방 v20 의 「sents 는 공용 문항 풀」 원칙 그대로다.
+   🔒 **정답은 words 에 있는 말만** 고른다. 문장에 그 표기 그대로 **한 번만** 나와야 한다 —
+      활용형이면 보기를 같은 꼴로 만들 수 없고, 두 번 나오면 어디를 물었는지 모호해진다.
+   🔒 오답은 **같은 품사(pos)** 에서. 품사가 섞이면 눈감고도 걸러진다.
+   🔒 자동 문항은 **숙달(comp)을 쌓지 않는다** — gloss(단어 분해)가 없어 점검이 반쪽이다.
+      반쪽 통과를 숙달로 세면 「시험장 가기 전에 전부 안다」는 지표가 거짓이 된다.
+   🔒 화면에 **자동 생성이라고 적는다.** 교재 문장인 척하면 그게 거짓말이다. */
+var ST_CTX_FLOOR=10;      /* 미숙달 수동 문항이 이보다 적으면 자동으로 채운다 */
+var ST_AUTO_POS={noun:1,verb:1,'adj-i':1,'adj-na':1,adv:1};
+
+/* 이 문장에서 빈칸으로 쓸 수 있는 단어 — 🔒 조건을 못 지키면 아무것도 안 돌려준다 */
+function stAutoPick(sn){
+  var ja=String((sn&&sn.ja)||''); if(!ja)return null;
+  var best=null;
+  stWords().forEach(function(w){
+    if(best)return;
+    var pos=stNorm(w.pos); if(!ST_AUTO_POS[pos])return;
+    var forms=[w.kanji,w.kana];
+    for(var i=0;i<forms.length;i++){
+      var f=stNorm2(forms[i])?String(forms[i]):'';
+      if(f.length<2)continue;                 /* 한 글자는 어디에나 들어 있다 */
+      if(stCtxHits(ja,f)!==1)continue;        /* 🔒 정확히 한 번 */
+      best={w:w,form:f,pos:pos}; break;
+    }
+  });
+  return best;
+}
+/* 자동 문항 하나 — 없으면 null */
+function stAutoSlot(sn){
+  var pick=stAutoPick(sn); if(!pick)return null;
+  var bad=[], seen={}; seen[stNorm(pick.form)]=1;
+  stGShuffle(stWords().filter(function(x){
+    return x.id!==pick.w.id&&stNorm(x.pos)===pick.pos;
+  })).forEach(function(x){
+    if(bad.length>=3)return;
+    /* 🔒 보기는 **같은 꼴**이어야 한다 — 정답이 한자면 보기도 한자, 가나면 가나 */
+    var f=(stNorm2(pick.w.kanji)&&pick.form===String(pick.w.kanji))
+      ? (stNorm2(x.kanji)?String(x.kanji):'') : (stNorm2(x.kana)?String(x.kana):'');
+    if(!f||f.length<2||seen[stNorm(f)])return;
+    if(String(sn.ja||'').indexOf(f)>=0)return;   /* 🔒 문장에 이미 있는 말은 오답이 못 된다 */
+    seen[stNorm(f)]=1; bad.push(f);
+  });
+  if(bad.length<3)return null;             /* 🔒 2지선다를 만들지 않는다 */
+  return {kind:'ctx',target:pick.form,opts:bad,wordId:pick.w.id,auto:true,
+    why:'자동 생성 문항이다. 정답 '+pick.form+(stNorm2(pick.w.ko)?'('+pick.w.ko+')':'')
+      +' 은 단어은행에서 골랐고, 보기 셋은 같은 품사에서 뽑았다.'};
+}
+/* 🔒 「자동으로 몇 개를 채울까」에 답하는 함수는 하나다.
+   수동 문항 중 **아직 숙달 안 된 것**만 센다 — 로한: "완전히 맞춘건 별로 도움이 안된다" */
+function stAutoNeed(){
+  var live=0;
+  stSents().forEach(function(x){
+    if(stGSlots(x,'ctx').length&&!stCompOf(x).mastered)live++;
+  });
+  var need=ST_CTX_FLOOR-live;
+  return need>0?need:0;
+}
+/* 자동 문항 목록 — 🔒 **저장하지 않는다.** 그때그때 만든다(파생은 저장하지 않는다) */
+function stAutoItems(){
+  var need=stAutoNeed(); if(!need)return [];
+  var out=[];
+  stSents().forEach(function(sn){
+    if(out.length>=need)return;
+    if(stGSlots(sn,'ctx').length)return;      /* 손으로 올린 문항이 있는 문장은 건드리지 않는다 */
+    var sl=stAutoSlot(sn); if(!sl)return;
+    out.push({s:sn,slot:sl,auto:true});
+  });
+  return out;
+}
 /* ── 숙달 (`sents[].comp`) ──
    🔒 통과 = 빈칸 + 점검 A 전부 + 점검 B **전부 정답**. 하나라도 틀리면 streak=0.
       로한 기준이 「이 문장에 모르는 게 없다」이므로 부분 통과는 통과가 아니다.
@@ -5796,7 +5932,10 @@ function stCtxDone(){
   var r=D.res[D.res.length-1]||{};
   var bad=(D.sub?D.sub.bad:0);
   var pass=!!r.ok&&!bad;
-  if(s)stCompMark(s,pass);
+  /* 🔒 v4.54 — 자동 문항은 숙달을 쌓지 않는다. gloss 가 없어 점검이 반쪽이라
+     반쪽 통과를 숙달로 세면 「시험장 가기 전에 전부 안다」가 거짓이 된다. */
+  var _q=stGramQ(D,D.i);
+  if(s&&!(_q&&_q.auto))stCompMark(s,pass);
   D.sum={bad:bad,n:(D.sub?D.sub.list.length:0),pass:pass};
   D.sub=null; save(); renderStudy();
 }
@@ -5828,7 +5967,7 @@ function stCtxSum(){
         :(S.pass?'통과 '+c.streak+'회 — <b>다른 날</b> 한 번 더 전부 맞히면 숙달이다'
                :'🔒 하나라도 틀리면 통과가 아니다 — 연속이 0 으로 돌아갔다'))+'</div>'
      +'<div style="margin-top:12px"><button class="btn" onclick="stCtxSumNext()">'
-       +(D.i+1>=D.ids.length?'결과 보기':'다음 문장 →')+'</button></div>'
+       +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 문장 → <span class="optk">↵</span>')+'</button></div>'
    +'</div></div>';
 }
 /* 하부 문항 화면 — 🔒 문장을 **그대로** 띄우고 묻는 단어만 칠한다 */
@@ -5877,12 +6016,12 @@ function stCtxRun(){
           +'</div>'
         :'')
       +'<div style="margin-top:12px"><button class="btn" onclick="stCtxNext()">'
-        +(S.j+1>=S.list.length?'이 문장 끝 →':'다음 단어 →')+'</button></div>';
+        +(S.j+1>=S.list.length?'이 문장 끝 → <span class="optk">↵</span>':'다음 단어 → <span class="optk">↵</span>')+'</button></div>';
   }else{
-    body='<div class="stdopt">'+it.opts.map(function(o){
+    body='<div class="stdopt">'+it.opts.map(function(o,i){
         return '<button onclick="stCtxGrade('+JSON.stringify(String(o)).replace(/"/g,'&quot;')+')">'
-          +mdEsc(o)+'</button>';}).join('')+'</div>'
-      +'<div style="margin-top:11px"><button class="ghost sm" onclick="stCtxDunno()">모르겠다</button></div>';
+          +'<span class="optk">'+(i+1)+'</span>'+mdEsc(o)+'</button>';}).join('')+'</div>'
+      +'<div style="margin-top:11px"><button class="ghost sm" onclick="stCtxDunno()">모르겠다 <span class="optk">space</span></button></div>';
   }
   return '<div class="sec">'+head
    +'<div class="stdq">'+qh+body+'</div>'
@@ -6044,12 +6183,12 @@ function stVconjRun(){
       +'<div class="mut" style="font-size:10.5px;margin-top:5px">누적 '+(+w.miss||0)+'틀림/'+(+w.seen||0)+'회'
         +((+w.streak||0)?' · 연속 '+w.streak+'회 (2회면 틀림 −1)':'')+'</div>'
       +'<div style="margin-top:12px"><button class="btn" onclick="stDrillNext()">'
-        +(D.i+1>=D.ids.length?'결과 보기':'다음 →')+'</button></div>';
+        +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 → <span class="optk">↵</span>')+'</button></div>';
   }else{
-    body='<div class="stdopt">'+q.opts.map(function(o){
+    body='<div class="stdopt">'+q.opts.map(function(o,i){
         return '<button onclick="stDrillGrade('+JSON.stringify(String(o)).replace(/"/g,'&quot;')+')">'
-          +mdEsc(o)+'</button>';}).join('')+'</div>'
-      +'<div style="margin-top:11px"><button class="ghost sm" onclick="stDrillDunno()">모르겠다</button>'
+          +'<span class="optk">'+(i+1)+'</span>'+mdEsc(o)+'</button>';}).join('')+'</div>'
+      +'<div style="margin-top:11px"><button class="ghost sm" onclick="stDrillDunno()">모르겠다 <span class="optk">space</span></button>'
       +'<div class="mut" style="font-size:10px;margin-top:4px">찍지 마라 — 찍어서 맞히면 약점이 안 보인다</div></div>';
   }
   return '<div class="sec">'
@@ -6128,13 +6267,13 @@ function stGramRun(){
              return '<button class="btn" onclick="stCtxGo()">'
                +(k?'문장 점검 → <span class="mut">'+k+'문항</span>':'정리 보기 →')+'</button>';})()
           :'<button class="btn" onclick="stDrillNext()">'
-            +(D.i+1>=D.ids.length?'결과 보기':'다음 →')+'</button>')
+            +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 → <span class="optk">↵</span>')+'</button>')
       +'</div>';
   }else{
-    body='<div class="stdopt">'+q.opts.map(function(o){
+    body='<div class="stdopt">'+q.opts.map(function(o,i){
         return '<button onclick="stDrillGrade('+JSON.stringify(String(o)).replace(/"/g,'&quot;')+')">'
-          +mdEsc(o)+'</button>';}).join('')+'</div>'
-      +'<div style="margin-top:11px"><button class="ghost sm" onclick="stDrillDunno()">모르겠다</button>'
+          +'<span class="optk">'+(i+1)+'</span>'+mdEsc(o)+'</button>';}).join('')+'</div>'
+      +'<div style="margin-top:11px"><button class="ghost sm" onclick="stDrillDunno()">모르겠다 <span class="optk">space</span></button>'
       +'<div class="mut" style="font-size:10px;margin-top:4px">찍지 마라 — 찍어서 맞히면 약점이 안 보인다</div></div>';
   }
   return '<div class="sec">'
@@ -6142,7 +6281,11 @@ function stGramRun(){
      +' <span class="mut">'+(D.i+1)+'/'+D.ids.length+'</span></span>'
      +'<span><button class="ghost sm" onclick="stDrillQuit()">그만</button></span></div>'
    +bar
-   +'<div class="stdq">'+qhtml+body+'</div>'
+   +'<div class="stdq">'
+     /* 🤖 v4.54 — 🔒 자동 생성이면 **그렇다고 적는다.** 교재 문장인 척하면 거짓말이다 */
+     +((D.mode==='gctx'&&q&&q.auto)
+       ?'<div class="autotag">🤖 자동 생성 문항 <span class="mut">— 교재 문항을 다 숙달해서 예문에서 만들었다. 단어 분해는 없다</span></div>':'')
+     +qhtml+body+'</div>'
    +'<div class="mut" style="font-size:10.5px">'
    +(D.mode==='gsyn'
      ? '보기는 다른 항목의 짝에서 빌린다 — 🔒 <b>같은 표현을 가진 항목은 뺀다</b>. '
@@ -6283,7 +6426,9 @@ function stGramBox(){
          +'<span class="mut" style="font-size:10.5px">'+pct+'%</span></div>'
          +'<div class="msttrk"><i style="width:'+pct+'%"></i></div>'
          +'<div class="mut" style="font-size:10px;margin-top:4px">'
-         +'빈칸 + 문장의 단어 전부 + 번역을 <b>서로 다른 날 2번</b> 맞히면 숙달이다.</div></div>';})()
+         +'빈칸 + 문장의 단어 전부 + 번역을 <b>서로 다른 날 2번</b> 맞히면 숙달이다.'
+         +(stAutoNeed()?' 🤖 숙달한 만큼 <b>'+stAutoNeed()+'문항</b>을 예문에서 자동으로 채운다.':'')
+         +'</div></div>';})()
     +'<div class="mut" style="font-size:10.5px">'
       +'🚫 <b>독해·청해는 앱이 못 만든다</b> — 지문 길이와 음원이 필요하다. 문법만 자동 출제된다.'
       +'</div></div>'
@@ -11422,7 +11567,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.53';
+var APP_VERSION='4.54';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -11436,6 +11581,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.54',date:'2026-10-21',note:'<b>⌨ 드릴을 키보드로 · 🤖 문항 자동 생성.</b> 로한: 「4지선다잖아? 왼쪽부터 키보드로도 선택할 수 있게 해라. 1,2,3,4번 숫자키로. <b>마우스 클릭하는 것 조차 손만 아프다.</b> 모른다는 스페이스, 답 확인은 엔터」 · ⌨ <b>1·2·3·4</b> 보기 고르기(왼쪽부터) · <b>스페이스</b> 모르겠다 · <b>엔터</b> 다음 · 🔒 <b>DOM 을 보고 움직인다</b> — 지금 화면에 보기 버튼이 있으면 그게 문항이다. 모드마다 따로 적으면 모드를 늘릴 때 반드시 빠뜨린다(원칙 2). 단어·문법·활용·문맥·점검 전부 한 번에 돈다 · 🔒 <b>채점 뒤엔 숫자가 안 먹는다</b> — 다음 문항의 답을 모르고 찍게 되면 안 된다. 그때는 엔터만 · 🔒 <b>글을 쓰는 중이면 손대지 않는다</b>(입력칸·모달) — 뽀모 메모에 「1」을 치는 게 문항 선택이 되면 안 된다 · 🔒 번호를 <b>보이게</b> 적었다(안 보이면 있어도 못 쓴다). 손가락으로 쓰는 화면에선 숨긴다 · 🤖 <b>문항 자동 생성</b> — 로한: 「10문항 중에서도 내가 <b>2-3번 맞추면</b> 문장 생성 해야겠다. 똑같은 문장을 계속하니 확실히 도움이 되는데, 이제 <b>완전히 맞춘건 별로 도움이 안된다</b>」 「내가 스캔 준것만 문장을 하게 되면 내가 책 전체를 스캔해서 주란소린데, 이게 말이되냐고」 · 🔒 <b>새 문장을 만들지 않는다</b> — 이미 있는 예문 326개(조사·접속사·부사·문형·어순용)에 빈칸을 뚫는다. 학습방 v20 의 「sents 는 공용 문항 풀」 원칙 그대로다 · 🔒 정답은 <code>words</code> 에 있는 말만, 문장에 <b>그 표기 그대로 한 번만</b> 나와야 한다 — 활용형이면 보기를 같은 꼴로 못 만들고, 두 번 나오면 어디를 물었는지 모호해진다 · 🔒 오답은 <b>같은 품사</b>에서, <b>문장에 이미 있는 말은 제외</b>한다(보면 바로 걸러진다). 셋을 못 채우면 그 문항은 안 만든다 · 🔒 <b>미숙달 수동 문항이 10개 아래일 때만</b> 그 부족분만큼 채운다. 숙달이 늘면 자동분이 는다 — 로한이 원한 방향 그대로다. 아직 배울 게 많으면 <b>하나도 안 만든다</b> · 🔒 <b>자동 문항은 숙달(comp)을 쌓지 않는다</b> — <code>gloss</code>(단어 분해)가 없어 점검이 반쪽이다. 반쪽 통과를 숙달로 세면 「시험장 가기 전에 전부 안다」가 거짓이 된다 · 🔒 화면에 <b>「🤖 자동 생성 문항 — 단어 분해는 없다」</b>고 적는다. 교재 문장인 척하면 그게 거짓말이다 · 🔒 <b>파생이라 저장하지 않는다</b> — 그때그때 만든다 · t42 452 → <b>468건</b>(키를 실제로 눌러서 잰다 · 자동 문항 전수 검사) · run.sh all 43/43 통과'},
   {v:'4.53',date:'2026-10-21',note:'<b>🔁 힌트로 맞힌 건 못 맞힌 것이다 — 점검에서 문장을 가리고, 하루 뒤 문맥 없이 다시 묻는다.</b> 학습방 핸드오프 v24 구현 · 로한: 「딱 봤을 땐 모르는 문장인데, 4지선다로 힌트를 주니까 되게 맞추기 쉬워지고, 심지어 <b>맨 앞단어를 맞추잖아? 그럼 그 뒤로는 더 쉬워지는거야. 추측으로 맞추는거지</b>」 · 🔴 [결함] 실측이 증명했다 — 10/21 한 세트에서 <b>빈칸 0/3(전부 「모르겠다」)인데 구성요소는 13/15(87%)</b>. 같은 문장을 통째로 모르는데 조각은 다 맞혔다. <b>회상이 아니라 인식</b>을 재고 있었다 · 🔴 <b>부작용이 이미 데이터에 났다</b> — 힌트로 맞힌 정답이 「맞힘」으로 쌓여 <b>5개 단어</b>(けっか·てちょう·あたためる·まいにち·あたらしい)가 <code>streak:1</code>·<code>seen≥1</code> 이 됐고, 단어 드릴의 <b>「미출제 우선」(seen==0) 정렬에서 빠졌다</b>. 문맥으로만 본 단어를 드릴이 「이미 아는 단어」로 취급하게 된다 · ① 🔒 <b>점검은 단어 단독 제시다</b> — 문장을 가리고 가나만 보여준다(r2m 형식). 문장 번역 문항만 문장을 띄운다(그건 문장 자체를 묻는 것이라 숨길 게 없다) · ② 🔒 <b>카운터가 비대칭이 됐다</b> — 오답은 <code>miss+1·streak=0·seen+1</code> 그대로, <b>정답은 아무것도 적지 않는다</b>. 힌트가 붙은 정답은 증거가 못 된다 · ③ 🔁 <b><code>words[].retestOn</code> 신설</b> — 문장에서 모르는 단어(<code>unk</code>)를 만나거나, 빈칸에서 「모르겠다」가 나오거나, 점검에서 틀리면 <b>내일</b>로 예약된다. 단어 드릴 정렬에서 <b>+200 으로 최우선</b>(미출제 100 보다 위다 — 한 번 모른다고 드러난 단어가 처음 보는 단어보다 급하다) · 🔒 <b>문맥 없는 <code>r2m</code> 에서 맞혀야만</b> 풀리고 그때 <code>streak+1</code> 한다. 문맥 안에서 맞혀도 안 풀린다 — <b>그게 「알게 됐다」의 유일한 테스트다</b>. 틀리면 내일 또 · 🔒 <b>숙달(comp) 규칙은 그대로</b>다 — 힌트 없는 빈칸 정답이 필수 조건이라 판정은 오염되지 않았다 · 🗑 <code>stCtxHl</code>(문장 안 하이라이트) 삭제 — 칠할 자리가 없어졌다. 쓰는 데 없는 함수를 남기면 다음 사람이 산 길인 줄 안다. 🔒 <code>stCtxHits</code> 는 남긴다 — 「문장에 한 번만 나오는 항목만 묻는다」는 자격 판정에 쓴다 · t42 439 → <b>452건</b>(힌트 정답이 카운터를 안 건드리는가 · 재점검이 미출제보다 먼저인가 · 문맥 안에서 맞혀도 안 풀리는가) · run.sh all 43/43 통과'},
   {v:'4.52',date:'2026-10-21',note:'<b>📝 보기 4개의 뜻도 묻는다 — 보여주기만 하면 모르는 채로 지나간다.</b> 로한: 「보기는 무슨 뜻인지 안물어본다. <b>보기의 뜻을 다 알거라고 생각하면 안되잖아.</b> 맞든 틀리든 무조건 다 물어봐야지」 · 🔴 [결함] v4.51 까지는 보기 4개의 뜻을 <b>정리 화면에 적어주기만</b> 했다. 그런데 그 넷은 시험에 실제로 나오는 선택지다 — 문맥으로 정답을 골라도 <b>나머지 셋을 모르면 다음에 또 틀린다</b> · → 점검 사슬이 <b>문장 속 단어 → 보기 4개 → 문장 번역</b> 순서가 됐다 · 🔒 <b>정답이었던 보기도 묻는다</b> — 빈칸을 맞혔다고 그 단어 뜻을 아는 건 아니다(문맥으로 찍어서 맞을 수 있다). 단 문장 쪽에서는 안 묻는다 — <b>어느 쪽이든 두 번은 안 묻는다</b> · 🔒 묻기 전에 <b>「이게 정답이었다」고 말하지 않는다</b> — 말하면 뜻을 몰라도 티가 난다. 답한 뒤에 알려준다 · 🔒 보기 문항엔 하이라이트가 없다 — 문장에 없는 말이다 · 🔒 단어은행에 없는 보기는 <b>못 묻는다</b>(뜻을 모르니까). 대신 정리 화면에 <b>「단어은행에 없다 (뜻을 모른다)」</b>로 줄을 남긴다 — 전엔 조용히 뺐는데, 그러면 <b>모른다는 사실까지 사라진다</b>. 학습방이 그걸 보고 단어은행에 채운다 · 📥 보기에서 틀린 것은 <code>subWrong[].opt:true</code> 로 표시해 학습방이 가려 읽을 수 있게 했다. 단어 카운터(miss·streak)도 같은 규칙으로 쌓인다 · 🔒 「이 문장에서 무엇을 물을까」에 답하는 함수는 하나다(<code>stCtxSubs</code>) — 인자를 <b>문항(q)</b> 으로 바꿨다(정답과 보기를 둘 다 봐야 한다) · t42 431 → <b>439건</b>. 전수 검사에 보기 규칙을 더했다(보기에 없던 말을 묻지 않는가 · 뜻이 정확한가 · <b>같은 말을 두 번 묻지 않는가</b>) · ⚠️ 테스트 단언 셋을 <b>뒤집었다</b> — 「정답 단어는 다시 안 묻는다」는 이제 「문장 쪽에서만 안 묻는다」이고, 「못 찾은 보기는 빈 줄로 안 남긴다」는 <b>반대로</b> 바뀌었다. 하나는 <b>내 단언이 틀렸었다</b>(정답 뜻은 4지선다 보기 안에 당연히 있다) · run.sh all 43/43 통과'},
   {v:'4.51',date:'2026-10-21',note:'<b>📝 문맥규정 순서 정정 · 🔴 CSS 이름 충돌 회귀 수정.</b> 로한(실사용 중): 「정답을 누르고, <b>정답만 정오답을 알려주고</b>, 구성요소 물어보고, 그다음 <b>최종 정리된걸</b> 보여줘야 돼」 · 🔴 [결함] v4.50 은 채점 직후 <b>해설을 통째로</b> 띄웠다. 그 표에는 문장의 모든 단어 뜻이 적혀 있다 — 보여준 다음에 「이 단어 뜻은?」을 물으면 <b>방금 본 표를 보고 맞힌다.</b> 점검이 점검이 아니게 된다 · → 순서를 <b>① 빈칸 정오답만 → ② 단어 하나씩 점검 → ③ 최종 정리</b>로 바꿨다. 해설·보기 뜻·동음이의어·why 는 전부 ③ 에서 처음 펼쳐진다 · 🔴 <b>전수 검사가 하나 더 잡았다</b> — 채점 직후에 <b>번역</b>도 띄우고 있었다. 「いえから バスていまで…」의 번역에 「집」이 들어 있어 하부 문항 「いえ 의 뜻은?」의 정답이 화면에 이미 적혀 있었다(번역 자체가 점검 B 의 정답이기도 하다) → 번역도 ③ 으로 · 🔒 일본어 완성문은 ① 에 남긴다 — 뜻을 흘리지 않고, 빈칸이 메워진 건 봐야 한다 · 🔒 테스트에 <b>누수 전수 검사</b>를 넣었다: 묻기 전 화면에 하부 정답이 하나라도 보이면 실패 · 🔴 <b>[회귀] <code>.ctxbar</code> 는 이미 쓰는 이름이었다</b>(목표 페이지 진척 막대). 로한: 「야, <b>짤린다</b> 이거」 · 같은 이름을 두 번 선언하면 겹치는 속성은 나중 것이 이기고 <b>안 겹치는 속성은 둘 다 남는다</b> — ① 숙달 띠가 <code>height:5px</code> 로 찌그러져 글자가 칸 밖으로 삐져나왔고 ② <b>목표 진척 막대 전부</b>가 내 <code>padding·border·margin</code> 을 뒤집어썼다 · → <code>.mstbar</code>/<code>.msttrk</code> 로 바꿨다. 🔒 새 이름은 <b>쓰기 전에 검색한다</b> · 🎛 모드 칸이 7개가 되며 한 줄에 눌려 설명이 두 줄로 접혔다 → <code>.stdmode</code> 를 <b>격자</b>로(<code>auto-fit minmax(164px,1fr)</code>). flex 는 마지막 줄에 남은 칸이 <b>줄을 혼자 다 먹었다</b>(7개째가 1038px) — 격자는 줄마다 칸 크기가 같아 모드를 더 늘려도 안 무너진다 · t42 424 → <b>431건</b> · run.sh all 43/43 통과'},
@@ -13774,7 +13920,9 @@ function enter(){
     try{ if(DUP_FIX.n){logAct('⚠️ 중복 id '+DUP_FIX.n+'건을 새 번호로 갈랐다 · '+DUP_FIX.where.join(' · '));save();} }catch(e){}
     localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
     /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
-    try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen(); } }catch(e){}});}
+    try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen(); } }catch(e){}
+    /* ⌨ v4.54 — 🔒 **한 곳에서 한 번만** 매단다. 렌더마다 매달면 한 번 누른 키가 여러 번 먹는다 */
+    try{ document.addEventListener('keydown',stDrillKey); }catch(e){}});}
 function doLogin(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;document.getElementById('loginErr').textContent='로그인 중…';SB.auth.signInWithPassword({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}USER=r.data.user;footWho();enter();});}
 function doSignup(){var email=(document.getElementById('email').value||'').trim(),pw=document.getElementById('pw').value;if(!email||!pw){document.getElementById('loginErr').textContent='이메일·비밀번호 입력';return;}document.getElementById('loginErr').textContent='가입 중…';SB.auth.signUp({email:email,password:pw}).then(function(r){if(r.error){document.getElementById('loginErr').textContent=r.error.message;return;}if(r.data.session){USER=r.data.user;footWho();enter();}else{document.getElementById('loginErr').textContent='가입 완료. 이메일 인증이 켜져 있으면 메일 확인 후 로그인하세요.';}});}
 document.getElementById('loginBtn').addEventListener('click',doLogin);
