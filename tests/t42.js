@@ -2111,8 +2111,25 @@ async function boot(st){
        lv:'N4',src:'b1:201',seen:0,miss:0,streak:0,lastSeen:null,slots:[]}]);
     stSents().forEach(x=>{delete x.comp;});},CTX);
   const need0=await p.evaluate(()=>({need:stAutoNeed(),items:stGramItems('gctx').length}));
-  ok('AUTO1 🔒 미숙달 수동 문항이 모자랄 때만 채운다 (3개뿐이라 7개 필요)',
+  ok('AUTO1 🔒 쓸모 있는 수동 문항이 모자랄 때만 채운다 (3개뿐이라 7개 필요)',
      need0.need===7,JSON.stringify(need0));
+  /* 🔴 v4.55 — 🔴 [결함 재발 방지] 기준을 **숙달**로 걸었더니 자동이 영원히 안 돌았다.
+     로한: "아니 지금 몇번을 했는데 새문장 언제 생기냐 도대체"
+     실측(10/21 서버): ctx 10문장을 전부 3~5번 맞혔는데 mastered 는 10개 다 false.
+     숙달은 「서로 다른 날 2연속 + 하부 전부 정답」이라 **하루 안에는 구조상 불가능**하다.
+     🔒 기준은 **맞힌 횟수(seen-miss)** 여야 한다. 서버 상태를 그대로 넣어 확인한다. */
+  const real=await p.evaluate(()=>{
+    stSents().forEach(function(x){
+      if(!stGSlots(x,'ctx').length)return;
+      x.seen=4; x.miss=0;                              /* 4번 내서 4번 맞혔다 */
+      x.comp={streak:1,mastered:false,last:todayStr()}; /* 그래도 숙달은 아니다 */
+    });
+    return {got:stSents().filter(x=>stGSlots(x,'ctx').length).map(x=>stCtxGot(x)),
+            mastered:stSents().filter(x=>stCompOf(x).mastered).length,
+            need:stAutoNeed(),auto:stAutoItems().length};});
+  ok('AUTO1b 🔴 숙달이 0이어도 **맞힌 횟수**로 자동이 돈다',
+     real.mastered===0&&real.need===10,JSON.stringify(real));
+  ok('AUTO1c 실제로 문항이 나온다 (재료가 있는 만큼)',real.auto>=1,JSON.stringify(real));
   const made=await p.evaluate(()=>stAutoItems().map(x=>({id:x.s.id,t:x.slot.target,
      n:x.slot.opts.length,auto:!!x.slot.auto})));
   ok('AUTO2 🤖 있는 예문에서 문항이 나온다',made.length>=1,JSON.stringify(made));
@@ -2148,13 +2165,22 @@ async function boot(st){
     return {id:it.s.id,streak:c.streak,mastered:c.mastered};});
   ok('AUTO6 🔒 자동 문항은 숙달을 안 쌓는다 (점검이 반쪽이라)',
      !noComp||noComp.streak===0,JSON.stringify(noComp));
+  /* 🔴 v4.55 — 전엔 앞에서부터 집어 **늘 같은 문장**이 나왔다. 많이 맞힌 건 뒤로 간다 */
+  const fresh=await p.evaluate(()=>{
+    stSents().forEach(function(x){x.seen=0;x.miss=0;delete x.comp;});
+    const g1=stSentById('g1'); g1.seen=5; g1.miss=0;   /* 다섯 번 맞힌 문장 */
+    return {live:stCtxLive(g1),picked:stAutoItems().map(x=>x.s.id)};});
+  ok('AUTO9 🔒 이미 2번 맞힌 문장은 자동에서도 빠진다',
+     fresh.live===false&&fresh.picked.indexOf('g1')<0,JSON.stringify(fresh));
   /* 🔒 숙달이 늘면 자동분이 준다 — 로한이 원한 방향 그대로 */
   const less=await p.evaluate(()=>{
+    stSents().filter(x=>stGSlots(x,'ctx').length).forEach(function(x){
+      x.seen=0;x.miss=0;delete x.comp;});
     const before=stAutoNeed();
     stSents().filter(x=>stGSlots(x,'ctx').length).forEach(function(x){
-      x.comp={streak:2,mastered:true,last:todayStr()};});
+      x.seen=2;x.miss=0;});            /* 2번 맞혔다 — 더 내도 도움이 안 된다 */
     return {before:before,after:stAutoNeed()};});
-  ok('AUTO7 🔴 숙달한 만큼 자동으로 더 채운다',less.after>less.before,JSON.stringify(less));
+  ok('AUTO7 🔴 2번 맞힌 만큼 자동으로 더 채운다',less.after>less.before,JSON.stringify(less));
   /* 🔒 수동 미숙달이 충분하면 자동은 0 */
   const zero=await p.evaluate(()=>{
     const keep=DB.study.sents;
@@ -2162,10 +2188,11 @@ async function boot(st){
     for(let i=0;i<12;i++)many.push({id:'m'+i,ja:'テストの けっかを 聞いて、すこし あんしん しました。',
       ko:'…',lv:'N4',src:'b1:71',seen:0,miss:0,streak:0,lastSeen:null,
       slots:[{kind:'ctx',target:'あんしん',opts:['あんてい','せつめい','でんとう'],why:'…'}]});
+    many.forEach(function(x){x.seen=0;x.miss=0;});   /* 아직 한 번도 안 맞혔다 */
     DB.study.sents=many;
     const r={need:stAutoNeed(),items:stAutoItems().length};
     DB.study.sents=keep; return r;});
-  ok('AUTO8 🔒 아직 배울 게 많으면 자동으로 안 만든다',
+  ok('AUTO8 🔒 아직 안 맞힌 수동 문항이 많으면 자동으로 안 만든다',
      zero.need===0&&zero.items===0,JSON.stringify(zero));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
