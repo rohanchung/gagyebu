@@ -2339,6 +2339,90 @@ async function boot(st){
     stPomoSetMins('z1',0);
     return DB.study.pomos.length;});
   ok('PMN11 0분은 기록이 아니다 (지워진다)',zeroMin===0,String(zeroMin));
+  /* ㉖ 🔴 v4.58 — 로한: "고치기 버튼을 눌러도 **반응이 없다**"
+     JSON.stringify 를 두 번 걸어 id 가 따옴표째 넘어갔고, 못 찾아 **조용히 아무 일도 안 했다.**
+     🔒 이 유형은 **눌러봐야만** 드러난다 — 화면에 버튼은 멀쩡히 보인다. */
+  await p.evaluate(()=>{
+    ST_DRILL=null;
+    const t=todayStr();
+    DB.study.pomos=[{id:'p\"q1',mins:50,plan:25,note:'따옴표 든 id',at:new Date(Date.now()-50*60*1000).toISOString()},
+                    {id:'p2',mins:20,plan:25,at:new Date(Date.now()-20*60*1000).toISOString()}];
+    DB.timelog={};
+    setStTab('cal'); setStCalSel(t); renderStudy();});
+  await p.waitForTimeout(300);
+  ok('CLK1 기록 단추가 뜬다',
+     (await p.$eval('#v-study .pmbar',e=>e.textContent)).indexOf('뽀모 기록')>=0);
+  ok('CLK2 그날 건수를 적는다',
+     (await p.$eval('#v-study .pmbar',e=>e.textContent)).indexOf('2')>=0);
+  /* 🔒 목록 줄을 **실제로 눌러** 고치기 모달이 뜨는지 */
+  /* 🔒 보이는지 먼저 재고, 클릭은 요소에 직접 건다 — 가시성 문제로 단언이 흐려지지 않게 */
+  const vis=await p.evaluate(()=>{
+    const e=document.querySelector('#v-study .pmline');
+    return {has:!!e,shown:!!(e&&e.offsetParent),
+            n:document.querySelectorAll('#v-study .pmline').length,
+            side:!!document.querySelector('#v-study .calside'),
+            bar:!!document.querySelector('#v-study .pmbar')};});
+  ok('CLK2b 기록 줄이 화면에 보인다',vis.has&&vis.shown&&vis.n===2,JSON.stringify(vis));
+  await p.evaluate(()=>document.querySelector('#v-study .pmline').click());
+  await p.waitForTimeout(250);
+  const mod=await p.evaluate(()=>({on:document.getElementById('ov').classList.contains('on'),
+     txt:document.getElementById('modal').textContent,
+     val:(document.getElementById('pmEdM')||{}).value}));
+  ok('CLK3 🔴 줄을 누르면 고치기가 뜬다 (id 에 따옴표가 있어도)',
+     mod.on===true&&mod.txt.indexOf('뽀모 고치기')>=0,JSON.stringify(mod).slice(0,120));
+  ok('CLK4 그 기록의 분이 들어가 있다',mod.val==='50',JSON.stringify(mod.val));
+  await p.evaluate(()=>closeModal());
+  /* 🔒 기록 단추도 눌러본다 */
+  await p.evaluate(()=>{[...document.querySelectorAll('#v-study .pmbar button')]
+    .filter(b=>b.textContent.indexOf('뽀모 기록')>=0)[0].click();});
+  await p.waitForTimeout(250);
+  const logm=await p.evaluate(()=>({on:document.getElementById('ov').classList.contains('on'),
+     rows:document.querySelectorAll('.pmerow').length,
+     txt:document.getElementById('modal').textContent}));
+  ok('CLK5 🔴 기록 단추가 먹는다',logm.on===true&&logm.txt.indexOf('뽀모 기록')>=0);
+  ok('CLK6 줄마다 바로 고칠 수 있다 (2줄)',logm.rows===2,String(logm.rows));
+  /* 🔒 모달 안에서 고치면 반영된다 */
+  const saved=await p.evaluate(()=>{
+    const id='p2';
+    document.getElementById('pme_m_'+id).value='35';
+    document.getElementById('pme_n_'+id).value='문맥구성';
+    stPomoRowSave(id);
+    const r=stPomoById(id); return {mins:r.mins,note:r.note};});
+  ok('CLK7 모달에서 고친 값이 들어간다',saved.mins===35&&saved.note==='문맥구성',JSON.stringify(saved));
+  await p.evaluate(()=>closeModal());
+  /* 🔒 전수 — 화면의 모든 onclick 이 **구문상 성립**하는가.
+     ⚠️ 처음엔 「역슬래시+따옴표가 있으면 결함」으로 봤는데 **그 단언이 틀렸다** —
+        id 에 따옴표가 들어 있으면 \" 가 **정상**이다(stPomoEdit("p\\"q1")).
+     🔒 따옴표가 깨지면 구문이 무너진다. 그걸 잰다. 값이 맞는지는 CLK3·CLK4 가 본다.
+     🔒 **실행하지 않는다** — 구문만 본다(누르면 모달이 뜨고 화면이 바뀐다). */
+  const bad=await p.evaluate(()=>{
+    const out=[];
+    document.querySelectorAll('#v-study [onclick]').forEach(function(e){
+      const a=e.getAttribute('onclick')||'';
+      try{ new Function(a); }catch(err){ out.push(a.slice(0,70)); }
+    });
+    return out;});
+  ok('CLK8 🔒 전수: 모든 onclick 이 구문상 성립한다',bad.length===0,JSON.stringify(bad));
+  /* ㉗ 📅 v4.58 — 열면 오늘이다 */
+  const cal=await p.evaluate(()=>{
+    setStCalSel('2026-09-22');
+    const picked=stCalSel();
+    ST_CAL_SEL=null;                       /* 새로 연 것과 같은 상태 */
+    return {picked:picked,fresh:stCalSel(),today:todayStr(),
+            saved:!!(DB.ui&&DB.ui.stCalSel)};});
+  ok('CLK9 고른 날짜는 그 자리에서 유지된다',cal.picked==='2026-09-22',JSON.stringify(cal));
+  ok('CLK10 🔴 새로 열면 **오늘**이다 (9/22 가 눌러앉지 않는다)',cal.fresh===cal.today,JSON.stringify(cal));
+  ok('CLK11 🔒 고른 날짜를 서버에 저장하지 않는다',cal.saved===false,JSON.stringify(cal));
+  /* 🔒 과제 리스트는 접혀 있다 — 지워진 게 아니다 */
+  const fold=await p.evaluate(()=>{
+    const t=todayStr();
+    DB.study.units=[{id:'u1',title:'과제 하나',day:t,status:'todo',backlog:false,ch:'voc',mins:20}];
+    setStCalSel(t); renderStudy();
+    const d=document.querySelector('#v-study .unitfold');
+    return {has:!!d,open:d?d.open:null,txt:d?d.textContent:''};});
+  ok('CLK12 과제 리스트는 접혀 있다 (지운 게 아니다)',
+     fold.has===true&&fold.open===false,JSON.stringify({has:fold.has,open:fold.open}));
+  ok('CLK13 몇 건인지는 말해준다',fold.txt.indexOf('1건')>=0,fold.txt.slice(0,60));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
