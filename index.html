@@ -5480,7 +5480,7 @@ function stDrillFinish(){
   studyDB().drills.push(rec);
   logAct((stIsGram(D.mode)?'📖 문법드릴 ':stIsVerb(D.mode)?'🔤 활용드릴 ':'🈶 단어드릴 ')+stModeLabel(D.mode)
     +' '+(D.res.length-wrong.length)+'/'+D.res.length
-    +(rec.sub?(' · 단어 '+(rec.sub.n-rec.sub.bad)+'/'+rec.sub.n):''));
+    +(rec.sub?(' · 점검(직전 접촉) '+(rec.sub.n-rec.sub.bad)+'/'+rec.sub.n):''));
   D.fin=true; save(); renderStudy();
 }
 /* 중간에 그만둬도 **푼 만큼은 기록한다** — 안 남기면 그만둔 사실이 안 보인다 */
@@ -5950,6 +5950,38 @@ function stCtxOpts(g,s){
   if(out.length<3)return null;        /* 🔒 보기를 못 채우면 묻지 않는다 */
   return stGShuffle([ans].concat(out));
 }
+/* ══ 📝 v4.61 활용형 → 기본형 (학습방 v27 #2) ══
+   학습방: *"「문장 전체로는 뜻이 안 보이는데 떼서 주면 쉽다」는 어휘보다 **분절 문제**다.
+   드릴이 문장을 단어로 잘라 주면 로한에게 없는 능력(**어절 → 기본형 복원**)을 대신해 준다"*
+   그래서 「かざって 의 사전형은?」을 따로 묻는다.
+   🔒 오답은 **틀린 활용 규칙으로 되돌린 꼴**이다 — って 는 う·つ·る 셋 다 가능하고, んで 는 む·ぶ·ぬ 다.
+      실제로 학습자가 그렇게 헷갈린다. 랜덤 오답이 아니다(v19 vconj 와 같은 원리).
+   🔒 **단어은행에 있는 다른 동사는 오답에서 뺀다** — 문장을 가리고 묻는데 かって 는 かう·かつ 둘 다
+      맞는 복원이다. 그걸 오답이라 하면 맞게 읽은 걸 틀렸다고 하게 된다(v4.60 はる 와 같은 함정).
+   🔒 て·た 형만 다룬다 — 규칙이 결정적인 곳만. 〜ました·〜ない 같은 것은 아직 안 한다. */
+var ST_BASE_END=['う','つ','る','む','ぶ','ぬ','く','ぐ','す'];
+function stCtxBaseQ(g){
+  var w=String((g&&g.w)||''), base=String((g&&g.base)||'').trim();
+  if(!w||!base||w===base)return null;
+  if(!/[うつるむぶぬくぐす]$/.test(base))return null;      /* 동사 사전형만 */
+  if(!/[てでただ]$/.test(w)||/(ました|でした)$/.test(w))return null;
+  if(/[^ぁ-んー]/.test(base))return null;                   /* 기본형이 가나로 적힌 것만 */
+  var stem=base.slice(0,-1);
+  var pref=/っ[てた]$/.test(w)?['う','つ','る']:/ん[でだ]$/.test(w)?['む','ぶ','ぬ']
+    :/い[てた]$/.test(w)?['く','る']:/い[でだ]$/.test(w)?['ぐ']:/し[てた]$/.test(w)?['す']:['る'];
+  var order=pref.concat(ST_BASE_END.filter(function(e){return pref.indexOf(e)<0;}));
+  var out=[], seen={}; seen[base]=1;
+  order.forEach(function(e){
+    if(out.length>=3)return;
+    var c=stem+e; if(seen[c])return;
+    /* 🔒 진짜 있는 동사면 그것도 맞는 복원일 수 있다 — 오답으로 쓰지 않는다 */
+    if(stWordsByKana(c).some(function(x){return stNorm(x.pos)==='verb';}))return;
+    seen[c]=1; out.push(c);
+  });
+  if(out.length<3)return null;
+  return {kind:'base',w:w,ans:base,opts:stGShuffle([base].concat(out)),g:g,diag:true};
+}
+
 /* 하부 문항 목록 — 점검 A(문장 속 단어) + 점검 C(보기 4개) + 점검 B(문장 번역).
    🔒 빈칸으로 이미 맞힌 단어는 **문장 쪽에서는** 다시 묻지 않는다. 대신 보기 쪽에서 한 번 묻는다 —
       빈칸을 맞혔다고 그 단어 뜻을 아는 건 아니다. 문맥으로 찍어서 맞을 수 있다.
@@ -5965,7 +5997,9 @@ function stCtxSubs(s,q){
     var excl=stWordsByKana(g.base||g.w).map(function(w){return w.ko;});
     var opts=stCtxOpts({ko:g.ko,wordId:g.wordId,excl:excl},s); if(!opts)return;
     asked[stNorm(g.w)]=1;
-    out.push({kind:'word',w:g.w,ans:String(g.ko).trim(),opts:opts,g:g});
+    /* 📝 v4.61 — 활용형이면 기본형을 먼저, 그다음 뜻 */
+    var bq=stCtxBaseQ(g); if(bq)out.push(bq);
+    out.push({kind:'word',w:g.w,ans:String(g.ko).trim(),opts:opts,g:g,diag:true});
   });
   /* 📝 보기 4개 — 정답 보기도 **포함한다**(로한: 맞든 틀리든 무조건).
      🔒 단어은행에 없으면 뜻을 모르니 못 묻는다. 그 사실은 정리 화면이 말한다(조용히 빼지 않는다).
@@ -5993,9 +6027,14 @@ function stCtxSubs(s,q){
   kseen[kn]=1;
   var kos=((s.koOpts)||[]).map(function(x){return String(x||'').trim();}).filter(function(x){
     var n=stNorm(x); if(!n||kseen[n])return false; kseen[n]=1; return true;});
+  /* 📝 v4.61 — 🔒 **번역을 맨 앞에** 둔다(학습방 v27 #1).
+     문장을 통째로 이해하는지를 **먼저** 재고, 단어 분해는 틀렸을 때의 **진단**으로 쓴다.
+     먼저 단어를 잘라 주면 로한에게 없는 분절 능력을 드릴이 대신해 버린다. */
+  var head=[];
   if(kn&&kos.length>=3)
-    out.push({kind:'ko',ans:ko,opts:stGShuffle([ko].concat(kos.slice(0,3)))});
-  return out;
+    head.push({kind:'ko',ans:ko,opts:stGShuffle([ko].concat(kos.slice(0,3)))});
+  return head.concat(out.filter(function(x){return x.diag;}))
+             .concat(out.filter(function(x){return !x.diag;}));
 }
 /* ══════ 🤖 v4.54 문맥규정 문항 **자동 생성** ══════
    로한: *"10문항 중에서도 내가 **2-3번 맞추면** 문장 생성 해야겠다. 똑같은 문장을 계속하니
@@ -6164,7 +6203,12 @@ function stCtxGo(){
   subs.forEach(function(it){
     if(it.kind==='word'&&it.g&&it.g.unk&&it.g.wordId)stRetestSet(stWordById(it.g.wordId));
   });
-  D.sub={list:subs,j:0,show:false,bad:0};
+  /* 📝 v4.61 — 진단(문장 속 단어·기본형)은 **번역을 틀렸을 때만** 끼워 넣는다(학습방 v27 #1).
+     🔒 번역 문항이 없으면(koOpts 가 모자라면) 문장 이해를 잴 수 없으니 진단을 그냥 다 묻는다. */
+  var hasKo=subs.some(function(x){return x.kind==='ko';});
+  var diag=hasKo?subs.filter(function(x){return x.diag;}):[];
+  var list=hasKo?subs.filter(function(x){return !x.diag;}):subs;
+  D.sub={list:list,diag:diag,j:0,show:false,bad:0};
   save(); renderStudy();
 }
 /* 📝 v4.50 — 고르는 **즉시** 채점한다(모아서 제출하지 않는다).
@@ -6179,7 +6223,14 @@ function stCtxGrade(my){
   var it=S.list[S.j]; if(!it)return;
   var ok=(stNorm(my)===stNorm(it.ans));
   if(!ok)S.bad++;
-  if(it.kind!=='ko')stCtxWordHit(it.g,ok);   /* 📝 v4.52 — 보기 문항도 단어은행에 쌓인다 */
+  /* 📝 v4.61 — 🔒 기본형 문항은 **단어 카운터를 건드리지 않는다.** 재는 것이 뜻이 아니라
+     분절(형태 복원)이다. 섞으면 「뜻을 모른다」와 「꼴을 못 되돌린다」가 한 숫자가 된다. */
+  if(it.kind==='word'||it.kind==='opt')stCtxWordHit(it.g,ok);
+  /* 📝 v4.61 — 번역을 틀리면 **어느 단어에서 막혔는지** 진단을 바로 뒤에 끼운다 */
+  if(it.kind==='ko'&&!ok&&S.diag&&S.diag.length){
+    Array.prototype.splice.apply(S.list,[S.j+1,0].concat(S.diag));
+    S.diag=[]; S.diagOn=true;
+  }
   /* 🔒 하부 집계는 세션 전체로 쌓는다 — 문장이 바뀌어도 이어진다 */
   D.subAll=D.subAll||{n:0,bad:0,wrong:[]};
   D.subAll.n++;
@@ -6187,10 +6238,11 @@ function stCtxGrade(my){
     D.subAll.bad++;
     var g=it.g||{}, rec={sid:(stDrillItem(D,D.i)||{}).id||'',kind:it.kind,
       q:(it.kind==='ko'?'(문장 번역)':String(it.w||'')),ans:String(it.ans||''),my:String(my||'')};
+    if(it.kind==='base')rec.base=true;     /* 꼴을 못 되돌린 것 — 뜻을 모르는 것과 구분한다 */
     if(it.kind==='opt')rec.opt=true;      /* 보기에서 틀린 것 — 학습방이 가려 읽을 수 있게 */
     /* ⚠️ 빈 서랍 금지 — 없는 것은 키를 만들지 않는다 */
     if(g.wordId)rec.wordId=g.wordId;
-    else if(it.kind!=='ko')rec.nobank=true;   /* 🔒 단어은행에 없다는 사실을 숨기지 않는다 */
+    else if(it.kind==='word'||it.kind==='opt')rec.nobank=true;   /* 🔒 단어은행에 없다는 사실을 숨기지 않는다 */
     D.subAll.wrong.push(rec);
   }
   S.my=String(my||''); S.ok=ok; S.show=true; save(); renderStudy();
@@ -6254,7 +6306,8 @@ function stCtxRun(){
   var it=S.list[S.j];
   if(!s||!it){D.sub=null;return stGramRun();}
   var head='<div class="row" style="padding:0 0 9px"><span class="subhd2">📝 문장 점검'
-    +' <span class="mut">'+(D.i+1)+'/'+D.ids.length+' · 단어 '+(S.j+1)+'/'+S.list.length+'</span></span>'
+    +' <span class="mut">'+(D.i+1)+'/'+D.ids.length+' · 점검 '+(S.j+1)+'/'+S.list.length+'</span>'
+    +(S.diagOn&&it.diag?' <span class="pill neg">🔍 막힌 곳 찾기</span>':'')+'</span>'
     +'<span><button class="ghost sm" onclick="stDrillQuit()">그만</button></span></div>';
   /* 🔴 v4.53 [결함] — 단어를 **문장 안에서** 물었다(칠해서). 로한: "히라가나만 있을 땐
      모르던 게 구성요소마다 4지선다로 보여주니까 **문장상에서 추론이 돼서 엄청 쉬워진다**"
@@ -6263,7 +6316,10 @@ function stCtxRun(){
      앞 단어를 맞히면 뒤는 더 쉬워지고, 결국 추측으로 풀린다.
    🔒 그래서 점검은 **단어 단독 제시**다(학습방 v24). 문장을 숨기고 가나만 보여준다(r2m 형식).
       문장 번역(ko) 문항만 문장을 보여준다 — 그건 문장 자체를 묻는 것이라 숨길 게 없다. */
-  var qh=(it.kind==='ko')
+  var qh=(it.kind==='base')
+    ? '<div class="gja">'+mdEsc(it.w)+'</div>'
+      +'<div class="stdhint">이 말의 <b>사전형(기본형)</b>은? <span class="mut">(어절을 되돌리는 연습 — 문장은 가린다)</span></div>'
+    :(it.kind==='ko')
     ? '<div class="gja">'+mdEsc(String(s.ja||''))+'</div>'
       +'<div class="stdhint">이 문장의 뜻은?</div>'
     : '<div class="gja">'+mdEsc(it.w)+'</div>'
@@ -6286,7 +6342,8 @@ function stCtxRun(){
         :'')
       /* 📝 v4.50 — 🔒 틀린 것이 어디에 쌓였는지 말한다. 단어은행에 없으면 **없다고** 말한다 —
          조용히 흘리면 로한은 쌓인 줄 안다. 그 목록은 드릴 기록에 남아 로버트가 읽는다. */
-      +(!S.ok&&it.kind==='word'
+      /* 🔴 v4.61 — 보기(opt)에서 틀려도 단어은행에 쌓인다. 전엔 문장 단어일 때만 그렇다고 말했다 */
+      +(!S.ok&&(it.kind==='word'||it.kind==='opt')
         ?'<div class="mut" style="font-size:10.5px;margin-top:6px">'
           +((it.g&&it.g.wordId)
             ?'❌ 틀림이 단어은행에 쌓였다 — 다음 단어 드릴에서 먼저 나온다.'
@@ -6575,7 +6632,8 @@ function stGramRun(){
         +'🔒 は·が·も, に·へ 는 서로 오답에 넣지 않는다(바꿔도 맞는 문장이 많다).'
      : D.mode==='gctx'
      ? '🔒 문장은 <b>가나 그대로</b>다 — 한자를 덧붙이지 않는다. 가나만 보고 알아보는 게 이 훈련이다. '
-        +'빈칸을 맞히면 <b>문장의 나머지 단어와 보기 4개를 전부</b> 묻고, <b>그 다음에</b> 해설을 펼친다. '
+        +'빈칸 다음엔 <b>문장 번역</b>을 먼저 묻는다. <b>틀리면</b> 어느 단어에서 막혔는지 단어·기본형을 하나씩 짚고, '
+        +'보기 4개의 뜻을 묻은 뒤 해설을 펼친다. '
         +'🔒 점검은 <b>문장을 가리고</b> 묻는다 — 문맥이 보이면 추측으로 풀린다. '
         +'그래서 <b>문맥 안에서 맞힌 것은 카운터에 안 센다</b>. 「안다」는 증거는 <b>다음 날 문맥 없이</b> 맞히는 것뿐이다.'
      : D.mode!=='gord'
@@ -6632,7 +6690,9 @@ function stPaneWord(){
     .map(function(d){
       var p=d.n?Math.round(d.correct/d.n*100):0;
       /* 📝 v4.50 — 하부(문장 점검)도 보여준다. 🔒 모았는데 안 보이면 안 모은 것과 같다 */
-      var sb=d.sub?('<span class="mut" style="font-size:10.5px"> · 단어 '
+      /* 📝 v4.61 — 🔒 빈칸 정확도와 **섞지 않는다**(학습방 v27 #4). 점검은 방금 문장을 읽은
+         직후라 「직전 접촉」이 끼어 있다 — 아는 것이 아니라 방금 만난 것일 수 있다 */
+      var sb=d.sub?('<span class="mut" style="font-size:10.5px" title="방금 읽은 문장의 단어라 직전 접촉이 끼어 있다"> · 점검(직전 접촉) '
         +((+d.sub.n||0)-(+d.sub.bad||0))+'/'+(+d.sub.n||0)+'</span>'):'';
       return '<div class="stdrow"><span><span class="pill">'+stModeLabel(d.mode)+'</span> '
         +'<span class="mut">'+d.date+'</span>'+sb+'</span>'
@@ -12046,7 +12106,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.60';
+var APP_VERSION='4.61';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12060,6 +12120,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.61',date:'2026-10-22',note:'<b>📝 번역을 먼저 묻는다 · 틀리면 어디서 막혔는지 진단 · 활용형 → 기본형 문항.</b> 학습방 핸드오프 v27 구현 · 학습방: 구성요소 점검 정답률(86%)이 평소 r2m(61%)보다 높은 건 <b>해설 노출이 아니라 직전 접촉</b> 때문이다. 「문장 전체로는 안 보이는데 떼서 주면 쉽다」는 <b>어휘보다 분절 문제</b>다 — 드릴이 문장을 단어로 잘라 주면 로한에게 없는 능력(어절 → 기본형 복원)을 대신해 준다 · ① 🔒 <b>번역을 맨 앞에</b> — 빈칸 → 문장 번역(가나 그대로) → <b>틀리면</b> 문장 속 단어·기본형으로 「🔍 막힌 곳 찾기」 → 보기 4개 → 정리. 번역을 맞히면 단어 진단은 열리지 않는다. 번역 문항이 없는 문장(koOpts 부족)은 문장 이해를 잴 수 없으니 진단을 그대로 다 묻는다 · ② <b>활용형 → 기본형</b>(「かざって 의 사전형은?」). 🔒 오답은 <b>틀린 활용 규칙으로 되돌린 꼴</b>이다 — って 는 う·つ·る, んで 는 む·ぶ·ぬ. 실제로 그렇게 헷갈린다 · 🔒 <b>단어은행에 있는 다른 동사는 오답에서 뺀다</b> — 문장을 가리고 묻는데 かって 는 かう·かつ 둘 다 맞는 복원이다(v4.60 はる 와 같은 함정) · 🔒 규칙이 결정적인 て·た 형만 다룬다 · 🔒 기본형 문항은 <b>단어 카운터를 건드리지 않는다</b> — 재는 것이 뜻이 아니라 꼴이다. 기록에는 <code>base:true</code> 로 따로 남긴다 · ④ <b>지표 분리</b> — 최근 드릴 줄의 「단어 x/y」를 <b>「점검(직전 접촉) x/y」</b>로 바꿨다. 빈칸 정확도와 섞지 않는다 · ③ 인앱 형광펜(선택·큰 작업)은 이번에 안 했다 · 🔴 [빈틈] 보기에서 틀려도 단어은행에 쌓이는데, 화면은 「쌓였다」고 <b>문장 단어일 때만</b> 말했다 — 테스트가 순서를 바꾸다 잡았다. 보기도 말한다 · t42 529 → <b>538건</b> · run.sh all 통과'},
   {v:'4.60',date:'2026-10-22',note:'<b>🔴 동음이의어 보기가 엉뚱한 뜻으로 나갔다 · 보기 글자에서 띄어쓰기가 사라졌다.</b> 로한: 「하루를 선택지에 <b>꽃 밖에 없었다</b>. 누가봐도 동사형인거 같은데 체크해봐라」 · 🔴 [결함] はる 는 단어은행에 둘이다(봄·붙이다). 가나로 단어를 찾을 때 <b>첫 번째(봄)를 집어</b> x76-01 의 <b>정답 뜻이 「봄」으로</b> 나갔고, 오답은 같은 품사(명사)에서 뽑혀 「꽃」이 나왔다 · 전수로 보니 <b>64문항 중 6곳</b> — x71-10 의 정답 いがい(의외)도 <b>「이외」로</b> 나가고 있었다. 나머지는 おる·とる·でんとう·あつい · 🔴 v4.50 에서 그 함수 주석에 「첫 번째를 유일한 답이라 우기지 않는다」고 써 놓고 <b>코드는 첫 번째를 돌려줬다</b>. 주석이 거짓말을 했다 · 🔒 ① 빈칸 정답 보기는 <b>슬롯의 wordId</b>로 뜻을 정한다(학습방이 이미 적어 뒀다) ② 나머지는 <b>정답과 같은 품사</b>로 좁힌다(교재 보기는 같은 품사다) ③ 그래도 여럿이면 <b>하나를 찍지 않고 합친다</b> — 「집다, 쥐다 / (사진을) 찍다」. 하나를 찍어 정답이라 하면 틀린 뜻을 가르치게 된다 · 🔒 <b>같은 소리의 다른 뜻은 오답에서 뺀다</b> — 점검은 문장을 가리고 가나만 보여주므로 「はる」만 보고 「봄」을 골라도 틀린 게 아니다 · 🔴 [결함] 스크린샷에 하나 더 — 번역 보기가 「중요한메모는벽에붙이면…」 처럼 <b>붙어 나왔다</b>. 비교용 stNorm(공백·쉼표를 지운다)을 화면에도 그대로 썼다 · 🔒 <b>비교는 stNorm, 표시는 원문</b> — 둘을 한 값으로 쓰지 않는다. 원문으로 보여줘도 채점은 그대로 맞는다 · t42 521 → <b>529건</b>(はる 재현 · 꽃 안 나옴 · 봄도 오답에 안 나옴 · とる 합침 · 띄어쓰기·쉼표 · 전수 검사에 「같은 소리의 다른 뜻이 오답에 섞였나」 추가) · run.sh all 통과'},
   {v:'4.59',date:'2026-10-22',note:'<b>🔴 학습방이 올린 전략을 앱이 못 읽고 「없다」고 했다 — 내가 스키마를 안 알린 탓이다.</b> 로한: 「학습방에서 전략을 올렸다는데 <b>반영이 안되어있다</b>」 / 「너가 하는 모든 업데이트들은 <b>다른방 로버트들이 다 이해할 수 있게 핸드오프를 남겨야한다고</b>」 · 🔴 [결함] <code>study.strategy</code> 에 <b>17개 칸</b>이 들어 있었다(headline·kpis·plan·status·bottlenecks·rules·principles·pending·unknown·exam·pass·budget·md…). 그런데 내가 읽던 건 <code>goal·pillars·log</code> 셋뿐이라 화면이 <b>「아직 전략이 없다」고 말했다 — 있는데 모양이 달랐을 뿐이다</b> · 🔴 원인은 v4.57 에서 <b>스키마 통보를 「남은 일」로 미룬 것</b>이다. 방이 여럿이면 <b>스키마가 곧 계약</b>이고, 계약을 안 적으면 양쪽이 각자 만든다 · 🔒 <b>학습방 구조를 정본으로</b> 삼고 앱이 맞췄다 — 쓰는 쪽이 정본이다 · 화면: 🎯 한 줄 결론 · 📊 지표(학습방이 적은 목표/현재값) · 🧱 병목(근거까지) · 📍 현황(진도·측정·위험도) · 🗓 계획(기간·할 일, <b>지금 구간 표시</b>) · 📏 규칙·원칙 · ❓ <b>미정과 모르는 것</b>(🔒 숨기지 않는다 — 모른다는 사실이 가장 중요한 정보다) · 📄 원문 접어두기 · 🔒 <b>학습방이 적은 값과 앱이 센 숫자를 섞지 않는다</b> — 칸을 따로 뒀다(「앱이 센 숫자」). 섞으면 누가 한 말인지 모른다 · 🔒 「비었나」 판정을 <b>한 곳</b>(stStraHas)에 뒀다 — 한 칸이라도 있으면 있다고 본다. <b>있는데 없다고 말하는 일을 다시 만들지 않는다</b> · 🗑 내가 짰던 <code>pillars/log</code> 쪽 함수 넷을 지웠다(stPillarState·stPillarLast·stVerdictHtml·ST_VERDICT) — 쓰는 데 없는 길을 남기면 다음 사람이 산 길인 줄 안다 · 📄 <b>교재 20문항 추가</b>(p74 34번 · p75 35번) — 문장 <b>380</b>개, 단어 <b>1,110</b>개. ctx 문항은 <b>64개</b>(학습방이 14개를 더 올렸다). 전수 검증 통과 · t42 515 → <b>521건</b> · run.sh all 43/43 통과'},
   {v:'4.58',date:'2026-10-22',note:'<b>⏱ 뽀모를 앞자리로 · 🔴 고치기 단추가 안 먹던 결함 · 📅 캘린더는 열면 오늘.</b> 로한: 「이제 저 리스트 의미가 없고 <b>뽀모 시작 버튼이랑 뽀모 기록 버튼</b>을 볼 수있게 해서 거기서 내가 수정할 수 있게 해달라고」 · ⏱ 캘린더 오른쪽에 <b>⏱ 뽀모 시작 · 📋 뽀모 기록(N)</b> 두 단추를 맨 앞에 뒀다. 🔒 <b>기록 단추는 0건일 때도 띄운다</b> — 안 보이면 「없다」인지 「기능이 없다」인지 모른다 · 📋 기록 모달에서 <b>줄마다 바로</b> 분·메모를 고치고 지운다. 🔒 목록 → 모달 → 또 모달이면 두 번 누르는 일이 된다 · 🔒 과제 리스트는 <b>접었다. 지우지는 않았다</b> — 「이 날 과제 3건 · 1건 완료」 줄을 누르면 펼쳐진다. 없애면 학습방이 올린 것이 <b>있는데 안 보이는</b> 것이 된다 · 🔴 [결함] 로한: 「<b>고치기 버튼을 눌러도 반응이 없다</b>」 — <code>JSON.stringify</code> 를 <b>두 번</b> 걸어 onclick 에 <code>\"p1\"</code> 가 들어갔다. id 가 따옴표째 넘어가 <code>stPomoById</code> 가 못 찾고 <b>조용히 아무 일도 안 했다</b>. 버튼은 멀쩡히 보이니 눌러보기 전엔 모른다. 같은 자리가 날짜 쪽에도 하나 더 있었다 · 🔒 테스트가 이제 <b>실제로 누른다</b> — 따옴표가 든 id 로도 모달이 뜨는지, 그 안에서 고친 값이 들어가는지. 그리고 화면의 <b>모든 onclick 이 구문상 성립하는지 전수로</b> 본다 · ⚠️ 전수 단언을 한 번 잘못 짰다 — 「역슬래시+따옴표가 있으면 결함」으로 봤는데 <b>id 에 따옴표가 들어 있으면 그게 정상</b>이다. 구문 성립 여부로 바꿨다 · 📅 [결함] 로한: 「난 <b>자동으로 오늘 카운팅</b> 되는줄 알았다」 — 9/22 를 한 번 누른 뒤로 그 날짜가 <b>계속 남아</b> 다음에 열어도 9/22 였다. 오늘 뽀모가 0건으로 보인다 · 🔒 <b>고른 날짜를 저장하지 않는다</b>. 화면 상태일 뿐이고 내일까지 남을 이유가 없다 — 같은 세션에서만 기억하고 <b>새로 열면 오늘</b>이다. 서버에 남은 옛 값은 치운다(빈 서랍 금지) · t42 501 → <b>515건</b> · run.sh all 43/43 통과'},

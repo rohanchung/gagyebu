@@ -1662,7 +1662,8 @@ async function boot(st){
      !subs.some(x=>x.k==='word'&&x.w==='あんしん'),JSON.stringify(subs));
   ok('CTX8b 대신 보기 쪽에서 정확히 한 번 묻는다',
      subs.filter(x=>x.w==='あんしん').length===1,JSON.stringify(subs.filter(x=>x.w==='あんしん')));
-  ok('CTX9 마지막은 문장 번역이다',subs[subs.length-1].k==='ko',JSON.stringify(subs[subs.length-1]));
+  /* 📝 v4.61 — 학습방 v27 #1: 번역을 **맨 앞에**. 문장을 통째로 이해하는지 먼저 잰다 */
+  ok('CTX9 맨 앞은 문장 번역이다 (v27)',subs[0].k==='ko',JSON.stringify(subs[0]));
   ok('CTX10 하부도 전부 4지선다',subs.every(x=>x.n===4),JSON.stringify(subs.map(x=>x.n)));
   /* 🔒 v4.50 — 로한: "형광펜 신경쓰지말고, 걍 내 말대로 해"
      문장에 나온 **순서 그대로** 묻는다. unk 로 앞에 끌어오면 읽는 흐름이 끊긴다. */
@@ -1719,7 +1720,8 @@ async function boot(st){
         }
         /* 🔒 같은 말을 두 번 묻지 않는다 */
         if(it.kind!=='ko'){
-          const key=stNorm(it.w);
+          /* 📝 v4.61 — 기본형(꼴)과 뜻은 다른 질문이다. 종류까지 묶어 센다 */
+          const key=(it.kind==='base'?'base:':'')+stNorm(it.w);
           seen[s.id]=seen[s.id]||{};
           if(seen[s.id][key])bad.push(s.id+'/'+it.w+':두 번 물었다');
           seen[s.id][key]=1;
@@ -1769,6 +1771,13 @@ async function boot(st){
   ok('CTX17 점검 화면으로 들어간다',(await p.evaluate(()=>!!(ST_DRILL.sub&&ST_DRILL.sub.list.length)))===true);
   /* 🔴 v4.53 — 칠하는 게 아니라 **가린다**. 로한: "4지선다로 보여주니까 문장상에서
      추론이 돼서 엄청 쉬워진다" — 실측 빈칸 0/3 인데 구성요소 13/15 였다. */
+  /* 📝 v4.61 — 첫 문항은 번역이라 문장이 보이는 게 맞다. **틀려서 열린 진단**이 문장을 가리는지 본다 */
+  const first=await p.evaluate(()=>{const it=ST_DRILL.sub.list[0];
+    return {kind:it.kind,diag:(ST_DRILL.sub.diag||[]).length,wrong:it.opts.filter(o=>o!==it.ans)[0]};});
+  ok('CTX17b 첫 문항은 번역이고 진단은 아직 닫혀 있다',first.kind==='ko'&&first.diag>0,JSON.stringify(first));
+  await p.evaluate(a=>{stCtxGrade(a);stCtxNext();},first.wrong);await p.waitForTimeout(200);
+  ok('CTX17c 🔍 번역을 틀리면 진단이 바로 뒤에 열린다',
+     (await p.evaluate(()=>{const it=ST_DRILL.sub.list[ST_DRILL.sub.j];return !!(it&&it.diag);}))===true);
   const hide=await p.evaluate(()=>{
     const it=ST_DRILL.sub.list[ST_DRILL.sub.j];
     const q=document.querySelector('#v-study .gja').textContent;
@@ -1791,6 +1800,14 @@ async function boot(st){
       await p.waitForTimeout(90);
     }
   };
+  /* 📝 v4.61 — 위(CTX17c)에서 진단을 열려고 번역을 **일부러 틀렸다**. 그 문장은 통과가 아닌 게 맞다.
+     🔒 「전부 맞히면 통과」는 같은 문장으로 **처음부터 다시** 잰다 */
+  await p.evaluate(i=>{
+    const s=stSentById(i); delete s.comp;
+    const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    ST_DRILL={mode:'gctx',ids:[i],qs:[q],i:0,res:[{id:i,ok:true,my:q.ans}],
+      show:true,fin:false,start:Date.now()};
+    stCtxGo();},sid);
   await walk();
   /* 🔴 v4.51 — 점검이 끝나면 **정리 화면**이다. 여기서 처음 해설이 펼쳐진다 */
   const sum=await p.evaluate(()=>({on:!!(ST_DRILL&&ST_DRILL.sum),
@@ -1826,7 +1843,8 @@ async function boot(st){
   ok('CTX24 하부 오답이 단어에 쌓인다',wc.after===wc.before+1&&wc.seen>=1,JSON.stringify(wc));
   /* ⑩ 🔒 본문항 수가 하부로 부풀지 않는다 */
   ok('CTX25 🔒 「3문항」이면 빈칸이 3개다 (하부로 부풀리지 않는다)',
-     (await p.evaluate(()=>ST_DRILL?ST_DRILL.ids.length:-1))===3);
+     /* 📝 v4.61 — 위에서 한 문장짜리로 다시 시작했으니 **새로 열어** 잰다 */
+     (await p.evaluate(()=>{ST_DRILL=null;stDrillStart('gctx',3);const n=ST_DRILL?ST_DRILL.ids.length:-1;ST_DRILL=null;return n;}))===3);
   /* ⑪ 동음이의어 병기 */
   const hom=await p.evaluate(()=>stCtxWhy(stSentById('x71-09'),stGMkQ(stSentById('x71-09'),'gctx',{slot:stGSlot(stSentById('x71-09'),'ctx')})));
   ok('CTX26 동음이의어를 병기한다 (載る↔乗る)',hom.indexOf('乗る')>=0&&hom.indexOf('같은 소리')>=0);
@@ -1860,8 +1878,11 @@ async function boot(st){
   ok('CTX30 제출 단추가 없다 (모아서 내지 않는다)',pre.submit===false,JSON.stringify(pre));
   ok('CTX31 고르기 전엔 정오답 표시가 없다',pre.mark===0&&pre.opts===4,JSON.stringify(pre));
   /* 🔴 일부러 **틀리게** 고른다 — 그 자리에서 ✗ 가 떠야 한다 */
+  /* 📝 v4.61 — 첫 문항이 번역이 됐다. 번역은 맞히고(진단이 안 열린다) 다음 보기에서 틀린다 */
+  await p.evaluate(()=>{const it=ST_DRILL.sub.list[0];stCtxGrade(it.ans);stCtxNext();});
+  await p.waitForTimeout(150);
   const bad1=await p.evaluate(()=>{
-    const it=ST_DRILL.sub.list[0];
+    const it=ST_DRILL.sub.list[ST_DRILL.sub.j];
     return {w:it.w,ans:it.ans,wrong:it.opts.filter(o=>o!==it.ans)[0],
             bank:!!(it.g&&it.g.wordId),wid:(it.g||{}).wordId||''};});
   await p.evaluate(a=>stCtxGrade(a),bad1.wrong);
@@ -1883,7 +1904,8 @@ async function boot(st){
   }
   /* 세션 집계가 즉시 쌓인다 */
   const sa=await p.evaluate(()=>JSON.parse(JSON.stringify(ST_DRILL.subAll||{})));
-  ok('CTX36 세션 집계에 바로 들어간다',sa.n===1&&sa.bad===1&&sa.wrong.length===1,JSON.stringify(sa));
+  ok('CTX36 세션 집계에 바로 들어간다 (번역 맞힘 1 + 보기 틀림 1)',
+     sa.n===2&&sa.bad===1&&sa.wrong.length===1,JSON.stringify(sa));
   ok('CTX37 무엇을·어떻게 틀렸는지 남는다 (내 답까지)',
      sa.wrong[0].q===bad1.w&&sa.wrong[0].ans===bad1.ans&&sa.wrong[0].my===bad1.wrong,
      JSON.stringify(sa.wrong[0]));
@@ -1908,8 +1930,9 @@ async function boot(st){
   await p.waitForTimeout(150);
   /* ③ 🔴 드릴 기록에 남는다 — 창을 닫아도 사라지지 않는다 */
   const rec3=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
-  ok('CTX40 🔴 드릴 기록에 하부 집계가 남는다',
-     !!(rec3&&rec3.sub&&rec3.sub.n>=1&&rec3.sub.bad===rec3.sub.n),JSON.stringify(rec3&&rec3.sub));
+  /* 📝 v4.61 — 번역은 맞히고(진단이 안 열린다) 나머지는 전부 틀렸다 */
+  ok('CTX40 🔴 드릴 기록에 하부 집계가 남는다 (번역 1 맞힘 · 나머지 전부 틀림)',
+     !!(rec3&&rec3.sub&&rec3.sub.n>=2&&rec3.sub.bad===rec3.sub.n-1),JSON.stringify(rec3&&rec3.sub));
   ok('CTX41 🔴 틀린 항목 목록이 남는다 (오답노트 재료)',
      !!(rec3&&rec3.subWrong&&rec3.subWrong.length===rec3.sub.bad),
      JSON.stringify(rec3&&(rec3.subWrong||[]).map(x=>x.q)));
@@ -1920,7 +1943,7 @@ async function boot(st){
   await p.evaluate(()=>{ST_DRILL=null;setStTab('word');renderStudy();});
   await p.waitForTimeout(250);
   ok('CTX44 최근 드릴 줄이 하부도 말한다',
-     /단어 \d+\/\d+/.test(await p.$eval('#v-study',e=>e.textContent)));
+     /점검\(직전 접촉\) \d+\/\d+/.test(await p.$eval('#v-study',e=>e.textContent)));
   /* ⑤ 🔒 전부 맞힌 세션에는 하부 오답 서랍을 만들지 않는다 */
   await p.evaluate(()=>{DB.study.drills=[];stDrillStart('gctx',1);});
   await p.waitForTimeout(250);
@@ -1957,11 +1980,10 @@ async function boot(st){
      opq.bankable.length>0&&opq.bankable.every(o=>opq.asked.indexOf(o)>=0),JSON.stringify(opq));
   ok('CTX47 정답이었던 보기도 묻는다 (맞혔다고 뜻을 아는 건 아니다)',
      opq.asked.indexOf(opq.ans)>=0&&opq.right.length===1,JSON.stringify({asked:opq.asked,ans:opq.ans}));
-  ok('CTX48 순서는 문장 단어 → 보기 → 번역이다',
-     /^word+opt+ko$/.test(opq.order.join('').replace(/word/g,'word+').replace(/opt/g,'opt+')
-       .replace(/\+\+/g,'+').replace(/word\+/g,'word').replace(/opt\+/g,'opt'))
-     ||(function(){const i=opq.order.lastIndexOf('word'),j=opq.order.indexOf('opt');
-         return j>i&&opq.order[opq.order.length-1]==='ko';})(),JSON.stringify(opq.order));
+  /* 📝 v4.61 — 순서가 「번역 → (진단) → 보기」 가 됐다(학습방 v27) */
+  ok('CTX48 순서는 번역 → 진단(단어·기본형) → 보기다',
+     opq.order[0]==='ko'&&opq.order[opq.order.length-1]==='opt'
+     &&opq.order.lastIndexOf('word')<opq.order.indexOf('opt'),JSON.stringify(opq.order));
   /* 🔒 묻기 전에 정답/오답인지 말하지 않는다 */
   const ophtml=await p.evaluate(()=>{
     const s=stSentById('x71-01');
@@ -2521,6 +2543,53 @@ async function boot(st){
     stCtxGrade(it.ans);
     const ok1=ST_DRILL.sub.ok; ST_DRILL=null; return ok1;});
   ok('SPC3 원문 그대로 골라도 정답으로 채점된다',grade===true);
+  /* ㉙ 📝 v4.61 학습방 v27 — 활용형 → 기본형 · 번역 먼저 */
+  const bq=await p.evaluate(()=>{
+    ST_DRILL=null;
+    DB.study.words=DB.study.words.filter(w=>['かう','かつ'].indexOf(w.kana)<0)
+      .concat([{id:'bq1',kana:'かう',ko:'사다',pos:'verb',seen:0,miss:0,streak:0,lastSeen:null},
+               {id:'bq2',kana:'かざる',ko:'장식하다',pos:'verb',seen:0,miss:0,streak:0,lastSeen:null}]);
+    const a=stCtxBaseQ({w:'かざって',base:'かざる',ko:'장식하다'});
+    const b=stCtxBaseQ({w:'かって',base:'かつ',ko:'이기다'});
+    const none=stCtxBaseQ({w:'あつまりました',base:'あつまる',ko:'모이다'});
+    const w0=JSON.parse(JSON.stringify(stWordById('bq2')));
+    return {a:a,b:b,none:none,w0:w0};});
+  ok('BASE1 활용형이면 기본형 문항이 생긴다 (かざって → かざる)',
+     bq.a&&bq.a.kind==='base'&&bq.a.ans==='かざる'&&bq.a.opts.length===4,JSON.stringify(bq.a));
+  ok('BASE2 🔒 오답은 틀린 활용 규칙으로 되돌린 꼴이다 (って → う·つ)',
+     bq.a&&bq.a.opts.indexOf('かざう')>=0&&bq.a.opts.indexOf('かざつ')>=0,JSON.stringify(bq.a&&bq.a.opts));
+  ok('BASE3 🔒 진짜 있는 동사는 오답에서 뺀다 (かって 는 かう 일 수도 있다)',
+     bq.b&&bq.b.opts.indexOf('かう')<0,JSON.stringify(bq.b&&bq.b.opts));
+  ok('BASE4 규칙이 결정적이지 않은 꼴(〜ました)은 아직 묻지 않는다',bq.none===null);
+  /* 🔒 기본형 문항은 단어 카운터를 안 건드린다 — 재는 것이 뜻이 아니라 꼴이다 */
+  const bqc=await p.evaluate(q=>{
+    const s={id:'bq-s',ja:'へやに はなを かざって います。',ko:'방에 꽃을 장식하고 있습니다.',
+      seen:0,miss:0,streak:0,lastSeen:null,slots:[{kind:'ctx',target:'はな',opts:['いぬ','ほん','くつ'],why:'…'}],
+      gloss:[{w:'かざって',base:'かざる',ko:'장식하다',wordId:'bq2'}],koOpts:['a 1','b 2','c 3']};
+    DB.study.sents=[s];
+    const it=stCtxBaseQ(s.gloss[0]);
+    ST_DRILL={mode:'gctx',ids:[s.id],qs:[{ans:'はな',ja:'',opts:[],why:''}],i:0,res:[{id:s.id,ok:true,my:'はな'}],
+      show:true,fin:false,start:Date.now(),sub:{list:[it],j:0,show:false,bad:0}};
+    stCtxGrade(it.opts.filter(o=>o!==it.ans)[0]);
+    const w=stWordById('bq2'); const rec=(ST_DRILL.subAll.wrong||[])[0];
+    ST_DRILL=null;
+    return {miss:+w.miss||0,seen:+w.seen||0,base:!!(rec&&rec.base)};},null);
+  ok('BASE5 🔒 기본형을 틀려도 단어 카운터는 그대로다 (뜻과 꼴을 한 숫자로 섞지 않는다)',
+     bqc.miss===bq.w0.miss&&bqc.seen===bq.w0.seen,JSON.stringify({before:bq.w0,after:bqc}));
+  ok('BASE6 기록에는 「꼴을 못 되돌렸다」로 남는다',bqc.base===true,JSON.stringify(bqc));
+  /* 번역을 맞히면 진단이 안 열린다 */
+  const gate=await p.evaluate(()=>{
+    const s=DB.study.sents[0];
+    const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    ST_DRILL={mode:'gctx',ids:[s.id],qs:[q],i:0,res:[{id:s.id,ok:true,my:q.ans}],
+      show:true,fin:false,start:Date.now()};
+    stCtxGo();
+    const before=ST_DRILL.sub.list.map(x=>x.kind);
+    stCtxGrade(ST_DRILL.sub.list[0].ans);
+    const after=ST_DRILL.sub.list.map(x=>x.kind);
+    ST_DRILL=null; return {before:before,after:after};});
+  ok('DIAG1 번역을 맞히면 단어 진단이 안 열린다 (v27)',
+     gate.after.indexOf('word')<0&&gate.after.indexOf('base')<0,JSON.stringify(gate));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
