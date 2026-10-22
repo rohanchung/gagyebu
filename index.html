@@ -321,6 +321,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .plrow.done{opacity:.5}
 .pllast{margin-top:5px;font-size:11px;padding:5px 7px;border-radius:7px;background:var(--soft)}
 .pllog{font-size:11.5px;padding:5px 0;border-top:1px dashed var(--line);line-height:1.5}
+.plitems{margin:6px 0 0;padding-left:18px;font-size:11px;line-height:1.7;color:#55606f}
+.stramd{white-space:pre-wrap;font-size:11px;line-height:1.7;color:#44506a;margin-top:8px;
+  max-height:420px;overflow:auto;border-top:1px dashed var(--line);padding-top:8px}
 .pllog:first-of-type{border-top:0}
 /* 📝 v4.50 문맥규정 숙달 띠
    🔴 [회귀] 처음에 `.ctxbar` 로 지었다. **그 이름은 이미 쓰고 있었다** — 목표 페이지의
@@ -4765,10 +4768,23 @@ function stPaneErr(){
    🔒 기둥마다 **앱이 셀 수 있는 지표**를 묶는다(metric). 말로만 적으면 캘린더 과제 체크처럼
       또 유명무실해진다 — 로한이 '귀찮아서 다 체크해버렸다'고 한 게 그 증상이다.
    🔒 앱이 모르는 지표를 적으면 **모른다고 화면에 쓴다.** 조용히 0 으로 그리면 거짓말이다. */
+/* 🔴 v4.59 [결함] — 학습방이 전략을 **올렸는데 앱이 못 읽었다.**
+   로한: *"학습방에서 전략을 올렸다는데 반영이 안되어있다"*
+   실측: `study.strategy` 에 17개 칸이 들어 있었다(headline·kpis·plan·status·bottlenecks·
+   rules·principles·pending·unknown·exam·pass·budget·md …). 내가 읽던 건 goal·pillars·log 셋뿐이라
+   화면이 **「아직 전략이 없다」고 말했다 — 있는데 모양이 달랐을 뿐이다. 그게 거짓말이다.**
+   🔴 원인은 내가 **스키마를 핸드오프로 안 알린 것**이다(「남은 일」로 미뤘다).
+   🔒 고치는 방향: **학습방 구조를 정본으로** 삼고 앱이 맞춘다. 쓰는 쪽이 정본이다.
+   🔒 학습방이 적은 값과 **앱이 센 숫자를 섞지 않는다** — 섞으면 누가 한 말인지 모른다. */
 function stStrategy(){ return (studyDB().strategy)||{}; }
-function stPillars(){ var a=stStrategy().pillars; return Array.isArray(a)?a:[]; }
-function stPlanLog(){ var a=stStrategy().log; return Array.isArray(a)?a:[]; }
-
+function stStraArr(k){ var a=stStrategy()[k]; return Array.isArray(a)?a:[]; }
+/* 전략이 들어 있나 — 🔒 「비었다」는 말을 함부로 하지 않기 위해 한 곳에서 판정한다 */
+function stStraHas(){
+  var S=stStrategy();
+  if(stNorm2(S.headline)||stNorm2(S.md))return true;
+  return ['kpis','plan','status','bottlenecks','rules','principles','pending','unknown']
+    .some(function(k){return stStraArr(k).length>0;});
+}
 /* 📊 지표 — 🔒 「그 기둥이 지금 어디까지 왔나」에 답하는 함수는 **이것 하나다**(원칙 2).
    전부 **파생**이다. 저장하지 않는다. 새 지표는 여기에만 더한다. */
 var ST_METRICS=[
@@ -4803,95 +4819,104 @@ function stMetric(k){
   var cap=null; if(m.cap){ try{ cap=+m.cap()||0; }catch(e){ cap=null; } }
   return {k:k,v:v,label:m.label,unit:m.unit,cap:cap};
 }
-/* 기둥 하나의 현재 상태 — 목표가 있으면 비율까지 */
-function stPillarState(p){
-  var m=p&&p.metric?stMetric(p.metric):null;
-  if(!m)return {known:false,metric:(p&&p.metric)||''};
-  var tgt=(p.target==null)?null:(+p.target||0);
-  var pct=(tgt>0)?Math.min(100,Math.round(m.v/tgt*100)):null;
-  /* 🔒 '적을수록 좋은' 지표는 방향이 반대다(오답·틀린 단어). 같은 식으로 그리면 거짓말이 된다 */
-  var down=(p.dir==='down');
-  if(down&&tgt!=null)pct=(m.v<=tgt)?100:Math.max(0,Math.round((tgt/Math.max(m.v,1))*100));
-  return {known:true,m:m,target:tgt,pct:pct,down:down,
-          hit:(tgt==null)?null:(down?(m.v<=tgt):(m.v>=tgt))};
-}
-/* 그 기둥에 달린 가장 최근 점검 한 줄 */
-function stPillarLast(id){
-  var out=null;
-  stPlanLog().forEach(function(l){
-    if(!l||l.pillar!==id)return;
-    if(!out||String(l.date||'')>=String(out.date||''))out=l;
-  });
-  return out;
-}
-var ST_VERDICT={ok:['순항','pos'],slip:['밀림','neg'],risk:['위험','neg'],done:['끝냄','pos']};
-function stVerdictHtml(v){
-  var x=ST_VERDICT[v]; if(!x)return '';
+/* 🗑 v4.59 — stPillarState·stPillarLast·stVerdictHtml·ST_VERDICT 를 지웠다.
+   내가 짰던 pillars/log 구조를 버리고 학습방 구조로 갔으므로 쓰는 데가 없다.
+   🔒 쓰는 데 없는 함수를 남기면 다음 사람이 그게 산 길인 줄 안다. */
+/* ── 🧭 전략 화면 (v4.59 — 학습방 구조 그대로) ──
+   🔒 **빈 칸은 그리지 않는다**(빈 서랍 금지). 학습방이 안 올린 것은 자리도 안 만든다.
+   🔒 학습방이 쓴 글자와 **앱이 센 숫자를 섞지 않는다** — 칸을 따로 둔다. */
+var ST_RISK={high:['위험','neg'],mid:['주의',''],low:['순항','pos']};
+function stRiskHtml(r){
+  var x=ST_RISK[r]; if(!x)return '';
   return '<span class="pill '+x[1]+'">'+x[0]+'</span>';
 }
-
-/* ── 🧭 전략 화면 ── */
+function stStraSec(title,sub,body){
+  if(!body)return '';
+  return '<div class="sec"><div class="bkhd"><span class="subhd2">'+title+'</span>'
+    +(sub?'<span class="mut" style="font-size:10.5px">'+sub+'</span>':'')+'</div>'+body+'</div>';
+}
 function stPanePlan(){
-  var S=stStrategy(), ps=stPillars(), lg=stPlanLog();
-  var head='<div class="sec"><div class="bkhd"><span class="subhd2">🧭 전략</span>'
-    +'<span class="mut" style="font-size:10.5px">'
-      +(S.updated?mdEsc(S.updated)+' · ':'')+(S.by?mdEsc(S.by):'학습방')+' 가 쓴다</span></div>';
-  /* 🔒 비어 있을 때 빈 화면을 주지 않는다 — **무엇을 넣어야 하는지** 알려준다 */
-  if(!ps.length&&!stNorm(S.goal)){
-    return head
+  var S=stStrategy();
+  /* 🔒 비어 있을 때만 「없다」고 말한다. 있는데 못 읽는 일이 다시 없게 한 곳에서 판정한다 */
+  if(!stStraHas()){
+    return '<div class="sec"><div class="bkhd"><span class="subhd2">🧭 전략</span>'
+      +'<span class="mut" style="font-size:10.5px">학습방이 쓴다</span></div>'
       +'<div class="mut" style="font-size:11.5px;line-height:1.6;padding:4px 0">'
-      +'아직 전략이 없다. <b>학습방이 올린다</b> — <code>study.strategy</code> 에 '
-      +'목표(goal) · 기둥(pillars) · 점검(log) 을 쓴다.<br>'
-      +'🔒 기둥마다 <b>앱이 셀 수 있는 지표</b>를 달아야 한다. 말로만 적으면 또 유명무실해진다.'
-      +'</div>'
-      +'<div class="gltab"><div class="gllab">쓸 수 있는 지표</div>'
-      +ST_METRICS.map(function(m){
-        var cur=stMetric(m.k);
+      +'아직 전략이 없다. <b>학습방이 <code>study.strategy</code> 에 올린다.</b></div>'
+      +'<div class="gltab"><div class="gllab">앱이 셀 수 있는 지표</div>'
+      +ST_METRICS.map(function(m){ var c=stMetric(m.k);
         return '<div class="glrow"><span class="glw"><code>'+m.k+'</code></span>'
           +'<span class="glb">'+mdEsc(m.label)+'</span>'
-          +'<span class="glk">지금 <b>'+(cur?cur.v:'—')+'</b>'+mdEsc(m.unit||'')+'</span></div>';
-      }).join('')+'</div></div>'
-      +stPaneRec();
+          +'<span class="glk">지금 <b>'+(c?c.v:'—')+'</b>'+mdEsc(m.unit||'')+'</span></div>';
+      }).join('')+'</div></div>'+stPaneRec();
   }
-  var goal=stNorm(S.goal)
-    ? '<div class="plgoal">🎯 '+mdEsc(S.goal)+'</div>' : '';
-  var rows=ps.map(function(p){
-    var st=stPillarState(p), last=stPillarLast(p.id);
-    var right, bar='';
-    if(!st.known){
-      /* 🔒 모르는 지표를 0 으로 그리지 않는다 */
-      right='<span class="mut" style="font-size:10.5px">앱이 못 세는 지표'
-        +(st.metric?' (<code>'+mdEsc(st.metric)+'</code>)':'')+'</span>';
-    }else{
-      right='<b style="font-variant-numeric:tabular-nums">'+st.m.v+'</b>'
-        +(st.target!=null?'<span class="mut"> / '+st.target+'</span>':'')
-        +'<span class="mut" style="font-size:10.5px"> '+mdEsc(st.m.unit||'')+'</span>';
-      if(st.pct!=null)bar='<div class="msttrk" style="margin-top:6px"><i style="width:'+st.pct+'%"></i></div>';
-    }
-    return '<div class="plrow'+(p.status==='done'?' done':'')+'">'
-      +'<div class="row" style="border-bottom:0;padding:0">'
-        +'<span><b>'+mdEsc(p.title||'(제목 없음)')+'</b> '+stVerdictHtml(last&&last.verdict)+'</span>'
-        +'<span>'+right+'</span></div>'
-      +bar
-      +(stNorm(p.why)?'<div class="mut" style="font-size:10.5px;margin-top:4px">'+mdEsc(p.why)+'</div>':'')
-      +(last&&stNorm(last.text)
-        ?'<div class="pllast"><span class="mut">'+mdEsc(last.date||'')+'</span> '+mdEsc(last.text)+'</div>'
-        :'')
+  var head='<div class="sec"><div class="bkhd"><span class="subhd2">🧭 전략</span>'
+    +'<span class="mut" style="font-size:10.5px">'
+      +(stNorm2(S.setAt)?mdEsc(S.setAt)+' · ':'')+mdEsc(S.by||'학습방')+'</span></div>'
+    +(stNorm2(S.headline)?'<div class="plgoal">🎯 '+mdEsc(S.headline)+'</div>':'')
+    +'</div>';
+  /* 📊 KPI — 🔒 cur 는 **학습방이 적은 글자**다. 앱이 센 숫자는 따로 칸을 만든다 */
+  var kp=stStraArr('kpis').map(function(x){
+    return '<div class="plrow"><div class="row" style="border-bottom:0;padding:0">'
+      +'<span><b>'+mdEsc(x.label||'')+'</b></span>'
+      +'<span class="mut" style="font-size:11px">목표 '+mdEsc(String(x.target||'—'))+'</span></div>'
+      +(stNorm2(x.cur)?'<div class="pllast">'+mdEsc(String(x.cur))+'</div>':'')
       +'</div>';}).join('');
-  /* 점검 로그 — 🔒 학습방이 쓴다. 앱은 보여주기만 한다 */
-  var logs=lg.slice().sort(function(a,b){return String(b.date||'')<String(a.date||'')?-1:1;})
-    .slice(0,14).map(function(l){
-      var p=null; ps.forEach(function(x){ if(x.id===l.pillar)p=x; });
-      return '<div class="pllog">'
-        +'<span class="mut">'+mdEsc(l.date||'')+'</span> '+stVerdictHtml(l.verdict)+' '
-        +(p?'<b>'+mdEsc(p.title)+'</b> — ':'')+mdEsc(l.text||'')+'</div>';}).join('');
-  return head+goal
-    +(rows||'<div class="mut" style="font-size:11.5px">기둥이 없다 — 학습방이 pillars 를 올린다.</div>')
-    +'</div>'
-    +'<div class="sec"><div class="bkhd"><span class="subhd2">🗒 점검 로그</span>'
-      +'<span class="mut" style="font-size:10.5px">'+lg.length+'건 · 학습방이 쓴다</span></div>'
-      +(logs||'<div class="mut" style="font-size:11.5px">아직 점검이 없다.</div>')
-    +'</div>'
+  var bn=stStraArr('bottlenecks').map(function(x){
+    return '<div class="plrow"><b>'+mdEsc(x.title||'')+'</b>'
+      +(stNorm2(x.evidence)?'<div class="mut" style="font-size:10.5px;margin-top:4px;line-height:1.55">'
+        +mdEsc(x.evidence)+'</div>':'')+'</div>';}).join('');
+  var st=stStraArr('status').map(function(x){
+    return '<div class="plrow"><div class="row" style="border-bottom:0;padding:0">'
+      +'<span><b>'+mdEsc(x.area||x.k||'')+'</b> '+stRiskHtml(x.risk)+'</span>'
+      +'<span class="mut" style="font-size:11px">'+mdEsc(String(x.progress||''))+'</span></div>'
+      +(stNorm2(x.measure)?'<div class="mut" style="font-size:10.5px;margin-top:4px">'
+        +mdEsc(x.measure)+'</div>':'')+'</div>';}).join('');
+  var ds=todayStr();
+  var pl=stStraArr('plan').map(function(x){
+    var now=(x.from&&x.to&&String(x.from)<=ds&&ds<=String(x.to));
+    var done=(x.to&&String(x.to)<ds);
+    return '<div class="plrow'+(done?' done':'')+'">'
+      +'<div class="row" style="border-bottom:0;padding:0">'
+      +'<span><b>'+mdEsc(x.title||'')+'</b>'+(now?' <span class="pill pos">지금</span>':'')+'</span>'
+      +'<span class="mut" style="font-size:10.5px">'+mdEsc(String(x.from||''))
+        +(x.to?' ~ '+mdEsc(String(x.to)):'')+'</span></div>'
+      +((x.items&&x.items.length)
+        ?'<ul class="plitems">'+x.items.map(function(i){return '<li>'+mdEsc(String(i))+'</li>';}).join('')+'</ul>'
+        :'')+'</div>';}).join('');
+  var ru=stStraArr('rules').map(function(x){
+    return '<div class="plrow"><b>'+mdEsc(x.title||'')+'</b>'
+      +'<div class="mut" style="font-size:10.5px;margin-top:4px;line-height:1.55">'
+        +mdEsc(String(x.rule||''))+'</div></div>';}).join('');
+  var pr=stStraArr('principles').map(function(x){
+    return '<div class="pllog">'+mdEsc(String(x))+'</div>';}).join('');
+  /* ❓ 미정·모르는 것 — 🔒 **숨기지 않는다.** 모른다는 사실이 가장 중요한 정보다 */
+  var pd=stStraArr('pending').map(function(x){
+    return '<div class="plrow"><div class="row" style="border-bottom:0;padding:0">'
+      +'<span><b>'+mdEsc(String(x.q||''))+'</b></span>'
+      +'<span class="pill">'+mdEsc(String(x.status||'대기'))+'</span></div>'
+      +(stNorm2(x.rec)?'<div class="pllast">제안 — '+mdEsc(String(x.rec))+'</div>':'')
+      +'</div>';}).join('');
+  var un=stStraArr('unknown').map(function(x){
+    return '<div class="pllog">❓ '+mdEsc(String(x))+'</div>';}).join('');
+  /* 📊 앱이 센 숫자 — 🔒 학습방 글자와 **다른 칸**에 둔다 */
+  var app='<div class="gltab"><div class="gllab">앱이 센 숫자 (지금)</div>'
+    +ST_METRICS.map(function(m){ var c=stMetric(m.k); if(!c)return '';
+      return '<div class="glrow"><span class="glw">'+mdEsc(m.label)+'</span>'
+        +'<span class="glb"><b>'+c.v+'</b>'+mdEsc(m.unit||'')
+          +(c.cap!=null?' <span class="mut">/ '+c.cap+'</span>':'')+'</span>'
+        +'<span class="glk mut"><code>'+m.k+'</code></span></div>';}).join('')+'</div>';
+  return head
+    +stStraSec('📊 지표','학습방이 적는다',kp)
+    +stStraSec('🧱 병목','',bn)
+    +stStraSec('📍 현황','',st)
+    +stStraSec('🗓 계획','',pl)
+    +stStraSec('📏 규칙','',ru+(pr?'<div style="margin-top:8px">'+pr+'</div>':''))
+    +stStraSec('❓ 미정·모르는 것','숨기지 않는다',pd+un)
+    +stStraSec('📊 앱이 센 숫자','학습방 글자와 섞지 않는다',app)
+    +(stNorm2(S.md)
+      ?'<div class="sec"><details><summary class="subhd2" style="cursor:pointer">📄 원문 보기</summary>'
+       +'<div class="stramd">'+mdEsc(String(S.md))+'</div></details></div>':'')
     +stPaneRec();
 }
 function stPaneRec(){
@@ -7288,7 +7313,7 @@ function renderStudy(){
   var tabs='<div class="logtabs">'
     +'<button class="'+(t==='cal'?'on':'')+'" onclick="setStTab(\'cal\')">📅 캘린더</button>'
     +'<button class="'+(t==='plan'?'on':'')+'" onclick="setStTab(\'plan\')">🧭 전략'
-      +(stPillars().length?' <b>'+stPillars().length+'</b>':'')+'</button>'
+      +(stStraArr('kpis').length?' <b>'+stStraArr('kpis').length+'</b>':'')+'</button>'
     /* v3.9 — 이 탭에 단어 드릴과 문법 드릴이 같이 들어갔다(키는 'word' 유지) */
     +'<button class="'+(t==='word'?'on':'')+'" onclick="setStTab(\'word\')">🈶 드릴'
       +(stWords().length?' <b>'+stWords().length+'</b>':'')+'</button>'
@@ -11975,7 +12000,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.58';
+var APP_VERSION='4.59';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -11989,6 +12014,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.59',date:'2026-10-22',note:'<b>🔴 학습방이 올린 전략을 앱이 못 읽고 「없다」고 했다 — 내가 스키마를 안 알린 탓이다.</b> 로한: 「학습방에서 전략을 올렸다는데 <b>반영이 안되어있다</b>」 / 「너가 하는 모든 업데이트들은 <b>다른방 로버트들이 다 이해할 수 있게 핸드오프를 남겨야한다고</b>」 · 🔴 [결함] <code>study.strategy</code> 에 <b>17개 칸</b>이 들어 있었다(headline·kpis·plan·status·bottlenecks·rules·principles·pending·unknown·exam·pass·budget·md…). 그런데 내가 읽던 건 <code>goal·pillars·log</code> 셋뿐이라 화면이 <b>「아직 전략이 없다」고 말했다 — 있는데 모양이 달랐을 뿐이다</b> · 🔴 원인은 v4.57 에서 <b>스키마 통보를 「남은 일」로 미룬 것</b>이다. 방이 여럿이면 <b>스키마가 곧 계약</b>이고, 계약을 안 적으면 양쪽이 각자 만든다 · 🔒 <b>학습방 구조를 정본으로</b> 삼고 앱이 맞췄다 — 쓰는 쪽이 정본이다 · 화면: 🎯 한 줄 결론 · 📊 지표(학습방이 적은 목표/현재값) · 🧱 병목(근거까지) · 📍 현황(진도·측정·위험도) · 🗓 계획(기간·할 일, <b>지금 구간 표시</b>) · 📏 규칙·원칙 · ❓ <b>미정과 모르는 것</b>(🔒 숨기지 않는다 — 모른다는 사실이 가장 중요한 정보다) · 📄 원문 접어두기 · 🔒 <b>학습방이 적은 값과 앱이 센 숫자를 섞지 않는다</b> — 칸을 따로 뒀다(「앱이 센 숫자」). 섞으면 누가 한 말인지 모른다 · 🔒 「비었나」 판정을 <b>한 곳</b>(stStraHas)에 뒀다 — 한 칸이라도 있으면 있다고 본다. <b>있는데 없다고 말하는 일을 다시 만들지 않는다</b> · 🗑 내가 짰던 <code>pillars/log</code> 쪽 함수 넷을 지웠다(stPillarState·stPillarLast·stVerdictHtml·ST_VERDICT) — 쓰는 데 없는 길을 남기면 다음 사람이 산 길인 줄 안다 · 📄 <b>교재 20문항 추가</b>(p74 34번 · p75 35번) — 문장 <b>380</b>개, 단어 <b>1,110</b>개. ctx 문항은 <b>64개</b>(학습방이 14개를 더 올렸다). 전수 검증 통과 · t42 515 → <b>521건</b> · run.sh all 43/43 통과'},
   {v:'4.58',date:'2026-10-22',note:'<b>⏱ 뽀모를 앞자리로 · 🔴 고치기 단추가 안 먹던 결함 · 📅 캘린더는 열면 오늘.</b> 로한: 「이제 저 리스트 의미가 없고 <b>뽀모 시작 버튼이랑 뽀모 기록 버튼</b>을 볼 수있게 해서 거기서 내가 수정할 수 있게 해달라고」 · ⏱ 캘린더 오른쪽에 <b>⏱ 뽀모 시작 · 📋 뽀모 기록(N)</b> 두 단추를 맨 앞에 뒀다. 🔒 <b>기록 단추는 0건일 때도 띄운다</b> — 안 보이면 「없다」인지 「기능이 없다」인지 모른다 · 📋 기록 모달에서 <b>줄마다 바로</b> 분·메모를 고치고 지운다. 🔒 목록 → 모달 → 또 모달이면 두 번 누르는 일이 된다 · 🔒 과제 리스트는 <b>접었다. 지우지는 않았다</b> — 「이 날 과제 3건 · 1건 완료」 줄을 누르면 펼쳐진다. 없애면 학습방이 올린 것이 <b>있는데 안 보이는</b> 것이 된다 · 🔴 [결함] 로한: 「<b>고치기 버튼을 눌러도 반응이 없다</b>」 — <code>JSON.stringify</code> 를 <b>두 번</b> 걸어 onclick 에 <code>\"p1\"</code> 가 들어갔다. id 가 따옴표째 넘어가 <code>stPomoById</code> 가 못 찾고 <b>조용히 아무 일도 안 했다</b>. 버튼은 멀쩡히 보이니 눌러보기 전엔 모른다. 같은 자리가 날짜 쪽에도 하나 더 있었다 · 🔒 테스트가 이제 <b>실제로 누른다</b> — 따옴표가 든 id 로도 모달이 뜨는지, 그 안에서 고친 값이 들어가는지. 그리고 화면의 <b>모든 onclick 이 구문상 성립하는지 전수로</b> 본다 · ⚠️ 전수 단언을 한 번 잘못 짰다 — 「역슬래시+따옴표가 있으면 결함」으로 봤는데 <b>id 에 따옴표가 들어 있으면 그게 정상</b>이다. 구문 성립 여부로 바꿨다 · 📅 [결함] 로한: 「난 <b>자동으로 오늘 카운팅</b> 되는줄 알았다」 — 9/22 를 한 번 누른 뒤로 그 날짜가 <b>계속 남아</b> 다음에 열어도 9/22 였다. 오늘 뽀모가 0건으로 보인다 · 🔒 <b>고른 날짜를 저장하지 않는다</b>. 화면 상태일 뿐이고 내일까지 남을 이유가 없다 — 같은 세션에서만 기억하고 <b>새로 열면 오늘</b>이다. 서버에 남은 옛 값은 치운다(빈 서랍 금지) · t42 501 → <b>515건</b> · run.sh all 43/43 통과'},
   {v:'4.57',date:'2026-10-22',note:'<b>🧭 전략 탭 신설 · ⏱ 뽀모 메모와 수정·삭제.</b> 로한: 「학습방이랑 논의해서 전략 탭을 만들꺼야. 학습방이 날 합격시키기 위한 전략을 짜는 곳과 나 행동과 매칭해서 <b>전략 밑에 로그형태로 계속 그가 체크</b>하게 하는거지」 「<b>지금 내가 학습방 플랜대로 안하고 있으니까 이게 유명무실하거든?</b>」 · 🧭 탭을 <b>캘린더 / 전략 / 드릴 / 오답</b>로 바꿨다(로한 지시). 🔒 여전히 <b>4개</b>다 — 400px 에서 5개는 글자가 잘린다(v3.7 제약) · 「기록(시험·모의고사)」은 <b>전략 탭 안으로</b> 들어갔다 — 어차피 전략과 같이 보는 것이다. 🔒 저장돼 있던 옛 <code>rec</code> 값은 <code>plan</code> 으로 흘려보낸다 · 🔒 <code>study.strategy</code> 는 <b>학습방이 쓰고 앱은 읽기만</b> 한다(<code>logs[].coach</code> 와 같은 원칙) — 양쪽이 쓰면 두 화면이 다른 말을 한다 · 🔒 기둥마다 <b>앱이 셀 수 있는 지표</b>를 묶는다(<code>ctxMastered</code>·<code>studyMins7</code>·<code>drillAcc7</code>·<code>errOpen</code>·<code>wordsHot</code>·<code>pomoMins7</code> 등 9개). 말로만 적으면 캘린더 과제 체크처럼 또 유명무실해진다 · 🔒 <b>적을수록 좋은 지표</b>(오답·틀린 단어)는 방향을 뒤집어 그린다 — 같은 식으로 그리면 거짓말이 된다 · 🔒 앱이 <b>모르는 지표를 적으면 0으로 그리지 않고 「앱이 못 세는 지표」라고 말한다</b> · 🔒 지표는 전부 <b>파생</b>이라 저장하지 않는다 · 🔒 전략이 비어 있으면 빈 화면을 주지 않고 <b>쓸 수 있는 지표 목록과 현재값</b>을 보여준다 — 학습방이 그걸 보고 적으면 된다 · ⏱ <b>뽀모 메모</b> — 로한: 「뽀모 시작 버튼 누르면 <b>뭐 공부하냐를 내가 쓰게</b> 해서 쓰면, 저기에 표현되는걸로」. 시작 칸에 자유 입력칸 하나. 🔒 <b>안 써도 시작된다</b>(쓰게 강제하면 안 쓰려고 뽀모를 안 켠다) · 🔒 <b>직전 메모를 미리 채우지 않는다</b> — 그게 값이 박히는 길이다(v4.49 과제 선택이 그래서 죽었다) · 캘린더 우측이 「N분」 한 줄에서 <b>그날 뽀모 목록</b>(시각 · 분 · 메모)으로 바뀌었다. 지난 날도 보여준다 — 숨기면 그날 뭘 했는지 사라진다 · ⏱ <b>뽀모 수정·삭제</b> — 로한: 「<b>뽀모를 켜놓고 안끄고 가서 밥을 먹으러 갔다왔는데 50몇분 되있더라</b>」. 목록 줄을 누르면 분과 메모를 고치거나 지운다 · 🔒 <b>시작 시각(at)은 안 건드린다</b> — 언제 시작했는지는 사실이고 틀린 건 길이뿐이다. 날짜도 at 에서 파생되니 저절로 맞는다 · 🔴 🔒 <b>타임로그 자국도 같이 고친다</b> — 50분이 25분이 됐는데 타임로그에 50분짜리 표시가 남으면 그 칸이 30분으로 세어져(stStudyMins) <b>줄인 게 반영이 안 된다</b> · 🔒 단 <b>내가 만든 자국만 지운다</b>(제목이 「뽀모」로 시작하고 tag=study 인 블록). 손으로 써넣은 칸은 그대로 둔다 — 남의 글씨를 지우지 않는다 · 🔒 0분으로 고치는 것은 지우는 것과 같다 · t42 477 → <b>501건</b> · run.sh all 43/43 통과'},
   {v:'4.56',date:'2026-10-21',note:'<b>🔴 한 세트는 10문항이다 — 풀이 커졌다고 다 풀게 하지 않는다.</b> 로한: 「내가 문장을 계속 만들라고 했지 <b>무조건 낸 문장을 다 시험 보게 하면 어케해</b>. 10문항 기준으로, 그 문제 중에 10문항을 골라서 내야지. 나중에 그럼 <b>100문항 내면 맨날 100문항 풀게할꺼냐</b>?」 · 🔒 <b>풀(문항 창고)과 세트(한 번에 푸는 양)는 다른 것이다.</b> 풀이 30이든 262든 세트는 <b>10</b>이다. 세트 크기는 <code>ST_SET</code> 한 곳에만 적는다 · 화면은 풀 크기를 정직하게 말하고(「262문항」) 그 옆에 <b>「→ 10개씩」</b>을 붙인다 — 숫자가 거짓말하지 않게 · 🔴 [결함] 더 큰 게 숨어 있었다 — 자동 문항을 <b>수동 뒤에 붙이기만</b> 했다. 그런데 세트는 앞에서부터 고르므로 <b>수동 10개가 자리를 다 차지하면 자동은 영원히 안 나온다.</b> v4.55 에서 문턱을 고쳤는데도 새 문장이 안 나올 자리였다 · 🔒 그래서 <b>이미 2번 맞힌 수동 문항은 풀에서 뺀다</b>(로한: 「완전히 맞춘건 별로 도움이 안된다」). 빠진 자리를 자동이 채운다 · 🔒 <b>수동이 먼저다</b> — 아직 덜 맞힌 교재 문장은 자동보다 앞에 둔다. 로한이 실제로 본 문장이 밀리면 안 된다 · t42 471 → <b>477건</b>(풀 30에 세트 10인가 · 다 맞힌 수동이 빠지는가 · <b>그 자리를 자동이 채우는가</b> · 수동이 자동보다 앞인가) · run.sh all 43/43 통과'},

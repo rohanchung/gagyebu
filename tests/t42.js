@@ -2259,35 +2259,66 @@ async function boot(st){
      (await p.evaluate(()=>{DB.ui.studyTab='rec';return stTab();}))==='plan');
   const empty=await p.$eval('#v-study',e=>e.textContent);
   ok('PLAN4 전략이 없으면 **무엇을 넣어야 하는지** 알려준다',
-     empty.indexOf('학습방이 올린다')>=0&&empty.indexOf('ctxMastered')>=0,empty.slice(0,120));
+     empty.indexOf('study.strategy')>=0&&empty.indexOf('ctxMastered')>=0,empty.slice(0,120));
   ok('PLAN5 기록(시험)이 전략 탭 안으로 들어왔다',empty.indexOf('📝 기록')>=0);
-  /* 학습방이 전략을 올리면 */
+  /* 🔴 v4.59 — 학습방이 **실제로 올린 모양**(서버 실측 17칸)으로 넣는다.
+     로한: "학습방에서 전략을 올렸다는데 반영이 안되어있다"
+     🔴 내가 짠 goal/pillars/log 로만 읽어서 **있는데 「없다」고 했다**. 그게 거짓말이다. */
   const plan=await p.evaluate(()=>{
-    DB.study.strategy={v:1,updated:'2026-10-22',by:'학습방',
-      goal:'12/6 N4 합격 · 언어지식 60 / 청해 40',
-      pillars:[{id:'p1',title:'문맥구성 전 문장 숙달',why:'p71 4/10',metric:'ctxMastered',target:10},
-               {id:'p2',title:'오답 회수',why:'',metric:'errOpen',target:5,dir:'down'},
-               {id:'p3',title:'손으로 적은 지표',why:'',metric:'내가모르는지표',target:3}],
-      log:[{date:'2026-10-22',by:'학습방',pillar:'p1',verdict:'slip',text:'사흘째 멈춤'}]};
+    DB.study.strategy={v:1,by:'로버트(학습)',setAt:'2026-10-22',
+      headline:'합격 확률은 아직 수치로 말할 수 없다. 10/25 M1이 첫 측정이다.',
+      kpis:[{id:'k1',label:'학습시간 (주)',target:'10.5h 이상',cur:'10/15~22: 12.0h/8일'},
+            {id:'k2',label:'문맥구성 첫 시도',target:'70%',cur:'40% (4/10)'}],
+      bottlenecks:[{id:'b1',title:'가나만 보고 알아보지 못한다',
+        evidence:'한자가 보이면 72~83%, 가나·소리만 보이면 61~63%, 문맥구성 40%'}],
+      status:[{k:'vocab1',area:'본책 1장 문자·어휘',progress:'p14~77 (47%)',
+        measure:'문맥구성 확인문제 첫 시도 4/10',risk:'high'}],
+      plan:[{from:'2026-10-22',to:'2026-10-24',title:'M1 준비',
+        items:['문맥구성 드릴(처음 보는 문장 34개)','청해 15분/일']}],
+      rules:[{id:'r1',title:'주간 체크포인트',rule:'달성이 70% 미만이면 이월하지 않고 범위를 줄인다'}],
+      principles:['쪽수가 아니라 처음 보는 문항의 첫 시도 정답률로 센다'],
+      pending:[{id:'a1',q:'점수 목표 재배분',rec:'언어·독해 66 + 청해 34',status:'대기'}],
+      unknown:['영역별 문항 수 (본책에 없다)'],
+      md:'# JLPT N4 합격 전략\n시험 12/6(일) · D-45'};
     renderStudy();
-    const t=document.querySelector('#v-study').textContent;
-    return {txt:t,pills:document.querySelectorAll('#v-study .plrow').length,
-            bars:document.querySelectorAll('#v-study .plrow .msttrk').length};});
-  ok('PLAN6 목표가 맨 위에 뜬다',plan.txt.indexOf('N4 합격')>=0);
-  ok('PLAN7 기둥이 전부 그려진다',plan.pills===3,String(plan.pills));
-  ok('PLAN8 🔒 앱이 셀 수 있는 지표는 **현재값**이 붙는다',plan.bars>=2,String(plan.bars));
-  ok('PLAN9 🔒 모르는 지표는 0으로 그리지 않고 **모른다고 말한다**',
-     plan.txt.indexOf('앱이 못 세는 지표')>=0,plan.txt.slice(0,200));
-  ok('PLAN10 학습방 점검이 기둥 밑에 붙는다',plan.txt.indexOf('사흘째 멈춤')>=0);
-  ok('PLAN11 판정이 말로 보인다 (밀림)',plan.txt.indexOf('밀림')>=0);
-  /* 🔒 지표는 파생이다 — 저장하지 않는다 */
+    return {txt:document.querySelector('#v-study').textContent,
+            rows:document.querySelectorAll('#v-study .plrow').length,
+            items:document.querySelectorAll('#v-study .plitems li').length,
+            md:!!document.querySelector('#v-study .stramd')};});
+  ok('PLAN6 🔴 학습방이 올린 전략이 **보인다** (한 줄 결론)',
+     plan.txt.indexOf('10/25 M1이 첫 측정')>=0,plan.txt.slice(0,160));
+  ok('PLAN7 지표·병목·현황·계획·규칙·미정이 전부 그려진다',plan.rows>=7,String(plan.rows));
+  ok('PLAN8 지표는 학습방이 적은 값을 그대로 보여준다',
+     plan.txt.indexOf('10/15~22: 12.0h/8일')>=0&&plan.txt.indexOf('10.5h 이상')>=0);
+  ok('PLAN9 병목의 근거까지 보여준다',plan.txt.indexOf('61~63%')>=0);
+  ok('PLAN10 위험도가 말로 보인다',plan.txt.indexOf('위험')>=0);
+  ok('PLAN11 계획의 할 일이 펼쳐진다',plan.items===2,String(plan.items));
+  ok('PLAN11b 🔒 모르는 것을 숨기지 않는다',
+     plan.txt.indexOf('영역별 문항 수')>=0&&plan.txt.indexOf('점수 목표 재배분')>=0);
+  ok('PLAN11c 원문도 볼 수 있다',plan.md===true);
+  /* 🔒 학습방이 적은 값과 앱이 센 숫자를 **섞지 않는다** */
+  ok('PLAN12 앱이 센 숫자는 따로 칸을 둔다',plan.txt.indexOf('앱이 센 숫자')>=0);
   const der=await p.evaluate(()=>{
     const a=stMetric('ctxMastered');
-    const raw=JSON.stringify(DB.study.strategy);
-    return {v:a&&a.v,label:a&&a.label,saved:/"v":\d+,"cur"/.test(raw),
-            unknown:stMetric('내가모르는지표')};});
-  ok('PLAN12 지표는 그때그때 센다 (저장 안 한다)',der.saved===false&&typeof der.v==='number',JSON.stringify(der));
-  ok('PLAN13 모르는 지표는 null 이다',der.unknown===null);
+    return {v:a&&a.v,saved:JSON.stringify(DB.study.strategy).indexOf('"cur":0')>=0,
+            unknown:stMetric('내가모르는지표'),has:stStraHas()};});
+  ok('PLAN13 지표는 그때그때 센다 (전략에 써넣지 않는다)',
+     der.saved===false&&typeof der.v==='number',JSON.stringify(der));
+  ok('PLAN13b 모르는 지표는 null 이다',der.unknown===null);
+  /* 🔴 「비었다」 판정은 한 곳에서 — 있는데 없다고 말하지 않게 */
+  const judge=await p.evaluate(()=>{
+    const keep=DB.study.strategy;
+    const out={};
+    DB.study.strategy={v:1,by:'로버트(학습)'};            /* 머리만 있고 알맹이가 없다 */
+    out.onlyHead=stStraHas();
+    DB.study.strategy={v:1,kpis:[{id:'k1',label:'x',target:'y'}]};
+    out.onlyKpis=stStraHas();
+    DB.study.strategy={v:1,headline:'한 줄'};
+    out.onlyHeadline=stStraHas();
+    DB.study.strategy=keep; return out;});
+  ok('PLAN14 알맹이가 없으면 비었다고 본다',judge.onlyHead===false,JSON.stringify(judge));
+  ok('PLAN15 🔴 한 칸이라도 있으면 **있다고 본다** (kpis 만 있어도)',judge.onlyKpis===true);
+  ok('PLAN16 한 줄 결론만 있어도 있다고 본다',judge.onlyHeadline===true);
   /* ㉕ ⏱ v4.57 뽀모 메모 + 수정·삭제 */
   const note=await p.evaluate(()=>{
     DB.study.pomos=[];DB.timelog={};DB.ui.pomo={focus:25,brk:0};
