@@ -1708,9 +1708,14 @@ async function boot(st){
         /* 📝 v4.52 — 보기 문항: 보기에 있던 말이어야 하고, 뜻이 정확해야 한다 */
         if(it.kind==='opt'){
           if(q.opts.indexOf(it.w)<0)bad.push(s.id+'/'+it.w+':보기에 없는 말');
-          const w=stWordByKana(it.w);
-          if(!w)bad.push(s.id+'/'+it.w+':단어은행에 없는데 물었다');
-          else if(stNorm(w.ko)!==it.ans)bad.push(s.id+'/'+it.w+':뜻이 다르다');
+          const ws=stOptWords(it.w,q,s);
+          if(!ws.length)bad.push(s.id+'/'+it.w+':단어은행에 없는데 물었다');
+          else if(stKoJoin(ws)!==it.ans)bad.push(s.id+'/'+it.w+':뜻이 다르다');
+          /* 🔒 v4.60 — 같은 소리의 다른 뜻이 **오답으로** 나오면 안 된다 */
+          stWordsByKana(it.w).forEach(function(h){
+            if(it.opts.some(function(o){return o!==it.ans&&stNorm(o)===stNorm(h.ko);}))
+              bad.push(s.id+'/'+it.w+':같은 소리의 다른 뜻('+h.ko+')이 오답에 섞였다');
+          });
         }
         /* 🔒 같은 말을 두 번 묻지 않는다 */
         if(it.kind!=='ko'){
@@ -1944,7 +1949,7 @@ async function boot(st){
     const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
     const subs=stCtxSubs(s,q);
     const asked=subs.filter(x=>x.kind==='opt').map(x=>x.w);
-    const bankable=q.opts.filter(o=>{const w=stWordByKana(o);return !!(w&&stNorm(w.ko));});
+    const bankable=q.opts.filter(o=>stOptWords(o,q,s).length>0);
     return {opts:q.opts,asked:asked,bankable:bankable,ans:q.ans,
       right:subs.filter(x=>x.kind==='opt'&&x.right).map(x=>x.w),
       order:subs.map(x=>x.kind)};});
@@ -2454,6 +2459,68 @@ async function boot(st){
   ok('CLK12 과제 리스트는 접혀 있다 (지운 게 아니다)',
      fold.has===true&&fold.open===false,JSON.stringify({has:fold.has,open:fold.open}));
   ok('CLK13 몇 건인지는 말해준다',fold.txt.indexOf('1건')>=0,fold.txt.slice(0,60));
+  /* ㉘ 🔴 v4.60 — 로한: "하루를 선택지에 **꽃 밖에 없었다**. 누가봐도 동사형인거 같은데"
+     はる 가 단어은행에 둘(봄·붙이다)인데 **첫 번째(봄)를 집어** 정답 뜻이 「봄」이 됐고,
+     오답은 명사에서 뽑혀 「꽃」이 나왔다. 🔒 서버 실물 모양 그대로 재현한다. */
+  const homo=await p.evaluate(()=>{
+    ST_DRILL=null;
+    const add=[{id:'h1',kana:'はる',kanji:'春',ko:'봄',pos:'noun'},
+               {id:'h2',kana:'はる',kanji:'貼る',ko:'붙이다',pos:'verb',vgroup:1},
+               {id:'h3',kana:'はな',kanji:'花',ko:'꽃',pos:'noun'},
+               {id:'h4',kana:'なつ',kanji:'夏',ko:'여름',pos:'noun'},
+               {id:'h5',kana:'あき',kanji:'秋',ko:'가을',pos:'noun'},
+               {id:'h6',kana:'おる',ko:'있다 (いる의 겸양어)',pos:'verb'},
+               {id:'h7',kana:'おる',ko:'접다, 꺾다',pos:'verb'},
+               {id:'h8',kana:'とる',ko:'집다, 쥐다',pos:'verb'},
+               {id:'h9',kana:'とる',ko:'(사진을) 찍다',pos:'verb'},
+               {id:'h10',kana:'つる',ko:'낚다',pos:'verb'},
+               {id:'h11',kana:'かう',ko:'사다',pos:'verb'},
+               {id:'h12',kana:'よむ',ko:'읽다',pos:'verb'},
+               {id:'h13',kana:'かく',ko:'쓰다',pos:'verb'},
+               {id:'h14',kana:'わすれる',ko:'잊다, 망각하다',pos:'verb'}]
+      .map(w=>Object.assign({seen:0,miss:0,streak:0,lastSeen:null},w));
+    DB.study.words=DB.study.words.filter(w=>['はる','はな','なつ','あき','おる','とる','つる','かう','よむ','かく']
+      .indexOf(w.kana)<0&&w.kana!=='わすれる').concat(add);
+    const s={id:'x76-01',ja:'だいじな メモは かべに はると、わすれなくて べんりです。',
+      ko:'중요한 메모는 벽에 붙이면 잊지 않아서 편리합니다.',lv:'N4',src:'b1:76',
+      seen:0,miss:0,streak:0,lastSeen:null,
+      slots:[{kind:'ctx',target:'はる',wordId:'h2',opts:['おる','とる','つる'],why:'…'}],
+      gloss:[{w:'かべ',base:'かべ',ko:'벽'},{w:'わすれなくて',base:'わすれる',ko:'잊다, 망각하다',wordId:'h14'}],
+      koOpts:['중요한 메모는 벽에서 떼면 잊지 않아서 편리합니다.',
+              '중요한 메모는 벽에 붙이면 잊어버려서 불편합니다.',
+              '중요한 책은 벽에 붙이면 잊지 않아서 편리합니다.']};
+    DB.study.sents=[s];
+    const q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    const subs=stCtxSubs(s,q);
+    const pick=w=>subs.filter(x=>x.kind==='opt'&&x.w===w)[0]||null;
+    return {haru:pick('はる'),toru:pick('とる'),oru:pick('おる'),
+      ko:subs.filter(x=>x.kind==='ko')[0],word:subs.filter(x=>x.kind==='word'&&x.w==='わすれなくて')[0],
+      why:stCtxWhy(s,q)};});
+  ok('HOM1 🔴 はる(빈칸 정답)의 뜻은 「붙이다」다 — 「봄」이 아니다',
+     homo.haru&&homo.haru.ans==='붙이다',JSON.stringify(homo.haru&&homo.haru.ans));
+  ok('HOM2 🔴 오답에 「꽃」 같은 명사가 안 나온다 (동사에서 뽑는다)',
+     homo.haru&&homo.haru.opts.every(o=>['꽃','여름','가을'].indexOf(o)<0),JSON.stringify(homo.haru&&homo.haru.opts));
+  ok('HOM3 🔒 같은 소리의 다른 뜻(봄)은 오답에도 안 나온다 — 가나만 보고 봄을 골라도 틀린 게 아니다',
+     homo.haru&&homo.haru.opts.indexOf('봄')<0,JSON.stringify(homo.haru&&homo.haru.opts));
+  ok('HOM4 🔒 뜻이 여럿이면 하나를 찍지 않고 합친다 (とる)',
+     homo.toru&&homo.toru.ans==='집다, 쥐다 / (사진을) 찍다',JSON.stringify(homo.toru&&homo.toru.ans));
+  ok('HOM5 정리 화면 보기 표도 はる 를 「붙이다」로 적는다',
+     homo.why.indexOf('붙이다')>=0&&homo.why.indexOf('>봄<')<0,homo.why.slice(0,160));
+  /* 🔴 v4.60 — 스크린샷: 번역 보기가 「중요한메모는벽에붙이면…」 처럼 **붙어 나왔다**.
+     비교용 stNorm(공백·쉼표 제거)을 화면에도 그대로 썼다 */
+  ok('SPC1 🔴 번역 보기에 띄어쓰기가 살아 있다',
+     homo.ko&&homo.ko.opts.every(o=>o.indexOf(' ')>=0),JSON.stringify(homo.ko&&homo.ko.opts));
+  ok('SPC2 단어 뜻 보기의 쉼표도 살아 있다',
+     homo.word&&homo.word.ans==='잊다, 망각하다',JSON.stringify(homo.word&&homo.word.ans));
+  /* 🔒 원문으로 보여줘도 채점은 그대로 맞는다(비교는 stNorm) */
+  const grade=await p.evaluate(()=>{
+    const s=DB.study.sents[0], q=stGMkQ(s,'gctx',{slot:stGSlot(s,'ctx')});
+    const it=stCtxSubs(s,q).filter(x=>x.kind==='ko')[0];
+    ST_DRILL={mode:'gctx',ids:[s.id],qs:[q],i:0,res:[{id:s.id,ok:true,my:q.ans}],
+      show:true,fin:false,start:Date.now(),sub:{list:[it],j:0,show:false,bad:0}};
+    stCtxGrade(it.ans);
+    const ok1=ST_DRILL.sub.ok; ST_DRILL=null; return ok1;});
+  ok('SPC3 원문 그대로 골라도 정답으로 채점된다',grade===true);
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }

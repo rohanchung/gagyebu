@@ -5005,14 +5005,41 @@ function stDrills(){return studyDB().drills;}
    id 가 겹치면 문항을 만든 레코드와 화면에 그린 레코드가 달라졌다(9/21 「くるま」 사건).
    fixDupIds 가 겹침을 없애지만, 같은 질문에 두 번 다르게 답할 여지를 남기지 않는다 */
 function stWordById(id){var a=stWords();for(var i=0;i<a.length;i++)if(a[i].id===id)return a[i];return null;}
-/* 📝 v4.50 — 「가나로 단어를 찾는다」에 답하는 함수는 하나다(원칙 2).
-   🔒 동음이의어가 있어도 **첫 번째를 유일한 답이라 우기지 않는다** — 뜻이 둘인데 하나만
-      보여주면 그게 거짓말이다. 해설에서 같은 소리를 따로 병기한다(stCtxWhy). */
-function stWordByKana(k){
-  var n=stNorm(k); if(!n)return null;
-  var a=stWords();
-  for(var i=0;i<a.length;i++)if(stNorm(a[i].kana)===n)return a[i];
-  return null;
+/* 📝 v4.60 — 🔴 [결함] 가나 하나에 단어가 여럿인데 **첫 번째를 집었다.**
+   로한: *"하루를 선택지에 꽃 밖에 없었다. 누가봐도 동사형인거 같은데 체크해봐라"*
+   はる 는 단어은행에 둘이다(w0735 봄 · w0927 붙이다). 첫 번째(봄)를 집어 x76-01 의
+   **정답 뜻이 「봄」으로 나갔고**, 오답은 같은 품사(명사)에서 뽑혀 「꽃」 같은 것이 나왔다.
+   전수로 보니 x71-10 의 정답 いがい(의외)도 「이외」로 나가고 있었다 — 64문항 중 6곳.
+   🔴 v4.50 에서 이 자리 주석에 「첫 번째를 유일한 답이라 우기지 않는다」고 써 놓고
+      **코드는 첫 번째를 돌려줬다.** 주석이 거짓말을 했다.
+   🔒 그래서 여럿을 **전부** 돌려준다. 고르는 건 쓰는 쪽(stOptWords)이 근거를 갖고 한다. */
+function stWordsByKana(k){
+  var n=stNorm(k); if(!n)return [];
+  return stWords().filter(function(w){return stNorm(w.kana)===n&&stNorm(w.ko);});
+}
+/* 보기 하나가 어느 단어(들)인가.
+   🔒 ① 빈칸 정답은 **슬롯의 wordId** — 학습방이 어느 뜻인지 이미 적어 뒀다.
+   🔒 ② 나머지는 **정답과 같은 품사**로 좁힌다 — 교재 보기는 같은 품사·같은 활용형이다(v22).
+   🔒 ③ 그래도 여럿이면 **고르지 않고 전부** 돌려준다. 하나를 찍어 정답이라 하면
+      틀린 뜻을 가르치게 된다. 부르는 쪽이 뜻을 합쳐 낸다(stKoJoin). */
+function stOptWords(o,q,s){
+  var c=stWordsByKana(o); if(!c.length)return [];
+  var sl=s?stGSlot(s,'ctx'):null;
+  var ref=(sl&&sl.wordId)?stWordById(sl.wordId):null;
+  if(q&&String(o)===String(q.ans)&&ref&&stNorm(ref.ko))return [ref];
+  if(c.length===1)return c;
+  var pos=ref?stNorm(ref.pos):'';
+  if(pos){ var f=c.filter(function(w){return stNorm(w.pos)===pos;}); if(f.length)c=f; }
+  return c;
+}
+/* 뜻을 합친다 — 🔒 같은 뜻은 한 번만. 화면에 그대로 나가므로 **원문**을 쓴다 */
+function stKoJoin(ws){
+  var seen={}, out=[];
+  (ws||[]).forEach(function(w){
+    var k=stNorm(w&&w.ko); if(!k||seen[k])return;
+    seen[k]=1; out.push(String(w.ko).trim());
+  });
+  return out.join(' / ');
 }
 /* 채점 정규화 — 공백·구두점만 지운다.
    🚫 히라가나↔가타카나 변환은 하지 않는다: k2r 정답은 히라가나이고 가타카나로 적었으면 틀린 것이다.
@@ -5890,15 +5917,22 @@ function stCtxHits(ja,w){
    wordId 가 있으면 words.pos 로 품사를 안다(30/54). 없는 24개는 품사를 모르므로
    **다른 예문의 분해 뜻**에서 빌린다 — 같은 교재·같은 쪽이라 난도가 맞다.
    ⚠️ 근본 해결은 `gloss[].pos` 한 칸이다. 학습방에 요청해 두고, 그동안은 이 폴백으로 돈다. */
+/* 🔴 v4.60 [결함] 보기 글자에 **stNorm 을 걸어 화면에 냈다.** stNorm 은 비교용이라
+   공백·쉼표를 지운다 — 그래서 번역 보기가 「중요한메모는벽에붙이면…」 처럼 붙어 나왔다
+   (로한 스크린샷). 🔒 **비교는 stNorm, 표시는 원문.** 둘을 한 값으로 쓰지 않는다.
+   🔒 g.excl — 오답에서 뺄 뜻. 같은 소리의 다른 뜻(はる 의 「봄」)은 **오답이 될 수 없다**:
+      점검은 문장을 가리고 가나만 보여주므로(v24), 「はる」만 보고 「봄」을 골라도 틀린 게 아니다. */
 function stCtxOpts(g,s){
-  var ans=stNorm(g.ko), seen={}, out=[];
-  seen[ans]=1;
+  var ans=String(g.ko||'').trim(), seen={}, out=[];
+  seen[stNorm(ans)]=1;
+  (g.excl||[]).forEach(function(k){ var n=stNorm(k); if(n)seen[n]=1; });
   var w=g.wordId?stWordById(g.wordId):null;
   var pos=w?stNorm(w.pos):'';
   function take(list,getKo){
     for(var i=0;i<list.length&&out.length<3;i++){
-      var ko=stNorm(getKo(list[i])); if(!ko||seen[ko])continue;
-      seen[ko]=1; out.push(ko);
+      var raw=String(getKo(list[i])||'').trim(), ko=stNorm(raw);
+      if(!ko||seen[ko])continue;
+      seen[ko]=1; out.push(raw);
     }
   }
   if(pos){
@@ -5928,28 +5962,38 @@ function stCtxSubs(s,q){
   stCtxGloss(s).forEach(function(g){
     if(ansTarget&&String(g.w)===String(ansTarget))return;
     if(stCtxHits(s.ja,g.w)!==1)return;
-    var opts=stCtxOpts(g,s); if(!opts)return;
+    var excl=stWordsByKana(g.base||g.w).map(function(w){return w.ko;});
+    var opts=stCtxOpts({ko:g.ko,wordId:g.wordId,excl:excl},s); if(!opts)return;
     asked[stNorm(g.w)]=1;
-    out.push({kind:'word',w:g.w,ans:stNorm(g.ko),opts:opts,g:g});
+    out.push({kind:'word',w:g.w,ans:String(g.ko).trim(),opts:opts,g:g});
   });
   /* 📝 보기 4개 — 정답 보기도 **포함한다**(로한: 맞든 틀리든 무조건).
      🔒 단어은행에 없으면 뜻을 모르니 못 묻는다. 그 사실은 정리 화면이 말한다(조용히 빼지 않는다).
      🔒 문장 쪽에서 이미 물은 말은 두 번 묻지 않는다. */
   ((q&&q.opts)||[]).forEach(function(o){
     var key=stNorm(o); if(!key||asked[key])return;
-    var w=stWordByKana(o); if(!w||!stNorm(w.ko))return;
-    var opts=stCtxOpts({ko:w.ko,wordId:w.id},s); if(!opts)return;
+    var ws=stOptWords(o,q,s); if(!ws.length)return;
+    var w=ws[0], ko=stKoJoin(ws);
+    /* 🔒 같은 소리의 **모든** 뜻을 오답에서 뺀다 — 고른 뜻만 빼면 나머지 뜻이 오답으로 나와
+       「맞게 읽었는데 틀렸다」가 된다 */
+    var excl=stWordsByKana(o).map(function(x){return x.ko;});
+    var opts=stCtxOpts({ko:ko,wordId:w.id,excl:excl},s); if(!opts)return;
     asked[key]=1;
-    out.push({kind:'opt',w:String(o),ans:stNorm(w.ko),opts:opts,
-              g:{wordId:w.id,base:w.kana,kanji:w.kanji||'',ko:w.ko},
+    var kj=ws.map(function(x){return x.kanji||'';}).filter(Boolean).join(' / ');
+    out.push({kind:'opt',w:String(o),ans:ko,opts:opts,
+              g:{wordId:w.id,base:w.kana,kanji:kj,ko:ko},
               right:(String(o)===String(ansTarget))});
   });
   /* 📝 v4.50 — 🔒 **문장에 나온 순서 그대로** 묻는다.
      로한: "형광펜 신경쓰지말고, 걍 내 말대로 해" — 「각각의 단어에 하이라이트 되면서」가
      요구였고, 그건 문장을 왼쪽에서 오른쪽으로 읽는 순서다. unk 로 앞에 끌어오면
      문장이 뒤섞여 읽는 흐름이 끊긴다. 🔒 unk 는 **고르는 기준도, 순서도 아니다.** */
-  var ko=stNorm(s.ko), kos=((s.koOpts)||[]).map(stNorm).filter(function(x){return x&&x!==ko;});
-  if(ko&&kos.length>=3)
+  /* 🔴 v4.60 — 번역도 원문으로 낸다(비교만 stNorm). 붙어 나오던 그 자리다 */
+  var ko=String(s.ko||'').trim(), kn=stNorm(ko), kseen={};
+  kseen[kn]=1;
+  var kos=((s.koOpts)||[]).map(function(x){return String(x||'').trim();}).filter(function(x){
+    var n=stNorm(x); if(!n||kseen[n])return false; kseen[n]=1; return true;});
+  if(kn&&kos.length>=3)
     out.push({kind:'ko',ans:ko,opts:stGShuffle([ko].concat(kos.slice(0,3)))});
   return out;
 }
@@ -6277,7 +6321,9 @@ function stCtxWhy(s,q){
       +'</div>';}).join('');
   /* 보기 4개의 뜻 — 왜 안 맞는지. words 에서 kana 로 찾고 없으면 그 줄을 비우지 않고 뺀다 */
   var ol=((q&&q.opts)||[]).map(function(o){
-    var w=stWordByKana(o);
+    /* 🔴 v4.60 — 여기도 첫 번째를 집어 はる 를 「봄」이라고 적고 있었다 */
+    var ws=stOptWords(o,q,s), w=ws.length?{kanji:ws.map(function(x){return x.kanji||'';})
+      .filter(Boolean).join(' / '),ko:stKoJoin(ws)}:null;
     /* 🔒 v4.52 — 못 찾은 보기도 **줄은 남긴다.** 조용히 빼면 「이 보기는 뜻을 모른다」는
        사실까지 사라진다. 학습방이 그걸 보고 단어은행에 넣어야 한다. */
     if(!w||!stNorm(w.ko))
@@ -12000,7 +12046,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.59';
+var APP_VERSION='4.60';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12014,6 +12060,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.60',date:'2026-10-22',note:'<b>🔴 동음이의어 보기가 엉뚱한 뜻으로 나갔다 · 보기 글자에서 띄어쓰기가 사라졌다.</b> 로한: 「하루를 선택지에 <b>꽃 밖에 없었다</b>. 누가봐도 동사형인거 같은데 체크해봐라」 · 🔴 [결함] はる 는 단어은행에 둘이다(봄·붙이다). 가나로 단어를 찾을 때 <b>첫 번째(봄)를 집어</b> x76-01 의 <b>정답 뜻이 「봄」으로</b> 나갔고, 오답은 같은 품사(명사)에서 뽑혀 「꽃」이 나왔다 · 전수로 보니 <b>64문항 중 6곳</b> — x71-10 의 정답 いがい(의외)도 <b>「이외」로</b> 나가고 있었다. 나머지는 おる·とる·でんとう·あつい · 🔴 v4.50 에서 그 함수 주석에 「첫 번째를 유일한 답이라 우기지 않는다」고 써 놓고 <b>코드는 첫 번째를 돌려줬다</b>. 주석이 거짓말을 했다 · 🔒 ① 빈칸 정답 보기는 <b>슬롯의 wordId</b>로 뜻을 정한다(학습방이 이미 적어 뒀다) ② 나머지는 <b>정답과 같은 품사</b>로 좁힌다(교재 보기는 같은 품사다) ③ 그래도 여럿이면 <b>하나를 찍지 않고 합친다</b> — 「집다, 쥐다 / (사진을) 찍다」. 하나를 찍어 정답이라 하면 틀린 뜻을 가르치게 된다 · 🔒 <b>같은 소리의 다른 뜻은 오답에서 뺀다</b> — 점검은 문장을 가리고 가나만 보여주므로 「はる」만 보고 「봄」을 골라도 틀린 게 아니다 · 🔴 [결함] 스크린샷에 하나 더 — 번역 보기가 「중요한메모는벽에붙이면…」 처럼 <b>붙어 나왔다</b>. 비교용 stNorm(공백·쉼표를 지운다)을 화면에도 그대로 썼다 · 🔒 <b>비교는 stNorm, 표시는 원문</b> — 둘을 한 값으로 쓰지 않는다. 원문으로 보여줘도 채점은 그대로 맞는다 · t42 521 → <b>529건</b>(はる 재현 · 꽃 안 나옴 · 봄도 오답에 안 나옴 · とる 합침 · 띄어쓰기·쉼표 · 전수 검사에 「같은 소리의 다른 뜻이 오답에 섞였나」 추가) · run.sh all 통과'},
   {v:'4.59',date:'2026-10-22',note:'<b>🔴 학습방이 올린 전략을 앱이 못 읽고 「없다」고 했다 — 내가 스키마를 안 알린 탓이다.</b> 로한: 「학습방에서 전략을 올렸다는데 <b>반영이 안되어있다</b>」 / 「너가 하는 모든 업데이트들은 <b>다른방 로버트들이 다 이해할 수 있게 핸드오프를 남겨야한다고</b>」 · 🔴 [결함] <code>study.strategy</code> 에 <b>17개 칸</b>이 들어 있었다(headline·kpis·plan·status·bottlenecks·rules·principles·pending·unknown·exam·pass·budget·md…). 그런데 내가 읽던 건 <code>goal·pillars·log</code> 셋뿐이라 화면이 <b>「아직 전략이 없다」고 말했다 — 있는데 모양이 달랐을 뿐이다</b> · 🔴 원인은 v4.57 에서 <b>스키마 통보를 「남은 일」로 미룬 것</b>이다. 방이 여럿이면 <b>스키마가 곧 계약</b>이고, 계약을 안 적으면 양쪽이 각자 만든다 · 🔒 <b>학습방 구조를 정본으로</b> 삼고 앱이 맞췄다 — 쓰는 쪽이 정본이다 · 화면: 🎯 한 줄 결론 · 📊 지표(학습방이 적은 목표/현재값) · 🧱 병목(근거까지) · 📍 현황(진도·측정·위험도) · 🗓 계획(기간·할 일, <b>지금 구간 표시</b>) · 📏 규칙·원칙 · ❓ <b>미정과 모르는 것</b>(🔒 숨기지 않는다 — 모른다는 사실이 가장 중요한 정보다) · 📄 원문 접어두기 · 🔒 <b>학습방이 적은 값과 앱이 센 숫자를 섞지 않는다</b> — 칸을 따로 뒀다(「앱이 센 숫자」). 섞으면 누가 한 말인지 모른다 · 🔒 「비었나」 판정을 <b>한 곳</b>(stStraHas)에 뒀다 — 한 칸이라도 있으면 있다고 본다. <b>있는데 없다고 말하는 일을 다시 만들지 않는다</b> · 🗑 내가 짰던 <code>pillars/log</code> 쪽 함수 넷을 지웠다(stPillarState·stPillarLast·stVerdictHtml·ST_VERDICT) — 쓰는 데 없는 길을 남기면 다음 사람이 산 길인 줄 안다 · 📄 <b>교재 20문항 추가</b>(p74 34번 · p75 35번) — 문장 <b>380</b>개, 단어 <b>1,110</b>개. ctx 문항은 <b>64개</b>(학습방이 14개를 더 올렸다). 전수 검증 통과 · t42 515 → <b>521건</b> · run.sh all 43/43 통과'},
   {v:'4.58',date:'2026-10-22',note:'<b>⏱ 뽀모를 앞자리로 · 🔴 고치기 단추가 안 먹던 결함 · 📅 캘린더는 열면 오늘.</b> 로한: 「이제 저 리스트 의미가 없고 <b>뽀모 시작 버튼이랑 뽀모 기록 버튼</b>을 볼 수있게 해서 거기서 내가 수정할 수 있게 해달라고」 · ⏱ 캘린더 오른쪽에 <b>⏱ 뽀모 시작 · 📋 뽀모 기록(N)</b> 두 단추를 맨 앞에 뒀다. 🔒 <b>기록 단추는 0건일 때도 띄운다</b> — 안 보이면 「없다」인지 「기능이 없다」인지 모른다 · 📋 기록 모달에서 <b>줄마다 바로</b> 분·메모를 고치고 지운다. 🔒 목록 → 모달 → 또 모달이면 두 번 누르는 일이 된다 · 🔒 과제 리스트는 <b>접었다. 지우지는 않았다</b> — 「이 날 과제 3건 · 1건 완료」 줄을 누르면 펼쳐진다. 없애면 학습방이 올린 것이 <b>있는데 안 보이는</b> 것이 된다 · 🔴 [결함] 로한: 「<b>고치기 버튼을 눌러도 반응이 없다</b>」 — <code>JSON.stringify</code> 를 <b>두 번</b> 걸어 onclick 에 <code>\"p1\"</code> 가 들어갔다. id 가 따옴표째 넘어가 <code>stPomoById</code> 가 못 찾고 <b>조용히 아무 일도 안 했다</b>. 버튼은 멀쩡히 보이니 눌러보기 전엔 모른다. 같은 자리가 날짜 쪽에도 하나 더 있었다 · 🔒 테스트가 이제 <b>실제로 누른다</b> — 따옴표가 든 id 로도 모달이 뜨는지, 그 안에서 고친 값이 들어가는지. 그리고 화면의 <b>모든 onclick 이 구문상 성립하는지 전수로</b> 본다 · ⚠️ 전수 단언을 한 번 잘못 짰다 — 「역슬래시+따옴표가 있으면 결함」으로 봤는데 <b>id 에 따옴표가 들어 있으면 그게 정상</b>이다. 구문 성립 여부로 바꿨다 · 📅 [결함] 로한: 「난 <b>자동으로 오늘 카운팅</b> 되는줄 알았다」 — 9/22 를 한 번 누른 뒤로 그 날짜가 <b>계속 남아</b> 다음에 열어도 9/22 였다. 오늘 뽀모가 0건으로 보인다 · 🔒 <b>고른 날짜를 저장하지 않는다</b>. 화면 상태일 뿐이고 내일까지 남을 이유가 없다 — 같은 세션에서만 기억하고 <b>새로 열면 오늘</b>이다. 서버에 남은 옛 값은 치운다(빈 서랍 금지) · t42 501 → <b>515건</b> · run.sh all 43/43 통과'},
   {v:'4.57',date:'2026-10-22',note:'<b>🧭 전략 탭 신설 · ⏱ 뽀모 메모와 수정·삭제.</b> 로한: 「학습방이랑 논의해서 전략 탭을 만들꺼야. 학습방이 날 합격시키기 위한 전략을 짜는 곳과 나 행동과 매칭해서 <b>전략 밑에 로그형태로 계속 그가 체크</b>하게 하는거지」 「<b>지금 내가 학습방 플랜대로 안하고 있으니까 이게 유명무실하거든?</b>」 · 🧭 탭을 <b>캘린더 / 전략 / 드릴 / 오답</b>로 바꿨다(로한 지시). 🔒 여전히 <b>4개</b>다 — 400px 에서 5개는 글자가 잘린다(v3.7 제약) · 「기록(시험·모의고사)」은 <b>전략 탭 안으로</b> 들어갔다 — 어차피 전략과 같이 보는 것이다. 🔒 저장돼 있던 옛 <code>rec</code> 값은 <code>plan</code> 으로 흘려보낸다 · 🔒 <code>study.strategy</code> 는 <b>학습방이 쓰고 앱은 읽기만</b> 한다(<code>logs[].coach</code> 와 같은 원칙) — 양쪽이 쓰면 두 화면이 다른 말을 한다 · 🔒 기둥마다 <b>앱이 셀 수 있는 지표</b>를 묶는다(<code>ctxMastered</code>·<code>studyMins7</code>·<code>drillAcc7</code>·<code>errOpen</code>·<code>wordsHot</code>·<code>pomoMins7</code> 등 9개). 말로만 적으면 캘린더 과제 체크처럼 또 유명무실해진다 · 🔒 <b>적을수록 좋은 지표</b>(오답·틀린 단어)는 방향을 뒤집어 그린다 — 같은 식으로 그리면 거짓말이 된다 · 🔒 앱이 <b>모르는 지표를 적으면 0으로 그리지 않고 「앱이 못 세는 지표」라고 말한다</b> · 🔒 지표는 전부 <b>파생</b>이라 저장하지 않는다 · 🔒 전략이 비어 있으면 빈 화면을 주지 않고 <b>쓸 수 있는 지표 목록과 현재값</b>을 보여준다 — 학습방이 그걸 보고 적으면 된다 · ⏱ <b>뽀모 메모</b> — 로한: 「뽀모 시작 버튼 누르면 <b>뭐 공부하냐를 내가 쓰게</b> 해서 쓰면, 저기에 표현되는걸로」. 시작 칸에 자유 입력칸 하나. 🔒 <b>안 써도 시작된다</b>(쓰게 강제하면 안 쓰려고 뽀모를 안 켠다) · 🔒 <b>직전 메모를 미리 채우지 않는다</b> — 그게 값이 박히는 길이다(v4.49 과제 선택이 그래서 죽었다) · 캘린더 우측이 「N분」 한 줄에서 <b>그날 뽀모 목록</b>(시각 · 분 · 메모)으로 바뀌었다. 지난 날도 보여준다 — 숨기면 그날 뭘 했는지 사라진다 · ⏱ <b>뽀모 수정·삭제</b> — 로한: 「<b>뽀모를 켜놓고 안끄고 가서 밥을 먹으러 갔다왔는데 50몇분 되있더라</b>」. 목록 줄을 누르면 분과 메모를 고치거나 지운다 · 🔒 <b>시작 시각(at)은 안 건드린다</b> — 언제 시작했는지는 사실이고 틀린 건 길이뿐이다. 날짜도 at 에서 파생되니 저절로 맞는다 · 🔴 🔒 <b>타임로그 자국도 같이 고친다</b> — 50분이 25분이 됐는데 타임로그에 50분짜리 표시가 남으면 그 칸이 30분으로 세어져(stStudyMins) <b>줄인 게 반영이 안 된다</b> · 🔒 단 <b>내가 만든 자국만 지운다</b>(제목이 「뽀모」로 시작하고 tag=study 인 블록). 손으로 써넣은 칸은 그대로 둔다 — 남의 글씨를 지우지 않는다 · 🔒 0분으로 고치는 것은 지우는 것과 같다 · t42 477 → <b>501건</b> · run.sh all 43/43 통과'},
