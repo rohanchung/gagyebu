@@ -65,7 +65,7 @@ async function boot(st){
   ok('A3 미측정 2개',(txt.match(/미측정/g)||[]).length===2,txt.slice(0,200));
   ok('A4 D-day',/D-\d+/.test(txt));
   ok('A5 phase 없으면 알린다',txt.indexOf('구간(phase)이 설정되지 않았다')>=0);
-  for(const t of ['err','rec','word','home']){await p.evaluate(x=>setStTab(x),t);await p.waitForTimeout(250);}
+  for(const t of ['err','plan','word','home']){await p.evaluate(x=>setStTab(x),t);await p.waitForTimeout(250);}
   ok('A6 전 탭 렌더 · 에러 0',errs.length===0,errs.join('|'));
   /* 🔒 옛 구조(cfg·plan)는 버린다 */
   ok('A7 v=1 로 표시',(await p.evaluate(()=>DB.study.v))===1);
@@ -1021,7 +1021,7 @@ async function boot(st){
   ok('W4 옛 home 값은 캘린더로 흘린다',
      (await p.evaluate(()=>{DB.ui.studyTab='home';return stTab();}))==='cal');
   /* ② D-day 는 전 탭 공통 헤더 */
-  for(const t of ['cal','err','word','rec']){
+  for(const t of ['cal','err','word','plan']){
     await p.evaluate(x=>setStTab(x),t);await p.waitForTimeout(220);
     const has=await p.$$eval('#v-study .sthead',es=>es.length);
     ok('W5-'+t+' D-day 헤더가 있다',has===1,String(has));
@@ -2246,6 +2246,99 @@ async function boot(st){
     return {firstAuto:firstAuto,lastManual:lastManual,n:items.length};});
   ok('SET6 🔒 수동이 자동보다 앞이다',
      order2.firstAuto<0||order2.firstAuto>order2.lastManual,JSON.stringify(order2));
+  /* ㉔ 🧭 v4.57 전략 탭 — 로한: "학습방이 날 합격시키기 위한 전략을 짜는 곳과
+     나 행동과 매칭해서 전략 밑에 로그형태로 계속 그가 체크하게 하는거지"
+     "지금 내가 학습방 플랜대로 안하고 있으니까 이게 유명무실하거든?" */
+  const tabs2=await p.evaluate(()=>{ST_DRILL=null;setStTab('plan');renderStudy();
+    return [...document.querySelectorAll('#v-study .logtabs button')].map(b=>b.textContent.trim());});
+  ok('PLAN1 탭은 여전히 4개다 (400px 제약)',tabs2.length===4,JSON.stringify(tabs2));
+  ok('PLAN2 캘린더 / 전략 / 드릴 / 오답 순이다',
+     tabs2[0].indexOf('캘린더')>=0&&tabs2[1].indexOf('전략')>=0
+     &&tabs2[2].indexOf('드릴')>=0&&tabs2[3].indexOf('오답')>=0,JSON.stringify(tabs2));
+  ok('PLAN3 🔒 옛 「기록」 탭 값은 전략으로 흘러간다 (빈 화면을 주지 않는다)',
+     (await p.evaluate(()=>{DB.ui.studyTab='rec';return stTab();}))==='plan');
+  const empty=await p.$eval('#v-study',e=>e.textContent);
+  ok('PLAN4 전략이 없으면 **무엇을 넣어야 하는지** 알려준다',
+     empty.indexOf('학습방이 올린다')>=0&&empty.indexOf('ctxMastered')>=0,empty.slice(0,120));
+  ok('PLAN5 기록(시험)이 전략 탭 안으로 들어왔다',empty.indexOf('📝 기록')>=0);
+  /* 학습방이 전략을 올리면 */
+  const plan=await p.evaluate(()=>{
+    DB.study.strategy={v:1,updated:'2026-10-22',by:'학습방',
+      goal:'12/6 N4 합격 · 언어지식 60 / 청해 40',
+      pillars:[{id:'p1',title:'문맥구성 전 문장 숙달',why:'p71 4/10',metric:'ctxMastered',target:10},
+               {id:'p2',title:'오답 회수',why:'',metric:'errOpen',target:5,dir:'down'},
+               {id:'p3',title:'손으로 적은 지표',why:'',metric:'내가모르는지표',target:3}],
+      log:[{date:'2026-10-22',by:'학습방',pillar:'p1',verdict:'slip',text:'사흘째 멈춤'}]};
+    renderStudy();
+    const t=document.querySelector('#v-study').textContent;
+    return {txt:t,pills:document.querySelectorAll('#v-study .plrow').length,
+            bars:document.querySelectorAll('#v-study .plrow .msttrk').length};});
+  ok('PLAN6 목표가 맨 위에 뜬다',plan.txt.indexOf('N4 합격')>=0);
+  ok('PLAN7 기둥이 전부 그려진다',plan.pills===3,String(plan.pills));
+  ok('PLAN8 🔒 앱이 셀 수 있는 지표는 **현재값**이 붙는다',plan.bars>=2,String(plan.bars));
+  ok('PLAN9 🔒 모르는 지표는 0으로 그리지 않고 **모른다고 말한다**',
+     plan.txt.indexOf('앱이 못 세는 지표')>=0,plan.txt.slice(0,200));
+  ok('PLAN10 학습방 점검이 기둥 밑에 붙는다',plan.txt.indexOf('사흘째 멈춤')>=0);
+  ok('PLAN11 판정이 말로 보인다 (밀림)',plan.txt.indexOf('밀림')>=0);
+  /* 🔒 지표는 파생이다 — 저장하지 않는다 */
+  const der=await p.evaluate(()=>{
+    const a=stMetric('ctxMastered');
+    const raw=JSON.stringify(DB.study.strategy);
+    return {v:a&&a.v,label:a&&a.label,saved:/"v":\d+,"cur"/.test(raw),
+            unknown:stMetric('내가모르는지표')};});
+  ok('PLAN12 지표는 그때그때 센다 (저장 안 한다)',der.saved===false&&typeof der.v==='number',JSON.stringify(der));
+  ok('PLAN13 모르는 지표는 null 이다',der.unknown===null);
+  /* ㉕ ⏱ v4.57 뽀모 메모 + 수정·삭제 */
+  const note=await p.evaluate(()=>{
+    DB.study.pomos=[];DB.timelog={};DB.ui.pomo={focus:25,brk:0};
+    stPomoOpen();
+    const has=!!document.getElementById('pmNote');
+    const el=document.getElementById('pmNote'); if(el)el.value='문맥구성 p77';
+    stPomoStart('focus');
+    const run=DB.ui.pomoRun.note;
+    DB.ui.pomoRun.at=Date.now()-50*60*1000;        /* 🔴 켜놓고 밥 먹고 왔다 */
+    stPomoEnd();
+    const r=DB.study.pomos[0];
+    return {hasInput:has,run:run,note:r&&r.note,mins:r&&r.mins,id:r&&r.id,
+            title:Object.values(DB.timelog)[0]&&Object.values(DB.timelog)[0][0].title};});
+  ok('PMN1 시작 칸에 메모 입력칸이 있다',note.hasInput===true);
+  ok('PMN2 쓴 메모가 기록에 남는다',note.note==='문맥구성 p77',JSON.stringify(note));
+  ok('PMN3 타임로그 제목에도 붙는다',/^뽀모 · 문맥구성 p77/.test(String(note.title||'')),String(note.title));
+  ok('PMN4 🔴 켜놓고 간 50분이 그대로 찍힌다 (이게 로한이 겪은 것)',note.mins===50,String(note.mins));
+  /* 🔒 고치면 분과 타임로그가 같이 바뀐다 */
+  const fixed=await p.evaluate(id=>{
+    const before=stStudyMins(stPomoDate(stPomoById(id)));
+    stPomoSetMins(id,25);
+    const r=stPomoById(id), ds=stPomoDate(r);
+    let blocks=0;Object.keys(DB.timelog).forEach(k=>(DB.timelog[k]||[]).forEach(b=>{
+      if(/^뽀모/.test(String(b.title||'')))blocks++;}));
+    return {before:before,after:stStudyMins(ds),mins:r.mins,cut:!!r.cut,blocks:blocks};},note.id);
+  ok('PMN5 ⏱ 분을 고칠 수 있다',fixed.mins===25,JSON.stringify(fixed));
+  ok('PMN6 🔴 학습시간이 따라 줄어든다 (타임로그 자국을 안 치우면 안 준다)',
+     fixed.after<fixed.before&&fixed.after===25,JSON.stringify(fixed));
+  ok('PMN7 계획(25)과 같아졌으니 중단 표시가 빠진다',fixed.cut===false,JSON.stringify(fixed));
+  /* 🔒 남의 글씨는 안 지운다 */
+  const mine=await p.evaluate(id=>{
+    const r=stPomoById(id), ds=stPomoDate(r);
+    tlPut(ds,{s:0,e:1,tag:'work',title:'채움',code:null});   /* 손으로 쓴 칸 */
+    stPomoSetMins(id,30);
+    const keep=(DB.timelog[ds]||[]).some(b=>b.title==='채움');
+    return {keep:keep};},note.id);
+  ok('PMN8 🔒 손으로 써넣은 칸은 건드리지 않는다',mine.keep===true,JSON.stringify(mine));
+  /* 삭제 */
+  const del=await p.evaluate(id=>{
+    stPomoDel(id);
+    let blocks=0;Object.keys(DB.timelog).forEach(k=>(DB.timelog[k]||[]).forEach(b=>{
+      if(/^뽀모/.test(String(b.title||'')))blocks++;}));
+    return {n:DB.study.pomos.length,blocks:blocks};},note.id);
+  ok('PMN9 🗑 지울 수 있다',del.n===0,JSON.stringify(del));
+  ok('PMN10 지우면 타임로그의 뽀모 자국도 간다',del.blocks===0,JSON.stringify(del));
+  /* 🔒 0분으로 고치는 건 지우는 것과 같다 */
+  const zeroMin=await p.evaluate(()=>{
+    DB.study.pomos=[{id:'z1',mins:12,plan:25,at:new Date(Date.now()-12*60*1000).toISOString()}];
+    stPomoSetMins('z1',0);
+    return DB.study.pomos.length;});
+  ok('PMN11 0분은 기록이 아니다 (지워진다)',zeroMin===0,String(zeroMin));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }

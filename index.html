@@ -292,6 +292,25 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   background:var(--soft);color:#7a869a;font-size:10px;font-weight:700;text-align:center;
   font-variant-numeric:tabular-nums}
 @media(hover:none){.optk{display:none}}   /* 손가락으로 쓰는 화면엔 키가 없다 */
+/* ⏱ v4.52 뽀모 메모 · v4.57 고치기 */
+.pmline{cursor:pointer;border-radius:6px;padding:3px 5px;margin:0 -5px}
+.pmline:hover{background:var(--soft)}
+.pmedit{float:right;font-size:10px;color:#7a869a}
+
+.pmnote{width:100%;box-sizing:border-box;margin-top:5px;padding:8px 10px;font-size:12.5px;
+  border:1px solid var(--line);border-radius:9px;background:var(--card);font-family:inherit}
+.pmnt{font-size:12px;font-weight:700;margin:-6px 0 12px;color:#55606f;line-height:1.4}
+.pmlist{margin-top:7px;border-top:1px dashed var(--line);padding-top:5px}
+.pmline{font-size:11px;padding:2px 0;line-height:1.45}
+/* 🧭 v4.52 전략 */
+.plgoal{font-size:12.5px;font-weight:800;padding:8px 10px;border-radius:9px;
+  background:#eef4ff;border:1px solid #cfe0ff;margin-bottom:10px}
+.plrow{border-top:1px solid var(--line);padding:9px 0}
+.plrow:first-of-type{border-top:0}
+.plrow.done{opacity:.5}
+.pllast{margin-top:5px;font-size:11px;padding:5px 7px;border-radius:7px;background:var(--soft)}
+.pllog{font-size:11.5px;padding:5px 0;border-top:1px dashed var(--line);line-height:1.5}
+.pllog:first-of-type{border-top:0}
 /* 📝 v4.50 문맥규정 숙달 띠
    🔴 [회귀] 처음에 `.ctxbar` 로 지었다. **그 이름은 이미 쓰고 있었다** — 목표 페이지의
    진척 막대(.ctxrow/.ctxnm/.ctxr 가족, 아래쪽에 선언)다. 같은 이름을 두 번 선언하면
@@ -4670,7 +4689,15 @@ function stDailyPane(ds){
 /* v3.7 — '오늘' 탭을 **캘린더**가 대체한다(로한 지시). 옛 'home' 값은 'cal' 로 흘린다.
    🔒 탭은 4개로 유지한다 — 400px 에서 5개는 글자가 잘린다.
       뽀모는 탭이 아니라 캘린더 안의 버튼에서 전체화면으로 띄운다. */
-function stTab(){var t=(DB.ui&&DB.ui.studyTab);return (t==='err'||t==='rec'||t==='word')?t:'cal';}
+/* 🧭 v4.52 — 탭은 **캘린더 / 전략 / 드릴 / 오답** 넷이다(로한 지시).
+   🔒 여전히 4개다 — 400px 에서 5개는 글자가 잘린다(v3.7 에서 확정한 제약).
+   🔒 옛 '기록' 탭은 전략 안으로 들어갔다. 저장돼 있던 'rec' 은 'plan' 으로 흘려보낸다 —
+      키가 사라졌다고 빈 화면을 보여주면 그게 거짓말이다. */
+function stTab(){
+  var t=(DB.ui&&DB.ui.studyTab);
+  if(t==='rec')t='plan';
+  return (t==='err'||t==='plan'||t==='word')?t:'cal';
+}
 function setStTab(v){DB.ui=DB.ui||{};DB.ui.studyTab=v;save();renderStudy();}
 
 function stHead(){
@@ -4715,6 +4742,144 @@ function stPaneErr(){
    +'<span><button class="ghost sm" onclick="stErrSheet()">📄 회독 목록</button> '
    +'<button class="btn sm" onclick="stErrModal(null)">+ 오답</button></span></div>'+rows
    +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 <b>2회 연속 맞아야</b> 회수된다. 한 번 맞으면 지우는 방식은 <b>운으로 맞은 것까지</b> 지운다.</div></div>';
+}
+/* ══════ 🧭 v4.52 전략 — 학습방이 짜고, 앱이 **숫자로 받친다** ══════
+   로한: *"학습방이랑 논의해서 전략 탭을 만들꺼야. 학습방이 날 합격시키기 위한 전략을 짜는 곳과
+   나 행동과 매칭해서 전략 밑에 **로그형태로 계속 그가 체크**하게 하는거지"*
+   *"지금 내가 학습방 플랜대로 안하고 있으니까 이게 **유명무실**하거든?"*
+   🔒 **쓰는 쪽은 학습방 하나다.** 앱은 읽기 전용 — logs[].coach 와 같은 원칙이다.
+      양쪽이 쓰면 두 화면이 다른 말을 한다.
+   🔒 기둥마다 **앱이 셀 수 있는 지표**를 묶는다(metric). 말로만 적으면 캘린더 과제 체크처럼
+      또 유명무실해진다 — 로한이 '귀찮아서 다 체크해버렸다'고 한 게 그 증상이다.
+   🔒 앱이 모르는 지표를 적으면 **모른다고 화면에 쓴다.** 조용히 0 으로 그리면 거짓말이다. */
+function stStrategy(){ return (studyDB().strategy)||{}; }
+function stPillars(){ var a=stStrategy().pillars; return Array.isArray(a)?a:[]; }
+function stPlanLog(){ var a=stStrategy().log; return Array.isArray(a)?a:[]; }
+
+/* 📊 지표 — 🔒 「그 기둥이 지금 어디까지 왔나」에 답하는 함수는 **이것 하나다**(원칙 2).
+   전부 **파생**이다. 저장하지 않는다. 새 지표는 여기에만 더한다. */
+var ST_METRICS=[
+  {k:'ctxMastered', label:'문맥구성 숙달 문장', unit:'문장',
+   f:function(){ return stCtxStat().mastered; },
+   cap:function(){ return stCtxStat().n; }},
+  {k:'studyMins7',  label:'최근 7일 학습', unit:'분',
+   f:function(){ return stMinsRange(addDays(todayStr(),-6),todayStr()); }},
+  {k:'studyMinsToday', label:'오늘 학습', unit:'분',
+   f:function(){ return stStudyMins(todayStr()); }},
+  {k:'pomoMins7',   label:'최근 7일 뽀모', unit:'분',
+   f:function(){ var n=0,d=addDays(todayStr(),-6),t=todayStr();
+     while(d<=t){ n+=stPomoMinsOn(d); d=addDays(d,1); } return n; }},
+  {k:'drillAcc7',   label:'최근 7일 드릴 정답률', unit:'%',
+   f:function(){ var from=addDays(todayStr(),-6), n=0, c=0;
+     studyDB().drills.forEach(function(d){ if(!d||d.date<from)return;
+       n+=(+d.n||0); c+=(+d.correct||0); });
+     return n?Math.round(c/n*100):0; }},
+  {k:'drillSets7',  label:'최근 7일 드릴 세트', unit:'회',
+   f:function(){ var from=addDays(todayStr(),-6);
+     return studyDB().drills.filter(function(d){return d&&d.date>=from;}).length; }},
+  {k:'errOpen',     label:'미회수 오답', unit:'건',
+   f:function(){ return stErrOpen().length; }},
+  {k:'wordsHot',    label:'3회 이상 틀린 단어', unit:'개',
+   f:function(){ return stWords().filter(function(w){return (+w.miss||0)>=3;}).length; }},
+  {k:'wordsFresh',  label:'아직 한 번도 안 나온 단어', unit:'개',
+   f:function(){ return stWords().filter(function(w){return !(+w.seen||0);}).length; }}];
+function stMetric(k){
+  var m=null; ST_METRICS.forEach(function(x){ if(x.k===k)m=x; });
+  if(!m)return null;                       /* 🔒 모르는 지표는 null — 화면이 그렇게 말한다 */
+  var v=0; try{ v=+m.f()||0; }catch(e){ return null; }
+  var cap=null; if(m.cap){ try{ cap=+m.cap()||0; }catch(e){ cap=null; } }
+  return {k:k,v:v,label:m.label,unit:m.unit,cap:cap};
+}
+/* 기둥 하나의 현재 상태 — 목표가 있으면 비율까지 */
+function stPillarState(p){
+  var m=p&&p.metric?stMetric(p.metric):null;
+  if(!m)return {known:false,metric:(p&&p.metric)||''};
+  var tgt=(p.target==null)?null:(+p.target||0);
+  var pct=(tgt>0)?Math.min(100,Math.round(m.v/tgt*100)):null;
+  /* 🔒 '적을수록 좋은' 지표는 방향이 반대다(오답·틀린 단어). 같은 식으로 그리면 거짓말이 된다 */
+  var down=(p.dir==='down');
+  if(down&&tgt!=null)pct=(m.v<=tgt)?100:Math.max(0,Math.round((tgt/Math.max(m.v,1))*100));
+  return {known:true,m:m,target:tgt,pct:pct,down:down,
+          hit:(tgt==null)?null:(down?(m.v<=tgt):(m.v>=tgt))};
+}
+/* 그 기둥에 달린 가장 최근 점검 한 줄 */
+function stPillarLast(id){
+  var out=null;
+  stPlanLog().forEach(function(l){
+    if(!l||l.pillar!==id)return;
+    if(!out||String(l.date||'')>=String(out.date||''))out=l;
+  });
+  return out;
+}
+var ST_VERDICT={ok:['순항','pos'],slip:['밀림','neg'],risk:['위험','neg'],done:['끝냄','pos']};
+function stVerdictHtml(v){
+  var x=ST_VERDICT[v]; if(!x)return '';
+  return '<span class="pill '+x[1]+'">'+x[0]+'</span>';
+}
+
+/* ── 🧭 전략 화면 ── */
+function stPanePlan(){
+  var S=stStrategy(), ps=stPillars(), lg=stPlanLog();
+  var head='<div class="sec"><div class="bkhd"><span class="subhd2">🧭 전략</span>'
+    +'<span class="mut" style="font-size:10.5px">'
+      +(S.updated?mdEsc(S.updated)+' · ':'')+(S.by?mdEsc(S.by):'학습방')+' 가 쓴다</span></div>';
+  /* 🔒 비어 있을 때 빈 화면을 주지 않는다 — **무엇을 넣어야 하는지** 알려준다 */
+  if(!ps.length&&!stNorm(S.goal)){
+    return head
+      +'<div class="mut" style="font-size:11.5px;line-height:1.6;padding:4px 0">'
+      +'아직 전략이 없다. <b>학습방이 올린다</b> — <code>study.strategy</code> 에 '
+      +'목표(goal) · 기둥(pillars) · 점검(log) 을 쓴다.<br>'
+      +'🔒 기둥마다 <b>앱이 셀 수 있는 지표</b>를 달아야 한다. 말로만 적으면 또 유명무실해진다.'
+      +'</div>'
+      +'<div class="gltab"><div class="gllab">쓸 수 있는 지표</div>'
+      +ST_METRICS.map(function(m){
+        var cur=stMetric(m.k);
+        return '<div class="glrow"><span class="glw"><code>'+m.k+'</code></span>'
+          +'<span class="glb">'+mdEsc(m.label)+'</span>'
+          +'<span class="glk">지금 <b>'+(cur?cur.v:'—')+'</b>'+mdEsc(m.unit||'')+'</span></div>';
+      }).join('')+'</div></div>'
+      +stPaneRec();
+  }
+  var goal=stNorm(S.goal)
+    ? '<div class="plgoal">🎯 '+mdEsc(S.goal)+'</div>' : '';
+  var rows=ps.map(function(p){
+    var st=stPillarState(p), last=stPillarLast(p.id);
+    var right, bar='';
+    if(!st.known){
+      /* 🔒 모르는 지표를 0 으로 그리지 않는다 */
+      right='<span class="mut" style="font-size:10.5px">앱이 못 세는 지표'
+        +(st.metric?' (<code>'+mdEsc(st.metric)+'</code>)':'')+'</span>';
+    }else{
+      right='<b style="font-variant-numeric:tabular-nums">'+st.m.v+'</b>'
+        +(st.target!=null?'<span class="mut"> / '+st.target+'</span>':'')
+        +'<span class="mut" style="font-size:10.5px"> '+mdEsc(st.m.unit||'')+'</span>';
+      if(st.pct!=null)bar='<div class="msttrk" style="margin-top:6px"><i style="width:'+st.pct+'%"></i></div>';
+    }
+    return '<div class="plrow'+(p.status==='done'?' done':'')+'">'
+      +'<div class="row" style="border-bottom:0;padding:0">'
+        +'<span><b>'+mdEsc(p.title||'(제목 없음)')+'</b> '+stVerdictHtml(last&&last.verdict)+'</span>'
+        +'<span>'+right+'</span></div>'
+      +bar
+      +(stNorm(p.why)?'<div class="mut" style="font-size:10.5px;margin-top:4px">'+mdEsc(p.why)+'</div>':'')
+      +(last&&stNorm(last.text)
+        ?'<div class="pllast"><span class="mut">'+mdEsc(last.date||'')+'</span> '+mdEsc(last.text)+'</div>'
+        :'')
+      +'</div>';}).join('');
+  /* 점검 로그 — 🔒 학습방이 쓴다. 앱은 보여주기만 한다 */
+  var logs=lg.slice().sort(function(a,b){return String(b.date||'')<String(a.date||'')?-1:1;})
+    .slice(0,14).map(function(l){
+      var p=null; ps.forEach(function(x){ if(x.id===l.pillar)p=x; });
+      return '<div class="pllog">'
+        +'<span class="mut">'+mdEsc(l.date||'')+'</span> '+stVerdictHtml(l.verdict)+' '
+        +(p?'<b>'+mdEsc(p.title)+'</b> — ':'')+mdEsc(l.text||'')+'</div>';}).join('');
+  return head+goal
+    +(rows||'<div class="mut" style="font-size:11.5px">기둥이 없다 — 학습방이 pillars 를 올린다.</div>')
+    +'</div>'
+    +'<div class="sec"><div class="bkhd"><span class="subhd2">🗒 점검 로그</span>'
+      +'<span class="mut" style="font-size:10.5px">'+lg.length+'건 · 학습방이 쓴다</span></div>'
+      +(logs||'<div class="mut" style="font-size:11.5px">아직 점검이 없다.</div>')
+    +'</div>'
+    +stPaneRec();
 }
 function stPaneRec(){
   var ts=stTests();
@@ -6630,10 +6795,28 @@ function stCalSide(ds){
           :'이 날은 <b>배정된 과제가 없었다</b>.'))+'</div>';
 
   /* 🔒 뽀모는 탭이 아니라 **여기서 전체화면으로 띄운다** — 탭 5개는 400px 에서 안 들어간다 */
+  /* ⏱ v4.52 — 🔒 「N분」 한 줄로는 **뭘 했는지 안 보인다**. 로한이 쓴 메모를 그대로 펼친다.
+     로한: "뽀모 시작 버튼 누르면 뭐 공부하냐를 내가 쓰게 해서 쓰면, 저기에 표현되는걸로" */
+  var pmList=stPomos().filter(function(x){return stPomoDate(x)===ds;})
+    .slice().sort(function(a,b){return String(a.at||'')<String(b.at||'')?-1:1;})
+    .map(function(x){
+      var t=new Date(x.at), hh=isNaN(t.getTime())?'':
+        (String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'));
+      /* ⏱ v4.57 — 줄을 누르면 고친다. 🔒 지울 수도 있어야 한다 —
+         켜놓고 밥 먹고 오면 50분이 찍히는데, 그걸 못 고치면 학습시간이 거짓말을 한다. */
+      return '<div class="pmline" onclick="stPomoEdit('
+        +JSON.stringify(JSON.stringify(x.id)).replace(/"/g,'&quot;')+')">'
+        +'<span class="mut">'+hh+'</span> <b>'+(+x.mins||0)+'분</b>'
+        +(stNorm2(x.note)?' · '+mdEsc(String(x.note)):'<span class="mut"> · (안 적음)</span>')
+        +(x.cut?' <span class="mut">중단</span>':'')
+        +'<span class="pmedit">고치기</span></div>';}).join('');
   var pomoBtn=(!far)
     ? '<div style="margin-top:11px"><button class="btn" onclick="stPomoOpen()">⏱ 뽀모 시작</button>'
-      +(pm?'<span class="mut" style="font-size:10.5px;margin-left:8px">오늘 뽀모 '+pm+'분</span>':'')+'</div>'
-    : '';
+      +(pm?'<span class="mut" style="font-size:10.5px;margin-left:8px">뽀모 '+pm+'분</span>':'')
+      +(pmList?'<div class="pmlist">'+pmList+'</div>':'')+'</div>'
+    /* ⏱ v4.57 — 지난 날도 **기록은 보여준다**. 🔒 숨기면 그날 뭘 했는지가 사라진다 */
+    : (pm?'<div style="margin-top:11px"><span class="mut" style="font-size:10.5px">뽀모 '+pm+'분</span>'
+         +(pmList?'<div class="pmlist">'+pmList+'</div>':'')+'</div>':'');
 
   /* 판정 지표 — '오늘' 탭에서 여기로 옮겼다(로한 결정). D-day 는 전 탭 공통 헤더에 있다 */
   var c=stErrCount(), openErr=stErrOpen().length;
@@ -6737,10 +6920,19 @@ function stPomoClose(){
   if(ST_POMO_TICK){clearInterval(ST_POMO_TICK);ST_POMO_TICK=null;}
   renderStudy();
 }
+/* ⏱ v4.52 — 🔒 메모는 **시작하는 순간** 받아 적는다. 끝낼 때 물으면 그때 생각이 안 난다.
+   🔒 고르는 게 아니라 **쓰는 것**이다 — v4.49 에서 과제 선택을 없앤 이유가 「고른 값이 박힌다」였다.
+      자유 메모는 매번 새로 쓰므로 박히지 않는다. 그래서 직전 메모를 미리 채워두지도 않는다. */
+function stPomoNoteGet(){
+  var e=document.getElementById('pmNote');
+  return e?String(e.value||'').trim().slice(0,60):'';
+}
 function stPomoStart(phase){
   var c=stPomoCfg();
+  var note=(phase==='brk')?((stPomoRun()||{}).note||''):stPomoNoteGet();
   DB.ui.pomoRun={phase:phase||'focus',at:Date.now(),acc:0,paused:false,done:false,
     focus:c.focus,brk:c.brk};
+  if(note)DB.ui.pomoRun.note=note;      /* ⚠️ 빈 서랍 금지 — 안 썼으면 키를 안 만든다 */
   save(); stPomoRender();
 }
 function stPomoPause(){
@@ -6760,12 +6952,98 @@ function stPomoStop(){
        🔒 과제(unitId)도 저장하지 않는다 — 고른 값이 그대로 박혀 9건이 전부 같은 과제가 됐다. */
     var rec={id:uid(),mins:mins,
       at:new Date(Date.now()-sec*1000).toISOString(),plan:+r.focus||0};
+    if(stNorm2(r.note))rec.note=String(r.note);   /* ⏱ v4.52 — 뭘 했는지 */
     if(mins<(+r.focus||0))rec.cut=true;       /* 계획보다 짧게 끝냈다 */
     studyDB().pomos.push(rec);
     stPomoLog(rec);
-    logAct('⏱ 뽀모 '+mins+'분');
+    logAct('⏱ 뽀모 '+mins+'분'+(rec.note?' · '+rec.note:''));
   }
   DB.ui.pomoRun=null; save(); stPomoRender();
+}
+/* ══════ ⏱ v4.57 뽀모 기록 고치기 ══════
+   로한: *"방금 내가 뽀모를 켜놓고 안끄고 가서 밥을 먹으러 갔다왔는데, 50몇분 되있더라.
+   뽀모 기록도 **수정삭제** 할 수 있게 해야할 것 같아"*
+   🔒 **시작 시각(at)은 안 건드린다.** 분만 고친다 — 언제 시작했는지는 사실이고,
+      틀린 건 길이뿐이다. 날짜도 at 에서 파생되므로(stPomoDate) 저절로 맞는다.
+   🔒 고치면 **타임로그도 따라 고친다.** 50분이 25분이 됐는데 타임로그에 50분짜리 표시가
+      남아 있으면 그 칸이 30분으로 세어져(stStudyMins) 줄인 게 반영이 안 된다.
+   🔒 단, **내가 만든 자국만 지운다** — 제목이 「뽀모」로 시작하고 tag 가 study 인 블록.
+      로한이 손으로 고쳐 쓴 칸(다른 제목·서브 활동)은 그대로 둔다. 남의 글씨를 지우지 않는다. */
+function stPomoById(id){
+  var a=stPomos();
+  for(var i=0;i<a.length;i++)if(a[i]&&a[i].id===id)return a[i];
+  return null;
+}
+/* 이 뽀모가 타임로그에 남긴 자국을 지운다 — 🔒 내가 쓴 것만 */
+function stPomoUnlog(rec){
+  var sp=stPomoSpan(rec); if(!sp.date||!sp.slots.length)return 0;
+  var ds=sp.date, n=0;
+  sp.slots.forEach(function(x){
+    var b=tlAt(ds,x.i); if(!b)return;
+    if(b.tag==='study'&&/^뽀모/.test(String(b.title||''))){ tlDel(ds,x.i); n++; }
+  });
+  delete rec.tl;
+  return n;
+}
+/* 분을 고친다. 🔒 0 이하는 기록이 아니다 — 지우는 것과 같다 */
+function stPomoSetMins(id,mins){
+  var r=stPomoById(id); if(!r)return false;
+  mins=Math.round(+mins||0);
+  if(mins<1)return stPomoDel(id);
+  if(mins>600)mins=600;
+  stPomoUnlog(r);
+  r.mins=mins;
+  if(r.plan!=null){ if(mins<(+r.plan||0))r.cut=true; else delete r.cut; }
+  stPomoLog(r);                     /* 새 길이로 다시 남긴다 */
+  logAct('⏱ 뽀모 수정 '+mins+'분'+(stNorm2(r.note)?' · '+r.note:''));
+  save(); return true;
+}
+function stPomoSetNote(id,note){
+  var r=stPomoById(id); if(!r)return false;
+  note=String(note||'').trim().slice(0,60);
+  /* ⚠️ 빈 서랍 금지 — 비우면 칸을 지운다 */
+  if(note)r.note=note; else delete r.note;
+  save(); return true;
+}
+function stPomoDel(id){
+  var r=stPomoById(id); if(!r)return false;
+  stPomoUnlog(r);
+  var a=stPomos(), i=a.indexOf(r);
+  if(i>=0)a.splice(i,1);
+  logAct('⏱ 뽀모 삭제 '+(+r.mins||0)+'분');
+  save(); return true;
+}
+/* ── 고치기 모달 ── */
+function stPomoEdit(id){
+  var r=stPomoById(id); if(!r)return;
+  var t=new Date(r.at), hh=isNaN(t.getTime())?'(시각 모름)':
+    (stPomoDate(r)+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'));
+  openModal('<div class="mtop"><h3>⏱ 뽀모 고치기</h3>'
+    +'<span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="mut" style="font-size:11px;margin-bottom:10px">'+mdEsc(hh)+' 시작'
+     +(r.plan?' · 계획 '+r.plan+'분':'')+'</div>'
+   +'<div class="field"><label>실제 몇 분이었나</label>'
+     +'<input id="pmEdM" type="number" min="1" max="600" value="'+(+r.mins||0)+'"></div>'
+   +'<div class="field"><label>뭘 공부했나</label>'
+     +'<input id="pmEdN" maxlength="60" value="'+mdEsc(String(r.note||'')).replace(/"/g,'&quot;')+'"></div>'
+   +'<div class="mut" style="font-size:10.5px;line-height:1.6">'
+     +'🔒 <b>시작 시각은 안 바뀐다</b> — 틀린 건 길이뿐이다.<br>'
+     +'🔒 타임로그의 <b>「뽀모」 표시도 같이 고친다.</b> 손으로 써넣은 칸은 건드리지 않는다.</div>'
+   /* 🔒 모달 단추는 앱의 다른 모달과 같은 꼴로 둔다 — 새 클래스를 만들지 않는다 */
+   +'<div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">'
+     +'<button class="ghost" onclick="stPomoEditDel('+JSON.stringify(id).replace(/"/g,'&quot;')+')">🗑 삭제</button>'
+     +'<button class="btn" onclick="stPomoEditSave('+JSON.stringify(id).replace(/"/g,'&quot;')+')">저장</button></div>');
+}
+function stPomoEditSave(id){
+  var m=document.getElementById('pmEdM'), n=document.getElementById('pmEdN');
+  if(n)stPomoSetNote(id,n.value);
+  if(m)stPomoSetMins(id,m.value);
+  closeModal(); renderStudy();
+}
+function stPomoEditDel(id){
+  var r=stPomoById(id); if(!r)return;
+  if(!confirm((+r.mins||0)+'분 기록을 지운다. 되돌릴 수 없다.'))return;
+  stPomoDel(id); closeModal(); renderStudy();
 }
 /* ⏱ 뽀모를 타임로그에 남긴다 (v4.12)
    로한 2026-09-19: "미리 로그를 채워놓으면 반영이 안 된다. 이미 채워진 로그에 뽀모를 하면 서브 활동으로 넣어주면 된다."
@@ -6782,8 +7060,9 @@ function stPomoLog(rec){
      🔒 못 남겼는데 남겼다고 적는 건 거짓말이다 — 성공한 뒤에 찍는다. */
   if(!sp.date||!sp.slots.length)return;
   rec.tl=true;
-  /* ⏱ v4.49 — 제목은 '뽀모' 하나다(과제를 더 묻지 않는다) */
-  var ds=sp.date, title='뽀모', runs=[];
+  /* ⏱ v4.49 — 제목은 '뽀모' 하나다(과제를 더 묻지 않는다).
+     ⏱ v4.52 — 로한이 쓴 메모가 있으면 붙인다. 🔒 메모는 로한이 직접 쓴 것이라 박힐 염려가 없다. */
+  var ds=sp.date, title='뽀모'+(stNorm2(rec.note)?' · '+String(rec.note):''), runs=[];
   sp.slots.forEach(function(s){
     var b=tlAt(ds,s.i), act=!b?'new':((b.tag==='study'||b.tag2==='study'||b.tag2)?'keep':'sub');
     var last=runs[runs.length-1];
@@ -6863,11 +7142,13 @@ function stPomoRender(){
 
   if(r){
     var lim=stPomoLim(r), sec=stPomoElapsedSec(), over=sec>lim;
+    var nt=stNorm2(r.note)?String(r.note):'';
     box.innerHTML='<div class="pmph'+(r.phase==='brk'?' brk':'')+'">'
        +(r.phase==='brk'?'☕ 휴식':'🔥 집중')+' · '+(r.phase==='brk'?r.brk:r.focus)+'분'
        +(over?' <span class="pmovr">+ 연장 중</span>':'')+'</div>'
      +'<div class="pmring" id="pomoRing"><div class="pmclock'+(over?' over':'')+'" id="pomoClock">'
        +(over?'+':'')+stPomoMMSS(over?sec-lim:lim-sec)+'</div></div>'
+     +(nt?'<div class="pmnt">'+mdEsc(nt)+'</div>':'')
      +'<div class="pmbtns">'
        +(r.paused?'<button class="btn" onclick="stPomoResume()">▶ 계속</button>'
                  :'<button class="ghost" onclick="stPomoPause()">⏸ 일시정지</button>')
@@ -6898,6 +7179,9 @@ function stPomoRender(){
        +'<label>휴식 <input type="number" min="0" max="60" value="'+c.brk+'" id="pmB" '
          +'onchange="stPomoSet(\'brk\',+this.value)"></label>'
      +'</div>'
+     /* ⏱ v4.52 — 🔒 **안 써도 시작된다.** 쓰게 강제하면 안 쓰려고 뽀모를 안 켠다 */
+     +'<div class="pmlab" style="margin-top:12px">뭐 공부하나 <span class="mut">(안 써도 된다)</span></div>'
+     +'<input class="pmnote" id="pmNote" maxlength="60" placeholder="예: 문맥구성 p71 · 단어 드릴">'
    +'</div>'
    +'<div class="pmbtns"><button class="btn" onclick="stPomoStart(\'focus\')">▶ 시작</button></div>'
    +'<div class="mut" style="font-size:10.5px;margin-top:12px">'
@@ -6911,18 +7195,20 @@ function renderStudy(){
   var t=stTab();
   /* 🔒 탭은 4개다. 400px 에서 5개는 글자가 잘린다 —
      뽀모는 탭이 아니라 캘린더 안의 버튼에서 전체화면으로 띄운다(로한 지시). */
+  /* 🧭 v4.52 — 순서도 로한이 정했다: 캘린더 / 전략 / 드릴 / 오답 */
   var tabs='<div class="logtabs">'
     +'<button class="'+(t==='cal'?'on':'')+'" onclick="setStTab(\'cal\')">📅 캘린더</button>'
-    +'<button class="'+(t==='err'?'on':'')+'" onclick="setStTab(\'err\')">❌ 오답'
-      +(stErrOpen().length?' <b>'+stErrOpen().length+'</b>':'')+'</button>'
-    /* v3.9 — 이 탭에 단어 드릴과 문법 드릴이 같이 들어갔다. 탭은 계속 4개다(키는 'word' 유지) */
+    +'<button class="'+(t==='plan'?'on':'')+'" onclick="setStTab(\'plan\')">🧭 전략'
+      +(stPillars().length?' <b>'+stPillars().length+'</b>':'')+'</button>'
+    /* v3.9 — 이 탭에 단어 드릴과 문법 드릴이 같이 들어갔다(키는 'word' 유지) */
     +'<button class="'+(t==='word'?'on':'')+'" onclick="setStTab(\'word\')">🈶 드릴'
       +(stWords().length?' <b>'+stWords().length+'</b>':'')+'</button>'
-    +'<button class="'+(t==='rec'?'on':'')+'" onclick="setStTab(\'rec\')">📝 기록</button></div>';
+    +'<button class="'+(t==='err'?'on':'')+'" onclick="setStTab(\'err\')">❌ 오답'
+      +(stErrOpen().length?' <b>'+stErrOpen().length+'</b>':'')+'</button></div>';
   /* 🔒 D-day·입실시각·phase 는 **전 탭 공통 헤더**다.
      2025년 시험장 앞에서 돌아온 이력 때문에 '입실까지'가 목표에 포함된다 — 어느 화면에서도 보여야 한다. */
   document.getElementById('v-study').innerHTML=tabs+stHead()
-    +(t==='err'?stPaneErr():t==='rec'?stPaneRec():t==='word'?stPaneWord():stPaneCal());
+    +(t==='err'?stPaneErr():t==='plan'?stPanePlan():t==='word'?stPaneWord():stPaneCal());
   /* 🔊 음성 문항은 **뜨면 한 번 읽어준다** — 매 문항 버튼을 눌러야 하면 문항이 성립하지 않는다.
      ⚠️ 문항당 1회만. 채점 후 다시 그릴 때 또 읽으면 시끄럽다(다시 듣기는 버튼으로). */
   if(t==='word'&&ST_DRILL&&!ST_DRILL.fin&&!ST_DRILL.show&&ST_DRILL.mode==='a2m'){
@@ -11600,7 +11886,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.56';
+var APP_VERSION='4.57';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -11614,6 +11900,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.57',date:'2026-10-22',note:'<b>🧭 전략 탭 신설 · ⏱ 뽀모 메모와 수정·삭제.</b> 로한: 「학습방이랑 논의해서 전략 탭을 만들꺼야. 학습방이 날 합격시키기 위한 전략을 짜는 곳과 나 행동과 매칭해서 <b>전략 밑에 로그형태로 계속 그가 체크</b>하게 하는거지」 「<b>지금 내가 학습방 플랜대로 안하고 있으니까 이게 유명무실하거든?</b>」 · 🧭 탭을 <b>캘린더 / 전략 / 드릴 / 오답</b>로 바꿨다(로한 지시). 🔒 여전히 <b>4개</b>다 — 400px 에서 5개는 글자가 잘린다(v3.7 제약) · 「기록(시험·모의고사)」은 <b>전략 탭 안으로</b> 들어갔다 — 어차피 전략과 같이 보는 것이다. 🔒 저장돼 있던 옛 <code>rec</code> 값은 <code>plan</code> 으로 흘려보낸다 · 🔒 <code>study.strategy</code> 는 <b>학습방이 쓰고 앱은 읽기만</b> 한다(<code>logs[].coach</code> 와 같은 원칙) — 양쪽이 쓰면 두 화면이 다른 말을 한다 · 🔒 기둥마다 <b>앱이 셀 수 있는 지표</b>를 묶는다(<code>ctxMastered</code>·<code>studyMins7</code>·<code>drillAcc7</code>·<code>errOpen</code>·<code>wordsHot</code>·<code>pomoMins7</code> 등 9개). 말로만 적으면 캘린더 과제 체크처럼 또 유명무실해진다 · 🔒 <b>적을수록 좋은 지표</b>(오답·틀린 단어)는 방향을 뒤집어 그린다 — 같은 식으로 그리면 거짓말이 된다 · 🔒 앱이 <b>모르는 지표를 적으면 0으로 그리지 않고 「앱이 못 세는 지표」라고 말한다</b> · 🔒 지표는 전부 <b>파생</b>이라 저장하지 않는다 · 🔒 전략이 비어 있으면 빈 화면을 주지 않고 <b>쓸 수 있는 지표 목록과 현재값</b>을 보여준다 — 학습방이 그걸 보고 적으면 된다 · ⏱ <b>뽀모 메모</b> — 로한: 「뽀모 시작 버튼 누르면 <b>뭐 공부하냐를 내가 쓰게</b> 해서 쓰면, 저기에 표현되는걸로」. 시작 칸에 자유 입력칸 하나. 🔒 <b>안 써도 시작된다</b>(쓰게 강제하면 안 쓰려고 뽀모를 안 켠다) · 🔒 <b>직전 메모를 미리 채우지 않는다</b> — 그게 값이 박히는 길이다(v4.49 과제 선택이 그래서 죽었다) · 캘린더 우측이 「N분」 한 줄에서 <b>그날 뽀모 목록</b>(시각 · 분 · 메모)으로 바뀌었다. 지난 날도 보여준다 — 숨기면 그날 뭘 했는지 사라진다 · ⏱ <b>뽀모 수정·삭제</b> — 로한: 「<b>뽀모를 켜놓고 안끄고 가서 밥을 먹으러 갔다왔는데 50몇분 되있더라</b>」. 목록 줄을 누르면 분과 메모를 고치거나 지운다 · 🔒 <b>시작 시각(at)은 안 건드린다</b> — 언제 시작했는지는 사실이고 틀린 건 길이뿐이다. 날짜도 at 에서 파생되니 저절로 맞는다 · 🔴 🔒 <b>타임로그 자국도 같이 고친다</b> — 50분이 25분이 됐는데 타임로그에 50분짜리 표시가 남으면 그 칸이 30분으로 세어져(stStudyMins) <b>줄인 게 반영이 안 된다</b> · 🔒 단 <b>내가 만든 자국만 지운다</b>(제목이 「뽀모」로 시작하고 tag=study 인 블록). 손으로 써넣은 칸은 그대로 둔다 — 남의 글씨를 지우지 않는다 · 🔒 0분으로 고치는 것은 지우는 것과 같다 · t42 477 → <b>501건</b> · run.sh all 43/43 통과'},
   {v:'4.56',date:'2026-10-21',note:'<b>🔴 한 세트는 10문항이다 — 풀이 커졌다고 다 풀게 하지 않는다.</b> 로한: 「내가 문장을 계속 만들라고 했지 <b>무조건 낸 문장을 다 시험 보게 하면 어케해</b>. 10문항 기준으로, 그 문제 중에 10문항을 골라서 내야지. 나중에 그럼 <b>100문항 내면 맨날 100문항 풀게할꺼냐</b>?」 · 🔒 <b>풀(문항 창고)과 세트(한 번에 푸는 양)는 다른 것이다.</b> 풀이 30이든 262든 세트는 <b>10</b>이다. 세트 크기는 <code>ST_SET</code> 한 곳에만 적는다 · 화면은 풀 크기를 정직하게 말하고(「262문항」) 그 옆에 <b>「→ 10개씩」</b>을 붙인다 — 숫자가 거짓말하지 않게 · 🔴 [결함] 더 큰 게 숨어 있었다 — 자동 문항을 <b>수동 뒤에 붙이기만</b> 했다. 그런데 세트는 앞에서부터 고르므로 <b>수동 10개가 자리를 다 차지하면 자동은 영원히 안 나온다.</b> v4.55 에서 문턱을 고쳤는데도 새 문장이 안 나올 자리였다 · 🔒 그래서 <b>이미 2번 맞힌 수동 문항은 풀에서 뺀다</b>(로한: 「완전히 맞춘건 별로 도움이 안된다」). 빠진 자리를 자동이 채운다 · 🔒 <b>수동이 먼저다</b> — 아직 덜 맞힌 교재 문장은 자동보다 앞에 둔다. 로한이 실제로 본 문장이 밀리면 안 된다 · t42 471 → <b>477건</b>(풀 30에 세트 10인가 · 다 맞힌 수동이 빠지는가 · <b>그 자리를 자동이 채우는가</b> · 수동이 자동보다 앞인가) · run.sh all 43/43 통과'},
   {v:'4.55',date:'2026-10-21',note:'<b>🔴 자동 생성이 영원히 안 돌던 결함 — 문턱을 잘못 걸었다.</b> 로한: 「아니 지금 <b>몇번을 했는데 새문장 언제 생기냐</b> 도대체」 · 🔴 [결함] 문턱을 <b>숙달(mastered)</b> 로 걸었다. 그런데 숙달은 「빈칸 + 하부 전부 정답 + <b>서로 다른 날</b> 2연속」이라 <b>하루 안에는 구조상 불가능</b>하다 · 실측(10/21 서버): ctx 10문장을 <b>전부 3~5번 맞혔는데 mastered 는 10개 다 false</b>. 그래서 쓸모 있는 문항이 10개로 계산돼 자동이 <b>0개</b>였다. 로한이 40~50번을 푸는 동안 새 문장이 한 개도 안 나왔다 · 🔒 로한이 말한 건 「<b>2-3번 맞추면</b>」이었다 — 내가 숙달로 읽은 게 오독이다. 기준을 <b>맞힌 횟수(seen−miss)</b> 로 바꿨다. 파생이라 저장하지 않는다 · 🔒 숙달(comp)은 그대로 둔다 — 그건 「시험장 가기 전에 전부 안다」를 재는 <b>다른 자</b>다. 둘을 한 숫자로 합치면 둘 다 거짓말을 한다 · 🔴 [결함] 자동 문항을 <code>sents</code> <b>앞에서부터</b> 집어 늘 같은 문장이 나왔다 → 문법 드릴과 <b>같은 정렬</b>(stWordScore · 안 본 것·틀린 것·오래된 것 먼저)을 쓰고, <b>이미 2번 맞힌 문장은 자동 쪽에서도 뺀다</b>. 그래야 계속 새 문장이 온다 · 🔒 「이 문항이 아직 도움이 되나」를 묻는 함수를 하나로 모았다(<code>stCtxLive</code> · 원칙 2) · 📊 실측 재료: ctx 슬롯 없는 예문 <b>316개 중 262개</b>에서 자동 문항이 나온다(533 매칭) — 책을 더 스캔하지 않아도 된다 · t42 468 → <b>471건</b>(숙달이 0이어도 맞힌 횟수로 도는가 · 많이 맞힌 문장이 빠지는가) · run.sh all 43/43 통과'},
   {v:'4.54',date:'2026-10-21',note:'<b>⌨ 드릴을 키보드로 · 🤖 문항 자동 생성.</b> 로한: 「4지선다잖아? 왼쪽부터 키보드로도 선택할 수 있게 해라. 1,2,3,4번 숫자키로. <b>마우스 클릭하는 것 조차 손만 아프다.</b> 모른다는 스페이스, 답 확인은 엔터」 · ⌨ <b>1·2·3·4</b> 보기 고르기(왼쪽부터) · <b>스페이스</b> 모르겠다 · <b>엔터</b> 다음 · 🔒 <b>DOM 을 보고 움직인다</b> — 지금 화면에 보기 버튼이 있으면 그게 문항이다. 모드마다 따로 적으면 모드를 늘릴 때 반드시 빠뜨린다(원칙 2). 단어·문법·활용·문맥·점검 전부 한 번에 돈다 · 🔒 <b>채점 뒤엔 숫자가 안 먹는다</b> — 다음 문항의 답을 모르고 찍게 되면 안 된다. 그때는 엔터만 · 🔒 <b>글을 쓰는 중이면 손대지 않는다</b>(입력칸·모달) — 뽀모 메모에 「1」을 치는 게 문항 선택이 되면 안 된다 · 🔒 번호를 <b>보이게</b> 적었다(안 보이면 있어도 못 쓴다). 손가락으로 쓰는 화면에선 숨긴다 · 🤖 <b>문항 자동 생성</b> — 로한: 「10문항 중에서도 내가 <b>2-3번 맞추면</b> 문장 생성 해야겠다. 똑같은 문장을 계속하니 확실히 도움이 되는데, 이제 <b>완전히 맞춘건 별로 도움이 안된다</b>」 「내가 스캔 준것만 문장을 하게 되면 내가 책 전체를 스캔해서 주란소린데, 이게 말이되냐고」 · 🔒 <b>새 문장을 만들지 않는다</b> — 이미 있는 예문 326개(조사·접속사·부사·문형·어순용)에 빈칸을 뚫는다. 학습방 v20 의 「sents 는 공용 문항 풀」 원칙 그대로다 · 🔒 정답은 <code>words</code> 에 있는 말만, 문장에 <b>그 표기 그대로 한 번만</b> 나와야 한다 — 활용형이면 보기를 같은 꼴로 못 만들고, 두 번 나오면 어디를 물었는지 모호해진다 · 🔒 오답은 <b>같은 품사</b>에서, <b>문장에 이미 있는 말은 제외</b>한다(보면 바로 걸러진다). 셋을 못 채우면 그 문항은 안 만든다 · 🔒 <b>미숙달 수동 문항이 10개 아래일 때만</b> 그 부족분만큼 채운다. 숙달이 늘면 자동분이 는다 — 로한이 원한 방향 그대로다. 아직 배울 게 많으면 <b>하나도 안 만든다</b> · 🔒 <b>자동 문항은 숙달(comp)을 쌓지 않는다</b> — <code>gloss</code>(단어 분해)가 없어 점검이 반쪽이다. 반쪽 통과를 숙달로 세면 「시험장 가기 전에 전부 안다」가 거짓이 된다 · 🔒 화면에 <b>「🤖 자동 생성 문항 — 단어 분해는 없다」</b>고 적는다. 교재 문장인 척하면 그게 거짓말이다 · 🔒 <b>파생이라 저장하지 않는다</b> — 그때그때 만든다 · t42 452 → <b>468건</b>(키를 실제로 눌러서 잰다 · 자동 문항 전수 검사) · run.sh all 43/43 통과'},
