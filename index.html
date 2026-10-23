@@ -58,6 +58,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .emrwrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px;align-items:start}
 .emrlist{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
 .emrgrp{font-size:11.5px;font-weight:800;color:var(--muted);margin:8px 2px 4px}
+.emrptabs{margin:0 0 8px}
 .emrli{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:8px 9px;border-radius:8px;cursor:pointer;font-size:13px}
 .emrli:hover{background:var(--soft)}.emrli.on{background:var(--accent-bg);font-weight:700}
 .emrpend{font-size:11px;color:var(--warn);white-space:nowrap}
@@ -313,6 +314,47 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .pmnt{font-size:12px;font-weight:700;margin:-6px 0 12px;color:#55606f;line-height:1.4}
 .pmlist{margin-top:7px;border-top:1px dashed var(--line);padding-top:5px}
 .pmline{font-size:11px;padding:2px 0;line-height:1.45}
+/* 🏛 v4.62 일진 대조 · 평가 제외 */
+.sjgz{font-size:11.5px;padding:6px 8px;border-radius:7px;background:#f3f5f9;margin-bottom:8px}
+.sjgzbad{color:#b42318;font-weight:700}
+.sjev{margin-top:8px;padding:7px 9px;border-radius:8px;background:#fffdf5;border:1px dashed #f0e0b0}
+.sjevr{font-size:11px;line-height:1.55;padding:3px 0;border-top:1px dashed #f3ead0}.sjevr:first-of-type{border-top:0}
+.sjexcl{display:inline-block;font-size:10px;font-weight:800;color:#8a6d1f;background:#fff8e1;border:1px solid #f0e0b0;
+  border-radius:5px;padding:0 5px;margin-left:4px}
+/* 🏛 v4.62 대토론 */
+.smstep{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:11px;margin:4px 0 6px}
+.smstep span{padding:3px 7px;border-radius:7px;background:var(--soft);color:#7a869a}
+.smstep span.done{color:#2e7d32}.smstep span.now{background:#eef4ff;color:#1d4ed8;font-weight:800}
+.smstep i{color:#c3cad6;font-style:normal}
+.smstat{font-size:12px;font-weight:700;padding:7px 9px;border-radius:8px;background:#fbfcfe;border:1px solid var(--line)}
+.smdos{margin-top:10px;font-size:12px}.smdos>summary{cursor:pointer;font-weight:700}
+.smdk{margin-top:6px;font-size:11px}.smdk>div{white-space:pre-wrap;color:#55606f;margin-top:2px}
+.smmx{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.smmxh,.smrow{display:grid;grid-template-columns:110px 1fr 1fr;gap:8px;padding:8px 10px;align-items:start}
+.smmxh{background:#f3f5f9;font-size:11px;font-weight:700;color:#55606f}
+.smrow{border-top:1px solid var(--line);font-size:12px}
+.smrow.smag{background:#f2fbf3}.smrow.smdis{background:#fff7ed}.smrow.smone{background:#fafafa}
+.smarea div{font-size:10.5px;margin-top:2px}
+.smclaim{font-weight:700;line-height:1.45}.smclaim.gone{text-decoration:line-through;opacity:.55}
+.smfal{font-size:10.5px;color:#7a869a;margin-top:3px;line-height:1.4}
+.smseal{font-size:11px;color:#8a6d1f;background:#fff8e1;border-radius:6px;padding:3px 6px;display:inline-block}
+.smabs{font-size:11px;color:#b42318;font-weight:700}
+.smthd{grid-column:1/-1;font-size:11px}.smthd>summary{cursor:pointer;color:#55606f}
+.smth{padding:3px 0;border-top:1px dashed var(--line);line-height:1.45}
+.smmonths{margin-top:12px}
+.smmhead,.smmrow{display:grid;grid-template-columns:72px repeat(12,1fr);gap:3px;margin-top:3px;align-items:center}
+.smmwho{font-size:10.5px;font-weight:700}
+.smm{font-size:9.5px;text-align:center;padding:4px 0;border-radius:5px;background:#eef0f4;color:#55606f}
+.smm.hd{background:none;font-weight:700}.smm.op{background:#dcfce7;color:#166534}.smm.ca{background:#ffedd5;color:#9a3412}
+.smm.diff{outline:2px solid #1d4ed8;outline-offset:-2px}
+.smfin{margin-top:14px;border-top:2px solid var(--line);padding-top:10px}
+.smdisp{margin-top:10px;font-size:12px}
+.smopt{display:flex;gap:8px;align-items:flex-start;margin-top:6px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:11.5px;line-height:1.5}
+.smopt.on{border-color:#1d4ed8;background:#eef4ff}
+.smok{margin-top:10px;font-weight:800;color:#2e7d32}
+/* 📱 모바일 — 매트릭스를 세로로, 월별은 6칸×2줄(가로 스크롤 금지 §4-3) */
+@media(max-width:640px){.smmxh{display:none}.smrow{grid-template-columns:1fr}
+  .smmhead,.smmrow{grid-template-columns:repeat(6,1fr)}.smmwho{grid-column:1/-1}}
 /* 🧭 v4.52 전략 */
 .plgoal{font-size:12.5px;font-weight:800;padding:8px 10px;border-radius:9px;
   background:#eef4ff;border:1px solid #cfe0ff;margin-bottom:10px}
@@ -7447,20 +7489,38 @@ function emrDateOK(ds){
   if(typeof ds!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(ds))return false;
   var d=new Date(ds+'T00:00:00Z');return !isNaN(d.getTime())&&d.toISOString().slice(0,10)===ds;
 }
+/* 👪 v4.62 — EMR 도 사람별로 가른다. 로한: 「EMR도 탭으로 나, 어머니, 아버지 이렇게 구분해서」
+   🔒 문제마다 health_problems.person(me|mom|dad · 기본 me)이 있다. 기존 문제 3건은 그대로 「나」다.
+   🔒 「이 사람의 건강 기록」에 답하는 함수는 emrHealth 하나다 — me 는 DB.health, 나머지는 DB.healthPeople[k].
+      🔴 [결함] 기록 범위 모달이 HP()(피검사 화면이 보던 사람)를 썼다 — 피검사에서 엄마 탭을 켜 두면
+      **내 순환기 문제의 지표 목록이 엄마 것**으로 떴다. v4.45 에서 놓친 자리다.
+   🔒 없는 사람은 빈 표(hBlank)를 돌려줄 뿐 **DB 에 서랍을 만들지 않는다**(빈 서랍 금지). */
+var EMR_PEOPLE=[{k:'me',ko:'나',ic:'🙋'},{k:'mom',ko:'어머니',ic:'👩'},{k:'dad',ko:'아버지',ic:'👨'}];
+function emrPersonOf(p){var k=(p&&p.person)||'me';return EMR_PEOPLE.some(function(x){return x.k===k;})?k:'me';}
+function emrPersonInfo(k){return EMR_PEOPLE.filter(function(x){return x.k===k;})[0]||EMR_PEOPLE[0];}
+function emrHealth(k){if(!DB)return hBlank();if(!k||k==='me')return DB.health||hBlank();
+  return ((DB.healthPeople||{})[k])||hBlank();}
+function emrPerson(){return emrPersonOf({person:DB&&DB.ui&&DB.ui.emrPerson});}
+function emrSetPerson(k){DB.ui=DB.ui||{};DB.ui.emrPerson=emrPersonOf({person:k});
+  /* 고른 문제가 다른 사람 것이면 놓는다 — 탭은 어머니인데 내 문제가 열려 있으면 그게 거짓이다 */
+  var p=(EMR.problems||[]).filter(function(x){return x.slug===DB.ui.emrSel;})[0];if(p&&emrPersonOf(p)!==DB.ui.emrPerson)delete DB.ui.emrSel;
+  EMR.draft='';save();renderEmr();}
 function emrSources(problem){
   var s=(problem&&problem.sources)||{};
   function days(k,n){return typeof s[k]==='number'&&isFinite(s[k])?Math.max(0,Math.min(366,Math.floor(s[k]))):n;}
   /* labs 를 고르지 않았으면(키 없음) 등록 지표 전부 — 6회 내내 빈 지표는 emrFacts 가 이름만 남기고 생략한다.
      명시적 [] 는 '피검사 안 보냄'이다. 기본이 '없음'이면 이관한 순환기 문제의 첫 질문에 검사값이 하나도 안 간다 */
-  var all=((DB&&DB.health&&DB.health.metrics)||[]).map(function(m){return m.name;});
+  var all=(emrHealth(emrPersonOf(problem)).metrics||[]).map(function(m){return m.name;});
   return {labs:(Array.isArray(s.labs)?s.labs:all).filter(function(x){return typeof x==='string';}).filter(function(x,i,a){return a.indexOf(x)===i;}).sort(),
     body:s.body===undefined?true:!!s.body,diet_days:days('diet_days',14),visits_days:days('visits_days',90),events:s.events===undefined?true:!!s.events};
 }
-function emrWholeProblem(){return {title:'전체',status:'active',summary:'',sources:{
-  labs:((DB.health||{}).metrics||[]).map(function(m){return m.name;}),body:true,diet_days:14,visits_days:90,events:true}};}
 function emrFacts(problem){
-  problem=problem||{};var s=emrSources(problem),H=DB.health||{},end=todayStr();
-  var lines=['[문제] '+(problem.title||'제목 없음')+' ('+({active:'현재',watch:'경과관찰',closed:'종료'}[problem.status]||'현재')+')',
+  problem=problem||{};var who=emrPersonOf(problem),me=who==='me',s=emrSources(problem),H=emrHealth(who),end=todayStr();
+  /* 👪 v4.62 — 🔒 첫 줄에 **누구 얘기인지** 적는다. 두 AI 가 어머니 문제를 로한 문제로 읽으면 처방이 엉뚱해진다 */
+  var pi=emrPersonInfo(who),ps=(H&&H.person)||{};
+  var lines=['[대상] '+pi.ko+(me?' (로한 본인)':'')+(ps.name?' — '+ps.name:'')+(ps.birth?' · '+ps.birth:'')
+      +(ps.sex?' · '+({F:'여성',M:'남성'}[ps.sex]||ps.sex):''),
+    '[문제] '+(problem.title||'제목 없음')+' ('+({active:'현재',watch:'경과관찰',closed:'종료'}[problem.status]||'현재')+')',
     '[경과 요약]',problem.summary||'기록 없음'];
   function section(title,rows){lines.push(title);lines=lines.concat(rows.length?rows:['기록 없음']);}
   function validPast(d){return emrDateOK(d)&&d<=end;}
@@ -7468,6 +7528,10 @@ function emrFacts(problem){
     if(a.date!==b.date)return a.date<b.date?-1:1;
     var x=JSON.stringify(a),y=JSON.stringify(b);return x<y?-1:x>y?1:0;
   });}
+  /* 🔒 식이(끼니·장보기)와 진료일·의료 지출은 **로한 본인 기록**이다. 어머니 문제에 붙이면 남의 밥상을 어머니 것으로 읽는다.
+     빼되, 뺐다는 사실을 적는다 — 말없이 비우면 「안 먹었다」로 읽힌다 */
+  if(!me&&(s.diet_days||s.visits_days)){lines.push('[식이·의료 기록] 로한북의 식이·진료 기록은 로한 본인 것이라 보내지 않는다 — '+pi.ko+'의 식이·진료 기록은 없음');
+    s.diet_days=0;s.visits_days=0;}
   if(s.diet_days){
     var direct=Object.keys(DB.meals||{}).filter(function(ds){return validPast(ds)&&MEAL_SLOTS.some(function(slot){
       var c=DB.meals[ds]&&DB.meals[ds][slot.k],a=typeof c==='string'?c:c&&c.a;return typeof a==='string'&&!!a.trim();});}).sort();
@@ -7527,8 +7591,8 @@ var EMR_ST={active:'현재',watch:'경과관찰',closed:'종료'};
 var EMR={problems:null,msgs:[],err:'',busy:false,loading:false,draft:'',poll:null,open:{}};
 /* 속성값 자리용 — mdEsc 는 따옴표를 막지 않는다 */
 function emrAttr(s){return mdEsc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function emrSel(){var s=(DB&&DB.ui&&DB.ui.emrSel)||'';
-  return (EMR.problems||[]).filter(function(p){return p.slug===s;})[0]||null;}
+function emrSel(){var s=(DB&&DB.ui&&DB.ui.emrSel)||'',who=emrPerson();
+  return (EMR.problems||[]).filter(function(p){return p.slug===s&&emrPersonOf(p)===who;})[0]||null;}
 function emrFail(what,e){EMR.err=what+' 실패: '+((e&&e.message)||e);}
 function emrLoadMsgs(){
   /* facts 는 받지 않는다 — 화면에 안 쓰고 크다 */
@@ -7577,16 +7641,21 @@ function renderEmr(){
     +'<div class="emrmain">'+(p?emrDetailHtml(p):'<div class="emrempty">왼쪽에서 문제를 고르거나 새로 만든다.</div>')+'</div></div>';
   emrPollSync(p);
 }
-function emrListHtml(sel){
+function emrTabsHtml(){var cur=emrPerson();
+  return '<div class="hptabs emrptabs">'+EMR_PEOPLE.map(function(x){
+    var n=EMR.problems.filter(function(p){return emrPersonOf(p)===x.k&&p.status!=='closed';}).length;
+    return '<button class="'+(cur===x.k?'on':'')+'" data-emrp="'+x.k+'" onclick="emrSetPerson(this.dataset.emrp)">'+x.ic+' '+x.ko
+      +'<span class="hpn">'+n+'</span></button>';}).join('')+'</div>';}
+function emrListHtml(sel){var who=emrPerson();
   var html=[['active','●'],['watch','◐'],['closed','○']].map(function(g){
-    var ps=EMR.problems.filter(function(p){return p.status===g[0];});if(!ps.length)return '';
+    var ps=EMR.problems.filter(function(p){return p.status===g[0]&&emrPersonOf(p)===who;});if(!ps.length)return '';
     var items=ps.map(function(p){var n=emrPendingN(p);
       return '<div class="emrli'+(sel&&sel.id===p.id?' on':'')+'" data-emrpick="'+emrAttr(p.slug)+'" onclick="emrPick(this.dataset.emrpick)">'
         +'<span>'+mdEsc(p.title)+'</span>'+(n?'<b class="emrpend" title="답 대기 '+n+'칸">⏳'+n+'</b>':'')+'</div>';}).join('');
     var h='<div class="emrgrp">'+g[1]+' '+EMR_ST[g[0]]+' <span class="mut">'+ps.length+'</span></div>';
     return g[0]==='closed'?'<details class="emrclosed"><summary>'+h+'</summary>'+items+'</details>':h+items;
   }).join('');
-  return '<div class="emrlist">'+(html||'<div class="mut" style="font-size:12px;padding:6px 2px">문제가 아직 없다.</div>')
+  return '<div class="emrlist">'+emrTabsHtml()+(html||'<div class="mut" style="font-size:12px;padding:6px 2px">'+emrPersonInfo(who).ko+'의 문제가 아직 없다.</div>')
     +'<div class="emrlistbtn"><button class="ghost sm" onclick="emrNewModal()">+ 신규 문제</button>'
     +'<button class="ghost sm" onclick="emrLoad()">↻ 새로고침</button></div></div>';
 }
@@ -7594,7 +7663,7 @@ function emrDetailHtml(p){
   var turns=emrTurns(p.id),sum=(p.summary||'').trim();
   var sopt=Object.keys(EMR_ST).map(function(k){return '<option value="'+k+'"'+(p.status===k?' selected':'')+'>'+EMR_ST[k]+'</option>';}).join('');
   var out='<button class="ghost sm emrback" onclick="emrPick(\'\')">← 목록</button>'
-    +'<div class="emrdhd"><h3>'+mdEsc(p.title)+'</h3>'
+    +'<div class="emrdhd"><h3>'+emrPersonInfo(emrPersonOf(p)).ic+' '+mdEsc(p.title)+'</h3>'
     +'<div class="emrtools"><select onchange="emrUpdate({status:this.value})">'+sopt+'</select>'
     +'<button class="ghost sm" onclick="emrSummaryModal()">요약 편집</button>'
     +'<button class="ghost sm" onclick="emrSourcesModal()">기록 범위</button></div></div>'
@@ -7654,7 +7723,7 @@ function emrAsk(){
   if(!q)return alert('질문을 적어라');
   var no=emrTurns(p.id).reduce(function(m,t){return Math.max(m,t.no);},0)+1;
   /* 🔒 사실 묶음은 질문을 남기는 이 순간의 로한북 기록이다. 두 AI 가 이 글자를 그대로 받는다 */
-  var facts=emrFacts({title:p.title,status:p.status,summary:p.summary,sources:p.sources||{}});
+  var facts=emrFacts({title:p.title,status:p.status,summary:p.summary,sources:p.sources||{},person:emrPersonOf(p)});
   EMR.busy=true;EMR.draft=q;renderEmr();
   SB.from('health_messages').insert({user_id:USER.id,problem_id:p.id,turn_no:no,role:'user',content:q,facts:facts})
     /* 입력칸도 비운다 — renderEmr 은 화면에 남은 값을 draft 로 다시 주워 담는다 */
@@ -7702,7 +7771,8 @@ document.addEventListener('visibilitychange',function(){
 
 /* ── 모달 ── */
 function emrNewModal(){
-  openModal('<div class="mtop"><h3>신규 문제</h3><span class="x" onclick="closeModal()">×</span></div>'
+  var pi=emrPersonInfo(emrPerson());
+  openModal('<div class="mtop"><h3>신규 문제 — '+pi.ic+' '+pi.ko+'</h3><span class="x" onclick="closeModal()">×</span></div>'
    +'<div class="field"><label>제목</label><input id="en_title" placeholder="예: 오른쪽 어깨 오십견 재활"></div>'
    +'<div class="field"><label>짧은 이름 <span class="mut">(방에서 부르는 이름 · 겹치면 안 된다)</span></label><input id="en_slug" placeholder="예: 오십견"></div>'
    +'<div style="display:flex;gap:8px">'
@@ -7717,7 +7787,8 @@ function emrCreate(){
   if(EMR.problems.some(function(p){return p.slug===slug;}))return alert('「'+slug+'」은 이미 있다');
   if(v('en_claude'))rooms.claude=v('en_claude');
   if(v('en_openai'))rooms.openai=v('en_openai');
-  SB.from('health_problems').insert({user_id:USER.id,slug:slug,title:title,rooms:rooms})
+  /* 🔒 지금 보고 있는 사람 탭의 문제로 만든다. slug 는 사람과 무관하게 겹치면 안 된다(방이 slug 로 부른다) */
+  SB.from('health_problems').insert({user_id:USER.id,slug:slug,title:title,rooms:rooms,person:emrPerson()})
     .then(function(r){if(r.error)throw r.error;closeModal();DB.ui=DB.ui||{};DB.ui.emrSel=slug;save();EMR.problems=null;renderEmr();})
     .catch(function(e){alert('만들기 실패: '+((e&&e.message)||e));});
 }
@@ -7731,7 +7802,7 @@ function emrSummaryModal(){
 function emrSourcesModal(){
   var p=emrSel();if(!p)return;
   var raw=p.sources||{},s=emrSources(p),auto=!Array.isArray(raw.labs);
-  var groups={};((HP()||{}).metrics||[]).forEach(function(m){(groups[m.cat||'기타']=groups[m.cat||'기타']||[]).push(m.name);});
+  var groups={};(emrHealth(emrPersonOf(p)).metrics||[]).forEach(function(m){(groups[m.cat||'기타']=groups[m.cat||'기타']||[]).push(m.name);});
   var checks=Object.keys(groups).map(function(c){
     return '<div class="emrcat"><b>'+mdEsc(c)+'</b>'+groups[c].map(function(n){
       return '<label><input type="checkbox" class="es_lab" value="'+emrAttr(n)+'"'+(!auto&&s.labs.indexOf(n)>=0?' checked':'')+'> '+mdEsc(n)+'</label>';}).join('')+'</div>';}).join('');
@@ -8319,9 +8390,28 @@ function rmk(key){return (DB.saju.readings&&DB.saju.readings[key])?' 💬':'';}
 /* 🔒 ① 「인생 총운」은 맨 아래 긴 섹션이 아니라 **총운 말머리 💬** 안에 있다.
    로한: 「인생 총운 내용은 맨 상단 총운 말머리 풍선 모달로 옮기고」.
    평생 한 번 쓰는 글이 매번 화면 끝을 차지할 이유가 없다. */
+/* 🏛 v4.62 — 🔴 9~10월에 로버트가 일진을 손으로 계산해 틀렸다(saju_notes 일진 오류 고지).
+   🔒 일진 말풍선(day:YYYY-MM-DD)을 열면 **서버 함수(saju_ganji)로 계산한 간지**를 같이 찍고,
+      본문에 적힌 간지가 그것과 다르면 ⚠️ 를 띄운다(핸드오프 §6②). 손계산을 다시 하지 않는다.
+   🔒 앱이 간지를 따로 계산하지 않는다 — 계산하는 곳이 둘이면 둘이 다른 날이 온다(원칙 2). */
+var SJ_GZ_RE=/[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]/g;
+function sjDayCheck(key,text){
+  var m=/^day:(\d{4}-\d{2}-\d{2})$/.exec(String(key||'')); if(!m||!USER||!SB||!SB.rpc)return;
+  SB.rpc('saju_ganji',{p_date:m[1]}).then(function(r){
+    var el=document.getElementById('sjGzChk'); if(!el||r.error||!r.data)return;
+    var gz=String(r.data), seen=(String(text||'').match(SJ_GZ_RE)||[]);
+    /* 본문에 간지가 여럿 나올 수 있다(월건·세운). 🔒 일진 자리를 짐작하지 않는다 — 서버 일진이
+       **본문 어디에도 없으면** 의심한다. 있으면 맞다고 본다. */
+    var bad=seen.length&&seen.indexOf(gz)<0;
+    el.innerHTML='🗓 서버 계산 일진 <b>'+gz+'</b>'+(bad?' <span class="sjgzbad">⚠️ 본문에 이 간지가 없다 — 본문 간지('
+      +seen.join('·')+')를 손으로 계산했을 수 있다</span>':(seen.length?' ✓ 본문과 일치':''));
+  }).catch(function(){});
+}
 function sajuRead(key,title){var r=(DB.saju.readings||{})[key];
   if(key==='natal')return sajuNatalModal(title,r);
+  setTimeout(function(){sjDayCheck(key,r&&r.text);},0);
   openModal('<div class="mtop"><h3>'+title+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +(/^day:/.test(String(key))?'<div id="sjGzChk" class="sjgz"></div>':'')
    +(r?'<div style="font-size:13px;line-height:1.7;white-space:pre-wrap">'+sajuEsc(r.text)+'</div><div class="mut" style="margin-top:10px;font-size:10px">Claude 해석 · 저장 '+(r.savedAt||'')+'</div>'
       :'<div class="mut" style="padding:10px 0;line-height:1.6">아직 저장된 해석이 없습니다.<br>Claude에게 <b>"'+title+' 평가해줘"</b>라고 요청하면, 해석 후 여기에 저장할 수 있습니다.</div>')
    +'</div>');}
@@ -8487,6 +8577,11 @@ function sjLoad(){
 /* 사이드 메뉴로 들어올 때마다 다시 읽는다 — 방이 그 사이에 썼을 수 있다 */
 function sajuOpen(){renderSaju();sjLoad();}
 
+/* 🏛 v4.62 — 예측을 **누가** 썼나. 🔴 머리가 「🔮 로버트 · 사전예측」으로 박혀 있었다.
+   대토론이 결재되면 같은 해에 R1 로버트 · R1 수연 · 합의안 셋이 잠긴다(핸드오프 §1·§5-3) —
+   그대로면 **합의안을 로버트 예측이라고 거짓으로 적는다.** 🔒 작성자 칸이 말하게 한다. */
+var SJ_AUTHOR={claude:'🔮 로버트',suyeon:'💬 수연',consensus:'🏛 대토론 합의안'};
+function sjAuthor(f){return SJ_AUTHOR[(f&&f.author)||'claude']||('🔮 '+((f&&f.author)||'?'));}
 /* 그 기간의 예측 — 마지막 버전이 대표, 옛 버전은 이력으로 남는다 */
 function sjFcOf(v){
   var r=sjRange(v), pt=(SJ.unit==='year')?'year':'month';
@@ -8555,7 +8650,7 @@ function sjBox(){
   }else{
     var tm=SJ_TIMING[f.timing]||{l:f.timing||'-',t:''};
     var st=(f.structured&&typeof f.structured==='object')?f.structured:null;
-    one='<div class="sjhd"><span class="sjwho">🔮 로버트 · 사전예측</span>'
+    one='<div class="sjhd"><span class="sjwho">'+sjAuthor(f)+' · 사전예측</span>'
       +'<span class="mut" style="font-size:10.5px">'
         +'🔒 v'+f.version+' · <span class="sjtm '+(f.timing||'')+'" title="'+mdEsc(tm.t)+'">'+tm.l+'</span>'
         /* 🔒 서버가 작성시각을 봤나, 아니면 자기신고인가. 섞어 보여주면 legacy 가 사전예측으로 읽힌다 */
@@ -8581,7 +8676,27 @@ function sjBox(){
     /* ⚖ 담당 방과 어긋나는 지점 — 설계 §0: 덮어쓰지 않고 드러낸다. 최종 판단은 로한이 */
     if(stNorm2(f.conflict))one+='<div class="sjconf">⚖ <b>담당 방과 어긋나는 점</b><br>'+mdEsc(f.conflict)
       +'<div class="mut" style="font-size:10px;margin-top:4px">사주는 예측할 뿐 지시하지 않는다. 최종 판단은 로한이 한다.</div></div>';
-    if(fs2.length>1)one+='<div class="mut" style="font-size:10px;margin-top:6px">이전 버전 '+(fs2.length-1)+'개가 그대로 남아 있다 — 고친 것이 아니라 덧쓴 것이다</div>';
+    /* 🏛 v4.62 — 다른 작성자의 것은 「이전 버전」이 아니다. 🔒 덧쓴 것과 따로 쓴 것을 섞어 세지 않는다 */
+    var _same=fs2.slice(1).filter(function(x){return (x.author||'claude')===(f.author||'claude');}).length;
+    var _other=fs2.slice(1).filter(function(x){return (x.author||'claude')!==(f.author||'claude');});
+    if(_same)one+='<div class="mut" style="font-size:10px;margin-top:6px">이전 버전 '+_same+'개가 그대로 남아 있다 — 고친 것이 아니라 덧쓴 것이다</div>';
+    if(_other.length)one+='<div class="mut" style="font-size:10px;margin-top:4px">같은 기간 다른 작성자 · '
+      +_other.map(function(x){return sjAuthor(x)+' v'+x.version;}).join(' · ')
+      +' — 🔒 대토론 원본도 잠겨 있다(연말에 셋 다 채점한다)</div>';
+    /* 🏛 v4.62 — 🔴 [결함] 「event」 메모(일정 변경·known 정정·일진 오류 고지)가 **화면 어디에도 안 나왔다.**
+       앱은 「개입」 메모만 그렸다. 그래서 「9~10월 일진이 틀렸다」는 고지도, 「10/16·10/23 항목은
+       평가 제외」라는 정정도 예측을 읽는 자리에서는 안 보였다 — 숨기면 거짓말이다.
+       🔒 예측문 **바로 밑**에 둔다. 예측을 다 읽고 나서 정정을 보면 이미 「맞았다」로 읽힌 뒤다.
+       🔒 「평가 제외」가 예측문의 **어느 줄**인지는 앱이 짐작하지 않는다 — 한 메모에 날짜가 여럿 나온다
+          (10/15 메모: 10/16 은 제외, 10/20 은 평가 대상). 메모 단위로 배지를 단다(사주방 핸드오프 §6③). */
+    var _ev=(SJ.notes||[]).filter(function(n){return n.forecast_id===f.id&&n.kind==='event';})
+      .slice().sort(function(a,b){return String(a.note_date)<String(b.note_date)?-1:1;});
+    if(_ev.length)one+='<div class="sjev"><div class="gllab" style="padding:0 0 4px">📌 정정·고지 '+_ev.length+'건</div>'
+      +_ev.map(function(n){ var b=String(n.body||'');
+        var tag=/평가\s*(대상에서\s*)?제외|무효\s*처리/.test(b)?'평가 제외 · 일정 변경'
+          :/일진\s*오류/.test(b)?'일진 오류':/known\s*정정|일정\s*변경/.test(b)?'일정 변경':'';
+        return '<div class="sjevr"><b>'+String(n.note_date||'').slice(5)+'</b>'
+          +(tag?'<span class="sjexcl">'+tag+'</span>':'')+' '+mdEsc(b)+'</div>';}).join('')+'</div>';
   }
 
   /* ── 2단 📌 실제 기록 (파생) ── */
@@ -10147,6 +10262,228 @@ function agRateSave(){
     logAct('⭐ 아고라 방 평가 · '+ym+' '+agPhName(ph)+' '+t);save();agLoad();})
    .catch(function(e){alert('저장 실패: '+((e&&e.message)||e));});
 }
+/* ══════ 🏛 v4.62 2027 대사주토론분석회 — 사주방 핸드오프 saju-summit-2027 v2 ══════
+   11/1 하루: 로버트·수연이 같은 자료로 각자 2027 예측(R1) → 블라인드 공개 → 반론(R2) → 수정(R3)
+   → 로버트 최종안 + 수연 서명(R4) → **로한 결재** → 잠금. 라운드는 R3 에서 끝난다(무한 토론 금지).
+   🔒 앱은 **읽기와 로한 몫만** 한다(대회 열기 · 2027 known 입력 · 자료팩 동결 · 결석 처리 · 쟁점 선택 · 결재).
+      제출은 AI 방이 RPC(summit_submit…)로 한다. 앱에서 대신 쓰지 않는다.
+   🔒 읽기는 summit_read(member='rohan') 로만 — 블라인드는 서버가 지킨다. R1 이 열리기 전엔
+      로한도 둘 다 못 본다(한쪽에 힌트를 주는 일을 막는다, §4-2). */
+var SM_YEAR=2027;
+var SM_AREAS=['총운','재물','건강','시험·학업','일·사업','관계','가족·집안','이동·주거'];
+var SM_WHO={claude:'🤖 로버트',suyeon:'💬 수연'};
+var SM={data:null,err:'',loading:false,dry:false,pick:{},busy:false};
+function sjTab(){var t=DB.ui&&DB.ui.sajuTab;return t==='summit'?'summit':'main';}
+function sjSetTab(t){DB.ui=DB.ui||{};DB.ui.sajuTab=t;save();renderSaju();}
+function smLoad(){
+  if(!USER||!SB||!SB.rpc){SM.err='로그인해야 대토론을 볼 수 있다';return renderSaju();}
+  SM.loading=true; SM.err='';
+  agTimed(SB.rpc('summit_read',{p_year:SM_YEAR,p_member:'rohan',p_dry:SM.dry}),'대토론(summit_read)')
+    .then(function(r){
+      SM.loading=false;
+      if(r.error){
+        /* 🔒 대회가 없는 것과 고장난 것을 구분한다 — 없으면 「열기」 단추를 준다 */
+        if(/대회가 없다/.test(r.error.message||'')){SM.data='none';}
+        else{SM.err=r.error.message||String(r.error);}
+      }else SM.data=r.data;
+      if(sjTab()==='summit')renderSaju();
+    })
+    .catch(function(e){SM.loading=false;SM.err=(e&&e.message)||String(e);if(sjTab()==='summit')renderSaju();});
+}
+function smCall(fn,args,ok){
+  if(SM.busy)return; SM.busy=true;
+  agTimed(SB.rpc(fn,args),fn).then(function(r){
+    SM.busy=false;
+    if(r.error){alert('⚠ '+(r.error.message||r.error));return;}
+    if(ok)ok(r.data); smLoad();
+  }).catch(function(e){SM.busy=false;alert('⚠ '+((e&&e.message)||e));});
+}
+function smOpen(){smCall('summit_open',{p_year:SM_YEAR,p_dry:SM.dry});}
+function smDry(v){SM.dry=!!v;SM.data=null;SM.pick={};smLoad();renderSaju();}
+/* 2027 known — 🔒 이미 아는 일정은 적중으로 세지 않는다(기존 규칙). 그래서 결재 전에 적어 둔다 */
+function smKnownSave(freeze){
+  var el=document.getElementById('smKnown'); if(!el)return;
+  var d=Object.assign({},(SM.data&&SM.data.dossier)||{}); d.known=el.value.trim();
+  if(freeze&&!confirm('자료팩을 동결하고 R1 을 연다.\n\n동결하면 자료팩을 다시 못 고친다 — 한쪽만 새 자료를 보는 일을 막기 위해서다.\n그대로 진행할까?'))return;
+  smCall('summit_dossier',{p_year:SM_YEAR,p_dossier:d,p_freeze:!!freeze,p_dry:SM.dry});
+}
+function smAdvance(){
+  if(!confirm('이번 라운드를 닫고 다음으로 넘긴다.\n\n안 낸 쪽은 「결석·미응답」으로 남는다 — 🔒 「반론 없음 = 동의」로 치지 않는다.\n그대로 진행할까?'))return;
+  smCall('summit_advance',{p_year:SM_YEAR,p_dry:SM.dry});
+}
+function smChoose(area,who){SM.pick[area]=who;renderSaju();}
+function smApprove(){
+  var D=SM.data, fin=smFinal(D); if(!fin)return;
+  if(!confirm((SM.dry?'[드라이런] ':'')+'최종안을 결재하고 잠근다.\n\n결재는 되돌릴 수 없다. 잠긴 예측은 연말에 반증 조건 그대로만 판정된다.\n그대로 진행할까?'))return;
+  smCall('summit_approve',{p_year:SM_YEAR,p_choices:SM.pick,p_dry:SM.dry},function(){SM.pick={};});
+}
+function smFinal(D){var f=(D&&D.finals)||[];return f.length?f[f.length-1]:null;}
+/* 한 사람의 그 영역 — R1 원본 + R3 수정 반영. 🔒 철회한 건 지우지 않고 줄을 긋는다 */
+function smCell(D,who,area){
+  var r1=(D.rounds[0]||{})[who]||{}, r3=(D.rounds[2]||{})[who]||{};
+  if(!r1.submitted)return {state:r1.absent?'absent':'wait'};
+  if(r1.sealed)return {state:'sealed'};
+  var it=(((r1.structured||{}).areas)||[]).filter(function(x){return x&&x.area===area;})[0];
+  if(!it)return {state:'none'};
+  var rv=(((r3.structured||{}).revisions)||[]).filter(function(x){return x&&x.area===area;})[0];
+  var out={state:'ok',claim:it.claim,falsify:it.falsify,confidence:it.confidence||''};
+  if(rv&&rv.action==='수정'){out.claim=rv.claim;out.falsify=rv.falsify;out.rev='수정';}
+  if(rv&&rv.action==='철회')out.rev='철회';
+  if(rv&&rv.action==='유지')out.rev='유지';
+  return out;
+}
+/* 합의·쟁점 판정 — 🔒 **짐작하지 않는다.** 최종안이 있으면 최종안을, 없으면 R2 의 동의·반대만 본다 */
+function smAgree(D,area){
+  var fin=smFinal(D);
+  if(fin){
+    var st=fin.structured||{};
+    if((st.disputes||[]).some(function(x){return x.area===area;}))return 'dispute';
+    if((st.agreed||[]).some(function(x){return x.area===area;}))return 'agree';
+  }
+  var a=smCell(D,'claude',area), b=smCell(D,'suyeon',area);
+  if(a.state==='ok'&&b.state!=='ok'||b.state==='ok'&&a.state!=='ok')return 'one';
+  var r2=D.rounds[1]||{};
+  if(!r2.open)return '';
+  var st2=[];
+  ['claude','suyeon'].forEach(function(w){
+    (((r2[w]||{}).structured||{}).responses||[]).forEach(function(x){if(x&&x.area===area)st2.push(x.stance);});
+  });
+  if(!st2.length)return '';
+  return st2.every(function(x){return x==='동의';})?'agree':'dispute';
+}
+var SM_AG={agree:['🟢 합의','smag'],dispute:['🟠 쟁점','smdis'],one:['⚪ 한쪽만','smone']};
+function smCellHtml(c){
+  if(c.state==='sealed')return '<div class="smseal">🔒 작성 완료 · 내용 비공개</div>';
+  if(c.state==='wait')return '<div class="mut" style="font-size:11px">작성 중</div>';
+  if(c.state==='absent')return '<div class="smabs">결석</div>';
+  if(c.state==='none')return '<div class="mut" style="font-size:11px">이 영역은 안 다뤘다</div>';
+  return '<div class="smclaim'+(c.rev==='철회'?' gone':'')+'">'+mdEsc(c.claim||'')
+     +(c.confidence?' <span class="pill">확신 '+mdEsc(c.confidence)+'</span>':'')
+     +(c.rev&&c.rev!=='유지'?' <span class="pill '+(c.rev==='철회'?'neg':'')+'">R3 '+c.rev+'</span>':'')+'</div>'
+   +'<div class="smfal">반증 — '+mdEsc(c.falsify||'')+'</div>';
+}
+function smThread(D,area){
+  var out=[];
+  [[1,'responses','R2 반론',function(x){return x.stance+' — '+x.reason;}],
+   [2,'revisions','R3 수정',function(x){return x.action+(x.claim?' — '+x.claim:'');}]].forEach(function(t){
+    var rd=D.rounds[t[0]]||{};
+    ['claude','suyeon'].forEach(function(w){
+      var c=rd[w]||{};
+      if(c.sealed){out.push('<div class="smth">'+SM_WHO[w]+' · '+t[2]+' — 🔒 비공개</div>');return;}
+      (((c.structured||{})[t[1]])||[]).filter(function(x){return x&&x.area===area;}).forEach(function(x){
+        out.push('<div class="smth">'+SM_WHO[w]+' · '+t[2]+' — '+mdEsc(t[3](x))+'</div>');});
+    });
+  });
+  return out.join('');
+}
+function smMonths(D){
+  var gz=((D.ganji||{}).months)||[];
+  function row(who){
+    var r1=(D.rounds[0]||{})[who]||{};
+    if(!r1.submitted||r1.sealed)return '<div class="smmrow"><span class="smmwho">'+SM_WHO[who]+'</span>'
+      +'<span class="mut" style="font-size:10.5px">'+(r1.sealed?'🔒 비공개':r1.absent?'결석':'작성 중')+'</span></div>';
+    var ms=((r1.structured||{}).months)||[];
+    return '<div class="smmrow"><span class="smmwho">'+SM_WHO[who]+'</span>'+gz.map(function(g){
+      var m=ms.filter(function(x){return +x.n===g.n;})[0]||{};
+      var oth=((((D.rounds[0]||{})[who==='claude'?'suyeon':'claude']||{}).structured||{}).months||[])
+        .filter(function(x){return +x.n===g.n;})[0];
+      var diff=oth&&m.level&&oth.level!==m.level;
+      return '<span class="smm '+({'기회':'op','주의':'ca','보통':'no'}[m.level]||'')+(diff?' diff':'')+'" title="'
+        +mdEsc(g.ganji+' '+(m.line||''))+'">'+(m.level||'—')+'</span>';}).join('')+'</div>';
+  }
+  if(!gz.length)return '';
+  return '<div class="smmhead"><span class="smmwho"></span>'+gz.map(function(g){
+      return '<span class="smm hd">'+mdEsc(g.ganji)+'</span>';}).join('')+'</div>'
+    +row('claude')+row('suyeon')
+    +'<div class="mut" style="font-size:10px;margin-top:4px">월건은 서버 함수(saju_month_ganji)로 계산한다 — 손계산 금지. '
+    +'⚠️ 절입 날짜 경계는 아직 계산하지 않는다(절기 시각 소스 미정). 테두리 = 둘의 판단이 다른 달</div>';
+}
+function smStepper(D){
+  var ph=D.summit.phase, ord=['r0','r1','r2','r3','r4','done'], i=ord.indexOf(ph);
+  var lab=['R0 자료팩','R1 독립분석','R2 교차반론','R3 수정안','R4 최종안','결재'];
+  return '<div class="smstep">'+lab.map(function(l,k){
+    return '<span class="'+(k<i?'done':k===i?'now':'')+'">'+(k<i?'✓ ':k===i?'● ':'○ ')+l+'</span>';}).join('<i>─</i>')+'</div>';
+}
+function smStatus(D){
+  var ph=D.summit.phase;
+  if(ph==='r0')return '자료팩을 모으는 중이다. 2027 known 을 적고 동결하면 R1 이 열린다.';
+  if(ph==='done')return '✅ 결재됨 '+String(D.summit.approved_at||'').slice(0,16).replace('T',' ')+(D.summit.dry?' · 드라이런(예측표에 안 들어갔다)':' · 2027 공식 예측으로 잠겼다');
+  if(ph==='r4'){
+    var fin=smFinal(D);
+    if(!fin)return '로버트가 최종안을 쓰는 중이다.';
+    return D.sign?('수연 서명: '+D.sign.decision+(D.sign.decision==='이의'?' — '+D.sign.reason:'')+' · 로한 결재 대기'):'수연 서명 대기 · (서명 전에도 결재는 할 수 있다)';
+  }
+  var n=+ph.slice(1), rd=D.rounds[n-1]||{};
+  return ['claude','suyeon'].map(function(w){var c=rd[w]||{};
+    return SM_WHO[w]+' '+(c.submitted?'제출 🔒':c.absent?'결석':'대기');}).join(' · ');
+}
+function renderSummit(){
+  var head='<div class="sec"><div class="bkhd"><span class="subhd2">🏛 '+SM_YEAR+' 대사주토론분석회</span>'
+    +'<label class="mut" style="font-size:10.5px"><input type="checkbox" '+(SM.dry?'checked':'')
+    +' onchange="smDry(this.checked)"> 드라이런</label></div>';
+  if(SM.err)return head+'<div class="emrnotice emrbad">⚠ '+mdEsc(SM.err)+'</div></div>';
+  if(SM.data===null){ if(!SM.loading)smLoad(); return head+'<div class="mut">불러오는 중…</div></div>'; }
+  if(SM.data==='none')return head
+    +'<div class="mut" style="font-size:12px;line-height:1.7">'+(SM.dry?'드라이런':SM_YEAR+'년')+' 대회가 아직 안 열렸다.<br>'
+    +'열면 R0(자료팩) 단계부터 시작한다. 로버트·수연은 각자 방에서 <code>summit_pending</code> 으로 차례를 확인한다.</div>'
+    +'<div style="margin-top:10px"><button class="btn" onclick="smOpen()">🏛 대회 열기</button></div></div>';
+  var D=SM.data, ph=D.summit.phase, dos=D.dossier||{};
+  var body=smStepper(D)+'<div class="smstat">'+mdEsc(smStatus(D))+'</div>';
+  /* R0 — 로한 몫: 2027 known */
+  if(ph==='r0'){
+    body+='<div class="field" style="margin-top:10px"><label>2027 known — 이미 정해진 일정(이사·시험·가족 행사·정기 진료…). '
+      +'🔒 적중으로 세지 않는다</label><textarea id="smKnown" rows="4" style="width:100%">'+mdEsc(dos.known||'')+'</textarea></div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" onclick="smKnownSave(false)">저장</button>'
+      +'<button class="btn" onclick="smKnownSave(true)">동결하고 R1 열기</button></div>';
+  }else if(ph==='r1'||ph==='r2'||ph==='r3'){
+    body+='<div style="margin-top:8px;text-align:right"><button class="ghost sm" onclick="smAdvance()">결석 처리하고 다음 라운드로</button></div>';
+  }
+  /* 자료팩 */
+  var dkeys=Object.keys(dos);
+  body+='<details class="smdos"><summary>📦 자료팩 '+(D.summit.frozen_at?'<span class="pill">동결 '+String(D.summit.frozen_at).slice(5,16).replace('T',' ')+'</span>':'<span class="pill">수집 중</span>')
+    +' <span class="mut">'+dkeys.length+'칸 · 원국·대운·세운 '+mdEsc((D.ganji||{}).year||'')+'</span></summary>'
+    +(dkeys.length?dkeys.map(function(k){var v=dos[k];
+      return '<div class="smdk"><b>'+mdEsc(k)+'</b><div>'+mdEsc(typeof v==='string'?v:JSON.stringify(v,null,1))+'</div></div>';}).join('')
+     :'<div class="mut" style="font-size:11px">아직 비었다.</div>')+'</details>';
+  /* 비교 매트릭스 */
+  var r1open=(D.rounds[0]||{}).open;
+  body+='<div class="smmx"><div class="smmxh"><span>영역</span><span>'+SM_WHO.claude+'</span><span>'+SM_WHO.suyeon+'</span></div>'
+    +SM_AREAS.map(function(a){
+      var ag=smAgree(D,a), tag=SM_AG[ag];
+      var th=r1open?smThread(D,a):'';
+      return '<div class="smrow '+(tag?tag[1]:'')+'"><span class="smarea"><b>'+mdEsc(a)+'</b>'+(tag?'<div>'+tag[0]+'</div>':'')+'</span>'
+        +'<span>'+smCellHtml(smCell(D,'claude',a))+'</span><span>'+smCellHtml(smCell(D,'suyeon',a))+'</span>'
+        +(th?'<details class="smthd"><summary>반론·수정 보기</summary>'+th+'</details>':'')+'</div>';}).join('')
+    +'</div>';
+  if(!r1open)body+='<div class="mut" style="font-size:10.5px;margin-top:6px">🔒 둘 다 R1 을 내기 전엔 <b>로한도 내용을 못 본다</b> — 한쪽에 힌트가 가는 일을 막는다(§4-2). 글자 수·영역 수도 안 보인다.</div>';
+  body+='<div class="smmonths"><div class="gllab" style="padding:4px 0">월별 국면</div>'+smMonths(D)+'</div>';
+  /* R4 최종안 · 결재 */
+  var fin=smFinal(D);
+  if(fin){
+    var st=fin.structured||{}, dis=st.disputes||[], agreed=st.agreed||[], done=ph==='done';
+    var picked=done?(D.summit.choices||{}):SM.pick;
+    var allPicked=dis.every(function(x){return picked[x.area]==='claude'||picked[x.area]==='suyeon';});
+    body+='<div class="smfin"><div class="bkhd"><span class="subhd2">📜 최종안 (R4)</span>'
+      +'<span class="mut" style="font-size:10.5px">합의 '+agreed.length+' · 쟁점 '+dis.length+'</span></div>'
+      +'<div class="stramd" style="max-height:200px">'+mdEsc(fin.content||'')+'</div>'
+      +(agreed.length?'<div class="gltab"><div class="gllab">🟢 합의</div>'+agreed.map(function(x){
+          return '<div class="glrow"><span class="glw">'+mdEsc(x.area)+'</span><span class="glb">'+mdEsc(x.claim)+'</span>'
+            +'<span class="glk mut">반증 — '+mdEsc(x.falsify)+'</span></div>';}).join('')+'</div>':'')
+      +dis.map(function(x){
+        return '<div class="smdisp"><b>🟠 '+mdEsc(x.area)+'</b> <span class="mut" style="font-size:10.5px">🔒 하나를 골라야 결재된다 — 「둘 다」는 없다</span>'
+          +['claude','suyeon'].map(function(w){var o=x[w]||{};
+            return '<label class="smopt'+(picked[x.area]===w?' on':'')+'">'
+              +'<input type="radio" name="sm_'+mdEsc(x.area)+'" '+(picked[x.area]===w?'checked':'')+(done?' disabled':'')
+              +' onchange="smChoose('+JSON.stringify(String(x.area)).replace(/"/g,'&quot;')+',\''+w+'\')">'
+              +'<span><b>'+SM_WHO[w]+'안</b> '+mdEsc(o.claim||'')+'<br><span class="mut">반증 — '+mdEsc(o.falsify||'')+'</span></span></label>';}).join('')
+          +'</div>';}).join('')
+      +(done?'<div class="smok">✅ 결재됨'+(D.summit.dry?' · 드라이런':' · 2027 공식 예측(잠금 · prior · server)')+'</div>'
+        :(ph==='r4'?'<div style="margin-top:10px;text-align:right"><button class="btn" '+(allPicked?'':'disabled title="쟁점을 전부 골라야 한다"')
+          +' onclick="smApprove()">✍ 로한 결재</button></div>':''))
+      +'</div>';
+  }
+  return head+body+'</div>';
+}
 function renderSaju(){
   var S=DB.saju,ig=S.ilgan,N=S.natal,cd=sajuCurDaeun(),curY=new Date().getFullYear();
   function pillCard(lbl,gz){return '<div style="text-align:center"><div class="mut" style="font-size:10px">'+lbl+'</div><div style="font-size:22px;font-weight:800;margin:2px 0">'+gz[0]+'</div><div style="font-size:22px;font-weight:800">'+gz[1]+'</div><div style="font-size:9.5px;color:var(--muted);margin-top:3px">'+sipsin(ig,gz[0])+'<br>'+jiSipsin(ig,gz[1])+'</div></div>';}
@@ -10155,7 +10492,11 @@ function renderSaju(){
   /* 🔒 v4.27 — 연도별 세운 · 월별 · 특이일 **세로 목록 3열을 지웠다**.
      로한: 「예측과 검증에 월별이 있는데 내려보면 또 있다. 차라리 합쳐서 가로로.」
      같은 일(기간 고르기)을 두 UI 가 하고 있었다 → sjCascade() 하나로 합쳤다. */
-  document.getElementById('v-saju').innerHTML=''
+  /* 🏛 v4.62 — 탭. 🔒 기존 화면은 손대지 않고 첫 탭에 그대로 둔다 */
+  var tabs='<div class="logtabs"><button class="'+(sjTab()==='main'?'on':'')+'" onclick="sjSetTab(\'main\')">🔮 사주</button>'
+    +'<button class="'+(sjTab()==='summit'?'on':'')+'" onclick="sjSetTab(\'summit\')">🏛 '+SM_YEAR+' 대토론</button></div>';
+  if(sjTab()==='summit'){document.getElementById('v-saju').innerHTML=tabs+renderSummit();return;}
+  document.getElementById('v-saju').innerHTML=tabs
    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">'
    +'<div class="sec" style="flex:2;min-width:340px;margin-bottom:0"><h4>🔮 총운 <span class="mut">'+S.birth.solar+' · 일간 '+ig+'('+SAJU_OH[ig]+') · '+S.gyeok+' · 공망 '+S.gongmang.join('')+'</span>'+bub('natal','🔮 총운 · 인생 총운')+'</h4>'+wonguk
    +'<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:12px"><b>현재 대운</b> '+cd.gz+' <span class="mut">('+cd.from+'~'+(cd.from+9)+'세, 만 '+cd.age+'세) · '+sipsin(ig,cd.gz[0])+'·'+jiSipsin(ig,cd.gz[1])+'</span></div></div>'
@@ -12106,7 +12447,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.61';
+var APP_VERSION='4.62';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12120,6 +12461,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.62',date:'2026-10-22',note:'<b>🏛 사주 2027 대토론 · 🗓 일진은 서버가 계산 · 👪 EMR 나·어머니·아버지.</b> 사주방 핸드오프(saju-summit-2027) 구현 · <b>🏛 대토론 탭</b> — 로버트·수연이 R1 분석 → R2 반박 → R3 수정 → R4 최종안·서명, 로한이 결재. 🔒 <b>블라인드는 서버가 지킨다</b>(상대가 내기 전엔 summit_read 가 본문을 가린다) · 🔒 쟁점을 전부 골라야 결재된다 · 🔒 결재하면 R1 로버트 · R1 수연 · 합의안 셋이 예측표에 잠긴다(연말에 셋 다 채점) · 드라이런(dry)으로 실제 대회를 건드리지 않고 연습한다 · 🔴 <b>예측 머리가 「🔮 로버트」로 박혀 있었다</b> — 그대로면 합의안을 로버트 것이라고 거짓으로 적는다 → 작성자 칸이 말하게 했다(로버트·수연·대토론 합의안) · 같은 기간 다른 작성자를 「이전 버전」으로 세지 않는다 · 🔴 <b>정정·고지 메모(event)가 화면 어디에도 안 나왔다</b> — 「일진 오류」「평가 제외」 고지를 예측문 바로 밑에 배지와 함께 띄운다 · 🗓 <b>일진 말풍선을 열면 서버 함수 saju_ganji 로 계산한 간지를 같이 찍고</b>, 본문 간지가 다르면 ⚠️ — 9~10월 손계산 오류의 재발 방지. 앱은 간지를 따로 계산하지 않는다 · ⚠️ 절입 날짜 경계(월 바뀌는 날)는 아직 계산하지 않는다 · <b>👪 EMR 을 사람별로</b> — 로한: 「EMR도 탭으로 나, 어머니, 아버지」. health_problems.person(me·mom·dad), 기존 3건은 그대로 「나」 · 🔒 사실 묶음 첫 줄에 <b>[대상]</b> — 두 AI 가 누구 얘기인지 안다 · 🔒 어머니 문제엔 어머니 피검사만, <b>로한의 식이·진료 기록은 빼고 뺐다고 적는다</b> · 🔴 <b>기록 범위 모달이 피검사 화면의 사람(HP)을 봤다</b> — 피검사에서 엄마 탭을 켜 두면 내 문제의 지표 목록이 엄마 것이 됐다(v4.45 에서 놓친 자리) · 죽은 함수 emrWholeProblem 삭제 · t57 40건 신설 · t44 → 67건 · run.sh all 통과'},
   {v:'4.61',date:'2026-10-22',note:'<b>📝 번역을 먼저 묻는다 · 틀리면 어디서 막혔는지 진단 · 활용형 → 기본형 문항.</b> 학습방 핸드오프 v27 구현 · 학습방: 구성요소 점검 정답률(86%)이 평소 r2m(61%)보다 높은 건 <b>해설 노출이 아니라 직전 접촉</b> 때문이다. 「문장 전체로는 안 보이는데 떼서 주면 쉽다」는 <b>어휘보다 분절 문제</b>다 — 드릴이 문장을 단어로 잘라 주면 로한에게 없는 능력(어절 → 기본형 복원)을 대신해 준다 · ① 🔒 <b>번역을 맨 앞에</b> — 빈칸 → 문장 번역(가나 그대로) → <b>틀리면</b> 문장 속 단어·기본형으로 「🔍 막힌 곳 찾기」 → 보기 4개 → 정리. 번역을 맞히면 단어 진단은 열리지 않는다. 번역 문항이 없는 문장(koOpts 부족)은 문장 이해를 잴 수 없으니 진단을 그대로 다 묻는다 · ② <b>활용형 → 기본형</b>(「かざって 의 사전형은?」). 🔒 오답은 <b>틀린 활용 규칙으로 되돌린 꼴</b>이다 — って 는 う·つ·る, んで 는 む·ぶ·ぬ. 실제로 그렇게 헷갈린다 · 🔒 <b>단어은행에 있는 다른 동사는 오답에서 뺀다</b> — 문장을 가리고 묻는데 かって 는 かう·かつ 둘 다 맞는 복원이다(v4.60 はる 와 같은 함정) · 🔒 규칙이 결정적인 て·た 형만 다룬다 · 🔒 기본형 문항은 <b>단어 카운터를 건드리지 않는다</b> — 재는 것이 뜻이 아니라 꼴이다. 기록에는 <code>base:true</code> 로 따로 남긴다 · ④ <b>지표 분리</b> — 최근 드릴 줄의 「단어 x/y」를 <b>「점검(직전 접촉) x/y」</b>로 바꿨다. 빈칸 정확도와 섞지 않는다 · ③ 인앱 형광펜(선택·큰 작업)은 이번에 안 했다 · 🔴 [빈틈] 보기에서 틀려도 단어은행에 쌓이는데, 화면은 「쌓였다」고 <b>문장 단어일 때만</b> 말했다 — 테스트가 순서를 바꾸다 잡았다. 보기도 말한다 · t42 529 → <b>538건</b> · run.sh all 통과'},
   {v:'4.60',date:'2026-10-22',note:'<b>🔴 동음이의어 보기가 엉뚱한 뜻으로 나갔다 · 보기 글자에서 띄어쓰기가 사라졌다.</b> 로한: 「하루를 선택지에 <b>꽃 밖에 없었다</b>. 누가봐도 동사형인거 같은데 체크해봐라」 · 🔴 [결함] はる 는 단어은행에 둘이다(봄·붙이다). 가나로 단어를 찾을 때 <b>첫 번째(봄)를 집어</b> x76-01 의 <b>정답 뜻이 「봄」으로</b> 나갔고, 오답은 같은 품사(명사)에서 뽑혀 「꽃」이 나왔다 · 전수로 보니 <b>64문항 중 6곳</b> — x71-10 의 정답 いがい(의외)도 <b>「이외」로</b> 나가고 있었다. 나머지는 おる·とる·でんとう·あつい · 🔴 v4.50 에서 그 함수 주석에 「첫 번째를 유일한 답이라 우기지 않는다」고 써 놓고 <b>코드는 첫 번째를 돌려줬다</b>. 주석이 거짓말을 했다 · 🔒 ① 빈칸 정답 보기는 <b>슬롯의 wordId</b>로 뜻을 정한다(학습방이 이미 적어 뒀다) ② 나머지는 <b>정답과 같은 품사</b>로 좁힌다(교재 보기는 같은 품사다) ③ 그래도 여럿이면 <b>하나를 찍지 않고 합친다</b> — 「집다, 쥐다 / (사진을) 찍다」. 하나를 찍어 정답이라 하면 틀린 뜻을 가르치게 된다 · 🔒 <b>같은 소리의 다른 뜻은 오답에서 뺀다</b> — 점검은 문장을 가리고 가나만 보여주므로 「はる」만 보고 「봄」을 골라도 틀린 게 아니다 · 🔴 [결함] 스크린샷에 하나 더 — 번역 보기가 「중요한메모는벽에붙이면…」 처럼 <b>붙어 나왔다</b>. 비교용 stNorm(공백·쉼표를 지운다)을 화면에도 그대로 썼다 · 🔒 <b>비교는 stNorm, 표시는 원문</b> — 둘을 한 값으로 쓰지 않는다. 원문으로 보여줘도 채점은 그대로 맞는다 · t42 521 → <b>529건</b>(はる 재현 · 꽃 안 나옴 · 봄도 오답에 안 나옴 · とる 합침 · 띄어쓰기·쉼표 · 전수 검사에 「같은 소리의 다른 뜻이 오답에 섞였나」 추가) · run.sh all 통과'},
   {v:'4.59',date:'2026-10-22',note:'<b>🔴 학습방이 올린 전략을 앱이 못 읽고 「없다」고 했다 — 내가 스키마를 안 알린 탓이다.</b> 로한: 「학습방에서 전략을 올렸다는데 <b>반영이 안되어있다</b>」 / 「너가 하는 모든 업데이트들은 <b>다른방 로버트들이 다 이해할 수 있게 핸드오프를 남겨야한다고</b>」 · 🔴 [결함] <code>study.strategy</code> 에 <b>17개 칸</b>이 들어 있었다(headline·kpis·plan·status·bottlenecks·rules·principles·pending·unknown·exam·pass·budget·md…). 그런데 내가 읽던 건 <code>goal·pillars·log</code> 셋뿐이라 화면이 <b>「아직 전략이 없다」고 말했다 — 있는데 모양이 달랐을 뿐이다</b> · 🔴 원인은 v4.57 에서 <b>스키마 통보를 「남은 일」로 미룬 것</b>이다. 방이 여럿이면 <b>스키마가 곧 계약</b>이고, 계약을 안 적으면 양쪽이 각자 만든다 · 🔒 <b>학습방 구조를 정본으로</b> 삼고 앱이 맞췄다 — 쓰는 쪽이 정본이다 · 화면: 🎯 한 줄 결론 · 📊 지표(학습방이 적은 목표/현재값) · 🧱 병목(근거까지) · 📍 현황(진도·측정·위험도) · 🗓 계획(기간·할 일, <b>지금 구간 표시</b>) · 📏 규칙·원칙 · ❓ <b>미정과 모르는 것</b>(🔒 숨기지 않는다 — 모른다는 사실이 가장 중요한 정보다) · 📄 원문 접어두기 · 🔒 <b>학습방이 적은 값과 앱이 센 숫자를 섞지 않는다</b> — 칸을 따로 뒀다(「앱이 센 숫자」). 섞으면 누가 한 말인지 모른다 · 🔒 「비었나」 판정을 <b>한 곳</b>(stStraHas)에 뒀다 — 한 칸이라도 있으면 있다고 본다. <b>있는데 없다고 말하는 일을 다시 만들지 않는다</b> · 🗑 내가 짰던 <code>pillars/log</code> 쪽 함수 넷을 지웠다(stPillarState·stPillarLast·stVerdictHtml·ST_VERDICT) — 쓰는 데 없는 길을 남기면 다음 사람이 산 길인 줄 안다 · 📄 <b>교재 20문항 추가</b>(p74 34번 · p75 35번) — 문장 <b>380</b>개, 단어 <b>1,110</b>개. ctx 문항은 <b>64개</b>(학습방이 14개를 더 올렸다). 전수 검증 통과 · t42 515 → <b>521건</b> · run.sh all 43/43 통과'},

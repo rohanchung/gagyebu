@@ -196,6 +196,33 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('종료 → 대기 개수 없음',await p.evaluate(()=>!document.querySelector('.emrli.on .emrpend')));
  ok('종료 → 20초 확인 꺼짐',await p.evaluate(()=>!EMR.poll));
 
+
+ /* ── 👪 v4.62 사람별 — 나 · 어머니 · 아버지 ── */
+ await p.evaluate(()=>{__T.health_problems.push({id:'pm',user_id:'u1',slug:'독감',title:'어머니 독감',status:'active',summary:'',sources:null,rooms:{},person:'mom',created_at:'2026-09-19T00:00:00Z'});
+   DB.ui.emrSel='순환기';EMR.problems=null;renderEmr();});await settle();
+ ok('사람 탭 셋 (나·어머니·아버지)',await p.evaluate(()=>[...document.querySelectorAll('.emrptabs button')].map(b=>b.dataset.emrp).join()==='me,mom,dad'));
+ ok('🔒 person 없는 기존 문제는 「나」에 남는다 · 어머니 문제는 안 섞인다',await p.evaluate(()=>{const t=document.querySelector('.emrlist').textContent;return t.includes('순환기')&&!t.includes('어머니 독감');}));
+ await p.click('.emrptabs button[data-emrp="mom"]');await settle();
+ ok('어머니 탭 — 어머니 문제만 · 내 문제 선택은 놓는다',await p.evaluate(()=>{const t=document.querySelector('.emrlist').textContent;return t.includes('어머니 독감')&&!t.includes('순환기')&&!DB.ui.emrSel;}));
+ const fm=await p.evaluate(()=>emrFacts({title:'어머니 독감',person:'mom',sources:{}}));
+ ok('🔒 사실 묶음 첫 줄에 대상 — 어머니 · 이름',fm.split(String.fromCharCode(10))[0].startsWith('[대상] 어머니 — 고순임'));
+ ok('🔒 어머니 문제엔 어머니 피검사 (내 칼륨 아님)',fm.includes('혈색소')&&!fm.includes('K (Serum)'));
+ ok('🔒 로한 식이·진료는 안 보내고 뺐다고 적는다',fm.includes('로한 본인 것이라 보내지 않는다')&&!fm.includes('[식이 —')&&!fm.includes('[의료 기록 —'));
+ ok('내 문제 첫 줄은 [대상] 나',await p.evaluate(()=>emrFacts({title:'x'}).startsWith('[대상] 나')));
+ await p.evaluate(()=>emrPick('독감'));await settle();
+ await p.fill('#emrQ','열이 안 내린다');await p.click('.emrask .btn');await settle();
+ ok('어머니 질문의 facts 에 [대상] 어머니',await p.evaluate(()=>{const m=__T.health_messages.filter(x=>x.problem_id==='pm'&&x.role==='user')[0];return !!m&&m.facts.startsWith('[대상] 어머니');}));
+ /* 🔴 v4.45 때 놓친 자리 — 피검사 탭이 엄마를 보고 있으면 내 문제의 기록 범위 지표가 엄마 것으로 떴다 */
+ await p.evaluate(()=>{DB.ui.hPerson='mom';emrSetPerson('me');emrPick('순환기');emrSourcesModal();});await settle();
+ ok('🔴 기록 범위 지표는 문제의 사람 것 (피검사 탭과 무관)',await p.evaluate(()=>{const v=[...document.querySelectorAll('.es_lab')].map(x=>x.value);return v.includes('K (Serum)')&&!v.includes('혈색소');}));
+ await p.evaluate(()=>{closeModal();DB.ui.hPerson='me';emrSetPerson('dad');});await settle();
+ ok('아버지 탭 — 빈 목록 문구',await p.evaluate(()=>document.querySelector('.emrlist').textContent.includes('아버지의 문제가 아직 없다')));
+ ok('🔒 아버지 기록은 빈 표로 읽되 서랍을 만들지 않는다',await p.evaluate(()=>emrHealth('dad').metrics.length===0&&!('dad' in (DB.healthPeople||{}))));
+ await p.evaluate(()=>emrNewModal());await settle();
+ ok('신규 문제 모달에 대상 표시',await p.evaluate(()=>document.querySelector('#modal h3').textContent.includes('아버지')));
+ await p.fill('#en_title','아버지 허리');await p.fill('#en_slug','허리');await p.click('#modal .btn');await settle();
+ ok('🔒 지금 탭의 사람으로 만든다 (person=dad)',await p.evaluate(()=>(__T.health_problems.filter(x=>x.slug==='허리')[0]||{}).person==='dad'));
+ await p.evaluate(()=>emrSetPerson('me'));await settle();
  ok('EMR 조작으로 app_state 건강 기록 불변',await p.evaluate(()=>JSON.stringify(DB.health))===health0);
  for(const r of results)assert.ok(r.c,r.n);
  assert.deepEqual(errs,[]);
