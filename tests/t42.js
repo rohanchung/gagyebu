@@ -1773,8 +1773,9 @@ async function boot(st){
      추론이 돼서 엄청 쉬워진다" — 실측 빈칸 0/3 인데 구성요소 13/15 였다. */
   /* 📝 v4.61 — 첫 문항은 번역이라 문장이 보이는 게 맞다. **틀려서 열린 진단**이 문장을 가리는지 본다 */
   const first=await p.evaluate(()=>{const it=ST_DRILL.sub.list[0];
-    return {kind:it.kind,diag:(ST_DRILL.sub.diag||[]).length,wrong:it.opts.filter(o=>o!==it.ans)[0]};});
-  ok('CTX17b 첫 문항은 번역이고 진단은 아직 닫혀 있다',first.kind==='ko'&&first.diag>0,JSON.stringify(first));
+    return {kind:it.kind,words:ST_DRILL.sub.list.filter(x=>x.kind==='word').length,wrong:it.opts.filter(o=>o!==it.ans)[0]};});
+  /* 🔴 v4.63 — 로한: 「번역 맞추기가 존나 쉬워 … 무조건 구성요소 물어봐야돼」 → 구성요소는 처음부터 목록에 있다 */
+  ok('CTX17b 첫 문항은 번역이고, 구성요소는 처음부터 목록에 있다 (v4.63)',first.kind==='ko'&&first.words>0,JSON.stringify(first));
   await p.evaluate(a=>{stCtxGrade(a);stCtxNext();},first.wrong);await p.waitForTimeout(200);
   ok('CTX17c 🔍 번역을 틀리면 진단이 바로 뒤에 열린다',
      (await p.evaluate(()=>{const it=ST_DRILL.sub.list[ST_DRILL.sub.j];return !!(it&&it.diag);}))===true);
@@ -2588,8 +2589,9 @@ async function boot(st){
     stCtxGrade(ST_DRILL.sub.list[0].ans);
     const after=ST_DRILL.sub.list.map(x=>x.kind);
     ST_DRILL=null; return {before:before,after:after};});
-  ok('DIAG1 번역을 맞히면 단어 진단이 안 열린다 (v27)',
-     gate.after.indexOf('word')<0&&gate.after.indexOf('base')<0,JSON.stringify(gate));
+  /* 🔴 v4.63 — 뒤집었다. 번역은 아는 단어 한두 개로 유추가 된다 — 맞혀도 구성요소를 건너뛰지 않는다 */
+  ok('DIAG1 🔴 번역을 맞혀도 구성요소(기본형·뜻)를 묻는다 (v4.63)',
+     gate.before[0]==='ko'&&gate.after.indexOf('word')>0&&gate.after.indexOf('base')>0&&gate.after.join()===gate.before.join(),JSON.stringify(gate));
   ok('CTX29 에러 0',errs.length===0,errs.join('|'));
   await b.close();
  }
