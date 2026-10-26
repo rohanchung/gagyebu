@@ -159,11 +159,11 @@ async function boot(st){
     for(const x of bs)if(x.textContent==='수입')x.click();});
   await p.waitForTimeout(300);
   ok('F1 입금계좌가 우리 SUPER',(await p.$eval('#fAcct',e=>e.value))==='aw',await p.$eval('#fAcct',e=>e.value));
-  ok('F2 이름으로 찾는다(id 미박제)',(await p.evaluate(()=>mainInAcct().name)).indexOf('SUPER')>=0);
+  ok('F2 이름으로 찾는다(id 미박제)',(await p.evaluate(()=>mainAcct().name)).indexOf('SUPER')>=0);
   /* 계좌 이름이 바뀌면 첫 현금성으로 물러선다 */
   ok('F3 없으면 첫 현금성으로',await p.evaluate(()=>{
      const o=DB.accounts[0].name;DB.accounts[0].name='다른통장';
-     const r=mainInAcct().id;DB.accounts[0].name=o;return r==='aw';}));
+     const r=mainAcct().id;DB.accounts[0].name=o;return r==='aw';}));
   await b.close();
  }
 

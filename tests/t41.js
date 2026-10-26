@@ -173,11 +173,12 @@ const buy=(p,amt,ds)=>p.evaluate(([amt,ds])=>{
     methodChange();
     return {pk:document.getElementById('payKindField').style.display,
             wal:document.getElementById('walletBox').style.display,
-            credit:modal._credit};},m);
+            credit:modal._credit, eff:payKindCredit(cardBy(x))};},m);
   const w=await show('네이버페이(이체)');
   /* ⚠️ 후불을 누를 수 있으면 지갑 잔액이 안 줄고 카드 미결제로 잘못 쌓인다 */
   ok('H1 지갑엔 결제성격 토글이 없다',w.pk==='none',JSON.stringify(w));
-  ok('H2 지갑은 언제나 즉시',w.credit===false,JSON.stringify(w));
+  /* v4.64 — 판정은 payKindCredit 하나가 한다(저장도 같은 함수). 사람이 고른 값(_credit)은 지운다 */
+  ok('H2 지갑은 언제나 즉시',w.eff===false&&w.credit==null,JSON.stringify(w));
   ok('H3 지갑 패널은 보인다',w.wal==='block',JSON.stringify(w));
   const k=await show('K패스');
   ok('H4 일반 카드엔 토글이 뜬다',k.pk==='block',JSON.stringify(k));

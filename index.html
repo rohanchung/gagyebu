@@ -474,6 +474,22 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .stbook[data-stbook]{cursor:pointer}
 .stbook[data-stbook]:hover{border-color:var(--accent)}
 .mlchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+/* 🧾 v4.64 거래 모달 */
+.txrow{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.txrow>.field{flex:1 1 0;min-width:0}
+.txrow #methodField{flex:1.4 1 0}
+.txrow #payKindField{flex:0 0 auto}
+.txrow #payKindField .seg button{padding-left:10px;padding-right:10px}
+.txrow .txamt{flex:1.1 1 0}
+.txrow .txamt input{font-weight:700;text-align:right}
+.txdate{display:flex;gap:6px;align-items:center}
+.txdate .dchip{margin:0;flex:0 0 auto}
+.txdate input{flex:1;min-width:0}
+.txcchips .dchip.on,.txdate .dchip.on{background:#2f6feb;color:#fff;border-color:#2f6feb}
+.trpair{display:flex;gap:6px;align-items:flex-end}
+.trpair>.field{flex:1;min-width:0}
+.trswap{margin-bottom:10px;flex:0 0 auto}
+@media (max-width:520px){.txrow .txamt{flex:1 1 100%}}
 .mlchips .dchip{margin:0;font-size:10.5px;padding:3px 9px}
 .medw{display:inline-block}
 .medn{font-weight:600}
@@ -2400,13 +2416,28 @@ function lineChart(series,opt){
    🔒 9/1 기초잔액을 박은 지금, 현금성 계좌는 `opening + 거래` 로 파생할 수 있다.
      파생 가능한 것을 수기 스냅샷으로 대신하지 않는다.
    ⚠️ 투자·저축·외환은 그대로 hist 다 — 이건 거래가 아니라 **평가액**이라 파생이 불가능하다. */
-/* 수입 기본 입금계좌 — 이름으로 찾고, 없으면 현금성 첫 번째로 물러선다.
+/* 🧾 v4.64 — 🔴 [결함] **주거래 계좌를 답하는 곳이 셋**이었고 셋이 다른 답을 냈다.
+   수입 입금만 이 함수(SUPER)를 봤고, 지출 출금계좌·이체 출발은 「현금성 목록 첫 번째」,
+   이체 도착은 「전체 목록 첫 번째」를 집었다 → 셋 다 **카카오뱅크 세이프박스**였다
+   (이체 기본이 세이프박스→세이프박스). 실측: 계좌를 지정한 거래 140여 건 중 SUPER 101건.
+   로한: 「주거래통장이 기본값인데, 카카오뱅크가 뜨고 있어 종합 사고를 좀 하라고」
+   🔒 이제 주거래는 **이 함수 하나**가 답한다. 계좌에 ⭐주거래(a.main)를 켜면 그게 이기고,
+      없으면 이름(SUPER)으로, 그것도 없으면 현금성 첫 번째로 물러선다.
    ⚠️ 계좌 id 를 코드에 박지 않는다. 계좌를 지웠다 다시 만들면 id 가 바뀐다. */
-function mainInAcct(){
+function mainAcct(){
   var cs=cashAccts();
-  for(var i=0;i<cs.length;i++)if(/SUPER/i.test(cs[i].name))return cs[i];
+  for(var i=0;i<cs.length;i++)if(cs[i].main)return cs[i];
+  for(var j=0;j<cs.length;j++)if(/SUPER/i.test(cs[j].name))return cs[j];
   return cs[0]||null;
 }
+/* 🧾 v4.64 — 계정과목 성격. 🔒 키가 없으면 **이름으로 추론**한다(데이터를 옮기지 않는다).
+   체크를 바꾸면 그 값(true/false)이 이긴다. 추론과 같은 값이면 키를 지운다(빈 서랍 금지). */
+function catDebtGuess(n){return /이자/.test(String(n||''));}
+function catPostGuess(n){return String(n||'')==='교통비';}
+/* 빚 갚기 칸을 띄울 계정과목인가 — 실측: 빚에 묶인 거래 5건이 전부 「이자비용」 */
+function isDebtCat(n){var c=catByName(n);if(c&&c.isDebt!=null)return !!c.isDebt;return catDebtGuess(n);}
+/* 카드로 낼 때 후불이 기본인가 — 로한: 「교토비는 후불이 기본값」(K패스 교통만 25일 후불) */
+function isPostCat(n){var c=catByName(n);if(c&&c.postpaid!=null)return !!c.postpaid;return catPostGuess(n);}
 /* ⚠️ [설계 정정 v2.12] 예전엔 **그룹**으로 잘랐다(현금성만 파생). 그래서 노랑우산이 같이 잘렸다.
      노랑우산은 평가액이 아니라 **납입액이 쌓이는 계좌**다 — 매달 10만원 내면 그만큼 늘어야 한다.
    🔒 기준은 그룹이 아니라 **기초잔액이 있느냐**다. 로한이 기초를 넣은 계좌만 파생하고,
@@ -12449,7 +12480,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.63';
+var APP_VERSION='4.64';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12463,6 +12494,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.64',date:'2026-10-26',note:'<b>🧾 거래 추가 모달 — 계정과목에 맞게 바뀌고, 기본값은 실제로 쓰는 계좌다.</b> 로한: 「거래추가 누르면 무조건 빚갚기가 떠 · 교토비는 후불이 기본값 · 생활용품도 적요 · 즉시/후불·금액 한 줄 · 주거래통장이 기본값인데 카카오뱅크가 뜨고 있어 — 종합 사고를 좀 하라고」 · 🔴 <b>주거래를 답하는 곳이 셋이었고 셋이 다른 답을 냈다</b> — 수입 입금만 SUPER 를 찾았고, 지출 출금계좌·이체 출발은 「현금성 첫 번째」, 이체 도착은 「전체 첫 번째」 → 셋 다 <b>카카오뱅크 세이프박스</b>(이체 기본이 세이프박스→세이프박스). 실측: 계좌를 지정한 거래 중 SUPER 101건 · 🔒 이제 mainAcct 하나가 답한다(계좌 편집 ⭐주거래 > 이름 SUPER > 첫 번째) · 🔴 <b>빚 갚기가 모든 지출에 떴다</b> → 빚 관련 계정과목(이자·이자비용 — 실측 빚에 묶인 5건 전부 이자비용)만. 이미 묶인 거래를 고칠 땐 보인다 · 🕒 <b>교통비 + 카드 = 후불 기본</b>(신규만 · 수정 중엔 끼어들지 않는다 · 지갑은 언제나 즉시) — 계정과목 편집에 「빚 관련」「후불 기본」 체크. 키가 없으면 이름으로 추론해 <b>데이터를 옮기지 않았다</b> · 📝 <b>음식이 아닌 지출도 같은 자리에 적요 칸</b>(값은 memo · 같은 계정과목 최근 적요 자동완성 · 기타 안 메모는 숨긴다) · 💳 <b>결제수단 · 즉시/후불 · 금액 한 줄</b>(휴대폰에선 금액만 아래로) · 🔁 <b>이체 영역</b>: 출발=주거래, 도착=그 출발에서 사람이 가장 자주 보낸 곳(지갑 자동 충전 제외, 기록 없으면 비워 둔다), 자주 가는 경로 칩 4개, ⇄ 맞바꾸기, 이체 후 잔액 미리보기, 같은 계좌 저장 거부 · ⚡ 계정과목 칩(사용 상위 6개) · 날짜 [오늘][어제] · 금액 천 단위 콤마 · Enter 저장 · 🔴 [자체 발견] 금액을 결제수단 줄로 옮기자 <b>이체에서 금액 칸이 사라졌다</b>(스크린샷으로 잡음) — 칸을 둘 만들지 않고 하나를 자리만 옮긴다 · 🔴 지갑을 골랐다 카드로 바꾸면 즉시(false)가 박혀 남던 옛 결함도 같이 · ⚠️ 옛 교통비 45건(1/1~10/2)은 후불 표시가 없어 즉시로 계산된다 — 후불 시작일을 받아 고친다 · t58 신설 41건 · t37·t41 새 함수 기준으로 · run.sh all 통과'},
   {v:'4.63',date:'2026-10-23',note:'<b>🔴 문맥규정 드릴 — 번역을 맞혀도 구성요소를 무조건 묻는다.</b> 로한: 「번역 맞추기가 존나 쉬워 … 문장 한두개만 알아도 4지선다 뜻 보고 유추하는건 아무나 하지. 무조건 구성요소 물어봐야돼」 · v4.61(학습방 v27 #1)은 번역을 맞히면 문장 속 단어·기본형 점검을 <b>건너뛰었다</b> — 그런데 번역 4지선다는 아는 단어 한두 개로 <b>유추가 된다</b>. 유추로 맞힌 번역은 「문장 속 모르는 말이 없다」의 증거가 아니다 · 🔒 순서는 그대로: <b>번역 → 문장 속 단어(기본형·뜻) → 보기 뜻</b>. 바뀐 건 건너뛰기를 없앤 것뿐이다 · ⚠️ 그래도 덜 묻는 문장은 남는다 — 자동 생성 문장(분해 자료 없음), 분해가 한두 단어뿐인 문장 · 📄 교재 p78~93 투입(문장 380 → 450, 단어 1,110 → 1,149, 확인문제 38~40·43~46회 기록과 오답 43건) · t42 538건(CTX17b·DIAG1 을 새 규칙으로) · run.sh all 통과'},
   {v:'4.62',date:'2026-10-22',note:'<b>🏛 사주 2027 대토론 · 🗓 일진은 서버가 계산 · 👪 EMR 나·어머니·아버지.</b> 사주방 핸드오프(saju-summit-2027) 구현 · <b>🏛 대토론 탭</b> — 로버트·수연이 R1 분석 → R2 반박 → R3 수정 → R4 최종안·서명, 로한이 결재. 🔒 <b>블라인드는 서버가 지킨다</b>(상대가 내기 전엔 summit_read 가 본문을 가린다) · 🔒 쟁점을 전부 골라야 결재된다 · 🔒 결재하면 R1 로버트 · R1 수연 · 합의안 셋이 예측표에 잠긴다(연말에 셋 다 채점) · 드라이런(dry)으로 실제 대회를 건드리지 않고 연습한다 · 🔴 <b>예측 머리가 「🔮 로버트」로 박혀 있었다</b> — 그대로면 합의안을 로버트 것이라고 거짓으로 적는다 → 작성자 칸이 말하게 했다(로버트·수연·대토론 합의안) · 같은 기간 다른 작성자를 「이전 버전」으로 세지 않는다 · 🔴 <b>정정·고지 메모(event)가 화면 어디에도 안 나왔다</b> — 「일진 오류」「평가 제외」 고지를 예측문 바로 밑에 배지와 함께 띄운다 · 🗓 <b>일진 말풍선을 열면 서버 함수 saju_ganji 로 계산한 간지를 같이 찍고</b>, 본문 간지가 다르면 ⚠️ — 9~10월 손계산 오류의 재발 방지. 앱은 간지를 따로 계산하지 않는다 · ⚠️ 절입 날짜 경계(월 바뀌는 날)는 아직 계산하지 않는다 · <b>👪 EMR 을 사람별로</b> — 로한: 「EMR도 탭으로 나, 어머니, 아버지」. health_problems.person(me·mom·dad), 기존 3건은 그대로 「나」 · 🔒 사실 묶음 첫 줄에 <b>[대상]</b> — 두 AI 가 누구 얘기인지 안다 · 🔒 어머니 문제엔 어머니 피검사만, <b>로한의 식이·진료 기록은 빼고 뺐다고 적는다</b> · 🔴 <b>기록 범위 모달이 피검사 화면의 사람(HP)을 봤다</b> — 피검사에서 엄마 탭을 켜 두면 내 문제의 지표 목록이 엄마 것이 됐다(v4.45 에서 놓친 자리) · 죽은 함수 emrWholeProblem 삭제 · t57 40건 신설 · t44 → 67건 · run.sh all 통과'},
   {v:'4.61',date:'2026-10-22',note:'<b>📝 번역을 먼저 묻는다 · 틀리면 어디서 막혔는지 진단 · 활용형 → 기본형 문항.</b> 학습방 핸드오프 v27 구현 · 학습방: 구성요소 점검 정답률(86%)이 평소 r2m(61%)보다 높은 건 <b>해설 노출이 아니라 직전 접촉</b> 때문이다. 「문장 전체로는 안 보이는데 떼서 주면 쉽다」는 <b>어휘보다 분절 문제</b>다 — 드릴이 문장을 단어로 잘라 주면 로한에게 없는 능력(어절 → 기본형 복원)을 대신해 준다 · ① 🔒 <b>번역을 맨 앞에</b> — 빈칸 → 문장 번역(가나 그대로) → <b>틀리면</b> 문장 속 단어·기본형으로 「🔍 막힌 곳 찾기」 → 보기 4개 → 정리. 번역을 맞히면 단어 진단은 열리지 않는다. 번역 문항이 없는 문장(koOpts 부족)은 문장 이해를 잴 수 없으니 진단을 그대로 다 묻는다 · ② <b>활용형 → 기본형</b>(「かざって 의 사전형은?」). 🔒 오답은 <b>틀린 활용 규칙으로 되돌린 꼴</b>이다 — って 는 う·つ·る, んで 는 む·ぶ·ぬ. 실제로 그렇게 헷갈린다 · 🔒 <b>단어은행에 있는 다른 동사는 오답에서 뺀다</b> — 문장을 가리고 묻는데 かって 는 かう·かつ 둘 다 맞는 복원이다(v4.60 はる 와 같은 함정) · 🔒 규칙이 결정적인 て·た 형만 다룬다 · 🔒 기본형 문항은 <b>단어 카운터를 건드리지 않는다</b> — 재는 것이 뜻이 아니라 꼴이다. 기록에는 <code>base:true</code> 로 따로 남긴다 · ④ <b>지표 분리</b> — 최근 드릴 줄의 「단어 x/y」를 <b>「점검(직전 접촉) x/y」</b>로 바꿨다. 빈칸 정확도와 섞지 않는다 · ③ 인앱 형광펜(선택·큰 작업)은 이번에 안 했다 · 🔴 [빈틈] 보기에서 틀려도 단어은행에 쌓이는데, 화면은 「쌓였다」고 <b>문장 단어일 때만</b> 말했다 — 테스트가 순서를 바꾸다 잡았다. 보기도 말한다 · t42 529 → <b>538건</b> · run.sh all 통과'},
@@ -13627,6 +13659,10 @@ function accModal(id){
      +'<input id="ac_amt" value="'+(id?accVal(a):'')+'" placeholder="0"'+(_drv?' readonly style="background:var(--soft);color:var(--muted)"':'')+'></div>'
    +(_drv?'<div class="mut" style="font-size:11px;margin:-6px 0 10px">🔒 기초잔액이 박힌 현금성 계좌다. 이 값은 <b>거래에서 파생</b>되므로 손으로 고치지 않는다 — 고치려면 기초잔액이나 거래를 고쳐라.</div>':'')
    +'<div class="field"><label>기초잔액 <span class="mut">(현금흐름 시작점 · 현금성/외환만)</span></label><div style="display:flex;gap:6px"><input id="ac_opendate" value="'+((a.opening&&a.opening.date)||'2026-09-01')+'" style="flex:1" placeholder="2026-09-01"><input id="ac_openamt" value="'+((a.opening&&a.opening.amount!=null)?a.opening.amount:'')+'" style="flex:1" placeholder="기초 금액(비우면 미사용)"></div></div>'
+   /* 🧾 v4.64 — 거래 입력의 출금·입금·이체 출발 기본값이 이 계좌다(하나만) */
+   +'<label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:2px 0 10px;cursor:pointer">'
+     +'<input type="checkbox" id="ac_main" style="width:auto"'+((id&&mainAcct()&&mainAcct().id===a.id)?' checked':'')+'>'
+     +'<span>⭐ 주거래 계좌 — 거래 입력의 <b>출금·입금·이체 출발 기본값</b> (하나만)</span></label>'
    +'<button class="btn" onclick="saveAcc('+(id?"'"+id+"'":'null')+')">'+(id?'저장':'추가')+'</button>');
 }
 function accGroupChange(){var g=document.getElementById('ac_group').value;document.getElementById('ac_subwrap').style.display=g==='투자'?'block':'none';document.getElementById('ac_curwrap').style.display=g==='외환'?'block':'none';}
@@ -13639,6 +13675,12 @@ function saveAcc(id){
   if(id){var a=DB.accounts.filter(function(x){return x.id===id})[0];a.name=name;a.group=g;a.mode=g==='현금성'?'auto':'manual';a.subtype=g==='투자'?document.getElementById('ac_sub').value:undefined;a.currency=g==='외환'?document.getElementById('ac_cur').value:undefined;a.opening=opening;/* 🔒 파생 계좌에 hist 를 찍으면 읽히지도 않는 값이 쌓여 나중에 '왜 다르지'가 된다 */
     if(!accIsDerived(a)&&amt!==accVal(a)){a.hist=(a.hist||[]).filter(function(h){return h.date!==TODAY});a.hist.push({date:TODAY,amount:amt});}}
   else{var na={id:uid(),name:name,group:g,mode:g==='현금성'?'auto':'manual',hist:[{date:TODAY,amount:amt}],opening:opening};if(g==='투자')na.subtype=document.getElementById('ac_sub').value;if(g==='외환')na.currency=document.getElementById('ac_cur').value;DB.accounts.push(na);}
+  /* 🧾 v4.64 — ⭐주거래는 하나다. 켜면 다른 계좌에서 끈다 */
+  var _mc=document.getElementById('ac_main'), _me=id?DB.accounts.filter(function(x){return x.id===id;})[0]:DB.accounts[DB.accounts.length-1];
+  if(_mc&&_me){
+    if(_mc.checked&&g==='현금성'){DB.accounts.forEach(function(x){delete x.main;});_me.main=true;}
+    else delete _me.main;
+  }
   logAct((id?'계좌수정':'계좌추가')+' · '+name+' '+won(amt));
   save();closeModal();renderAcct();renderDash();
 }
@@ -14084,7 +14126,13 @@ function catModal(id){
    +'<div class="field"><label>계정과목(세무 매핑)</label><select id="k_acc">'+accOpts+'</select></div>'
    +'<label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:2px 0 10px;cursor:pointer">'
      +'<input type="checkbox" id="k_food" style="width:auto"'+(c.isFood?' checked':'')+'>'
-     +'<span>🍽 음식 — 거래 입력 시 <b>무엇을 먹었나</b> 칸이 뜬다</span></label></div>'
+     +'<span>🍽 음식 — 거래 입력 시 <b>무엇을 먹었나</b> 칸이 뜬다</span></label>'
+   +'<label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:2px 0 10px;cursor:pointer">'
+     +'<input type="checkbox" id="k_debt" style="width:auto"'+(isDebtCat(c.name)?' checked':'')+'>'
+     +'<span>💳 빚 관련 — 거래 입력 시 <b>빚 갚기</b> 칸이 뜬다</span></label>'
+   +'<label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:2px 0 10px;cursor:pointer">'
+     +'<input type="checkbox" id="k_post" style="width:auto"'+(isPostCat(c.name)?' checked':'')+'>'
+     +'<span>🕒 카드로 내면 <b>후불이 기본</b> (예: K패스 교통)</span></label></div>'
    +'<div id="k_incwrap" style="display:'+(c.type==='income'?'block':'none')+'">'
    +'<div class="field"><label>소득구분 <span class="mut">(종합소득세)</span></label><select id="k_inctype">'+INC_TYPES.map(function(x){return '<option'+(x===(c.incType||'사업소득')?' selected':'')+'>'+x+'</option>'}).join('')+'</select></div>'
    +'<div class="field"><label>업종·소득 코드 <span class="mut">(선택, 예: 940903)</span></label><input id="k_taxcode" value="'+(c.taxCode||'')+'" placeholder="모르면 비워두기"></div></div>'
@@ -14099,9 +14147,16 @@ function saveCat(id){
   var incType=type==='income'?document.getElementById('k_inctype').value:null;
   var taxCode=type==='income'?document.getElementById('k_taxcode').value.trim():'';
   var isFood=(type==='expense'&&document.getElementById('k_food')&&document.getElementById('k_food').checked)||undefined;
+  var _tgt;
   if(id){var c=DB.categories.filter(function(x){return x.id===id})[0];c.name=name;c.type=type;c.deductible=ded;c.taxAccount=acc;c.incType=incType;c.taxCode=taxCode;
-    if(isFood)c.isFood=true; else delete c.isFood;}
-  else DB.categories.push({id:uid(),name:name,type:type,deductible:ded,taxAccount:acc,incType:incType,taxCode:taxCode,isFood:isFood});
+    if(isFood)c.isFood=true; else delete c.isFood; _tgt=c;}
+  else{_tgt={id:uid(),name:name,type:type,deductible:ded,taxAccount:acc,incType:incType,taxCode:taxCode,isFood:isFood};DB.categories.push(_tgt);}
+  /* 🧾 v4.64 — 🔒 이름 추론과 같으면 키를 두지 않는다(빈 서랍 금지). 다를 때만 남긴다 */
+  [['k_debt','isDebt',catDebtGuess],['k_post','postpaid',catPostGuess]].forEach(function(f){
+    var el=document.getElementById(f[0]); if(!el)return;
+    var v=(type==='expense')&&!!el.checked;
+    if(v===((type==='expense')&&f[2](name)))delete _tgt[f[1]]; else _tgt[f[1]]=v;
+  });
   logAct((id?'카테고리수정':'카테고리추가')+' · '+name+' ('+(type==='income'?(incType||'수입'):(ded?'경비':'개인'))+')');
   save();closeModal();renderAcct();
 }
@@ -14133,7 +14188,10 @@ function txnModal(id){
   var cashOpts=function(sel){return cashAccts().map(function(a){return '<option value="'+a.id+'"'+(a.id===sel?' selected':'')+'>'+a.name+'</option>';}).join('');};
   var allOpts=function(sel){return DB.accounts.map(function(a){return '<option value="'+a.id+'"'+(a.id===sel?' selected':'')+'>'+a.name+(isCashAcct(a)?'':' ('+a.group+')')+'</option>';}).join('');};
   var isInc=t.type==='income',isTr=t.type==='transfer';
-  var defAcct=t.acct||(cashAccts()[0]?cashAccts()[0].id:'');
+  /* 🧾 v4.64 — 🔒 출금·입금 기본은 주거래(mainAcct) 하나가 답한다 */
+  var _main=mainAcct();
+  var defAcct=t.acct||(_main?_main.id:'');
+  var trFrom=t.from||(_main?_main.id:''), trTo=t.to||(id?'':trDestGuess(trFrom));
   /* 🔒 수정하러 들어왔는데 **기타 안에 값이 들어 있으면 펼쳐서 연다** — 접어서 안 보이면
      이미 들어간 메모·세부계정과목·수동 세무구분을 못 보고 지나친다. 새 거래는 접혀 있다. */
   var _hasItemCat=!!(t.itemCat&&t.itemCat!=='해당없음');
@@ -14150,7 +14208,9 @@ function txnModal(id){
              세부계정과목을 고른 건 **7건**(0.7%), 세무 구분을 손으로 바꾼 건 3건(0.3%) 뿐이다.
       🔒 **매번 쓰는 것이 위, 가끔 쓰는 것이 아래.** 가끔 쓰는 건 접어두되 **요약은 접힌 채로 보인다** —
          접어서 안 보이면 잘못 들어간 걸 영영 모른다. */
-   +'<div class="field"><label>계정과목</label><select id="fCat" onchange="updIncInfo();foodFieldSync();taxKindAuto()">'+catOpts+'</select></div>'
+   /* 🧾 v4.64 — 자주 쓰는 계정과목 칩(실측 상위 6개가 지출의 70%). 드롭다운은 그대로 둔다 */
+   +'<div class="field"><label>계정과목</label><div class="mlchips txcchips" id="fCatChips" style="margin:0 0 6px"></div>'
+   +'<select id="fCat" onchange="catChange()">'+catOpts+'</select></div>'
    /* ⚠️ 계정과목에서 멀리 떨어뜨리면 왜 떴는지가 안 읽힌다 — 바로 아래에 붙인다 */
    +'<div class="field" id="foodField" style="display:none"><label id="foodLabel">🍽 무엇을 먹었나</label>'
      +'<input id="fFood" list="foodList" value="'+sajuEsc(t.food||'')+'" placeholder="예: 교촌 허니콤보" autocomplete="off">'
@@ -14160,12 +14220,31 @@ function txnModal(id){
        +MEAL_SLOTS.map(function(sl){return '<span class="dchip'+(t.slot===sl.k?' on':'')+'" data-slot="'+sl.k+'">'+sl.ico+' '+sl.label+'</span>';}).join('')
      +'</div>'
      +'<div class="mut" style="font-size:10.5px;margin-top:4px">끼니를 고르면 <b>데일리 식사 기록</b>에 같이 들어간다. 식재료·장보기면 해당없음.</div></div>'
+   /* 🧾 v4.64 — 로한: 「생활용품이나 이런 적요 써야하는 계정과목도 그걸로 대체하면 되잖아」
+      실측: 메모를 쓴 건 비즈니스·생활용품·의료·기타·취미 순 — 전부 접힌 「기타」를 열어 쓴 것이다.
+      🔒 음식이 아닌 지출은 **같은 자리**에 적요 칸을 띄운다. 값은 메모(memo)다 — 새 칸을 만들지 않는다.
+      🔒 이 칸이 뜨면 「기타」 안 메모는 숨긴다 — 같은 것을 두 군데 쓰게 하지 않는다. */
+   +'<div class="field" id="noteField" style="display:none"><label id="noteLabel">📝 무엇을 샀나</label>'
+     +'<input id="fNote" list="noteList" value="'+sajuEsc(t.memo||'')+'" placeholder="예: 다이소 수납함" autocomplete="off" oninput="mxSumSync()">'
+     +'<datalist id="noteList"></datalist></div>'
    +'<div class="field" id="incomeOnly" style="display:'+(isInc?'block':'none')+'"><label>소득구분 <span class="mut">(종합소득세 연동)</span></label><div id="fIncInfo" class="autoNote" style="margin-top:0"></div></div>'
    /* ── 결제수단 · 계좌 ── */
+   /* 🧾 v4.64 — 로한: 「즉시출금, 후불 카드값이랑 금액이랑 한줄로 묶어도 되고」 → 한 줄(.txrow).
+      휴대폰 폭에서는 금액만 아래로 내린다(CSS) — 셋을 억지로 넣으면 숫자가 잘린다 */
+   +'<div class="txrow">'
    +'<div class="field" id="methodField" style="display:'+(isInc?'none':'block')+'"><label>결제수단</label><select id="fMethod" onchange="methodChange()">'+methOpts+'</select></div>'
+   +'<div class="field" id="payKindField" style="display:none"><label>언제 빠지나</label>'
+     +'<div class="seg" id="payKindSeg">'
+       +'<button onclick="setPayKind(this,0)">즉시</button>'
+       +'<button onclick="setPayKind(this,1)">후불</button>'
+     +'</div></div>'
+   +'<div class="field txamt"><label>금액</label><input id="fAmt" value="'+(t.amt?comma(t.amt):'')+'" placeholder="16,900" inputmode="numeric" oninput="amtFmt(this);instPreview();walletSync();trPreview()" onkeydown="txEnter(event)"></div>'
+   +'</div>'
    /* 💳 v4.46 — 🔒 이 거래가 어느 빚을 갚은 것인지 **여기서** 묶는다.
       안 묶으면 가계부엔 남고 빚은 그대로다 — 두 달 동안 그랬다. */
-   +'<div class="field" id="debtField" style="display:'+((isInc||isTr)?'none':'block')+'">'
+   /* 🧾 v4.64 — 🔴 빚 갚기가 **모든 지출**에 떴다. 빚 관련 계정과목(isDebtCat)일 때만 띄운다.
+      🔒 이미 빚에 묶인 거래를 고칠 때는 계정과목과 상관없이 보인다 — 숨기면 묶인 걸 모른다 */
+   +'<div class="field" id="debtField" style="display:none">'
      +'<label>💳 빚 갚기 <span class="mut">(고르면 그만큼 빚이 줄어든다)</span></label>'
      +'<select id="fDebt" onchange="debtPick()">'
        +'<option value="">해당 없음</option>'
@@ -14177,30 +14256,38 @@ function txnModal(id){
        +'<div class="hint" id="debtHint"></div></div></div>'
    +'<div class="field" id="acctField"><label id="acctLabel">'+(isInc?'입금계좌':'출금계좌')+'</label><select id="fAcct">'+cashOpts(defAcct)+'</select></div>'
    +'<div id="acctNote" class="autoNote" style="margin-top:0;display:none"></div>'
-   +'<div class="field" id="payKindField" style="display:none"><label>결제 성격 <span class="mut">이 건은 언제 통장에서 빠지나</span></label>'
-     +'<div class="seg" id="payKindSeg">'
-       +'<button onclick="setPayKind(this,0)">즉시출금</button>'
-       +'<button onclick="setPayKind(this,1)">후불(카드값)</button>'
-     +'</div></div>'
    +'</div>'
    +'<div id="transferBody" style="display:'+(isTr?'block':'none')+'">'
-   +'<div class="field"><label>출발계좌</label><select id="fFrom">'+cashOpts(t.from)+'</select></div>'
-   +'<div class="field"><label>도착계좌 <span class="mut">(저축·투자 포함)</span></label><select id="fTo">'+allOpts(t.to)+'</select></div>'
+   /* 🧾 v4.64 — 이체 영역. 🔴 출발·도착 기본이 둘 다 세이프박스였다(같은 계좌끼리 이체가 기본값).
+      🔒 출발 = 주거래 · 도착 = 그 출발에서 **사람이 가장 자주 보낸 곳**(자동 충전은 세지 않는다) ·
+         기록이 없으면 비워 두고 고르게 한다 — 엉뚱한 계좌를 미리 박는 것보다 낫다.
+      🔒 자주 가는 경로 칩 — 최근 90일 사람이 넣은 이체 상위 4개. 누르면 둘 다 채운다. */
+   +(id?'':'<div class="mlchips" id="trRoutes" style="margin:0 0 8px">'+trRouteChips()+'</div>')
+   +'<div class="trpair">'
+   +'<div class="field"><label>출발계좌</label><select id="fFrom" onchange="trFromChange()">'+cashOpts(trFrom)+'</select></div>'
+   +'<button class="ghost sm trswap" title="출발·도착 맞바꾸기" onclick="trSwap()">⇄</button>'
+   +'<div class="field"><label>도착계좌 <span class="mut">(저축·투자 포함)</span></label><select id="fTo" onchange="trPreview()">'
+     +(trTo?'':'<option value="" selected>— 골라라 —</option>')+allOpts(trTo)+'</select></div>'
+   +'</div>'
+   +'<div id="trAmtSlot"></div>'
+   +'<div id="trPrev" class="autoNote" style="display:none;margin-top:0"></div>'
    +'</div>'
    /* ── 금액 · 날짜 — 여기까지가 "끝"이다 ── */
-   +'<div class="field"><label>금액</label><input id="fAmt" value="'+(t.amt||'')+'" placeholder="16900" inputmode="numeric" oninput="instPreview();walletSync()"></div>'
    +'<div id="walletBox" class="autoNote" style="display:none;margin:-4px 0 10px"></div>'
    +'<div class="field" id="instField" style="display:none"><label>결제 방식</label><div class="seg" id="instSeg">'
      +[1,2,3,6,12,24].map(function(n){return '<button class="'+((parseInt(t.inst||1,10)===n)?'on':'')+'" onclick="setInst(this,'+n+')">'+(n===1?'일시불':n+'개월')+'</button>';}).join('')
      +'</div><div class="hint" id="instHint"></div></div>'
-   +'<div class="field"><label>날짜</label><input id="fDate" value="'+t.date+'" onchange="instPreview()"></div>'
+   /* 🧾 v4.64 — 날짜 칩 [오늘][어제] + 칸. 칸은 그대로 손으로 고칠 수 있다 */
+   +'<div class="field"><label>날짜</label><div class="txdate">'
+     +'<span class="dchip" data-dd="0" onclick="txDay(0)">오늘</span><span class="dchip" data-dd="-1" onclick="txDay(-1)">어제</span>'
+     +'<input id="fDate" value="'+t.date+'" onchange="txDayPaint();instPreview();debtPick();trPreview()" onkeydown="txEnter(event)"></div></div>'
    /* ── 아래부터는 **가끔 쓰는 것** — 접어두되 요약은 접힌 채로 보인다 ── */
    +'<details class="mx" id="mxBox"'+(_openMx?' open':'')+' ontoggle="mxSumSync()">'
      +'<summary><span class="mxs"><span>기타</span><span class="mut" id="mxSum"></span></span></summary>'
      +'<div class="mxin">'
      +taxTxnField(t)
      +rwCardField(t)
-     +'<div class="field"><label>메모</label><textarea id="fMemo" rows="2" oninput="mxSumSync()">'+(t.memo||'')+'</textarea></div>'
+     +'<div class="field" id="memoField"><label>메모</label><textarea id="fMemo" rows="2" oninput="mxSumSync()">'+(t.memo||'')+'</textarea></div>'
      +'<label id="assetChk" style="display:'+(isInc||isTr?'none':'flex')+';align-items:center;gap:8px;font-size:12px;margin:4px 0 8px">'
        +'<input type="checkbox" id="fAsset" style="width:auto" onchange="itemCatSync()"'+(_regAsset?' checked':'')+'> 재물관리표에도 등록 (내구재 감가상각·식재료 제외)</label>'
      /* 🔒 세부계정과목은 **재물관리 카테고리**다 — 재물로 등록할 때만 쓸모가 있다.
@@ -14224,7 +14311,118 @@ function txnModal(id){
   modal._instDone=parseInt(t.instDone||0,10);
   modal._credit=(t.credit==null)?null:!!t.credit;
   modal._id=id||null; modal._wallet=null; modal._topup=0;
-  updIncInfo();methodChange();
+  modal._debtHas=!!t.debtId;
+  catChipsPaint(); noteSync(); debtSync(); txDayPaint(); amtPlace();
+  updIncInfo();methodChange();trPreview();
+}
+/* 🔴 금액 칸은 지출 줄(.txrow) 안에 있다 — 이체에선 그 영역이 통째로 숨어 **금액 칸이 사라졌다**(스크린샷으로 잡음).
+   🔒 칸을 둘 만들지 않는다(id 가 둘이면 어느 값을 읽을지 모른다) — 하나를 자리만 옮긴다. 값은 그대로 따라간다. */
+function amtPlace(){
+  var f=(document.getElementById('fAmt')||{}).parentNode, row=document.querySelector('#txnBody .txrow'), slot=document.getElementById('trAmtSlot');
+  if(!f||!row||!slot)return;
+  if(modal._type==='transfer'){if(f.parentNode!==slot)slot.appendChild(f);}
+  else if(f.parentNode!==row)row.appendChild(f);
+}
+/* ══════ 🧾 v4.64 거래 모달 도우미 ══════ */
+/* 계정과목 칩 — 지금 유형의 사용 상위 6개. 🔒 숫자는 그때그때 센다(저장하지 않는다) */
+function catChipsPaint(){
+  var w=document.getElementById('fCatChips'), sel=document.getElementById('fCat'); if(!w||!sel)return;
+  var u=usageBy('cat'), ty=modal._type;
+  var top=DB.categories.filter(function(c){return c.type===ty&&(u[c.name]||0)>0;})
+    .sort(function(a,b){return (u[b.name]||0)-(u[a.name]||0);}).slice(0,6);
+  w.style.display=top.length?'flex':'none';
+  w.innerHTML=top.map(function(c){return '<span class="dchip'+(c.name===sel.value?' on':'')+'" data-cat="'+sajuEsc(c.name)+'" onclick="catPick(this.dataset.cat)">'+sajuEsc(c.name)+'</span>';}).join('');
+}
+function catPick(n){var sel=document.getElementById('fCat'); if(!sel||!selOpt(sel,n))return; catChange();}
+function catChange(){updIncInfo();foodFieldSync();noteSync();debtSync();taxKindAuto();catChipsPaint();methodChange();}
+/* 적요 칸 — 음식이 아닌 **지출**이면 뜬다. 값은 memo 하나다(두 칸을 오가며 옮긴다) */
+function noteOn(){var cat=(document.getElementById('fCat')||{}).value;return modal._type==='expense'&&!isFoodCat(cat);}
+function noteSync(){
+  var f=document.getElementById('noteField'), mf=document.getElementById('memoField');
+  var n=document.getElementById('fNote'), m=document.getElementById('fMemo'); if(!f||!n||!m)return;
+  var on=noteOn(), was=f.style.display!=='none';
+  /* 보이던 쪽 값을 새로 보일 쪽으로 옮긴다 — 같은 memo 를 두 칸이 나눠 들고 있다 */
+  if(on&&!was)n.value=m.value;
+  if(!on&&was)m.value=n.value;
+  f.style.display=on?'block':'none';
+  if(mf)mf.style.display=on?'none':'block';
+  if(on){
+    var cat=(document.getElementById('fCat')||{}).value;
+    var lb=document.getElementById('noteLabel'); if(lb)lb.innerHTML='📝 <b>'+sajuEsc(cat)+'</b> — 무엇을 샀나';
+    var dl=document.getElementById('noteList');
+    if(dl)dl.innerHTML=recentNotes(cat,30).map(function(x){return '<option value="'+sajuEsc(x)+'">';}).join('');
+  }
+  mxSumSync();
+}
+/* 같은 계정과목의 최근 적요(중복 없이, 최신 순) */
+function recentNotes(cat,n){
+  var seen={},out=[];
+  DB.transactions.filter(function(t){return t.cat===cat&&t.memo&&String(t.memo).trim();})
+    .sort(function(a,b){return String(b.date)<String(a.date)?-1:1;})
+    .forEach(function(t){var k=String(t.memo).trim();if(!seen[k]&&out.length<n){seen[k]=1;out.push(k);}});
+  return out;
+}
+function memoValue(){return noteOn()?((document.getElementById('fNote')||{}).value||''):((document.getElementById('fMemo')||{}).value||'');}
+function debtSync(){
+  var f=document.getElementById('debtField'); if(!f)return;
+  var cat=(document.getElementById('fCat')||{}).value;
+  var on=modal._type==='expense'&&(isDebtCat(cat)||modal._debtHas);
+  f.style.display=on?'block':'none';
+  if(!on){var d=document.getElementById('fDebt'); if(d&&d.value){d.value='';debtPick();}}
+}
+/* 금액 — 천 단위 콤마. 저장·계산은 숫자만 읽는다(replace(/[^0-9.]/g,'')) */
+function amtFmt(el){
+  var raw=String(el.value||'').replace(/[^0-9]/g,'');
+  var pos=el.value.length-(el.selectionStart==null?el.value.length:el.selectionStart);
+  el.value=raw?comma(+raw):'';
+  try{var p=Math.max(0,el.value.length-pos);el.setSelectionRange(p,p);}catch(e){}
+}
+function txEnter(e){if(e&&e.key==='Enter'&&!e.isComposing){e.preventDefault();var b=document.getElementById('txnSave');if(b)b.click();}}
+function txDay(off){var el=document.getElementById('fDate');if(!el)return;el.value=addDays(todayStr(),off);txDayPaint();instPreview();debtPick();trPreview();}
+function txDayPaint(){
+  var v=(document.getElementById('fDate')||{}).value;
+  [].forEach.call(document.querySelectorAll('.txdate .dchip'),function(c){c.classList.toggle('on',v===addDays(todayStr(),+c.dataset.dd));});
+}
+/* 이체 — 사람이 넣은 이체만 센다(linkId = 지갑 자동 충전) */
+function trManual(days){
+  var since=days?addDays(todayStr(),-days):'';
+  return DB.transactions.filter(function(t){return t.type==='transfer'&&!t.linkId&&t.from&&t.to&&(!since||String(t.date)>=since);});
+}
+function trDestGuess(from){
+  if(!from)return '';
+  var n={};trManual(0).forEach(function(t){if(t.from===from&&t.to!==from)n[t.to]=(n[t.to]||0)+1;});
+  var best='',bn=0;Object.keys(n).forEach(function(k){if(n[k]>bn&&acctById(k)){bn=n[k];best=k;}});
+  return best;
+}
+function trRouteChips(){
+  var n={};trManual(90).forEach(function(t){var k=t.from+'>'+t.to;n[k]=(n[k]||0)+1;});
+  return Object.keys(n).filter(function(k){var p=k.split('>');return p[0]!==p[1]&&acctById(p[0])&&acctById(p[1]);})
+    .sort(function(a,b){return n[b]-n[a];}).slice(0,4).map(function(k){var p=k.split('>');
+      return '<span class="dchip" data-fr="'+p[0]+'" data-to="'+p[1]+'" onclick="trRoute(this.dataset.fr,this.dataset.to)">'
+        +sajuEsc(acctShort(acctById(p[0])))+' → '+sajuEsc(acctShort(acctById(p[1])))+' <span class="mut">'+n[k]+'</span></span>';}).join('');
+}
+function acctShort(a){return String((a&&a.name)||'?').replace(/통장|입출금|주거래/g,'').replace(/[s-]+$/,'').replace(/s+/g,' ').trim();}
+function trRoute(fr,to){var f=document.getElementById('fFrom');if(!f)return;
+  selOpt(f,fr);trToSet(to);trPreview();}
+function trToSet(v){var t=document.getElementById('fTo');if(!t)return;
+  if(!v||!selOpt(t,v)){var ph=t.querySelector('option[value=""]');if(!ph){ph=document.createElement('option');ph.value='';ph.textContent='— 골라라 —';t.insertBefore(ph,t.firstChild);}t.value='';}}
+function trFromChange(){var f=document.getElementById('fFrom');if(!f)return;if(!modal._editing)trToSet(trDestGuess(f.value));trPreview();}
+function trSwap(){var f=document.getElementById('fFrom'),t=document.getElementById('fTo');if(!f||!t)return;
+  var a=f.value,b=t.value,bb=acctById(b); if(!bb||!isCashAcct(bb))return alert('도착 계좌가 현금성 계좌라야 맞바꿀 수 있다');
+  selOpt(f,b);trToSet(a);trPreview();}
+/* 저장 전 두 계좌의 이체 후 잔액 */
+function trPreview(){
+  var box=document.getElementById('trPrev'); if(!box)return;
+  if(modal._type!=='transfer'){box.style.display='none';return;}
+  var fa=acctById((document.getElementById('fFrom')||{}).value), ta=acctById((document.getElementById('fTo')||{}).value);
+  var amt=parseFloat(((document.getElementById('fAmt')||{}).value||'').replace(/[^0-9.]/g,''))||0;
+  var ds=(document.getElementById('fDate')||{}).value||todayStr();
+  if(!fa||!ta){box.style.display=(fa&&!ta)?'block':'none';box.innerHTML='도착 계좌를 골라라';return;}
+  if(fa.id===ta.id){box.style.display='block';box.innerHTML='<span class="neg">출발과 도착이 같다</span>';return;}
+  var ex=modal._editing?modal._id:null, fb=acctBalAt(fa,ds,ex), tb=acctBalAt(ta,ds,ex);
+  box.style.display='block';
+  box.innerHTML=mdEsc(acctShort(fa))+' <b>'+won(fb)+'</b>'+(amt?' → <b>'+won(fb-amt)+'</b>':'')
+    +(isCashAcct(ta)?' · '+mdEsc(acctShort(ta))+' <b>'+won(tb)+'</b>'+(amt?' → <b>'+won(tb+amt)+'</b>':''):' · '+mdEsc(acctShort(ta)));
 }
 /* 🔒 세부계정과목은 재물로 등록할 때만 연다 — 안 그러면 매번 넘겨야 하는 빈 칸이 된다 */
 function itemCatSync(){
@@ -14244,7 +14442,7 @@ function mxSumSync(){
   if(as&&as.checked)bits.push('재물 등록'+(it!=='해당없음'?' · '+it:''));
   else if(it!=='해당없음')bits.push(it);
   var mm=(document.getElementById('fMemo')||{}).value||'';
-  if(stNorm(mm))bits.push('메모');
+  if(stNorm(mm)&&!noteOn())bits.push('메모');
   var rw=document.getElementById('fRwCard');
   if(rw&&rw.value)bits.push('🎁 보상');
   e.textContent=bits.join(' · ');
@@ -14328,7 +14526,9 @@ function methodChange(){var af=document.getElementById('acctField'),nt=document.
   if(walletOf(m)){
     if(nt)nt.style.display='none';
     if(pk)pk.style.display='none';
-    modal._credit=false;
+    /* 🧾 v4.64 — false 를 박으면 지갑에서 카드로 바꿔도 「즉시」가 남았다(교통비 후불 기본이 안 먹는다).
+       지갑은 payKindCredit 이 카드 종류(체크)·지갑 제외로 이미 즉시라 답한다 → 사람의 선택만 지운다 */
+    modal._credit=null;
   }
   walletSync();
   instPreview();}
@@ -14355,8 +14555,13 @@ function walletSync(){
          +'<br><span class="mut" style="font-size:10.5px">저장하면 <b>이체</b>와 <b>지출</b> 두 건으로 나뉜다</span>')
       : (amt?('<br><span class="pos">잔액으로 충분하다 — 충전 없음</span> · 결제 후 <b>'+won(after)+'</b>'):''));
 }
+/* 🧾 v4.64 — 🔒 후불 여부의 모달 기본값은 이 함수 하나가 답한다(저장도 이걸 쓴다).
+   로한이 토글을 눌렀으면 그 값 → 신규 입력이고 「후불 기본」 계정과목(교통비)이면 후불 → 카드 종류.
+   🔒 수정 중에는 계정과목 기본값이 끼어들지 않는다 — 옛 교통비(후불 표시 없음)를 열었다 닫기만 해도
+      후불로 바뀌면 그게 가장 나쁜 종류의 버그다. 선불 지갑은 methodChange 가 false 로 박는다. */
 function payKindCredit(card){
   if(modal._credit!=null)return !!modal._credit;
+  if(!modal._editing&&card&&!walletOf(card.name)&&isPostCat((document.getElementById('fCat')||{}).value))return true;
   return !!(card&&card.type==='credit');
 }
 function payKindPaint(cr){
@@ -14389,13 +14594,14 @@ function setType(b,v){modal._type=v;var bs=b.parentNode.querySelectorAll('button
     document.getElementById('methodField').style.display=inc?'none':'block';
     document.getElementById('acctLabel').textContent=inc?'입금계좌':'출금계좌';
     /* v2.6 — 수입은 거의 전부 우리 SUPER 로 들어온다. 기본값만 바꾼다(수정 중이면 손대지 않는다). */
-    if(inc&&!modal._editing){var _a=document.getElementById('fAcct'), _m=mainInAcct();
+    if(inc&&!modal._editing){var _a=document.getElementById('fAcct'), _m=mainAcct();
       if(_a&&_m)selOpt(_a,_m.id);}
     updIncInfo();}
   foodFieldSync();
+  catChipsPaint(); noteSync(); debtSync(); amtPlace();
   methodChange();
   taxKindAuto();
-  itemCatSync();}
+  itemCatSync(); trPreview();}
 /* v2.6 — 로한의 사업 지출은 사실상 하나의 모양이다: 카페 + 카카오 개인사업자 체크카드.
    ⚠️ 기본값일 뿐 잠그지 않는다. 그리고 **이미 값을 골라둔 경우엔 덮지 않는다** —
       수정하러 들어온 거래를 조용히 바꿔버리면 그게 가장 나쁜 종류의 버그다. */
@@ -14441,6 +14647,7 @@ function saveTxn(id){
   if(isNaN(amt)||!date)return alert('금액과 날짜 입력');
   if(modal._type==='transfer'){
     var from=document.getElementById('fFrom').value,to=document.getElementById('fTo').value;
+    if(!from||!to)return alert('출발·도착 계좌를 골라라');
     if(from===to)return alert('출발/도착 계좌가 같습니다');
     var trec={type:'transfer',from:from,to:to,amt:amt,date:date,memo:document.getElementById('fMemo').value,cat:'이체'};
     if(id){Object.assign(DB.transactions.filter(function(x){return x.id===id})[0],trec);}else{trec.id=uid();DB.transactions.push(trec);}
@@ -14450,7 +14657,8 @@ function saveTxn(id){
   var method=modal._type==='income'?'이체':document.getElementById('fMethod').value;
   var itemCat=(document.getElementById('fItemCat')||{}).value||'해당없음';
   var cardObj=DB.cards.filter(function(c){return c.name===method;})[0];
-  var _cr=(modal._credit!=null)?!!modal._credit:(cardObj&&cardObj.type==='credit');
+  /* 🧾 v4.64 — 화면이 보여준 값과 저장 값이 같은 함수에서 나온다(계정과목 후불 기본 포함) */
+  var _cr=cardObj?payKindCredit(cardObj):false;
   var isCardPay=!!(cardObj&&_cr&&modal._type==='expense');
   var acctEl=document.getElementById('fAcct');
   var acct;
@@ -14459,9 +14667,11 @@ function saveTxn(id){
      저장하면 카드 연결계좌를 바꿔도 과거 거래가 안 따라오고, 설정 전 거래는 빈 채로 남는다. */
   else if(cardObj)acct=undefined;
   else acct=acctEl?acctEl.value:undefined; // 현금·이체
-  var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:document.getElementById('fMemo').value,card:isCardPay};
+  var rec={type:modal._type,scope:modal._scope,cat:document.getElementById('fCat').value,itemCat:itemCat,method:method,acct:acct,amt:amt,date:date,memo:memoValue(),card:isCardPay};
   /* 💳 v4.46 — 어느 빚을 갚았는지. 🔒 안 고르면 **칸을 만들지 않는다**(빈 서랍 금지) */
-  var _dSel=((document.getElementById('fDebt')||{}).value||'');
+  /* 🧾 v4.64 — 빚 갚기 칸이 숨어 있으면 묶지 않는다(계정과목을 바꿔 칸이 사라졌는데 값만 남는 일을 막는다) */
+  var _df=document.getElementById('debtField');
+  var _dSel=(_df&&_df.style.display!=='none')?((document.getElementById('fDebt')||{}).value||''):'';
   if(_dSel&&modal._type==='expense'){
     rec.debtId=_dSel;
     rec.debtPrin=Math.max(0,parseFloat(((document.getElementById('fDebtPrin')||{}).value||'').replace(/[^0-9.]/g,''))||0);
