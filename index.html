@@ -321,6 +321,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .sjevr{font-size:11px;line-height:1.55;padding:3px 0;border-top:1px dashed #f3ead0}.sjevr:first-of-type{border-top:0}
 .sjexcl{display:inline-block;font-size:10px;font-weight:800;color:#8a6d1f;background:#fff8e1;border:1px solid #f0e0b0;
   border-radius:5px;padding:0 5px;margin-left:4px}
+/* 🏛 v4.65 대토론 */
+.smchains{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.smli{margin:3px 0 6px 16px;padding:0;font-size:11.5px;line-height:1.55}
+.smm.hd small{font-weight:400;font-size:8.5px;color:var(--muted)}
+@media (max-width:640px){.smchains{grid-template-columns:1fr}}
 /* 🏛 v4.62 대토론 */
 .smstep{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:11px;margin:4px 0 6px}
 .smstep span{padding:3px 7px;border-radius:7px;background:var(--soft);color:#7a869a}
@@ -2434,6 +2439,14 @@ function mainAcct(){
    체크를 바꾸면 그 값(true/false)이 이긴다. 추론과 같은 값이면 키를 지운다(빈 서랍 금지). */
 function catDebtGuess(n){return /이자/.test(String(n||''));}
 function catPostGuess(n){return String(n||'')==='교통비';}
+/* 🧾 v4.65 — 🔴 로한: 「교통비에 무엇을 샀나는 왜 있는데?」 — v4.64 는 「음식이 아닌 지출 전부」에 적요 칸을 띄웠다.
+   교통비·구독(Claude·Youtube…)·월세·관리비·보험·연금처럼 **매번 같은 것을 내는** 계정과목엔 물을 게 없다.
+   실측(메모를 쓴 비율): 의료 31% · 비즈니스 28% · 생활용품 23% · 기타 20% · 취미 16% · 의류 13% · 선물 12% /
+   교통비 3% · 카페 1% · 구독 0%. → **품목이 매번 다른** 계정과목만 기본으로 띄운다.
+   🔒 키(noteAsk)가 없으면 이 목록으로 추론, 계정과목 편집의 체크가 이긴다(isDebt·postpaid 와 같은 방식). */
+var NOTE_CATS=['생활용품','의류&미용','선물','취미비용','의료','비즈니스','기타'];
+function catNoteGuess(n){return NOTE_CATS.indexOf(String(n||''))>=0;}
+function isNoteCat(n){var c=catByName(n);if(c&&c.noteAsk!=null)return !!c.noteAsk;return catNoteGuess(n);}
 /* 빚 갚기 칸을 띄울 계정과목인가 — 실측: 빚에 묶인 거래 5건이 전부 「이자비용」 */
 function isDebtCat(n){var c=catByName(n);if(c&&c.isDebt!=null)return !!c.isDebt;return catDebtGuess(n);}
 /* 카드로 낼 때 후불이 기본인가 — 로한: 「교토비는 후불이 기본값」(K패스 교통만 25일 후불) */
@@ -10303,7 +10316,15 @@ function agRateSave(){
    🔒 읽기는 summit_read(member='rohan') 로만 — 블라인드는 서버가 지킨다. R1 이 열리기 전엔
       로한도 둘 다 못 본다(한쪽에 힌트를 주는 일을 막는다, §4-2). */
 var SM_YEAR=2027;
-var SM_AREAS=['총운','재물','건강','시험·학업','일·사업','관계','가족·집안','이동·주거'];
+/* 🏛 v4.65 — 영역 이름은 **서버 정본**(summit_areas)이다. 🔴 앱은 「시험·학업」, 서버 검사는 없어서
+   드라이런에 「재정」이 통과했다(사주방 v3 §11-3 ④). 이제 서버가 8개 밖은 거부하고, 앱은 서버가 준 목록을 그린다.
+   아래 목록은 서버 응답이 오기 전의 대비일 뿐이다. 화면에만 가운뎃점을 붙인다. */
+var SM_AREAS=['총운','재물','건강','시험학업','일사업','관계','가족','이동주거'];
+var SM_AREA_LB={'시험학업':'시험·학업','일사업':'일·사업','가족':'가족·집안','이동주거':'이동·주거'};
+function smAreas(D){return (D&&Array.isArray(D.areas)&&D.areas.length)?D.areas:SM_AREAS;}
+function smAreaLb(a){return SM_AREA_LB[a]||a;}
+/* 결재할 수 있나 — 🔒 서버 규칙과 같다: 최신 최종안에 수연 서명이 있거나, 수연이 R1 결석 */
+function smSigned(D){return !!(D&&(D.sign||D.suyeon_absent));}
 var SM_WHO={claude:'🤖 로버트',suyeon:'💬 수연'};
 var SM={data:null,err:'',loading:false,dry:false,pick:{},busy:false};
 function sjTab(){var t=DB.ui&&DB.ui.sajuTab;return t==='summit'?'summit':'main';}
@@ -10409,6 +10430,9 @@ function smThread(D,area){
   });
   return out.join('');
 }
+/* 🏛 v4.65 — 🔴 월별 칸이 월건 순번(n: 1=寅월)이었다 → 2027년 1월(辛丑)이 없고 2028년 1월이 들어왔다(사주방 v3 §11-2 ③).
+   이제 **양력 월(m 1~12)** 이고, 칸마다 그 달을 지배하는 월건 + 절입 시각(saju_jieqi · 천문 계산 ±10분)을 같이 보인다.
+   🔒 칸마다 watch(무엇으로 판정할지)가 있고, 판정 규칙은 서버가 지금 고정해 둔 것(month_rule)을 그대로 보인다. */
 function smMonths(D){
   var gz=((D.ganji||{}).months)||[];
   function row(who){
@@ -10417,19 +10441,46 @@ function smMonths(D){
       +'<span class="mut" style="font-size:10.5px">'+(r1.sealed?'🔒 비공개':r1.absent?'결석':'작성 중')+'</span></div>';
     var ms=((r1.structured||{}).months)||[];
     return '<div class="smmrow"><span class="smmwho">'+SM_WHO[who]+'</span>'+gz.map(function(g){
-      var m=ms.filter(function(x){return +x.n===g.n;})[0]||{};
+      var m=ms.filter(function(x){return +x.m===g.m;})[0]||{};
       var oth=((((D.rounds[0]||{})[who==='claude'?'suyeon':'claude']||{}).structured||{}).months||[])
-        .filter(function(x){return +x.n===g.n;})[0];
+        .filter(function(x){return +x.m===g.m;})[0];
       var diff=oth&&m.level&&oth.level!==m.level;
       return '<span class="smm '+({'기회':'op','주의':'ca','보통':'no'}[m.level]||'')+(diff?' diff':'')+'" title="'
-        +mdEsc(g.ganji+' '+(m.line||''))+'">'+(m.level||'—')+'</span>';}).join('')+'</div>';
+        +mdEsc(g.m+'월 '+g.ganji+' · '+(m.line||'')+(m.watch?' · 판정: '+[].concat(m.watch).join('·'):''))+'">'+(m.level||'—')+'</span>';}).join('')+'</div>';
   }
   if(!gz.length)return '';
   return '<div class="smmhead"><span class="smmwho"></span>'+gz.map(function(g){
-      return '<span class="smm hd">'+mdEsc(g.ganji)+'</span>';}).join('')+'</div>'
+      return '<span class="smm hd" title="'+mdEsc((g.jieqi||'')+' '+(g.jieqi_kst||'')+' KST 부터'+(g.near_midnight?' · ⚠️ 자정 근처(±10분 오차로 날짜가 갈릴 수 있다)':''))+'">'
+        +g.m+'월<br>'+mdEsc(g.ganji)+'<br><small>'+mdEsc(g.jieqi||'')+' '+mdEsc(String(g.jieqi_kst||'').slice(0,5))+(g.near_midnight?'⚠️':'')+'</small></span>';}).join('')+'</div>'
     +row('claude')+row('suyeon')
-    +'<div class="mut" style="font-size:10px;margin-top:4px">월건은 서버 함수(saju_month_ganji)로 계산한다 — 손계산 금지. '
-    +'⚠️ 절입 날짜 경계는 아직 계산하지 않는다(절기 시각 소스 미정). 테두리 = 둘의 판단이 다른 달</div>';
+    +'<div class="mut" style="font-size:10px;margin-top:4px">양력 1~12월 · 칸마다 그 달 절입 이후의 월건(1월=전년 丑월). '
+    +'월건·절입은 서버가 계산한다(saju_months_solar · 절입 시각은 천문 계산 ±10분) — 손계산 금지. 테두리 = 둘의 판단이 다른 달'
+    +(D.month_rule?'<br>📏 <b>판정 규칙(지금 고정)</b> — '+mdEsc(D.month_rule):'')+'</div>';
+}
+/* 📝 v4.65 수연 §12-4·12-5 — R1 마다 변수 연쇄(≥5)와 저확률·고충격. 열린 뒤에만 보인다(블라인드는 서버가 지킨다) */
+function smChains(D){
+  var r1=D.rounds[0]||{};
+  var cols=['claude','suyeon'].map(function(w){
+    var st=((r1[w]||{}).structured)||{};
+    var ch=(st.chains||[]).map(function(x){return '<li>'+mdEsc(typeof x==='string'?x:(x&&x.path)||'')+'</li>';}).join('');
+    var rk=(st.risks||[]).map(function(x){return '<li><b>'+mdEsc(x.event||'')+'</b> <span class="pill">가능성 '+mdEsc(x.prob||'')+'</span>'
+      +'<span class="pill'+(x.impact==='높음'?' neg':'')+'">충격 '+mdEsc(x.impact||'')+'</span><br><span class="mut">깨지는 경로 — '+mdEsc(x.path||'')+'</span></li>';}).join('');
+    if(!ch&&!rk)return '<div><b>'+SM_WHO[w]+'</b><div class="mut" style="font-size:11px">없음(옛 형식 제출)</div></div>';
+    return '<div><b>'+SM_WHO[w]+'</b>'+(ch?'<div class="gllab">🔗 변수 연쇄</div><ol class="smli">'+ch+'</ol>':'')
+      +(rk?'<div class="gllab">⚡ 저확률·고충격</div><ul class="smli">'+rk+'</ul>':'')+'</div>';});
+  return '<details class="smdos"><summary>🔗 변수 연쇄 · ⚡ 저확률·고충격 <span class="mut">(수연 §12-4·12-5)</span></summary>'
+    +'<div class="smchains">'+cols.join('')+'</div></details>';
+}
+/* 🔍 v4.65 읽기 감사(§11-3 ⑦) — 🔒 블라인드는 신사협정이다. p_member 는 자기신고라 「누가」 읽었는지는 모른다.
+   새는 경우는 하나 — 한쪽만 냈을 때 **그쪽 이름으로** 읽으면 그 본문이 보인다. 그 상태의 읽기만 줄로 남긴다.
+   본인이 자기 것을 확인한 것일 수도 있다 — 판정하지 않고 보여만 준다(숨기면 거짓말). */
+function smReads(D){
+  var rd=D.reads||{}, lk=rd.leak_risk||[];
+  if(!rd.total)return '';
+  return '<div class="mut" style="font-size:10.5px;margin-top:8px">🔍 읽기 기록 '+rd.total+'건'
+    +(lk.length?' · <b style="color:#b42318">⚠️ 한쪽만 낸 상태에서 그 이름으로 읽은 기록 '+lk.length+'건</b> — 본인 확인일 수도 있다'
+      +'<div style="margin-top:3px">'+lk.map(function(x){return SM_WHO[x.member]+' 이름 · '+(x.via==='app'?'앱':'AI 방')+' · '+mdEsc(String(x.phase).toUpperCase())+' · '+String(x.at).slice(5,16).replace('T',' ');}).join('<br>')+'</div>'
+      :' · 블라인드가 샐 수 있는 읽기 없음')+'</div>';
 }
 function smStepper(D){
   var ph=D.summit.phase, ord=['r0','r1','r2','r3','r4','done'], i=ord.indexOf(ph);
@@ -10444,7 +10495,11 @@ function smStatus(D){
   if(ph==='r4'){
     var fin=smFinal(D);
     if(!fin)return '로버트가 최종안을 쓰는 중이다.';
-    return D.sign?('수연 서명: '+D.sign.decision+(D.sign.decision==='이의'?' — '+D.sign.reason:'')+' · 로한 결재 대기'):'수연 서명 대기 · (서명 전에도 결재는 할 수 있다)';
+    /* 🔒 v4.65 — 서명은 **최신 최종안**에 묶인다. 옛 안에 한 서명은 새 안에 이어지지 않는다(사주방 v3 §11-2 ②) */
+    if(D.sign)return '수연 서명: '+D.sign.decision+(D.sign.decision==='이의'?' — '+D.sign.reason:'')+' · 로한 결재 대기';
+    if(D.suyeon_absent)return '수연 R1 결석 — 로버트 단독안이라 서명 없이 결재된다(§7)';
+    if((D.signs||[]).length)return '⚠️ 수연 서명은 옛 최종안에 있다 — 로버트가 안을 고쳤으니 새 안에 다시 서명해야 결재된다';
+    return '수연 서명 대기 — 🔒 서명(동의·이의)이 있어야 결재된다';
   }
   var n=+ph.slice(1), rd=D.rounds[n-1]||{};
   return ['claude','suyeon'].map(function(w){var c=rd[w]||{};
@@ -10481,15 +10536,17 @@ function renderSummit(){
   /* 비교 매트릭스 */
   var r1open=(D.rounds[0]||{}).open;
   body+='<div class="smmx"><div class="smmxh"><span>영역</span><span>'+SM_WHO.claude+'</span><span>'+SM_WHO.suyeon+'</span></div>'
-    +SM_AREAS.map(function(a){
+    +smAreas(D).map(function(a){
       var ag=smAgree(D,a), tag=SM_AG[ag];
       var th=r1open?smThread(D,a):'';
-      return '<div class="smrow '+(tag?tag[1]:'')+'"><span class="smarea"><b>'+mdEsc(a)+'</b>'+(tag?'<div>'+tag[0]+'</div>':'')+'</span>'
+      return '<div class="smrow '+(tag?tag[1]:'')+'"><span class="smarea"><b>'+mdEsc(smAreaLb(a))+'</b>'+(tag?'<div>'+tag[0]+'</div>':'')+'</span>'
         +'<span>'+smCellHtml(smCell(D,'claude',a))+'</span><span>'+smCellHtml(smCell(D,'suyeon',a))+'</span>'
         +(th?'<details class="smthd"><summary>반론·수정 보기</summary>'+th+'</details>':'')+'</div>';}).join('')
     +'</div>';
   if(!r1open)body+='<div class="mut" style="font-size:10.5px;margin-top:6px">🔒 둘 다 R1 을 내기 전엔 <b>로한도 내용을 못 본다</b> — 한쪽에 힌트가 가는 일을 막는다(§4-2). 글자 수·영역 수도 안 보인다.</div>';
+  if(r1open)body+=smChains(D);
   body+='<div class="smmonths"><div class="gllab" style="padding:4px 0">월별 국면</div>'+smMonths(D)+'</div>';
+  body+=smReads(D);
   /* R4 최종안 · 결재 */
   var fin=smFinal(D);
   if(fin){
@@ -10500,10 +10557,10 @@ function renderSummit(){
       +'<span class="mut" style="font-size:10.5px">합의 '+agreed.length+' · 쟁점 '+dis.length+'</span></div>'
       +'<div class="stramd" style="max-height:200px">'+mdEsc(fin.content||'')+'</div>'
       +(agreed.length?'<div class="gltab"><div class="gllab">🟢 합의</div>'+agreed.map(function(x){
-          return '<div class="glrow"><span class="glw">'+mdEsc(x.area)+'</span><span class="glb">'+mdEsc(x.claim)+'</span>'
+          return '<div class="glrow"><span class="glw">'+mdEsc(smAreaLb(x.area))+'</span><span class="glb">'+mdEsc(x.claim)+'</span>'
             +'<span class="glk mut">반증 — '+mdEsc(x.falsify)+'</span></div>';}).join('')+'</div>':'')
       +dis.map(function(x){
-        return '<div class="smdisp"><b>🟠 '+mdEsc(x.area)+'</b> <span class="mut" style="font-size:10.5px">🔒 하나를 골라야 결재된다 — 「둘 다」는 없다</span>'
+        return '<div class="smdisp"><b>🟠 '+mdEsc(smAreaLb(x.area))+'</b> <span class="mut" style="font-size:10.5px">🔒 하나를 골라야 결재된다 — 「둘 다」는 없다</span>'
           +['claude','suyeon'].map(function(w){var o=x[w]||{};
             return '<label class="smopt'+(picked[x.area]===w?' on':'')+'">'
               +'<input type="radio" name="sm_'+mdEsc(x.area)+'" '+(picked[x.area]===w?'checked':'')+(done?' disabled':'')
@@ -10511,8 +10568,11 @@ function renderSummit(){
               +'<span><b>'+SM_WHO[w]+'안</b> '+mdEsc(o.claim||'')+'<br><span class="mut">반증 — '+mdEsc(o.falsify||'')+'</span></span></label>';}).join('')
           +'</div>';}).join('')
       +(done?'<div class="smok">✅ 결재됨'+(D.summit.dry?' · 드라이런':' · 2027 공식 예측(잠금 · prior · server)')+'</div>'
-        :(ph==='r4'?'<div style="margin-top:10px;text-align:right"><button class="btn" '+(allPicked?'':'disabled title="쟁점을 전부 골라야 한다"')
-          +' onclick="smApprove()">✍ 로한 결재</button></div>':''))
+        :(ph==='r4'?'<div style="margin-top:10px;text-align:right"><button class="btn" '
+          +(!smSigned(D)?'disabled title="수연이 최신 최종안에 서명해야 결재된다"':allPicked?'':'disabled title="쟁점을 전부 골라야 한다"')
+          +' onclick="smApprove()">✍ 로한 결재</button>'
+          +(D.sign&&D.sign.decision==='이의'?'<div class="mut" style="font-size:10.5px;margin-top:4px">⚠️ 수연 <b>이의</b> — 결재는 되지만 합의안에 이의와 사유가 같이 잠긴다</div>':'')
+          +'</div>':''))
       +'</div>';
   }
   return head+body+'</div>';
@@ -12480,7 +12540,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.64';
+var APP_VERSION='4.65';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12494,6 +12554,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.65',date:'2026-10-26',note:'<b>🏛 11/1 대토론 전 점검 반영 — 서명 없이 결재 불가 · 월별 12칸은 양력 1~12월 + 절입 시각 · 📝 적요는 품목이 매번 다른 계정과목만.</b> 사주방 v3 점검(§11) · 수연 사전점검(§12) 구현 · 🔴 <b>수연 서명 없이 결재가 됐다</b> → 최신 최종안에 대한 서명(동의·이의)이 있어야 결재된다. 수연 R1 결석일 때만 예외. 이의면 결재는 되되 합의안에 이의·사유가 같이 잠긴다 · 🔴 <b>서명이 특정 최종안에 묶이지 않았다</b> → 서명에 final_id. 로버트가 안을 고치면 새 안은 서명이 없어 결재가 안 되고 「새 안에 다시 서명」이라 보인다 · 🔴 <b>월별 12칸이 월건 순번이라 2027년 1월(辛丑)이 빠지고 2028년 1월이 들어왔다</b> → 양력 m 1~12 + 그 달을 지배하는 월건 + 절입 시각. <b>절입 시각은 천문 계산(Meeus 태양 황경)으로 2026~2030 표를 만들었다</b> — 2024·2025 입춘 실제값과 3~7분 차(±10분). 자정 근처 절입은 ⚠️ · 🟠 영역 이름 정본 8개를 서버가 강제(드라이런에 「재정」이 통과했다) — 앱도 서버 목록을 그린다 · 월별 칸마다 watch(판정 지표) 필수 + <b>판정 규칙을 지금 고정</b> · 자료팩 동결은 로한만 · 🔍 읽기 기록 — 블라인드가 샐 수 있는 상태(한쪽만 냈을 때 그 이름으로 읽기)를 기록하고 숨기지 않는다 · 📝 수연 §12 — R1 에 변수 연쇄 5개 이상·저확률고충격 필수, 화면에 표시 · 🔴 [검산에서 자체 발견] 한 트랜잭션의 두 제출이 같은 now() 로 찍혀 「최신 최종안」이 무작위였다 → 잠금 시각을 실제 시계로 · 🧾 <b>교통비에 「무엇을 샀나」가 떴다</b>(로한 지적) — v4.64 가 음식이 아닌 지출 전부에 띄웠다. 실측 메모 비율로 품목이 매번 다른 계정과목(생활용품·의류·선물·취미·의료·비즈니스·기타)만, 계정과목 편집에서 바꿀 수 있다 · 롤백 검산 21건 통과·흔적 0 · t57 → 49건 · t58 → 44건 · run.sh all 통과'},
   {v:'4.64',date:'2026-10-26',note:'<b>🧾 거래 추가 모달 — 계정과목에 맞게 바뀌고, 기본값은 실제로 쓰는 계좌다.</b> 로한: 「거래추가 누르면 무조건 빚갚기가 떠 · 교토비는 후불이 기본값 · 생활용품도 적요 · 즉시/후불·금액 한 줄 · 주거래통장이 기본값인데 카카오뱅크가 뜨고 있어 — 종합 사고를 좀 하라고」 · 🔴 <b>주거래를 답하는 곳이 셋이었고 셋이 다른 답을 냈다</b> — 수입 입금만 SUPER 를 찾았고, 지출 출금계좌·이체 출발은 「현금성 첫 번째」, 이체 도착은 「전체 첫 번째」 → 셋 다 <b>카카오뱅크 세이프박스</b>(이체 기본이 세이프박스→세이프박스). 실측: 계좌를 지정한 거래 중 SUPER 101건 · 🔒 이제 mainAcct 하나가 답한다(계좌 편집 ⭐주거래 > 이름 SUPER > 첫 번째) · 🔴 <b>빚 갚기가 모든 지출에 떴다</b> → 빚 관련 계정과목(이자·이자비용 — 실측 빚에 묶인 5건 전부 이자비용)만. 이미 묶인 거래를 고칠 땐 보인다 · 🕒 <b>교통비 + 카드 = 후불 기본</b>(신규만 · 수정 중엔 끼어들지 않는다 · 지갑은 언제나 즉시) — 계정과목 편집에 「빚 관련」「후불 기본」 체크. 키가 없으면 이름으로 추론해 <b>데이터를 옮기지 않았다</b> · 📝 <b>음식이 아닌 지출도 같은 자리에 적요 칸</b>(값은 memo · 같은 계정과목 최근 적요 자동완성 · 기타 안 메모는 숨긴다) · 💳 <b>결제수단 · 즉시/후불 · 금액 한 줄</b>(휴대폰에선 금액만 아래로) · 🔁 <b>이체 영역</b>: 출발=주거래, 도착=그 출발에서 사람이 가장 자주 보낸 곳(지갑 자동 충전 제외, 기록 없으면 비워 둔다), 자주 가는 경로 칩 4개, ⇄ 맞바꾸기, 이체 후 잔액 미리보기, 같은 계좌 저장 거부 · ⚡ 계정과목 칩(사용 상위 6개) · 날짜 [오늘][어제] · 금액 천 단위 콤마 · Enter 저장 · 🔴 [자체 발견] 금액을 결제수단 줄로 옮기자 <b>이체에서 금액 칸이 사라졌다</b>(스크린샷으로 잡음) — 칸을 둘 만들지 않고 하나를 자리만 옮긴다 · 🔴 지갑을 골랐다 카드로 바꾸면 즉시(false)가 박혀 남던 옛 결함도 같이 · ⚠️ 옛 교통비 45건(1/1~10/2)은 후불 표시가 없어 즉시로 계산된다 — 후불 시작일을 받아 고친다 · t58 신설 41건 · t37·t41 새 함수 기준으로 · run.sh all 통과'},
   {v:'4.63',date:'2026-10-23',note:'<b>🔴 문맥규정 드릴 — 번역을 맞혀도 구성요소를 무조건 묻는다.</b> 로한: 「번역 맞추기가 존나 쉬워 … 문장 한두개만 알아도 4지선다 뜻 보고 유추하는건 아무나 하지. 무조건 구성요소 물어봐야돼」 · v4.61(학습방 v27 #1)은 번역을 맞히면 문장 속 단어·기본형 점검을 <b>건너뛰었다</b> — 그런데 번역 4지선다는 아는 단어 한두 개로 <b>유추가 된다</b>. 유추로 맞힌 번역은 「문장 속 모르는 말이 없다」의 증거가 아니다 · 🔒 순서는 그대로: <b>번역 → 문장 속 단어(기본형·뜻) → 보기 뜻</b>. 바뀐 건 건너뛰기를 없앤 것뿐이다 · ⚠️ 그래도 덜 묻는 문장은 남는다 — 자동 생성 문장(분해 자료 없음), 분해가 한두 단어뿐인 문장 · 📄 교재 p78~93 투입(문장 380 → 450, 단어 1,110 → 1,149, 확인문제 38~40·43~46회 기록과 오답 43건) · t42 538건(CTX17b·DIAG1 을 새 규칙으로) · run.sh all 통과'},
   {v:'4.62',date:'2026-10-22',note:'<b>🏛 사주 2027 대토론 · 🗓 일진은 서버가 계산 · 👪 EMR 나·어머니·아버지.</b> 사주방 핸드오프(saju-summit-2027) 구현 · <b>🏛 대토론 탭</b> — 로버트·수연이 R1 분석 → R2 반박 → R3 수정 → R4 최종안·서명, 로한이 결재. 🔒 <b>블라인드는 서버가 지킨다</b>(상대가 내기 전엔 summit_read 가 본문을 가린다) · 🔒 쟁점을 전부 골라야 결재된다 · 🔒 결재하면 R1 로버트 · R1 수연 · 합의안 셋이 예측표에 잠긴다(연말에 셋 다 채점) · 드라이런(dry)으로 실제 대회를 건드리지 않고 연습한다 · 🔴 <b>예측 머리가 「🔮 로버트」로 박혀 있었다</b> — 그대로면 합의안을 로버트 것이라고 거짓으로 적는다 → 작성자 칸이 말하게 했다(로버트·수연·대토론 합의안) · 같은 기간 다른 작성자를 「이전 버전」으로 세지 않는다 · 🔴 <b>정정·고지 메모(event)가 화면 어디에도 안 나왔다</b> — 「일진 오류」「평가 제외」 고지를 예측문 바로 밑에 배지와 함께 띄운다 · 🗓 <b>일진 말풍선을 열면 서버 함수 saju_ganji 로 계산한 간지를 같이 찍고</b>, 본문 간지가 다르면 ⚠️ — 9~10월 손계산 오류의 재발 방지. 앱은 간지를 따로 계산하지 않는다 · ⚠️ 절입 날짜 경계(월 바뀌는 날)는 아직 계산하지 않는다 · <b>👪 EMR 을 사람별로</b> — 로한: 「EMR도 탭으로 나, 어머니, 아버지」. health_problems.person(me·mom·dad), 기존 3건은 그대로 「나」 · 🔒 사실 묶음 첫 줄에 <b>[대상]</b> — 두 AI 가 누구 얘기인지 안다 · 🔒 어머니 문제엔 어머니 피검사만, <b>로한의 식이·진료 기록은 빼고 뺐다고 적는다</b> · 🔴 <b>기록 범위 모달이 피검사 화면의 사람(HP)을 봤다</b> — 피검사에서 엄마 탭을 켜 두면 내 문제의 지표 목록이 엄마 것이 됐다(v4.45 에서 놓친 자리) · 죽은 함수 emrWholeProblem 삭제 · t57 40건 신설 · t44 → 67건 · run.sh all 통과'},
@@ -14132,7 +14193,10 @@ function catModal(id){
      +'<span>💳 빚 관련 — 거래 입력 시 <b>빚 갚기</b> 칸이 뜬다</span></label>'
    +'<label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:2px 0 10px;cursor:pointer">'
      +'<input type="checkbox" id="k_post" style="width:auto"'+(isPostCat(c.name)?' checked':'')+'>'
-     +'<span>🕒 카드로 내면 <b>후불이 기본</b> (예: K패스 교통)</span></label></div>'
+     +'<span>🕒 카드로 내면 <b>후불이 기본</b> (예: K패스 교통)</span></label>'
+   +'<label style="display:flex;align-items:center;gap:7px;font-size:12px;margin:2px 0 10px;cursor:pointer">'
+     +'<input type="checkbox" id="k_note" style="width:auto"'+(isNoteCat(c.name)?' checked':'')+'>'
+     +'<span>📝 품목이 매번 다르다 — 거래 입력 시 <b>무엇을 샀나</b> 칸이 뜬다</span></label></div>'
    +'<div id="k_incwrap" style="display:'+(c.type==='income'?'block':'none')+'">'
    +'<div class="field"><label>소득구분 <span class="mut">(종합소득세)</span></label><select id="k_inctype">'+INC_TYPES.map(function(x){return '<option'+(x===(c.incType||'사업소득')?' selected':'')+'>'+x+'</option>'}).join('')+'</select></div>'
    +'<div class="field"><label>업종·소득 코드 <span class="mut">(선택, 예: 940903)</span></label><input id="k_taxcode" value="'+(c.taxCode||'')+'" placeholder="모르면 비워두기"></div></div>'
@@ -14152,7 +14216,7 @@ function saveCat(id){
     if(isFood)c.isFood=true; else delete c.isFood; _tgt=c;}
   else{_tgt={id:uid(),name:name,type:type,deductible:ded,taxAccount:acc,incType:incType,taxCode:taxCode,isFood:isFood};DB.categories.push(_tgt);}
   /* 🧾 v4.64 — 🔒 이름 추론과 같으면 키를 두지 않는다(빈 서랍 금지). 다를 때만 남긴다 */
-  [['k_debt','isDebt',catDebtGuess],['k_post','postpaid',catPostGuess]].forEach(function(f){
+  [['k_debt','isDebt',catDebtGuess],['k_post','postpaid',catPostGuess],['k_note','noteAsk',catNoteGuess]].forEach(function(f){
     var el=document.getElementById(f[0]); if(!el)return;
     var v=(type==='expense')&&!!el.checked;
     if(v===((type==='expense')&&f[2](name)))delete _tgt[f[1]]; else _tgt[f[1]]=v;
@@ -14336,7 +14400,7 @@ function catChipsPaint(){
 function catPick(n){var sel=document.getElementById('fCat'); if(!sel||!selOpt(sel,n))return; catChange();}
 function catChange(){updIncInfo();foodFieldSync();noteSync();debtSync();taxKindAuto();catChipsPaint();methodChange();}
 /* 적요 칸 — 음식이 아닌 **지출**이면 뜬다. 값은 memo 하나다(두 칸을 오가며 옮긴다) */
-function noteOn(){var cat=(document.getElementById('fCat')||{}).value;return modal._type==='expense'&&!isFoodCat(cat);}
+function noteOn(){var cat=(document.getElementById('fCat')||{}).value;return modal._type==='expense'&&!isFoodCat(cat)&&isNoteCat(cat);}
 function noteSync(){
   var f=document.getElementById('noteField'), mf=document.getElementById('memoField');
   var n=document.getElementById('fNote'), m=document.getElementById('fMemo'); if(!f||!n||!m)return;

@@ -16,7 +16,8 @@ const BASE=()=>({schemaVersion:7,ui:{month:'2026-10'},
  netSnapshots:[],fixed:[],events:[],posts:[],budgets:{},debts:[],itemCats:[],
  health:{labDates:[],labTypes:[],labMeds:[],metrics:[],labValues:{},catOrder:[],wImport2026:1,weights:[],events:[]}});
 
-const GZ=['壬寅','癸卯','甲辰','乙巳','丙午','丁未','戊申','己酉','庚戌','辛亥','壬子','癸丑'].map((g,i)=>({n:i+1,branch:g[1],ganji:g}));
+/* v4.65 — 양력 m 1~12 · 1월=전년 丑월(辛丑) · 절입 시각(서버 saju_months_solar) */
+const GZ=['辛丑','壬寅','癸卯','甲辰','乙巳','丙午','丁未','戊申','己酉','庚戌','辛亥','壬子'].map((g,i)=>({m:i+1,branch:g[1],ganji:g,jieqi:['소한','입춘','경칩','청명','입하','망종','소서','입추','백로','한로','입동','대설'][i],jieqi_kst:String(i+1).padStart(2,'0')+'-05 10:00',near_midnight:i===10}));
 const AREA=(a,c,f)=>({area:a,claim:c,falsify:f,confidence:'중'});
 const read=(over)=>Object.assign({
   summit:{year:2027,dry:false,phase:'r1',frozen_at:'2026-10-31T23:59:00Z',approved_at:null,choices:null,skipped:[]},
@@ -83,10 +84,10 @@ const show=async(p,data)=>{
  /* ── D. 둘 다 내면 열린다 — 합의·쟁점은 R2 에서만 판정 ── */
  const r1={submitted:true,submitted_at:'2026-11-01T09:12:00Z',content:'x',
    structured:{areas:[AREA('재물','상반기 적자','1~6월 흑자 50만↑면 틀림'),AREA('건강','하반기 회복','10월 체중 +3kg 면 틀림')],
-               months:GZ.map(g=>({n:g.n,level:g.n===3?'주의':'보통'}))}};
+               months:GZ.map(g=>({m:g.m,level:g.m===3?'주의':'보통',watch:['월수지']}))}};
  const r1b={submitted:true,submitted_at:'2026-11-01T09:20:00Z',content:'y',
    structured:{areas:[AREA('재물','하반기 흑자','7~12월 적자면 틀림'),AREA('건강','하반기 회복','10월 체중 +3kg 면 틀림'),AREA('관계','새 인연','12월까지 기록 없으면 틀림')],
-               months:GZ.map(g=>({n:g.n,level:g.n===3?'기회':'보통'}))}};
+               months:GZ.map(g=>({m:g.m,level:g.m===3?'기회':'보통',watch:['월수지']}))}};
  const open1=await show(p,read({summit:{year:2027,dry:false,phase:'r2',frozen_at:'x',skipped:[]},
    rounds:[{round:1,open:true,claude:r1,suyeon:r1b},{round:2,open:false,claude:{submitted:false},suyeon:{submitted:false}},{round:3,open:false,claude:{submitted:false},suyeon:{submitted:false}}]}));
  ok('D1 둘 다 내면 양쪽 내용이 열린다',open1.indexOf('상반기 적자')>=0&&open1.indexOf('하반기 흑자')>=0);
@@ -97,7 +98,8 @@ const show=async(p,data)=>{
  ok('D4 한쪽만 다룬 영역은 「한쪽만」',colors0.some(c=>/smone/.test(c)));
  const md=await p.evaluate(()=>({diff:document.querySelectorAll('#v-saju .smm.diff').length,
    head:[...document.querySelectorAll('#v-saju .smmhead .smm')].map(x=>x.textContent)}));
- ok('D5 월별 12칸 머리는 서버가 준 월건이다',md.head.length===12&&md.head[0]==='壬寅'&&md.head[11]==='癸丑',JSON.stringify(md.head));
+ ok('D5 🔴 월별 12칸은 양력 1~12월 — 1월=辛丑(전년 丑월), 12월=壬子 · 절입이 같이 보인다',md.head.length===12&&/^1월辛丑소한/.test(md.head[0])&&/^12월壬子대설/.test(md.head[11]),JSON.stringify(md.head));
+ ok('D5b 자정 근처 절입은 ⚠️',md.head[10].indexOf('⚠️')>=0&&md.head[0].indexOf('⚠️')<0,md.head[10]);
  ok('D6 둘의 판단이 다른 달에 테두리 (3월 주의/기회)',md.diff===2,String(md.diff));
  /* R2 동의·반대가 들어오면 색이 붙는다 */
  await show(p,read({summit:{year:2027,dry:false,phase:'r3',frozen_at:'x',skipped:[]},
@@ -140,6 +142,30 @@ const show=async(p,data)=>{
  ok('E6 결재되면 잠겼다고 말한다',done.indexOf('결재됨')>=0&&done.indexOf('공식 예측')>=0);
  const locked=await p.evaluate(()=>[...document.querySelectorAll('#v-saju .smfin input[type=radio]')].every(x=>x.disabled));
  ok('E7 🔒 결재 뒤엔 선택을 못 바꾼다',locked===true);
+ /* ── J. v4.65 — 사주방 v3 §11 · 수연 §12 ── */
+ const pickAll=()=>p.evaluate(()=>{smChoose('재물','suyeon');smChoose('관계','claude');});
+ await show(p,Object.assign({},r4,{sign:null,signs:[]}));await pickAll();
+ const j1=await p.evaluate(()=>({dis:document.querySelector('#v-saju .smfin button.btn').disabled,t:document.querySelector('#v-saju').textContent}));
+ ok('J1 🔴 수연 서명이 없으면 쟁점을 다 골라도 결재가 꺼져 있다',j1.dis===true&&j1.t.indexOf('서명(동의·이의)이 있어야 결재된다')>=0,j1.t.slice(0,80));
+ await show(p,Object.assign({},r4,{sign:null,signs:[{decision:'동의',final_id:'old'}]}));await pickAll();
+ const j2=await p.evaluate(()=>({dis:document.querySelector('#v-saju .smfin button.btn').disabled,t:document.querySelector('#v-saju').textContent}));
+ ok('J2 🔴 옛 안에만 서명했으면 「새 안에 다시 서명」이라 말하고 꺼져 있다',j2.dis===true&&j2.t.indexOf('옛 최종안에 있다')>=0);
+ await show(p,Object.assign({},r4,{sign:null,signs:[],suyeon_absent:true}));await pickAll();
+ ok('J3 수연 R1 결석이면 서명 없이 결재된다',(await p.$eval('#v-saju .smfin button.btn',e=>e.disabled))===false);
+ await show(p,Object.assign({},r4,{sign:{decision:'이의',reason:'근거 부족',final_id:'f1'}}));await pickAll();
+ const j4=await p.evaluate(()=>({dis:document.querySelector('#v-saju .smfin button.btn').disabled,t:document.querySelector('#v-saju').textContent}));
+ ok('J4 이의면 결재는 되고, 이의가 같이 잠긴다고 말한다',j4.dis===false&&j4.t.indexOf('이의와 사유가 같이 잠긴다')>=0);
+ const rc=JSON.parse(JSON.stringify(r4)); rc.rounds[0].claude.structured.chains=['이사 → 통근 감소','b','c','d',{path:'e → f'}];
+ rc.rounds[0].claude.structured.risks=[{event:'부모 건강',prob:'낮음',impact:'높음',path:'공부 리듬'}];
+ rc.areas=['총운','재물','건강','시험학업','일사업','관계','가족','이동주거']; rc.month_rule='「주의」 달은 watch 지표가 나쁘면 적중';
+ rc.reads={total:5,leak_risk:[{member:'suyeon',via:'server',phase:'r1',at:'2026-11-01T09:00:00Z'}]};
+ const j5=await show(p,rc);
+ ok('J5 연쇄·저확률고충격이 보인다(수연 §12)',j5.indexOf('이사 → 통근 감소')>=0&&j5.indexOf('e → f')>=0&&j5.indexOf('깨지는 경로 — 공부 리듬')>=0);
+ ok('J6 영역은 서버 정본 · 화면에만 가운뎃점',j5.indexOf('시험·학업')>=0&&j5.indexOf('가족·집안')>=0);
+ ok('J7 월별 판정 규칙(지금 고정)을 보인다',j5.indexOf('판정 규칙(지금 고정)')>=0&&j5.indexOf('watch 지표가 나쁘면')>=0);
+ ok('J8 🔍 블라인드가 샐 수 있는 읽기를 숨기지 않는다',j5.indexOf('그 이름으로 읽은 기록 1건')>=0&&j5.indexOf('본인 확인일 수도')>=0);
+
+
 
  /* ── F. R0 — 로한 몫(2027 known)과 결석 처리 ── */
  const r0=await show(p,read({summit:{year:2027,dry:false,phase:'r0',frozen_at:null,skipped:[]},dossier:{}}));

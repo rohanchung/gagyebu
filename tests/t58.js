@@ -108,6 +108,13 @@ const ST={schemaVersion:7,ui:{month:'2026-10'},
   ok('D4 음식으로 바꾸면 적요는 숨고 먹은 것 칸이 뜬다',(await V('noteField'))==='none'&&(await V('foodField'))==='block');
   ok('D5 쓰던 적요는 메모로 옮겨 간다(안 버린다)',await p.evaluate(()=>document.getElementById('fMemo').value==='물티슈'));
   await p.evaluate(()=>{catPick('생활용품');document.getElementById('fNote').value='휴지';document.getElementById('fAmt').value='3,000';saveTxn(null);});
+  await p.evaluate(()=>{closeModal();txnModal(null);catPick('교통비');});
+  ok('D7 🔴 교통비엔 「무엇을 샀나」가 없다(매번 같은 것을 낸다) — 메모는 기타 안에',(await V('noteField'))==='none'&&(await V('memoField'))==='block');
+  await p.evaluate(()=>catPick('통신비'));
+  ok('D8 통신비(고정비)도 없다',(await V('noteField'))==='none');
+  await p.evaluate(()=>{const c=catByName('교통비');closeModal();catModal(c.id);document.getElementById('k_note').checked=true;saveCat(c.id);txnModal(null);catPick('교통비');});
+  ok('D9 계정과목 편집에서 켜면 뜬다(체크가 추론을 이긴다)',(await V('noteField'))==='block'&&(await p.evaluate(()=>catByName('교통비').noteAsk===true)));
+  await p.evaluate(()=>{const c=catByName('교통비');closeModal();catModal(c.id);document.getElementById('k_note').checked=false;saveCat(c.id);txnModal(null);catPick('생활용품');});
   ok('D6 적요가 memo 로 저장된다',await p.evaluate(()=>DB.transactions[DB.transactions.length-1].memo==='휴지'));
 
   /* ── E 이체 ── */
