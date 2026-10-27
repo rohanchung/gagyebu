@@ -174,6 +174,18 @@ const show=async(p,data)=>{
  await p.waitForTimeout(200);
  const dz=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='summit_dossier').map(x=>x.args).slice(-1)[0]);
  ok('F2 동결하면 known 을 담아 보낸다',dz&&dz.p_freeze===true&&dz.p_dossier.known==='2027-02 이사',JSON.stringify(dz));
+
+ /* 🔴 v4.66 — 실전 2027 R0: 사주방이 known 을 known_2027(JSON 문자열)에 넣었다 */
+ const DOS={'원국':'丙寅 癸巳 甲寅 乙亥','known_2027':JSON.stringify({'가족':['남동생 결혼 2027-04-24(토)'],'주거이동':['2026-12-31 계약 종료']}),'변수풀_41세남성_1년':'{\"A\":[\"원생 증감\"]}'};
+ const k0=await show(p,read({summit:{year:2027,dry:false,phase:'r0',frozen_at:null,skipped:[]},dossier:DOS,known_text:'[known_2027] {…}'}));
+ ok('F4 🔴 자료팩이 차 있으면 「모으는 중」이 아니라 「n칸 적재됨」',k0.indexOf('자료팩 3칸 적재됨')>=0&&k0.indexOf('모으는 중')<0,k0.slice(0,200));
+ ok('F5 🔴 사주방 known_2027 이 「잠길 known」에 펼쳐 보인다(JSON 괄호 덩어리가 아니다)',k0.indexOf('남동생 결혼 2027-04-24(토)')>=0&&k0.indexOf('{\"가족')<0);
+ ok('F6 로한 입력칸은 「추가 known」 — 비어 있다',await p.evaluate(()=>document.getElementById('smKnown').value===''));
+ await p.evaluate(()=>{document.getElementById('smKnown').value='';smKnownSave(false);});await p.waitForTimeout(200);
+ const dz2=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='summit_dossier').map(x=>x.args).slice(-1)[0]);
+ ok('F7 🔒 비운 채 저장해도 빈 known 칸을 만들지 않고, 사주방 칸은 그대로 보낸다',dz2&&!('known' in dz2.p_dossier)&&dz2.p_dossier.known_2027===DOS.known_2027,JSON.stringify(dz2&&Object.keys(dz2.p_dossier)));
+ const k1=await p.evaluate(()=>document.querySelector('#v-saju').textContent);
+ ok('F8 자료팩의 JSON 문자열도 펼친다',k1.indexOf('원생 증감')>=0);
  const absent=await show(p,read({summit:{year:2027,dry:false,phase:'r2',frozen_at:'x',skipped:[{round:1,author:'suyeon'}]},
    rounds:[{round:1,open:true,claude:r1,suyeon:{submitted:false,absent:true}},{round:2,open:false,claude:{submitted:false},suyeon:{submitted:false}},{round:3,open:false,claude:{submitted:false},suyeon:{submitted:false}}]}));
  ok('F3 결석은 결석이라고 쓴다 (동의로 치지 않는다)',absent.indexOf('결석')>=0);

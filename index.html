@@ -322,6 +322,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .sjexcl{display:inline-block;font-size:10px;font-weight:800;color:#8a6d1f;background:#fff8e1;border:1px solid #f0e0b0;
   border-radius:5px;padding:0 5px;margin-left:4px}
 /* 🏛 v4.65 대토론 */
+.smdkv>div{margin:3px 0}.smdkk{display:inline-block;font-weight:700;font-size:11px;color:#5b3fd6;margin-right:6px}
 .smchains{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .smli{margin:3px 0 6px 16px;padding:0;font-size:11.5px;line-height:1.55}
 .smm.hd small{font-weight:400;font-size:8.5px;color:var(--muted)}
@@ -10357,7 +10358,10 @@ function smDry(v){SM.dry=!!v;SM.data=null;SM.pick={};smLoad();renderSaju();}
 /* 2027 known — 🔒 이미 아는 일정은 적중으로 세지 않는다(기존 규칙). 그래서 결재 전에 적어 둔다 */
 function smKnownSave(freeze){
   var el=document.getElementById('smKnown'); if(!el)return;
-  var d=Object.assign({},(SM.data&&SM.data.dossier)||{}); d.known=el.value.trim();
+  /* 🔴 v4.66 — 사주방은 known 을 `known_2027` 에 넣었다(구조화 JSON). 이 칸은 **로한이 덧붙이는 known** 이다.
+     🔒 남의 칸은 건드리지 않는다. 비었으면 칸을 만들지 않는다(빈 서랍 금지) — 전엔 빈 known:"" 이 생겼다 */
+  var d=Object.assign({},(SM.data&&SM.data.dossier)||{}), kv=el.value.trim();
+  if(kv)d.known=kv; else delete d.known;
   if(freeze&&!confirm('자료팩을 동결하고 R1 을 연다.\n\n동결하면 자료팩을 다시 못 고친다 — 한쪽만 새 자료를 보는 일을 막기 위해서다.\n그대로 진행할까?'))return;
   smCall('summit_dossier',{p_year:SM_YEAR,p_dossier:d,p_freeze:!!freeze,p_dry:SM.dry});
 }
@@ -10482,6 +10486,20 @@ function smReads(D){
       +'<div style="margin-top:3px">'+lk.map(function(x){return SM_WHO[x.member]+' 이름 · '+(x.via==='app'?'앱':'AI 방')+' · '+mdEsc(String(x.phase).toUpperCase())+' · '+String(x.at).slice(5,16).replace('T',' ');}).join('<br>')+'</div>'
       :' · 블라인드가 샐 수 있는 읽기 없음')+'</div>';
 }
+/* 📦 v4.66 — 자료팩 칸은 사주방이 **JSON 을 문자열로** 넣었다(「{"가족":[…]}」). 그대로 찍으면 괄호·따옴표 덩어리다.
+   🔒 펼쳐서 보이되 내용은 바꾸지 않는다 — 못 읽는 건 원문 그대로 둔다 */
+function smDosVal(v){
+  if(typeof v==='string'){var t=v.trim();
+    if(/^[\[{]/.test(t)){try{v=JSON.parse(t);}catch(e){}}}
+  function r(x,d){
+    if(x==null)return '';
+    if(Array.isArray(x))return '<ul class="smli">'+x.map(function(y){return '<li>'+r(y,d+1)+'</li>';}).join('')+'</ul>';
+    if(typeof x==='object')return '<div class="smdkv">'+Object.keys(x).map(function(k){
+      return '<div><span class="smdkk">'+mdEsc(k)+'</span>'+r(x[k],d+1)+'</div>';}).join('')+'</div>';
+    return '<span>'+mdEsc(String(x))+'</span>';
+  }
+  return '<div>'+r(v,0)+'</div>';
+}
 function smStepper(D){
   var ph=D.summit.phase, ord=['r0','r1','r2','r3','r4','done'], i=ord.indexOf(ph);
   var lab=['R0 자료팩','R1 독립분석','R2 교차반론','R3 수정안','R4 최종안','결재'];
@@ -10490,7 +10508,10 @@ function smStepper(D){
 }
 function smStatus(D){
   var ph=D.summit.phase;
-  if(ph==='r0')return '자료팩을 모으는 중이다. 2027 known 을 적고 동결하면 R1 이 열린다.';
+  /* 🔴 v4.66 — 로한: 「자료팩을 다 모았다는데 모으는 중이라고 떠 있다」. 내용과 상관없이 같은 문구를 박아 뒀었다 */
+  if(ph==='r0'){var nk=Object.keys(D.dossier||{}).length;
+    return nk?('📦 자료팩 '+nk+'칸 적재됨 — 로한이 확인하고 동결하면 R1 이 열린다. 동결 뒤엔 아무도 못 고친다.')
+             :'자료팩이 아직 비었다 — 로버트가 적재하고, 로한이 known 을 확인한 뒤 동결한다.';}
   if(ph==='done')return '✅ 결재됨 '+String(D.summit.approved_at||'').slice(0,16).replace('T',' ')+(D.summit.dry?' · 드라이런(예측표에 안 들어갔다)':' · 2027 공식 예측으로 잠겼다');
   if(ph==='r4'){
     var fin=smFinal(D);
@@ -10519,8 +10540,14 @@ function renderSummit(){
   var body=smStepper(D)+'<div class="smstat">'+mdEsc(smStatus(D))+'</div>';
   /* R0 — 로한 몫: 2027 known */
   if(ph==='r0'){
-    body+='<div class="field" style="margin-top:10px"><label>2027 known — 이미 정해진 일정(이사·시험·가족 행사·정기 진료…). '
-      +'🔒 적중으로 세지 않는다</label><textarea id="smKnown" rows="4" style="width:100%">'+mdEsc(dos.known||'')+'</textarea></div>'
+    /* 🔒 v4.66 — 결재 때 예측표에 잠길 known 은 **서버 summit_known 하나**가 답한다(known* 칸 전부를 합친다).
+       화면은 그 글자를 그대로 보여준다 — 앱이 따로 조립하면 화면과 잠기는 것이 갈린다 */
+    var _kn=Object.keys(dos).filter(function(k){return /^known/i.test(k)&&k!=='known';});
+    body+='<details class="smdos" open><summary>🔒 결재 때 잠길 known <span class="mut">'+(_kn.length?mdEsc(_kn.join('·'))+(dos.known?' + 로한 추가':''):'')+' · 적중으로 세지 않는다</span></summary>'
+      +(_kn.map(function(k){return '<div class="smdk"><b>'+mdEsc(k)+'</b>'+smDosVal(dos[k])+'</div>';}).join('')
+        ||'<div class="mut" style="font-size:11px">사주방이 넣은 known 이 없다.</div>')+'</details>'
+      +'<div class="field" style="margin-top:10px"><label>➕ 로한 추가 known — 위에 빠진 이미 정해진 일정만(이사일·가족 행사·정기 진료…). '
+      +'비워 둬도 된다</label><textarea id="smKnown" rows="3" style="width:100%">'+mdEsc(dos.known||'')+'</textarea></div>'
       +'<div style="display:flex;gap:8px;justify-content:flex-end"><button class="ghost" onclick="smKnownSave(false)">저장</button>'
       +'<button class="btn" onclick="smKnownSave(true)">동결하고 R1 열기</button></div>';
   }else if(ph==='r1'||ph==='r2'||ph==='r3'){
@@ -10528,10 +10555,10 @@ function renderSummit(){
   }
   /* 자료팩 */
   var dkeys=Object.keys(dos);
-  body+='<details class="smdos"><summary>📦 자료팩 '+(D.summit.frozen_at?'<span class="pill">동결 '+String(D.summit.frozen_at).slice(5,16).replace('T',' ')+'</span>':'<span class="pill">수집 중</span>')
+  body+='<details class="smdos"><summary>📦 자료팩 '+(D.summit.frozen_at?'<span class="pill">동결 '+String(D.summit.frozen_at).slice(5,16).replace('T',' ')+'</span>':'<span class="pill">'+(dkeys.length?'적재됨 · 미동결':'수집 중')+'</span>')
     +' <span class="mut">'+dkeys.length+'칸 · 원국·대운·세운 '+mdEsc((D.ganji||{}).year||'')+'</span></summary>'
     +(dkeys.length?dkeys.map(function(k){var v=dos[k];
-      return '<div class="smdk"><b>'+mdEsc(k)+'</b><div>'+mdEsc(typeof v==='string'?v:JSON.stringify(v,null,1))+'</div></div>';}).join('')
+      return '<div class="smdk"><b>'+mdEsc(k)+'</b>'+smDosVal(v)+'</div>';}).join('')
      :'<div class="mut" style="font-size:11px">아직 비었다.</div>')+'</details>';
   /* 비교 매트릭스 */
   var r1open=(D.rounds[0]||{}).open;
@@ -12540,7 +12567,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.65';
+var APP_VERSION='4.66';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12554,6 +12581,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.66',date:'2026-10-27',note:'<b>🏛 자료팩을 다 모았는데 「모으는 중」이라고 떴다 · known 칸 이름이 어긋나 있었다.</b> 로한: 「사주사가 지금 자료팩을 다 모았다는데 자료팩을 모으는 중이다… 이렇게 떠있다」 · 실측: 2027 대회(실전) R0 · 자료팩 7칸 적재 완료(원국·known_2027·실측_2026·예측_성적표·연간_뼈대·R1 작성규칙·변수풀) · 🔴 상태 문구가 R0 이면 <b>내용과 상관없이</b> 「모으는 중」이었다 → 칸 수를 세어 「n칸 적재됨 — 확인하고 동결」 · 🔴 <b>더 큰 결함</b>: 결재는 dossier.known 만 읽는데 사주방은 known_2027 에 넣었다 → 그대로 결재하면 예측표 known 이 「없음」으로 잠겨 <b>이미 아는 일정이 적중으로 세어질 뻔했다</b>. 앱 입력칸도 비어 보였고, 저장을 누르면 빈 known 칸이 생겼다 · 🔒 「잠길 known」은 서버 summit_known 하나가 답한다(known 으로 시작하는 칸 전부 합침) — 결재·화면이 같은 글자를 쓴다. <b>데이터는 안 옮겼다</b> · 입력칸은 「로한 추가 known」 — 비면 칸을 안 만든다 · 📦 자료팩의 JSON 문자열을 펼쳐 보인다 · 핸드오프에 칸 이름 계약을 적었다'},
   {v:'4.65',date:'2026-10-26',note:'<b>🏛 11/1 대토론 전 점검 반영 — 서명 없이 결재 불가 · 월별 12칸은 양력 1~12월 + 절입 시각 · 📝 적요는 품목이 매번 다른 계정과목만.</b> 사주방 v3 점검(§11) · 수연 사전점검(§12) 구현 · 🔴 <b>수연 서명 없이 결재가 됐다</b> → 최신 최종안에 대한 서명(동의·이의)이 있어야 결재된다. 수연 R1 결석일 때만 예외. 이의면 결재는 되되 합의안에 이의·사유가 같이 잠긴다 · 🔴 <b>서명이 특정 최종안에 묶이지 않았다</b> → 서명에 final_id. 로버트가 안을 고치면 새 안은 서명이 없어 결재가 안 되고 「새 안에 다시 서명」이라 보인다 · 🔴 <b>월별 12칸이 월건 순번이라 2027년 1월(辛丑)이 빠지고 2028년 1월이 들어왔다</b> → 양력 m 1~12 + 그 달을 지배하는 월건 + 절입 시각. <b>절입 시각은 천문 계산(Meeus 태양 황경)으로 2026~2030 표를 만들었다</b> — 2024·2025 입춘 실제값과 3~7분 차(±10분). 자정 근처 절입은 ⚠️ · 🟠 영역 이름 정본 8개를 서버가 강제(드라이런에 「재정」이 통과했다) — 앱도 서버 목록을 그린다 · 월별 칸마다 watch(판정 지표) 필수 + <b>판정 규칙을 지금 고정</b> · 자료팩 동결은 로한만 · 🔍 읽기 기록 — 블라인드가 샐 수 있는 상태(한쪽만 냈을 때 그 이름으로 읽기)를 기록하고 숨기지 않는다 · 📝 수연 §12 — R1 에 변수 연쇄 5개 이상·저확률고충격 필수, 화면에 표시 · 🔴 [검산에서 자체 발견] 한 트랜잭션의 두 제출이 같은 now() 로 찍혀 「최신 최종안」이 무작위였다 → 잠금 시각을 실제 시계로 · 🧾 <b>교통비에 「무엇을 샀나」가 떴다</b>(로한 지적) — v4.64 가 음식이 아닌 지출 전부에 띄웠다. 실측 메모 비율로 품목이 매번 다른 계정과목(생활용품·의류·선물·취미·의료·비즈니스·기타)만, 계정과목 편집에서 바꿀 수 있다 · 롤백 검산 21건 통과·흔적 0 · t57 → 49건 · t58 → 44건 · run.sh all 통과'},
   {v:'4.64',date:'2026-10-26',note:'<b>🧾 거래 추가 모달 — 계정과목에 맞게 바뀌고, 기본값은 실제로 쓰는 계좌다.</b> 로한: 「거래추가 누르면 무조건 빚갚기가 떠 · 교토비는 후불이 기본값 · 생활용품도 적요 · 즉시/후불·금액 한 줄 · 주거래통장이 기본값인데 카카오뱅크가 뜨고 있어 — 종합 사고를 좀 하라고」 · 🔴 <b>주거래를 답하는 곳이 셋이었고 셋이 다른 답을 냈다</b> — 수입 입금만 SUPER 를 찾았고, 지출 출금계좌·이체 출발은 「현금성 첫 번째」, 이체 도착은 「전체 첫 번째」 → 셋 다 <b>카카오뱅크 세이프박스</b>(이체 기본이 세이프박스→세이프박스). 실측: 계좌를 지정한 거래 중 SUPER 101건 · 🔒 이제 mainAcct 하나가 답한다(계좌 편집 ⭐주거래 > 이름 SUPER > 첫 번째) · 🔴 <b>빚 갚기가 모든 지출에 떴다</b> → 빚 관련 계정과목(이자·이자비용 — 실측 빚에 묶인 5건 전부 이자비용)만. 이미 묶인 거래를 고칠 땐 보인다 · 🕒 <b>교통비 + 카드 = 후불 기본</b>(신규만 · 수정 중엔 끼어들지 않는다 · 지갑은 언제나 즉시) — 계정과목 편집에 「빚 관련」「후불 기본」 체크. 키가 없으면 이름으로 추론해 <b>데이터를 옮기지 않았다</b> · 📝 <b>음식이 아닌 지출도 같은 자리에 적요 칸</b>(값은 memo · 같은 계정과목 최근 적요 자동완성 · 기타 안 메모는 숨긴다) · 💳 <b>결제수단 · 즉시/후불 · 금액 한 줄</b>(휴대폰에선 금액만 아래로) · 🔁 <b>이체 영역</b>: 출발=주거래, 도착=그 출발에서 사람이 가장 자주 보낸 곳(지갑 자동 충전 제외, 기록 없으면 비워 둔다), 자주 가는 경로 칩 4개, ⇄ 맞바꾸기, 이체 후 잔액 미리보기, 같은 계좌 저장 거부 · ⚡ 계정과목 칩(사용 상위 6개) · 날짜 [오늘][어제] · 금액 천 단위 콤마 · Enter 저장 · 🔴 [자체 발견] 금액을 결제수단 줄로 옮기자 <b>이체에서 금액 칸이 사라졌다</b>(스크린샷으로 잡음) — 칸을 둘 만들지 않고 하나를 자리만 옮긴다 · 🔴 지갑을 골랐다 카드로 바꾸면 즉시(false)가 박혀 남던 옛 결함도 같이 · ⚠️ 옛 교통비 45건(1/1~10/2)은 후불 표시가 없어 즉시로 계산된다 — 후불 시작일을 받아 고친다 · t58 신설 41건 · t37·t41 새 함수 기준으로 · run.sh all 통과'},
   {v:'4.63',date:'2026-10-23',note:'<b>🔴 문맥규정 드릴 — 번역을 맞혀도 구성요소를 무조건 묻는다.</b> 로한: 「번역 맞추기가 존나 쉬워 … 문장 한두개만 알아도 4지선다 뜻 보고 유추하는건 아무나 하지. 무조건 구성요소 물어봐야돼」 · v4.61(학습방 v27 #1)은 번역을 맞히면 문장 속 단어·기본형 점검을 <b>건너뛰었다</b> — 그런데 번역 4지선다는 아는 단어 한두 개로 <b>유추가 된다</b>. 유추로 맞힌 번역은 「문장 속 모르는 말이 없다」의 증거가 아니다 · 🔒 순서는 그대로: <b>번역 → 문장 속 단어(기본형·뜻) → 보기 뜻</b>. 바뀐 건 건너뛰기를 없앤 것뿐이다 · ⚠️ 그래도 덜 묻는 문장은 남는다 — 자동 생성 문장(분해 자료 없음), 분해가 한두 단어뿐인 문장 · 📄 교재 p78~93 투입(문장 380 → 450, 단어 1,110 → 1,149, 확인문제 38~40·43~46회 기록과 오답 43건) · t42 538건(CTX17b·DIAG1 을 새 규칙으로) · run.sh all 통과'},
