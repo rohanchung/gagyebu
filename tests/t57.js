@@ -155,6 +155,13 @@ const show=async(p,data)=>{
  await show(p,Object.assign({},r4,{sign:null,signs:[]}));await pickAll();
  const j1=await p.evaluate(()=>({dis:document.querySelector('#v-saju .smfin button.btn').disabled,t:document.querySelector('#v-saju').textContent}));
  ok('J1 🔴 수연 서명이 없으면 쟁점을 다 골라도 결재가 꺼져 있다',j1.dis===true&&j1.t.indexOf('서명(동의·이의)이 있어야 결재된다')>=0,j1.t.slice(0,80));
+ /* 🔴 v4.68 — 로한: 「결재 버튼을 눌러도 반응이 없다」 — 꺼진 이유가 툴팁에만 있었다 */
+ const why=await p.evaluate(()=>{const w=document.querySelector('#v-saju .smwhy');const b=document.querySelector('#v-saju .smfin button.btn');
+   return {t:w?w.textContent:'',op:getComputedStyle(b).opacity};});
+ ok('J1b 🔴 꺼진 이유를 단추 옆에 글자로 — 수연 서명 대기',why.t.indexOf('수연 서명 대기')>=0,why.t);
+ ok('J1c 꺼진 단추는 흐리다(켜진 것과 다르게 생겼다)',+why.op<0.6,why.op);
+ await show(p,Object.assign({},r4,{sign:null,signs:[]}));
+ ok('J1d 쟁점을 안 골랐으면 몇 개·어느 것이 남았는지 적는다',(await p.evaluate(()=>document.querySelector('#v-saju .smwhy').textContent)).indexOf('쟁점 2개 중 2개 미선택: 재물·관계')>=0);
  await show(p,Object.assign({},r4,{sign:null,signs:[{decision:'동의',final_id:'old'}]}));await pickAll();
  const j2=await p.evaluate(()=>({dis:document.querySelector('#v-saju .smfin button.btn').disabled,t:document.querySelector('#v-saju').textContent}));
  ok('J2 🔴 옛 안에만 서명했으면 「새 안에 다시 서명」이라 말하고 꺼져 있다',j2.dis===true&&j2.t.indexOf('옛 최종안에 있다')>=0);
