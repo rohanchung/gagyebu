@@ -323,6 +323,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   border-radius:5px;padding:0 5px;margin-left:4px}
 /* 🏛 v4.65 대토론 */
 .smdkv>div{margin:3px 0}.smdkk{display:inline-block;font-weight:700;font-size:11px;color:#5b3fd6;margin-right:6px}
+.smr2{margin-top:6px;padding:5px 7px;border-left:3px solid var(--line);background:rgba(0,0,0,.025);font-size:11px;line-height:1.5;border-radius:0 6px 6px 0}
+.smst{font-weight:800;font-size:10.5px;padding:0 5px;border-radius:5px;background:#eef1f5}
+.smst-ok{background:#e7f6ea;color:#1f7a33}.smst-no{background:#fdecec;color:#b42318}.smst-ed{background:#fff4e0;color:#9a5b00}
+.smtxt{white-space:pre-wrap;font-size:12px;line-height:1.65;margin-top:4px;max-height:420px;overflow:auto}
 .smchains{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
 .smli{margin:3px 0 6px 16px;padding:0;font-size:11.5px;line-height:1.55}
 .smm.hd small{font-weight:400;font-size:8.5px;color:var(--muted)}
@@ -10329,7 +10333,10 @@ function smSigned(D){return !!(D&&(D.sign||D.suyeon_absent));}
 var SM_WHO={claude:'🤖 로버트',suyeon:'💬 수연'};
 var SM={data:null,err:'',loading:false,dry:false,pick:{},busy:false};
 function sjTab(){var t=DB.ui&&DB.ui.sajuTab;return t==='summit'?'summit':'main';}
-function sjSetTab(t){DB.ui=DB.ui||{};DB.ui.sajuTab=t;save();renderSaju();}
+/* 🔴 v4.67 — 대토론은 **한 번 읽고 끝**이었다. 탭을 연 뒤 AI 방이 낸 제출(R2 교차반론)이 새로고침 전엔 안 보였다.
+   🔒 탭에 들어올 때마다 새로 읽는다. 머리에 ↻ 도 둔다 — 제출은 다른 방에서 일어나 앱이 알 길이 없다 */
+function sjSetTab(t){DB.ui=DB.ui||{};DB.ui.sajuTab=t;if(t==='summit'){SM.data=null;SM.err='';}save();renderSaju();}
+function smRefresh(){SM.data=null;SM.err='';renderSaju();}
 function smLoad(){
   if(!USER||!SB||!SB.rpc){SM.err='로그인해야 대토론을 볼 수 있다';return renderSaju();}
   SM.loading=true; SM.err='';
@@ -10422,8 +10429,7 @@ function smCellHtml(c){
 }
 function smThread(D,area){
   var out=[];
-  [[1,'responses','R2 반론',function(x){return x.stance+' — '+x.reason;}],
-   [2,'revisions','R3 수정',function(x){return x.action+(x.claim?' — '+x.claim:'');}]].forEach(function(t){
+  [[2,'revisions','R3 수정',function(x){return x.action+(x.claim?' — '+x.claim:'')+(x.falsify?' · 반증 — '+x.falsify:'');}]].forEach(function(t){
     var rd=D.rounds[t[0]]||{};
     ['claude','suyeon'].forEach(function(w){
       var c=rd[w]||{};
@@ -10500,6 +10506,32 @@ function smDosVal(v){
   }
   return '<div>'+r(v,0)+'</div>';
 }
+/* 🔴 v4.67 — 로한: 「둘다 교차반론을 했는데, 그 내용은 왜 안보이지?」
+   R2 는 영역 줄 밑 「반론·수정 보기」 접힘 안에만 있었다 — 눌러야 보이니 **없는 것처럼** 보였다.
+   🔒 상대의 R2 반론을 **그 사람 셀 바로 밑에 펼친 채로** 붙인다 — 수연 칸 밑에 로버트의 반론, 로버트 칸 밑에 수연의 반론.
+   🔒 R2 가 아직 안 열렸으면(한쪽만 냈으면) 아무것도 안 그린다 — 블라인드는 서버가 지키고, 화면도 넘보지 않는다. */
+var SM_ST={'동의':'smst-ok','반대':'smst-no','수정':'smst-ed'};
+function smR2(D,who,area){
+  var r2=D.rounds[1]||{}, c=r2[who]||{};
+  if(!c.submitted||c.sealed)return '';
+  var x=(((c.structured||{}).responses)||[]).filter(function(y){return y&&y.area===area;})[0];
+  if(!x)return '<div class="smr2 mut">↩ '+SM_WHO[who]+' R2 — 이 영역은 언급 없음</div>';
+  return '<div class="smr2"><span class="smst '+(SM_ST[x.stance]||'')+'">↩ '+SM_WHO[who]+' · '+mdEsc(x.stance||'')+'</span> '+mdEsc(x.reason||'')+'</div>';
+}
+/* 📜 v4.67 — 라운드별 **원문**. 🔴 본문(content)은 화면 어디에도 없었다 — 영역 요약만 보였다.
+   🔒 열린 라운드만. 가장 최근에 열린 라운드를 펼쳐 둔다 */
+function smRoundsHtml(D){
+  var lab=['R1 독립분석','R2 교차반론','R3 수정안'], last=-1;
+  (D.rounds||[]).forEach(function(r,i){if(r&&r.open)last=i;});
+  if(last<0)return '';
+  return '<div class="smorig"><div class="gllab" style="padding:4px 0">📜 라운드 원문</div>'+(D.rounds||[]).map(function(r,i){
+    if(!r||!r.open)return '';
+    return '<details class="smdos"'+(i===last?' open':'')+'><summary>'+lab[i]+'</summary><div class="smchains">'
+      +['claude','suyeon'].map(function(w){var c=r[w]||{};
+        return '<div><b>'+SM_WHO[w]+'</b>'+(c.submitted&&!c.sealed?' <span class="mut" style="font-size:10px">'+String(c.submitted_at||'').slice(5,16).replace('T',' ')+'</span>'
+          +'<div class="smtxt">'+mdEsc(c.content||'')+'</div>':'<div class="mut" style="font-size:11px">'+(c.absent?'결석':'미제출')+'</div>')+'</div>';}).join('')
+      +'</div></details>';}).join('')+'</div>';
+}
 function smStepper(D){
   var ph=D.summit.phase, ord=['r0','r1','r2','r3','r4','done'], i=ord.indexOf(ph);
   var lab=['R0 자료팩','R1 독립분석','R2 교차반론','R3 수정안','R4 최종안','결재'];
@@ -10529,7 +10561,8 @@ function smStatus(D){
 function renderSummit(){
   var head='<div class="sec"><div class="bkhd"><span class="subhd2">🏛 '+SM_YEAR+' 대사주토론분석회</span>'
     +'<label class="mut" style="font-size:10.5px"><input type="checkbox" '+(SM.dry?'checked':'')
-    +' onchange="smDry(this.checked)"> 드라이런</label></div>';
+    +' onchange="smDry(this.checked)"> 드라이런</label>'
+    +'<button class="ghost sm" onclick="smRefresh()" title="AI 방의 새 제출을 다시 읽는다">↻ 새로고침</button></div>';
   if(SM.err)return head+'<div class="emrnotice emrbad">⚠ '+mdEsc(SM.err)+'</div></div>';
   if(SM.data===null){ if(!SM.loading)smLoad(); return head+'<div class="mut">불러오는 중…</div></div>'; }
   if(SM.data==='none')return head
@@ -10567,11 +10600,11 @@ function renderSummit(){
       var ag=smAgree(D,a), tag=SM_AG[ag];
       var th=r1open?smThread(D,a):'';
       return '<div class="smrow '+(tag?tag[1]:'')+'"><span class="smarea"><b>'+mdEsc(smAreaLb(a))+'</b>'+(tag?'<div>'+tag[0]+'</div>':'')+'</span>'
-        +'<span>'+smCellHtml(smCell(D,'claude',a))+'</span><span>'+smCellHtml(smCell(D,'suyeon',a))+'</span>'
-        +(th?'<details class="smthd"><summary>반론·수정 보기</summary>'+th+'</details>':'')+'</div>';}).join('')
+        +'<span>'+smCellHtml(smCell(D,'claude',a))+smR2(D,'suyeon',a)+'</span><span>'+smCellHtml(smCell(D,'suyeon',a))+smR2(D,'claude',a)+'</span>'
+        +(th?'<details class="smthd"><summary>R3 수정 보기</summary>'+th+'</details>':'')+'</div>';}).join('')
     +'</div>';
   if(!r1open)body+='<div class="mut" style="font-size:10.5px;margin-top:6px">🔒 둘 다 R1 을 내기 전엔 <b>로한도 내용을 못 본다</b> — 한쪽에 힌트가 가는 일을 막는다(§4-2). 글자 수·영역 수도 안 보인다.</div>';
-  if(r1open)body+=smChains(D);
+  if(r1open)body+=smChains(D)+smRoundsHtml(D);
   body+='<div class="smmonths"><div class="gllab" style="padding:4px 0">월별 국면</div>'+smMonths(D)+'</div>';
   body+=smReads(D);
   /* R4 최종안 · 결재 */
@@ -12567,7 +12600,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.66';
+var APP_VERSION='4.67';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12581,6 +12614,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.67',date:'2026-10-27',note:'<b>🏛 교차반론(R2)이 안 보였다 — 셀 밑에 펼치고, 라운드 원문을 보이고, 탭을 열 때마다 새로 읽는다.</b> 로한: 「둘다 교차반론을 했는데, 그 내용은 왜 안보이지?」 · 실측: 실전 2027 대회 이미 R3 · 로버트 R2(수정 5·동의 2·반대 1) · 수연 R2(수정 5·반대 2·동의 1) 둘 다 제출돼 있었다 · 🔴 ① R2 는 영역 줄 밑 「반론·수정 보기」 <b>접힘 안</b>에만 있었다 — 눌러야 보이니 없는 것처럼 보였다 → 상대의 반론을 <b>그 사람 셀 바로 밑에 펼쳐서</b>(수연 칸 밑 = 로버트의 반론) 동의·반대·수정 색과 함께 · 🔴 ② <b>라운드 본문(content)은 화면 어디에도 없었다</b> → 📜 라운드 원문(가장 최근 열린 라운드 펼침) · 🔴 ③ 대토론은 <b>한 번 읽고 끝</b>이었다 — 탭을 연 뒤 들어온 제출이 안 보였다 → 탭에 들어올 때마다 새로 읽고 ↻ 새로고침 · 🔒 블라인드는 그대로 — 안 열린 라운드는 그리지 않는다'},
   {v:'4.66',date:'2026-10-27',note:'<b>🏛 자료팩을 다 모았는데 「모으는 중」이라고 떴다 · known 칸 이름이 어긋나 있었다.</b> 로한: 「사주사가 지금 자료팩을 다 모았다는데 자료팩을 모으는 중이다… 이렇게 떠있다」 · 실측: 2027 대회(실전) R0 · 자료팩 7칸 적재 완료(원국·known_2027·실측_2026·예측_성적표·연간_뼈대·R1 작성규칙·변수풀) · 🔴 상태 문구가 R0 이면 <b>내용과 상관없이</b> 「모으는 중」이었다 → 칸 수를 세어 「n칸 적재됨 — 확인하고 동결」 · 🔴 <b>더 큰 결함</b>: 결재는 dossier.known 만 읽는데 사주방은 known_2027 에 넣었다 → 그대로 결재하면 예측표 known 이 「없음」으로 잠겨 <b>이미 아는 일정이 적중으로 세어질 뻔했다</b>. 앱 입력칸도 비어 보였고, 저장을 누르면 빈 known 칸이 생겼다 · 🔒 「잠길 known」은 서버 summit_known 하나가 답한다(known 으로 시작하는 칸 전부 합침) — 결재·화면이 같은 글자를 쓴다. <b>데이터는 안 옮겼다</b> · 입력칸은 「로한 추가 known」 — 비면 칸을 안 만든다 · 📦 자료팩의 JSON 문자열을 펼쳐 보인다 · 핸드오프에 칸 이름 계약을 적었다'},
   {v:'4.65',date:'2026-10-26',note:'<b>🏛 11/1 대토론 전 점검 반영 — 서명 없이 결재 불가 · 월별 12칸은 양력 1~12월 + 절입 시각 · 📝 적요는 품목이 매번 다른 계정과목만.</b> 사주방 v3 점검(§11) · 수연 사전점검(§12) 구현 · 🔴 <b>수연 서명 없이 결재가 됐다</b> → 최신 최종안에 대한 서명(동의·이의)이 있어야 결재된다. 수연 R1 결석일 때만 예외. 이의면 결재는 되되 합의안에 이의·사유가 같이 잠긴다 · 🔴 <b>서명이 특정 최종안에 묶이지 않았다</b> → 서명에 final_id. 로버트가 안을 고치면 새 안은 서명이 없어 결재가 안 되고 「새 안에 다시 서명」이라 보인다 · 🔴 <b>월별 12칸이 월건 순번이라 2027년 1월(辛丑)이 빠지고 2028년 1월이 들어왔다</b> → 양력 m 1~12 + 그 달을 지배하는 월건 + 절입 시각. <b>절입 시각은 천문 계산(Meeus 태양 황경)으로 2026~2030 표를 만들었다</b> — 2024·2025 입춘 실제값과 3~7분 차(±10분). 자정 근처 절입은 ⚠️ · 🟠 영역 이름 정본 8개를 서버가 강제(드라이런에 「재정」이 통과했다) — 앱도 서버 목록을 그린다 · 월별 칸마다 watch(판정 지표) 필수 + <b>판정 규칙을 지금 고정</b> · 자료팩 동결은 로한만 · 🔍 읽기 기록 — 블라인드가 샐 수 있는 상태(한쪽만 냈을 때 그 이름으로 읽기)를 기록하고 숨기지 않는다 · 📝 수연 §12 — R1 에 변수 연쇄 5개 이상·저확률고충격 필수, 화면에 표시 · 🔴 [검산에서 자체 발견] 한 트랜잭션의 두 제출이 같은 now() 로 찍혀 「최신 최종안」이 무작위였다 → 잠금 시각을 실제 시계로 · 🧾 <b>교통비에 「무엇을 샀나」가 떴다</b>(로한 지적) — v4.64 가 음식이 아닌 지출 전부에 띄웠다. 실측 메모 비율로 품목이 매번 다른 계정과목(생활용품·의류·선물·취미·의료·비즈니스·기타)만, 계정과목 편집에서 바꿀 수 있다 · 롤백 검산 21건 통과·흔적 0 · t57 → 49건 · t58 → 44건 · run.sh all 통과'},
   {v:'4.64',date:'2026-10-26',note:'<b>🧾 거래 추가 모달 — 계정과목에 맞게 바뀌고, 기본값은 실제로 쓰는 계좌다.</b> 로한: 「거래추가 누르면 무조건 빚갚기가 떠 · 교토비는 후불이 기본값 · 생활용품도 적요 · 즉시/후불·금액 한 줄 · 주거래통장이 기본값인데 카카오뱅크가 뜨고 있어 — 종합 사고를 좀 하라고」 · 🔴 <b>주거래를 답하는 곳이 셋이었고 셋이 다른 답을 냈다</b> — 수입 입금만 SUPER 를 찾았고, 지출 출금계좌·이체 출발은 「현금성 첫 번째」, 이체 도착은 「전체 첫 번째」 → 셋 다 <b>카카오뱅크 세이프박스</b>(이체 기본이 세이프박스→세이프박스). 실측: 계좌를 지정한 거래 중 SUPER 101건 · 🔒 이제 mainAcct 하나가 답한다(계좌 편집 ⭐주거래 > 이름 SUPER > 첫 번째) · 🔴 <b>빚 갚기가 모든 지출에 떴다</b> → 빚 관련 계정과목(이자·이자비용 — 실측 빚에 묶인 5건 전부 이자비용)만. 이미 묶인 거래를 고칠 땐 보인다 · 🕒 <b>교통비 + 카드 = 후불 기본</b>(신규만 · 수정 중엔 끼어들지 않는다 · 지갑은 언제나 즉시) — 계정과목 편집에 「빚 관련」「후불 기본」 체크. 키가 없으면 이름으로 추론해 <b>데이터를 옮기지 않았다</b> · 📝 <b>음식이 아닌 지출도 같은 자리에 적요 칸</b>(값은 memo · 같은 계정과목 최근 적요 자동완성 · 기타 안 메모는 숨긴다) · 💳 <b>결제수단 · 즉시/후불 · 금액 한 줄</b>(휴대폰에선 금액만 아래로) · 🔁 <b>이체 영역</b>: 출발=주거래, 도착=그 출발에서 사람이 가장 자주 보낸 곳(지갑 자동 충전 제외, 기록 없으면 비워 둔다), 자주 가는 경로 칩 4개, ⇄ 맞바꾸기, 이체 후 잔액 미리보기, 같은 계좌 저장 거부 · ⚡ 계정과목 칩(사용 상위 6개) · 날짜 [오늘][어제] · 금액 천 단위 콤마 · Enter 저장 · 🔴 [자체 발견] 금액을 결제수단 줄로 옮기자 <b>이체에서 금액 칸이 사라졌다</b>(스크린샷으로 잡음) — 칸을 둘 만들지 않고 하나를 자리만 옮긴다 · 🔴 지갑을 골랐다 카드로 바꾸면 즉시(false)가 박혀 남던 옛 결함도 같이 · ⚠️ 옛 교통비 45건(1/1~10/2)은 후불 표시가 없어 즉시로 계산된다 — 후불 시작일을 받아 고친다 · t58 신설 41건 · t37·t41 새 함수 기준으로 · run.sh all 통과'},

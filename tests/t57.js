@@ -111,8 +111,16 @@ const show=async(p,data)=>{
    o[r.querySelector('.smarea b').textContent]=r.className;});return o;});
  ok('D7 R2 에서 둘 다 동의 → 합의',/smag/.test(colors['건강']),JSON.stringify(colors));
  ok('D8 반대가 하나라도 있으면 → 쟁점',/smdis/.test(colors['재물']),JSON.stringify(colors));
- ok('D9 반론 스레드가 영역 밑에 붙는다',
-    (await p.$eval('#v-saju',e=>e.textContent)).indexOf('R2 반론 — 반대 — 7월 적자 기록')>=0);
+ /* 🔴 v4.67 — 로한: 「둘다 교차반론을 했는데 그 내용은 왜 안보이지?」 — 접힘 안에만 있었다 */
+ const r2v=await p.evaluate(()=>{const rows=[...document.querySelectorAll('#v-saju .smrow')];
+   const row=rows.find(r=>r.querySelector('.smarea').textContent.indexOf('재물')>=0);
+   const cells=row.querySelectorAll(':scope > span');
+   const v=[...row.querySelectorAll('.smr2')].filter(x=>!x.closest('details'));
+   return {n:v.length, suyeonCell:cells[2].textContent, inDetails:row.querySelectorAll('details .smr2').length};});
+ ok('D9 🔴 R2 반론은 접지 않고 셀 밑에 펼쳐 보인다',r2v.n===2&&r2v.inDetails===0,JSON.stringify(r2v));
+ ok('D9b 수연 칸 밑에 로버트의 반론(동의·반대·수정 + 근거)',r2v.suyeonCell.indexOf('로버트 · 반대')>=0&&r2v.suyeonCell.indexOf('7월 적자 기록')>=0,r2v.suyeonCell);
+ const orig=await p.evaluate(()=>{const o=document.querySelector('#v-saju .smorig');return o?{t:o.textContent,open:[...o.querySelectorAll('details')].map(d=>d.open)}:null;});
+ ok('D10 🔴 라운드 원문(본문)이 보이고, 가장 최근 열린 라운드가 펼쳐져 있다',!!orig&&orig.t.indexOf('R2 교차반론')>=0&&orig.open[orig.open.length-1]===true,JSON.stringify(orig&&orig.open));
 
  /* ── E. 결재 — 쟁점을 다 골라야 켜진다 ── */
  const fin={id:'f1',submitted_at:'2026-11-01T15:00:00Z',content:'2027 최종안 본문',
@@ -164,6 +172,12 @@ const show=async(p,data)=>{
  ok('J6 영역은 서버 정본 · 화면에만 가운뎃점',j5.indexOf('시험·학업')>=0&&j5.indexOf('가족·집안')>=0);
  ok('J7 월별 판정 규칙(지금 고정)을 보인다',j5.indexOf('판정 규칙(지금 고정)')>=0&&j5.indexOf('watch 지표가 나쁘면')>=0);
  ok('J8 🔍 블라인드가 샐 수 있는 읽기를 숨기지 않는다',j5.indexOf('그 이름으로 읽은 기록 1건')>=0&&j5.indexOf('본인 확인일 수도')>=0);
+ const rs=JSON.parse(JSON.stringify(r4)); rs.rounds[1]={round:2,open:false,claude:{submitted:true,sealed:true},suyeon:{submitted:false}};
+ await show(p,rs);
+ ok('J9 🔒 R2 가 안 열렸으면(한쪽만 냄) 반론을 그리지 않는다',await p.evaluate(()=>document.querySelectorAll('#v-saju .smr2').length===0));
+ const n0=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='summit_read').length);
+ await p.evaluate(()=>{sjSetTab('main');sjSetTab('summit');});await p.waitForTimeout(200);
+ ok('J10 🔴 대토론 탭에 다시 들어오면 새로 읽는다(다른 방 제출이 보이게)',(await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='summit_read').length))>n0);
 
 
 
