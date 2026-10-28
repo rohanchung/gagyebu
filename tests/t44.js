@@ -222,6 +222,28 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  ok('신규 문제 모달에 대상 표시',await p.evaluate(()=>document.querySelector('#modal h3').textContent.includes('아버지')));
  await p.fill('#en_title','아버지 허리');await p.fill('#en_slug','허리');await p.click('#modal .btn');await settle();
  ok('🔒 지금 탭의 사람으로 만든다 (person=dad)',await p.evaluate(()=>(__T.health_problems.filter(x=>x.slug==='허리')[0]||{}).person==='dad'));
+
+ /* ── 📋 v4.70 진료·증상 기록 — 순환기방이 healthPeople.mom.events 에 넣은 것이 어디에도 안 보였다 ── */
+ await p.evaluate(()=>{DB.healthPeople=DB.healthPeople||{};DB.healthPeople.mom=Object.assign(hBlank(),{person:{name:'고순임',birth:'1961-06-01',sex:'F'},events:[
+   {id:'m1',date:'2026-05-21',name:'일반건강검진',symptom:'빈혈 의심'},
+   {id:'m2',date:'2026-10-20',name:'독감 — 수액',status:'종결',treatment:'**소아과 5일분**'},
+   {id:'m3',date:'2026-10-28',name:'기침 지속 9일',status:'진행중',memo:'🔴 전부 식후'}]});
+   delete DB.ui.emrSel;emrSetPerson('mom');});await settle();
+ const tl=await p.evaluate(()=>{const m=document.querySelector('.emrmain');return {t:m?m.textContent:'',
+   heads:[...document.querySelectorAll('.emrev .emrevh')].map(x=>x.textContent),live:document.querySelectorAll('.emrev.live').length,
+   bold:[...document.querySelectorAll('.emrev b')].map(x=>x.textContent),tab:(document.querySelector('.emrptabs button[data-emrp="mom"] .hpn')||{}).textContent,want:String(EMR.problems.filter(x=>emrPersonOf(x)==='mom'&&x.status!=='closed').length+1)};});
+ ok('TL1 🔴 어머니 탭 — 문제가 0건이어도 진료·증상 기록이 보인다',tl.t.indexOf('진료·증상 기록')>=0&&tl.heads.length===3);
+ ok('TL2 진행중이 맨 위, 그다음 최신 순',/2026-10-28/.test(tl.heads[0])&&/2026-10-20/.test(tl.heads[1])&&/2026-05-21/.test(tl.heads[2]),JSON.stringify(tl.heads));
+ ok('TL3 진행중은 강조',tl.live===1);
+ ok('TL4 본문은 같은 마크다운 렌더러(별표가 안 보인다)',tl.bold.indexOf('소아과 5일분')>=0&&tl.t.indexOf('**')<0);
+ ok('TL5 대상이 누구인지 적는다(이름)',tl.t.indexOf('고순임')>=0);
+ ok('TL6 사람 탭 숫자 = 진행 문제 + 진행중 기록',tl.tab===tl.want,tl.tab+' vs '+tl.want);
+ await p.setViewportSize({width:400,height:900});await settle();
+ ok('TL7 휴대폰 — 문제를 안 골라도 목록 밑에 기록이 보인다',await p.evaluate(()=>getComputedStyle(document.querySelector('.emrmain')).display!=='none'&&getComputedStyle(document.querySelector('.emrlist')).display!=='none'));
+ await p.setViewportSize({width:1440,height:1000});
+ await p.evaluate(()=>emrSetPerson('dad'));await settle();
+ ok('TL8 기록이 없으면 없다고 말한다(빈 화면이 아니다)',await p.evaluate(()=>document.querySelector('.emrmain').textContent.indexOf('아버지의 진료·증상 기록이 아직 없다')>=0));
+ ok('TL9 🔒 앱은 읽기만 — 기록을 보는 것만으로 어머니 데이터가 바뀌지 않는다',await p.evaluate(()=>DB.healthPeople.mom.events.length===3&&!('dad' in DB.healthPeople)));
  await p.evaluate(()=>emrSetPerson('me'));await settle();
  ok('EMR 조작으로 app_state 건강 기록 불변',await p.evaluate(()=>JSON.stringify(DB.health))===health0);
  for(const r of results)assert.ok(r.c,r.n);

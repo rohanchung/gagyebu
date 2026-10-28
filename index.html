@@ -65,6 +65,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .emrclosed summary{cursor:pointer;list-style:none}.emrclosed summary::-webkit-details-marker{display:none}
 .emrlistbtn{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .emrmain{min-width:0}
+.emrtl{display:flex;flex-direction:column;gap:9px}
+.emrtlh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.emrtlh h3{margin:0;font-size:15px}
+.emrev{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.emrev.live{border-color:#f59e0b;box-shadow:inset 3px 0 #f59e0b}
+.emrevh{font-size:13px;line-height:1.45}.emrlive{background:#fff4e0;color:#9a5b00;border-color:#f3d39b}
+.emrevs{display:grid;grid-template-columns:62px minmax(0,1fr);gap:6px;margin-top:6px;font-size:12px}
+.emrevl{color:var(--muted);font-size:11px;padding-top:1px}.emrevt{max-height:none;font-size:12px}.emrevt .mdp{margin:0 0 4px}
+.emrtlli{border-bottom:1px dashed var(--line);margin-bottom:6px}
 .emrempty{padding:22px;text-align:center;color:var(--muted);font-size:13px;background:var(--card);border:1px dashed var(--line);border-radius:12px}
 .emrback{display:none;margin-bottom:8px}
 .emrdhd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -104,7 +112,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   .emrhead{margin-top:8px}
   /* 모바일 — 목록 → 문제 2단계. 두 답은 세로로 쌓는다(400px 에 나란히는 못 읽는다) */
   .emrwrap{grid-template-columns:minmax(0,1fr)}
-  .emrwrap.sel .emrlist{display:none}.emrwrap:not(.sel) .emrmain{display:none}
+  .emrwrap.sel .emrlist{display:none}
   .emrback{display:inline-block}
   .emrans{grid-template-columns:minmax(0,1fr)}
   .emrask{flex-direction:column;align-items:stretch}
@@ -7709,12 +7717,41 @@ function renderEmr(){
   var p=emrSel();
   box.innerHTML=head+(EMR.err?'<div class="emrnotice emrbad">⚠ '+mdEsc(EMR.err)+'</div>':'')
     +'<div class="emrwrap'+(p?' sel':'')+'">'+emrListHtml(p)
-    +'<div class="emrmain">'+(p?emrDetailHtml(p):'<div class="emrempty">왼쪽에서 문제를 고르거나 새로 만든다.</div>')+'</div></div>';
+    +'<div class="emrmain">'+(p?emrDetailHtml(p):emrTimelineHtml(emrPerson()))+'</div></div>';
   emrPollSync(p);
+}
+/* ══════ 📋 v4.70 진료·증상 기록 — 사람마다 ══════
+   🔴 로한: 「순환기 방에서 어머니 EMR를 넣었는데 지금 화면에 안보인다」
+   실측: 순환기방은 healthPeople.mom.events 에 넣었다(10/20 독감 · 10/28 기침 지속 — 진행중). 데이터는 멀쩡했다.
+   그런데 그 칸을 그리는 화면이 **어디에도 없었다** — EMR 은 「문제」(health_problems)만 그리고,
+   사고·증상 화면은 v4.45 부터 「나」 전용이다. 넣을 수는 있는데 볼 수 없는 칸이었다(숨기면 거짓말).
+   🔒 EMR 의 사람 탭마다 그 사람의 기록(emrHealth(k).events)을 타임라인으로 보인다 — 문제를 안 골랐을 때의 기본 화면.
+   🔒 진행중이 맨 위(지금 챙겨야 할 것), 그다음 최신 순. 앱은 읽기만 한다 — 고치는 건 순환기방(app_state)이다. */
+function emrEvents(k){
+  var ev=((emrHealth(k)||{}).events||[]).filter(function(e){return e&&typeof e==='object';}).slice();
+  function live(e){return /진행|치료중|관찰/.test(String(e.status||''));}
+  return ev.sort(function(a,b){var la=live(a),lb=live(b);if(la!==lb)return la?-1:1;
+    return String(b.date||'')<String(a.date||'')?-1:String(b.date||'')>String(a.date||'')?1:0;});
+}
+function emrTimelineHtml(k){
+  var pi=emrPersonInfo(k), H=emrHealth(k)||{}, ps=H.person||{}, ev=emrEvents(k);
+  var who=pi.ic+' '+pi.ko+(ps.name?' · '+mdEsc(ps.name):'')+(ps.birth?' <span class="mut">'+mdEsc(ps.birth)+'</span>':'');
+  var body=ev.length?ev.map(function(e){
+    var st=String(e.status||''), live=/진행|치료중|관찰/.test(st);
+    function sec(lb,v){return v&&String(v).trim()?'<div class="emrevs"><span class="emrevl">'+lb+'</span><div class="mdbody emrevt">'+mdRender(String(v))+'</div></div>':'';}
+    return '<div class="emrev'+(live?' live':'')+'">'
+      +'<div class="emrevh"><b>'+mdEsc(e.date||'날짜 미확인')+'</b> '+mdEsc(e.name||'')
+        +(st?' <span class="pill'+(live?' emrlive':'')+'">'+mdEsc(st)+'</span>':'')+'</div>'
+      +sec('증상',e.symptom)+sec('치료·처방',e.treatment)+sec('메모',e.memo)+'</div>';}).join('')
+    :'<div class="emrempty">'+pi.ko+'의 진료·증상 기록이 아직 없다.</div>';
+  return '<div class="emrtl"><div class="emrtlh"><h3>📋 진료·증상 기록</h3><span class="mut">'+who+' · '+ev.length+'건</span></div>'
+    +body
+    +'<div class="mut emrhint">기록은 순환기방이 남긴다(앱은 읽기만). 두 AI 에게 묻고 싶으면 왼쪽에서 문제를 고르거나 만든다 — 문제의 질문에는 이 기록이 같이 간다.</div></div>';
 }
 function emrTabsHtml(){var cur=emrPerson();
   return '<div class="hptabs emrptabs">'+EMR_PEOPLE.map(function(x){
-    var n=EMR.problems.filter(function(p){return emrPersonOf(p)===x.k&&p.status!=='closed';}).length;
+    var n=EMR.problems.filter(function(p){return emrPersonOf(p)===x.k&&p.status!=='closed';}).length
+         +emrEvents(x.k).filter(function(e){return /진행|치료중|관찰/.test(String(e.status||''));}).length;
     return '<button class="'+(cur===x.k?'on':'')+'" data-emrp="'+x.k+'" onclick="emrSetPerson(this.dataset.emrp)">'+x.ic+' '+x.ko
       +'<span class="hpn">'+n+'</span></button>';}).join('')+'</div>';}
 function emrListHtml(sel){var who=emrPerson();
@@ -7726,7 +7763,10 @@ function emrListHtml(sel){var who=emrPerson();
     var h='<div class="emrgrp">'+g[1]+' '+EMR_ST[g[0]]+' <span class="mut">'+ps.length+'</span></div>';
     return g[0]==='closed'?'<details class="emrclosed"><summary>'+h+'</summary>'+items+'</details>':h+items;
   }).join('');
-  return '<div class="emrlist">'+emrTabsHtml()+(html||'<div class="mut" style="font-size:12px;padding:6px 2px">'+emrPersonInfo(who).ko+'의 문제가 아직 없다.</div>')
+  var nEv=emrEvents(who).length, nLive=emrEvents(who).filter(function(e){return /진행|치료중|관찰/.test(String(e.status||''));}).length;
+  var tl='<div class="emrli emrtlli'+(sel?'':' on')+'" onclick="emrPick(\'\')"><span>📋 진료·증상 기록</span><span class="mut">'
+    +(nLive?'<b class="emrpend" title="진행중">● '+nLive+'</b> ':'')+nEv+'</span></div>';
+  return '<div class="emrlist">'+emrTabsHtml()+tl+(html||'<div class="mut" style="font-size:12px;padding:6px 2px">'+emrPersonInfo(who).ko+'의 문제가 아직 없다.</div>')
     +'<div class="emrlistbtn"><button class="ghost sm" onclick="emrNewModal()">+ 신규 문제</button>'
     +'<button class="ghost sm" onclick="emrLoad()">↻ 새로고침</button></div></div>';
 }
@@ -12627,7 +12667,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.69';
+var APP_VERSION='4.70';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12641,6 +12681,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.70',date:'2026-10-28',note:'<b>📋 EMR 에 사람별 진료·증상 기록 — 어머니 기록이 넣어져 있었는데 보이는 곳이 없었다.</b> 로한: 「순환기 방에서 어머니 EMR를 넣었는데 지금 화면에 안보인다」 · 실측: 순환기방은 healthPeople.mom.events 에 넣었다 — 10/20 독감(종결) · <b>10/28 기침 지속 9일 · 항생제·기관지확장제 3종(진행중)</b>. 데이터는 멀쩡했다 · 🔴 그 칸을 그리는 화면이 <b>어디에도 없었다</b> — EMR 은 「문제」(health_problems, 어머니 0건)만, 사고·증상 화면은 v4.45 부터 「나」 전용 · 🔒 EMR 사람 탭마다 📋 진료·증상 기록 타임라인 — 문제를 안 골랐을 때의 기본 화면. <b>진행중이 맨 위</b>(주황 띠), 그다음 최신 순 · 증상·치료·메모는 마크다운 렌더러(같은 하나) · 사람 탭 숫자에 진행중 기록도 센다 · 휴대폰에선 목록 밑에 기록이 보인다 · 앱은 읽기만(기록은 순환기방)'},
   {v:'4.69',date:'2026-10-27',note:'<b>📝 마크다운 렌더러 v2 — 표·인용·코드 블록·하이라이트 · 대토론 본문도 렌더링 · 색 규약 확정.</b> handoff-renderer v1(사주방) 구현 · 로한: 「** 이거 다 뭐냐고」 · 실측: 핸드오프 29개 중 <b>표 23 · 인용 8 · 코드 블록 16</b> — 기존 렌더러(굵게·제목·목록·구분선)가 이것들을 몰라 기호 덩어리로 보였다 · 🔴 <b>대토론 본문(라운드 원문·최종안)은 렌더러를 아예 안 탔다</b> — 별표가 그대로 보인 곳이 여기다(본문 9개 중 5개가 ** 사용) · 확인 요청 ① 아고라는 이미 렌더링됐다(굵게만 쓰여 있다) ② 대토론은 안 됐다 → 이제 같은 렌더러 · 🔒 렌더러는 하나 — 핸드오프·아고라·대토론이 같은 함수 · 🔒 이스케이프가 먼저(서버 본문) · 코드 안의 별표는 굵게로 바꾸지 않는다 · 🎨 <b>색 규약</b>: 이모지가 정본(🔴 반드시·위험·기한 · 🟠 주의·미해결·쟁점 · 🟢 확정·합의 · 🔵 정보·넘김 · ⚫ 규칙·기준) — AI 방은 원문을 읽으니 양쪽에서 같은 뜻. 앱은 그 이모지로 <b>시작하는</b> 줄·항목·표 행에 같은 색 띠 · 진짜 색은 <code>==하이라이트==</code> 하나 · t59 신설'},
   {v:'4.68',date:'2026-10-27',note:'<b>🏛 결재 단추가 「눌러도 반응 없음」 — 꺼진 이유를 글자로 적고, 꺼진 단추는 흐리게.</b> 로한: 「로한 결재 버튼을 눌러도 반응이 없다」 · 실측: 실전 2027 R4 · 로버트 최종안(합의 5 · 쟁점 3: 시험학업·건강·가족) 있음 · <b>수연 서명 없음</b> → v4.65 규칙대로 단추가 꺼져 있었다(정상) · 🔴 그런데 ① 꺼진 이유가 <b>툴팁에만</b> 있었고(휴대폰에선 안 보인다) ② <b>.btn 에 꺼진 모양이 없어</b> 켜진 단추와 똑같이 생겼다 → 단추 옆에 「결재하려면 — 수연 서명 대기 · 쟁점 3개 중 n개 미선택: …」 · .btn:disabled 를 앱 전체에서 흐리게'},
   {v:'4.67',date:'2026-10-27',note:'<b>🏛 교차반론(R2)이 안 보였다 — 셀 밑에 펼치고, 라운드 원문을 보이고, 탭을 열 때마다 새로 읽는다.</b> 로한: 「둘다 교차반론을 했는데, 그 내용은 왜 안보이지?」 · 실측: 실전 2027 대회 이미 R3 · 로버트 R2(수정 5·동의 2·반대 1) · 수연 R2(수정 5·반대 2·동의 1) 둘 다 제출돼 있었다 · 🔴 ① R2 는 영역 줄 밑 「반론·수정 보기」 <b>접힘 안</b>에만 있었다 — 눌러야 보이니 없는 것처럼 보였다 → 상대의 반론을 <b>그 사람 셀 바로 밑에 펼쳐서</b>(수연 칸 밑 = 로버트의 반론) 동의·반대·수정 색과 함께 · 🔴 ② <b>라운드 본문(content)은 화면 어디에도 없었다</b> → 📜 라운드 원문(가장 최근 열린 라운드 펼침) · 🔴 ③ 대토론은 <b>한 번 읽고 끝</b>이었다 — 탭을 연 뒤 들어온 제출이 안 보였다 → 탭에 들어올 때마다 새로 읽고 ↻ 새로고침 · 🔒 블라인드는 그대로 — 안 열린 라운드는 그리지 않는다'},
