@@ -71,6 +71,8 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  const b=await chromium.launch({executablePath:process.env.CHROME||(fs.existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
  try{
  const c=await b.newContext({viewport:{width:1500,height:1100}});
+  /* 🔒 v4.71 — 「오늘」을 고정한다. 이 파일은 10월에 쓰여 「이번 달 = 10월」을 전제했다 — 11/1 이 되자 터졌다(앱 결함이 아니라 시한폭탄) */
+  await c.clock.setFixedTime(new Date('2026-10-20T12:00:00+09:00'));
  await c.addInitScript(({st,fc,ev,notes})=>{
    const store={v:JSON.parse(JSON.stringify(st))};window.__ins=[];
    const tbl={saju_forecasts:fc,saju_evaluations:ev,saju_notes:notes};

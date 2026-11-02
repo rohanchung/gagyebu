@@ -43,6 +43,8 @@ const ST={schemaVersion:7,ui:{month:'2026-10'},
  const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
  try{
   const c=await b.newContext({viewport:{width:1440,height:1000}});
+  /* 🔒 v4.71 — 「오늘」을 고정한다. 이 파일은 10월에 쓰여 「이번 달 = 10월」을 전제했다 — 11/1 이 되자 터졌다(앱 결함이 아니라 시한폭탄) */
+  await c.clock.setFixedTime(new Date('2026-10-20T12:00:00+09:00'));
   await c.addInitScript(({s})=>{const store={v:s};
    function mk(){let _m=null,_p=null;
     const q={select(){if(_m==='update'){_m=null;store.v=_p.data;store.at=_p.updated_at;return Promise.resolve({data:[{updated_at:store.at}]});}return q},
