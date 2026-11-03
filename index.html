@@ -3020,7 +3020,7 @@ function jumpMonth(mm){DB.ui.month=mm;save();selDate=null;closeModal();renderCal
 
 /* ====== 계좌·부채 ====== */
 function renderAcct(){
-  function accRow(a){var ex=a.subtype?' <span class="chip credit">'+a.subtype+'</span>':(a.currency?' <span class="chip credit">'+a.currency+'</span>':'');var cf=(isCashAcct(a)&&a.opening)?'<br><span class="mut" style="font-size:10px">현금흐름 계산 '+won(acctComputed(a))+' <span class="chip auto">기초 '+a.opening.date+'</span></span>':'';return '<div class="row"><span><span class="pill">'+a.group+'</span>'+a.name+ex+' <span class="chip '+a.mode+'">'+(a.mode==='auto'?'자동':'수기')+'</span></span><span style="text-align:right">'+won(accVal(a))+cf+' <span class="acts"><span data-editacc="'+a.id+'">수정</span><span data-delacc="'+a.id+'">삭제</span></span></span></div>';}
+  function accRow(a){var ex=a.subtype?' <span class="chip credit">'+a.subtype+'</span>':(a.currency?' <span class="chip credit">'+a.currency+'</span>':'');var cf=(isCashAcct(a)&&a.opening)?'<br><span class="mut" style="font-size:10px">현금흐름 계산 '+won(acctComputed(a))+' <span class="chip auto">기초 '+a.opening.date+'</span></span>':'';return '<div class="row"><span><span class="pill">'+a.group+'</span>'+a.name+ex+' <span class="chip '+(accIsDerived(a)?'auto':'manual')+'">'+(accIsDerived(a)?'자동':'수기')+'</span></span><span style="text-align:right">'+won(accVal(a))+cf+' <span class="acts"><span data-editacc="'+a.id+'">수정</span><span data-delacc="'+a.id+'">삭제</span></span></span></div>';}
   function accBucket(a){return a.group==='현금성'?'현금성':(a.group==='투자'?'투자':'기타');}
   var accG={'현금성':[],'투자':[],'기타':[]};DB.accounts.forEach(function(a){accG[accBucket(a)].push(a);});
   var accHtml=['현금성','투자','기타'].map(function(gn){var arr=accG[gn];if(!arr.length)return '';var sub=arr.reduce(function(s,a){return s+accVal(a);},0);return '<div class="grp"><div class="ghd"><span>'+gn+' <span class="mut" style="font-weight:400">'+arr.length+'</span></span><span>'+won(sub)+'</span></div>'+arr.map(accRow).join('')+'</div>';}).join('');
@@ -12822,7 +12822,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.72';
+var APP_VERSION='4.73';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12836,6 +12836,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.73',date:'2026-11-03',note:'<b>📈 노랑우산 그래프·로그가 잔액과 달랐다 — 가계부로 계산하는 계좌는 추세도 계산한다.</b> 로한: <i>“노랑우산공제 클릭시 뜨는 그래프 안에 로그랑 잔액이랑 다르다. 저축·대출은 가계부 연동으로 자동 반영되어야 되잖아.”</i> · 원인: v2.12 에서 <b>잔액</b>은 기초잔액 기준으로 파생했는데, 같은 질문에 답하는 <b>그래프·로그·자동/수기 칩</b>은 옛 mode·hist 를 봤다. 노랑우산은 mode 가 수기로 남아 9/30 2,500,000 에서 멈추고 수기 입력칸까지 떴다 · 🔒 기초잔액이 있는 계좌: 기초 이전은 수기 기록, 기초 이후는 <b>월말마다 가계부로 계산</b> · 기초 이후에 적어 둔 실제 잔액은 계산값 옆에 두고 <b>차이를 빨간 글씨로</b> 보인다(은행 대사 칸) · 대출은 이미 거래(원금)로 계산하고 있었다 — 교보 10/26 이자 1건이 대출에 안 묶여 있던 것만 데이터로 묶었다 · t61 신설'},
   {v:'4.72',date:'2026-11-02',note:'<b>🩺 진료·증상 입력 · 처방은 약마다 투여 경로(필수) · 혈압 칸 — 사람마다.</b> 의사(순환기)께서 두 달째 청하신 것 · 「10/28 어머님 처방은 하나는 먹고 하나는 붙이고 하나는 흡입한다 — 약 이름만 적으면 <b>마시면 안 될 약을 마시는 사고</b>를 막을 수 없다」 · EMR 사람 탭 기록 화면에 <b>[+ 기록] [🩺 혈압]</b> · 기존 카드마다 [고치기] · 🔒 입력창은 하나 — 몸 탭의 「나」 사고·질병 창과 EMR 가족 입력이 같은 함수(사람 인자) · 💊 처방 줄: 병원·약·<b>경로(경구·흡입·네뷸라이저·부착·주사·점안·바르는 약·기타)</b>·용법·기간 — 🔴 경로 없는 약은 저장을 거부한다 · 화면에서 경구가 아닌 약은 「· 먹지 않음」을 주황으로 · 🩺 혈압: 날짜·아침/저녁·수축기/이완기·맥박·메모, 최근 14회 칩 — 90/60 미만 「낮음」, 140/90 이상 「높음」(표시일 뿐 진단 아님) · 숫자 검사(위가 아래보다 커야) · 🔒 사실 묶음에 처방(경로 붙여)과 혈압이 같이 간다 — 두 AI 가 흡입약을 먹는 약으로 읽지 않게 · 🔒 옛 기록(treatment 글)은 칸으로 쪼개 옮기지 않았다(데이터 보존) · 기록이 없으면 칸을 만들지 않는다'},
   {v:'4.71',date:'2026-11-02',note:'<b>💾 한 탭이 자기 자신과 충돌하던 결함 — 저장을 한 줄로 세웠다 · 🚇 K패스 교통비 이중 차감 5건 정리.</b> 🔴 10/29 5분 동안 「덮어쓰기 직전 서버본」 스냅샷이 10개 찍혔다. 로한: 「휴대폰과 PC 에 같이 열어둔 경우는 없어 · 크롬 여러 창도 없었다」 → <b>다른 곳이 아니라 앱 자신</b>이었다 · 원인: 본문이 814KB 라 업로드가 저장 대기(400ms)보다 길다. 저장 A 가 날아가는 동안 체크를 또 하면 저장 B 가 <b>A 가 돌아오기 전의 기준 시각</b>을 들고 출발 → A 가 성공해 서버 시각이 바뀌니 B 는 「같은 시각일 때만 쓴다」에 걸려 충돌로 읽혔다. 루틴을 연달아 체크한 5분(체크 59→64)과 정확히 맞는다 · 데이터 손실은 없었다(늘기만 했다) — 3자 병합이 지켰다 · 🔒 저장은 한 줄로 선다: 보내는 중이면 다음 것은 기다렸다가 돌아온 뒤 <b>그때의 최신 DB</b> 로 이어서 간다. 응답이 20초 안 오면 줄을 푼다(갇히지 않게) · 🔒 진짜 남의 쓰기(다른 방의 MCP 쓰기)는 여전히 충돌로 잡고 병합한다 · t60 신설 — 고치기 전 코드로 돌리면 동시 쓰기 4·자기 충돌 3 으로 <b>실패</b>하고 고친 뒤 통과하는 것을 확인했다 · 🚇 로한: 「K패스 후불은 항상 후불 · 지출일 기준으로 적었고 결제는 매월 우리카드 결제일에」 — 9/1 이후 후불 표시가 빠진 교통비 5건(34,900원)이 거래일에 한 번, 카드 결제일에 또 한 번 <b>두 번 빠지고 있었다</b>(K패스 결제 총 150,200 − 결제 완료 후불 86,850 = 63,350 ≈ 이 5건 + 8월분 64,550). 「후불·결제됨」으로 고쳤다(SUPER 잔액 +34,900). 🔒 9/1 이전 40건은 그대로 — 그 시기엔 카드 결제 기록이 없어 바꾸면 그 달 현금흐름에서 돈이 사라진다(지출 통계는 지출일 기준이라 어느 쪽이든 같다) · 🧪 [자체 발견] 11/1 이 되자 t53·t58 이 깨졌다 — 앱 결함이 아니라 테스트가 「이번 달 = 10월」을 전제한 시한폭탄이었다(고치기 전 코드로도 똑같이 실패). 두 테스트의 「오늘」을 10/20 으로 고정했다'},
   {v:'4.70',date:'2026-10-28',note:'<b>📋 EMR 에 사람별 진료·증상 기록 — 어머니 기록이 넣어져 있었는데 보이는 곳이 없었다.</b> 로한: 「순환기 방에서 어머니 EMR를 넣었는데 지금 화면에 안보인다」 · 실측: 순환기방은 healthPeople.mom.events 에 넣었다 — 10/20 독감(종결) · <b>10/28 기침 지속 9일 · 항생제·기관지확장제 3종(진행중)</b>. 데이터는 멀쩡했다 · 🔴 그 칸을 그리는 화면이 <b>어디에도 없었다</b> — EMR 은 「문제」(health_problems, 어머니 0건)만, 사고·증상 화면은 v4.45 부터 「나」 전용 · 🔒 EMR 사람 탭마다 📋 진료·증상 기록 타임라인 — 문제를 안 골랐을 때의 기본 화면. <b>진행중이 맨 위</b>(주황 띠), 그다음 최신 순 · 증상·치료·메모는 마크다운 렌더러(같은 하나) · 사람 탭 숫자에 진행중 기록도 센다 · 휴대폰에선 목록 밑에 기록이 보인다 · 앱은 읽기만(기록은 순환기방)'},
@@ -13616,17 +13617,54 @@ function closeModal(){ov.classList.remove('on');}
 function renderRW(){renderDaily();renderGoal();renderReward();}
 function renderDG(){renderDaily();renderGoal();}
 /* 모달은 X 버튼으로만 닫힘 (바깥 클릭 무시) */
+/* 📈 v4.73 — 🔴 [결함] 노랑우산 그래프·로그가 9/30 2,500,000 에 멈춰 있었다(잔액은 2,600,000).
+   v2.12 에서 **잔액**은 accIsDerived(기초잔액 있음)로 바꿨는데, 같은 질문에 답하는 **그래프·로그·자동/수기 칩**은
+   a.mode·a.hist 를 그대로 봤다. 노랑우산은 mode:'manual' 로 남아 수기 입력칸까지 떴다.
+   🔒 파생 계좌는 추세도 파생한다: 기초 이전은 수기 기록, 기초 이후는 월말마다 acctBalAt.
+   🔒 기초 이후에 적어 둔 실제 잔액(hist)은 버리지 않는다 — 계산값 옆에 두고 차이를 보인다(대사 칸). */
+function acctTrend(a){
+  var od=a.opening.date, today=todayStr(), out=[];
+  (a.hist||[]).forEach(function(h){ if(h.date<od)out.push({date:h.date,amount:h.amount,k:'rec'}); });
+  out.push({date:od,amount:a.opening.amount||0,k:'open'});
+  var y=+od.slice(0,4), m=+od.slice(5,7);
+  for(var g=0;g<240;g++){
+    var me=y+'-'+String(m).padStart(2,'0')+'-'+String(new Date(y,m,0).getDate()).padStart(2,'0');
+    var d=me<today?me:today; if(d>=od)out.push({date:d,amount:acctBalAt(a,d),k:'calc'});
+    if(me>=today)break; m++; if(m>12){m=1;y++;}
+  }
+  return out;
+}
+/* 선그래프는 달마다 점 하나 — 그 달의 마지막 값 */
+function monthLast(pts){var m={};pts.slice().sort(function(x,y){return x.date<y.date?-1:1}).forEach(function(p){m[p.date.slice(0,7)]=p;});return Object.keys(m).sort().map(function(k){return m[k];});}
 function assetModal(id){
   var a=DB.accounts.filter(function(x){return x.id===id})[0];if(!a)return;
-  var isFx=a.group==='외환';
-  var logs=a.hist.slice().sort(function(x,y){return x.date<y.date?1:-1});
-  var lh=logs.map(function(l){
-    var fx=(isFx&&l.foreign!=null)?('<span class="mut">'+l.foreign.toLocaleString('ko-KR')+' '+(a.currency||'')+'</span> · '):'';
-    return '<div class="logrow"><span>'+l.date+'</span><span>'+fx+won(l.amount)+(a.mode==='manual'?' <span class="del" data-vdel="'+l.date+'" data-acc="'+a.id+'">삭제</span>':'')+'</span></div>';
-  }).join('');
+  var isFx=a.group==='외환', drv=accIsDerived(a);
+  var lh, series;
+  if(drv){
+    var tr=acctTrend(a), od=a.opening.date;
+    var recAfter={};(a.hist||[]).forEach(function(h){ if(h.date>=od)recAfter[h.date]=h.amount; });
+    var rows={};
+    tr.forEach(function(p){ if(p.k==='calc')rows[p.date]={date:p.date,calc:p.amount}; });
+    Object.keys(recAfter).forEach(function(d){ rows[d]=rows[d]||{date:d,calc:acctBalAt(a,d)}; rows[d].rec=recAfter[d]; });
+    lh=Object.keys(rows).sort().reverse().map(function(d){var r=rows[d];
+      var rec='';
+      if(r.rec!=null){var df=r.rec-r.calc;
+        rec=' <span class="mut" style="font-size:10.5px">· 적어 둔 실제 '+won(r.rec)+(df?(' <b style="color:#c0392b">(차 '+(df>0?'+':'−')+comma(df)+')</b>'):' ✓')+'</span>';}
+      return '<div class="logrow"><span>'+d+' <span class="chip auto">계산</span></span><span>'+won(r.calc)+rec+'</span></div>';}).join('')
+      +'<div class="logrow"><span>'+od+' <span class="chip check">기초</span></span><span>'+won(a.opening.amount||0)+'</span></div>'
+      +tr.filter(function(p){return p.k==='rec';}).reverse().map(function(p){return '<div class="logrow"><span>'+p.date+' <span class="chip manual">수기</span></span><span>'+won(p.amount)+'</span></div>';}).join('');
+    series=monthLast(tr);
+  } else {
+    var logs=a.hist.slice().sort(function(x,y){return x.date<y.date?1:-1});
+    lh=logs.map(function(l){
+      var fx=(isFx&&l.foreign!=null)?('<span class="mut">'+l.foreign.toLocaleString('ko-KR')+' '+(a.currency||'')+'</span> · '):'';
+      return '<div class="logrow"><span>'+l.date+'</span><span>'+fx+won(l.amount)+' <span class="del" data-vdel="'+l.date+'" data-acc="'+a.id+'">삭제</span></span></div>';
+    }).join('');
+    series=a.hist;
+  }
   var sub=a.subtype?(' <span class="chip credit">'+a.subtype+'</span>'):(a.currency?(' <span class="chip credit">'+a.currency+'</span>'):'');
-  var b='<div class="mtop"><h3>'+a.group+' · '+a.name+sub+'</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut">현재 평가액</div><div class="mcur">'+won(accVal(a))+'</div><div class="mut">월별 증감(선그래프)</div>'+lineChart(a.hist,{zeroBase:true})+'<div class="mut" style="margin:10px 0 2px">평가 로그</div>'+lh;
-  if(a.mode==='manual'){
+  var b='<div class="mtop"><h3>'+a.group+' · '+a.name+sub+'</h3><span class="x" onclick="closeModal()">×</span></div><div class="mut">'+(drv?'현재 잔액':'현재 평가액')+'</div><div class="mcur">'+won(accVal(a))+'</div><div class="mut">월별 증감(선그래프)</div>'+lineChart(series,{zeroBase:true})+'<div class="mut" style="margin:10px 0 2px">'+(drv?'잔액 로그 — 기초 이후는 가계부에서 계산':'평가 로그')+'</div>'+lh;
+  if(!drv){
     if(isFx){
       var curOpts=['USD','JPY','EUR','기타'].map(function(c){return '<option'+(c===a.currency?' selected':'')+'>'+c+'</option>'}).join('');
       b+='<div class="field" style="margin-top:10px"><label>통화</label><select id="vCur">'+curOpts+'</select></div>'
