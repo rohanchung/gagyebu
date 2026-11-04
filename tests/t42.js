@@ -51,6 +51,8 @@ async function boot(st){
      보통 300~600ms 면 뜨고, 안 뜨면 1500ms 를 기다려도 어차피 실패한다. */
   await p.goto('file://'+file);
   await p.waitForFunction(()=>typeof DB!=='undefined'&&DB&&DB.study,null,{timeout:15000});
+  /* 📅 v4.74 — 앱은 열 때 데일리를 **오늘**로 돌린다. 픽스처가 고른 날(st.ui.goalDate)로 다시 옮긴다 */
+  if(st.ui&&st.ui.goalDate)await p.evaluate(d=>setGoalDate(d),st.ui.goalDate);
   await p.click('.m[data-v="study"]');await p.waitForTimeout(500);
   return {b:c,p,errs,dlg};
 }

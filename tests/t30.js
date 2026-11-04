@@ -252,28 +252,31 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
 
   /* 화면 */
   await p.click('.m[data-v="daily"]');await p.waitForTimeout(400);
-  const ui=await p.evaluate(()=>{
-    const e=document.querySelector('#v-daily .dsaju');
-    return e?{html:e.innerHTML,badge:!!e.querySelector('.fbadge'),bub:!!e.querySelector('.bub'),
-              tip:e.getAttribute('title')}:null;
-  });
-  ok('J7 데일리 상단에 일진 블록이 있다',ui!==null);
-  ok('J8 길흉 뱃지가 붙는다',ui&&ui.badge===true);
-  ok('J9 말풍선이 붙는다',ui&&ui.bub===true);
+  /* 🔮 v4.74 — 일진은 상단 한 칸이 아니라 **달력 칸 머리**에 날마다 있다(로한: 「캘린더 날짜별로 · 오른쪽 상단」) */
+  const ui=await p.evaluate((sel)=>{
+    const e=document.querySelector(sel);
+    const fv=e&&e.querySelector('.gmk.fv');
+    return e?{badge:!!fv,bub:!!e.querySelector('.bub'),tip:fv?fv.getAttribute('title'):null,
+      mark:fv?fv.textContent:null,cells:document.querySelectorAll('#v-daily .gcell .gchd .bub').length,
+      top:!!document.querySelector('#v-daily .dtop .bub')}:null;
+  },await p.evaluate(()=>'#v-daily .gcell[data-gcal="'+curDate()+'"] .gchd'));
+  ok('J7 보는 날의 달력 칸 머리에 일진이 있다',ui!==null);
+  ok('J8 길흉 판정(吉凶平)이 붙는다',ui&&ui.badge===true&&/^[吉凶平]$/.test(ui.mark||''),ui&&ui.mark);
+  ok('J9 말풍선이 붙는다 · 날마다 하나 · 상단엔 없다',ui&&ui.bub===true&&ui.cells>=28&&!ui.top,ui&&(ui.cells+'/'+ui.top));
   ok('J10 근거가 툴팁에 들어간다',ui&&typeof ui.tip==='string'&&ui.tip.length>0,ui&&ui.tip);
 
   /* 🔒 사주 페이지와 같은 키를 쓴다 — 저장된 해석이 데일리에서 켜져야 한다 */
-  const off=await p.evaluate(()=>document.querySelector('#v-daily .bub').classList.contains('on'));
+  const off=await p.evaluate(()=>document.querySelector('#v-daily .gcell[data-gcal="'+curDate()+'"] .bub').classList.contains('on'));
   ok('J11 해석이 없으면 말풍선 꺼짐',off===false);
   const on=await p.evaluate(()=>{
     const d=curDate();
     DB.saju.readings['day:'+d]={text:'테스트 해석',savedAt:d};
     renderDaily();
-    return document.querySelector('#v-daily .bub').classList.contains('on');
+    return document.querySelector('#v-daily .gcell[data-gcal="'+d+'"] .bub').classList.contains('on');
   });
   ok('J12 사주 페이지에 저장된 day: 해석이 데일리에서 켜진다',on===true);
   const opened=await p.evaluate(()=>{
-    document.querySelector('#v-daily .bub').click();
+    document.querySelector('#v-daily .gcell[data-gcal="'+curDate()+'"] .bub').click();
     const h=document.getElementById('modal').innerHTML;
     closeModal(); return h.indexOf('테스트 해석')>=0;
   });

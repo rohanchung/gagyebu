@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<script>document.documentElement.className+=' boot';</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rohan Book</title>
 <link rel="icon" type="image/png" href="favicon.png">
@@ -1427,6 +1428,24 @@ textarea.mla.same{background:#f2f9f4}
 .gcmks{display:flex;gap:1px;line-height:1}
 .gmk{font-style:normal;font-size:9px;line-height:1;opacity:.9}
 .gmk.yin{color:#7b6bb0;font-size:8px}
+/* 🔮 v4.74 칸 머리 아이콘 — 판정(吉凶平)·말풍선. 미래 칸도 말풍선은 눌린다 */
+.gmk.fv{font-family:var(--serif);font-weight:800;font-size:8.5px;padding:0 2px;border-radius:3px}
+.gmk.fv.good{color:#8a6d12;background:#f3ead2}.gmk.fv.bad{color:#a3301f;background:#fadfd9}.gmk.fv.neu{color:#8b8574}
+.gchd .bub{font-size:9.5px;margin-left:1px;line-height:1}
+.gcmks{align-items:center;min-width:0;overflow:hidden}
+.gcell.fut .gchd .bub{pointer-events:auto;cursor:pointer}
+.gcal.wk .gchd{flex-wrap:wrap}
+.gcal.wk .gcmks{flex-wrap:wrap}
+.dquick{display:inline-flex;gap:6px;margin-left:auto}
+.dquick .ghost.sm{padding:3px 10px;font-size:11.5px}
+/* 📱 v4.74 — 현금흐름 「실시간 대조」가 390px 에서 계좌 이름을 **한 글자씩 세로로** 쌓았다(고정 폭 4칸이 400px 을 먹었다).
+   모바일에선 이름이 한 줄을 다 쓰고, 숫자 칸들이 그 아래 줄로 내려간다. */
+@media(max-width:640px){
+  .recrow{flex-wrap:wrap;row-gap:4px}
+  .recrow .rc-n{flex:1 1 100%!important}
+  .recrow>span:not(.rc-n){min-width:0!important;flex:1 1 22%}
+  .recrow .taxin{width:100%!important;max-width:112px}
+}
 /* ⚠️ 줄 높이를 px 로 못박는다. flex+baseline+overflow 조합이면 line box 가 예상보다 커져
    (실측 줄당 20px) 5줄이 154px 이 됐다. 달력 칸은 높이가 예측 가능해야 한다. */
 /* width:100% — 부모가 flex column 인데 cross-stretch 가 안 먹어 줄이 content 폭(30px)으로 쪼그라들었다(실측) */
@@ -1612,6 +1631,22 @@ textarea.mla.same{background:#f2f9f4}
   .mtop{top:-16px;margin:-16px -16px 8px;padding:14px 16px 10px}
 }
 @media(max-width:640px){.msum div{padding:5px 7px}}
+/* 🚪 v4.74 — 새로고침하면 로그인 화면이 번쩍 떴다가 앱으로 넘어갔다(로한: 「아마추어적」).
+   세션 확인(getSession)과 데이터 로드가 끝나기 전엔 **둘 다 숨기고** 표지만 보인다.
+   🔒 세션이 없을 때만 로그인을 보인다 · 10초 안에 안 끝나면 표지를 걷는다(멈춘 화면보다 낫다). */
+.bootsplash{display:none}
+html.boot .login{display:none!important}
+html.boot .app{display:none!important}
+html.boot .bootsplash{display:flex;position:fixed;inset:0;align-items:center;justify-content:center;flex-direction:column;gap:10px;
+  background:linear-gradient(180deg,#fbfaf6,#fff);z-index:300;font-family:var(--serif);color:var(--gold);font-weight:700;letter-spacing:.6px}
+.bootsplash img{width:44px;height:44px;animation:bootpulse 1.4s ease-in-out infinite}
+@keyframes bootpulse{0%,100%{opacity:.45}50%{opacity:1}}
+/* 🧭 v4.74 — PC 사이드바는 화면에 붙는다. 아래 메뉴를 누르려고 페이지를 내려야 했고,
+   내려간 채로 다른 화면이 떠서 「중간부터」 보였다. 메뉴가 길면 사이드바 안에서만 스크롤한다. */
+@media(min-width:901px){
+  .sidewrap{position:sticky;top:0;align-self:flex-start;height:100vh}
+  .side{height:100vh;overflow-y:auto;scrollbar-width:thin}
+}
 
 /* ── 저장 상태 배지 (v1.1) — 저장은 조용히 성공하고 시끄럽게 실패해야 한다 ── */
 .savebadge{position:fixed;right:14px;bottom:14px;z-index:200;display:none;
@@ -1691,6 +1726,7 @@ textarea.mla.same{background:#f2f9f4}
   </div>
 </div>
 
+<div class="bootsplash" id="bootSplash"><img src="favicon.png" alt=""><span>Rohan Book</span></div>
 <div id="savebadge" class="savebadge"></div>
 <div class="app" id="app">
   <div class="sidewrap">
@@ -4161,7 +4197,7 @@ function renderCashflow(){
     var hasReal=(''+raw)!=='';
     var real=hasReal?(parseFloat((''+raw).replace(/[^0-9.\-]/g,''))||0):null;
     var diff=hasReal?(real-comp):null;
-    return '<div class="row"><span style="flex:1"><b>'+a.name+'</b>'+(a.opening?'':' <span class="mut" style="font-size:10px">기초 미설정</span>')+'</span>'
+    return '<div class="row recrow"><span class="rc-n" style="flex:1"><b>'+a.name+'</b>'+(a.opening?'':' <span class="mut" style="font-size:10px">기초 미설정</span>')+'</span>'
       +'<span style="min-width:110px;text-align:right;font-variant-numeric:tabular-nums">'+won(comp)+'</span>'
       +'<span style="min-width:120px;text-align:right"><input class="taxin" style="width:112px" data-recon="'+a.id+'" value="'+(hasReal?raw:'')+'" placeholder="실제잔액"></span>'
       +'<span style="min-width:96px;text-align:right;font-variant-numeric:tabular-nums" class="'+(diff==null?'mut':(Math.abs(diff)<1?'pos':'neg'))+'">'+(diff==null?'—':signWon(diff))+'</span>'
@@ -4197,7 +4233,7 @@ function renderCashflow(){
    +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 6px 4px"><span>수입원천</span><span>계좌</span><span>사용처</span></div>'
    +cfSankeySVG(g)+'</div>'
    +'<div class="sec"><h4>실시간 대조</h4>'
-   +'<div class="row" style="font-size:11px;color:var(--muted)"><span style="flex:1">계좌</span><span style="min-width:110px;text-align:right">앱 계산</span><span style="min-width:120px;text-align:right">실제잔액</span><span style="min-width:96px;text-align:right">차액</span><span style="min-width:74px"></span></div>'
+   +'<div class="row recrow rchd" style="font-size:11px;color:var(--muted)"><span class="rc-n" style="flex:1">계좌</span><span style="min-width:110px;text-align:right">앱 계산</span><span style="min-width:120px;text-align:right">실제잔액</span><span style="min-width:96px;text-align:right">차액</span><span style="min-width:74px"></span></div>'
    +(recRows||'<div class="mut">현금 계좌 없음</div>')
    +'</div>'
    +cfTransferList(txns);
@@ -11120,7 +11156,8 @@ var GOAL_SOURCES=[
   {k:'weight', label:'체중 (체성분 최신 기록)', unit:'kg'},
   {k:'cash',   label:'현금성 자산 합계', unit:'원'},
   {k:'net',    label:'순자산 (자산-부채)', unit:'원'},
-  {k:'debt',   label:'총부채', unit:'원'}
+  {k:'debt',   label:'총부채', unit:'원'},
+  {k:'study',  label:'학습 진도 (완료 단원 / 전체)', unit:'%'}
 ];
 function sourceValue(src){
   try{
@@ -11132,6 +11169,9 @@ function sourceValue(src){
     if(src==='cash')return DB.accounts.filter(function(a){return a.group==='현금성';}).reduce(function(t,a){return t+accVal(a);},0);
     if(src==='net') return totalAssets()-totalDebt();
     if(src==='debt')return totalDebt();
+    /* 🎓 v4.74 — 학습 탭 단원 완료율. JLPT 목표(C)가 binary 라 0% 에 묶여 있었다 */
+    if(src==='study'){var us=(studyDB().units||[]);if(!us.length)return null;
+      return Math.round(us.filter(function(u){return u.status==='done';}).length/us.length*1000)/10;}
   }catch(e){}
   return null;
 }
@@ -11950,6 +11990,12 @@ function gcalCell(ds,compact){
   var used=cardsUsedOn(ds);
   var mk=(yin?'<i class="gmk yin" title="陰 음기일">陰</i>':'')
         +(used.length?'<i class="gmk" title="'+sajuEsc(used.map(function(c){return c.code+' '+c.title;}).join(', '))+'">🎁</i>':'');
+  /* 🔮 v4.74 — 일진 판정 · 💬 말풍선은 **날짜 칸 머리**에 있다(로한: 「캘린더 날짜별로 · 오른쪽 상단」).
+     🔒 판정(dayVerdict)·말풍선 키(day:YYYY-MM-DD)는 사주 페이지와 같은 것이다. 미래 날도 열린다(미리 본다). */
+  try{var ft=dayFlags(parseInt(ds.slice(0,4),10),parseInt(ds.slice(5,7),10),dd), vd=dayVerdict(ft);
+    mk+='<i class="gmk fv '+vd.k+'" title="'+sajuEsc(ft.gz+' · '+(ft.flags.map(function(f){return f.d;}).join(' · ')||'걸린 것 없음'))+'">'+vd.mark+'</i>'
+      +bub('day:'+ds,ds+' '+ft.gz);
+  }catch(e){}
   var body='',tip='';
   if(!future&&compact){
     /* 주간 스트립(모바일)은 칸이 좁다. 이름은 못 넣어도 '몇 개 무너졌나'는 넣는다. */
@@ -12207,6 +12253,10 @@ function tlDel(ds,i){
       루틴 설계는 월 1~2회, 체크는 매일. 레이아웃으로 풀 문제가 아니라 정보구조로 풀 문제였다.
    ⚠️ 다만 연계성이 끊기면 그냥 할 일 목록이 된다.
       → 상단에 연간 목표 진행률 칩을 두고, 체크리스트는 목표별로 묶는다. */
+/* 🏠 v4.74 데일리 바로가기 — 탭을 열고 그 안의 자리까지 간다 */
+function dailyGo(k){
+  if(k==='drill'){DB.ui=DB.ui||{};DB.ui.studyTab='word';save();return gotoTab('study');}
+}
 function gotoTab(v){var m=document.querySelector('.side .m[data-v="'+v+'"]');if(m)m.click();}
 function dailyTab(){var t=(DB.ui&&DB.ui.dailyTab);return (t==='log'||t==='meal'||t==='study')?t:'routine';}
 function setDailyTab(v){DB.ui.dailyTab=v;DB.ui.tlPick=null;save();renderDaily();}
@@ -12311,28 +12361,35 @@ function renderDaily(){
   var yg=yearGoals(yy), tab=dailyTab();
 
   /* ── 상단: 연계성 유지 장치 ── */
+  /* 🎯 v4.74 — 로한: 「A부터 E까지 목표가 계속 0%」. 완료/미완(binary) 목표는 완료 전엔 늘 0% 였다 —
+     그 0% 는 정보가 아니다. 수치가 없는 목표는 **최근 30일 루틴 실행률**을 「실행」으로 따로 보인다(진척률과 섞지 않는다). */
   var gchips=yg.map(function(g){
-    var pct=goalPct(g);
-    return '<span class="dgchip'+(pct>=100?' full':'')+'" data-gojump="'+g.id+'" title="'+sajuEsc(g.title)+' · 누르면 목표·루틴 탭">'
-      +'<b class="gcode">'+g.code+'</b>'+sajuEsc(cut(g.title,10))+' <i>'+pct+'%</i></span>';}).join('');
-  /* v1.9 — 로한: "길, 흉, 평 이걸 표시 + 여기서도 말풍선이 보였으면 · 사주페이지랑 연동".
-     🔒 판정도 말풍선 키(day:YYYY-MM-DD)도 사주 페이지와 **같은 것**을 쓴다. 두 벌로 갈라지면 반드시 어긋난다. */
-  var sajuD='';
-  try{var ft=dayFlags(parseInt(d.slice(0,4),10),parseInt(d.slice(5,7),10),parseInt(d.slice(8,10),10));
-    var _fd=ft.flags.map(function(f){return f.d;}).join(' · ');
-    sajuD='<span class="dsaju" title="'+sajuEsc(_fd||'걸린 것 없음')+'">'
-      +dayVerdictBadge(ft)
-      +'<b>'+ft.gz+'</b>'
-      +(ft.flags.length?'<span class="mut">'+ft.flags.map(function(f){return f.t;}).join('·')+'</span>':'<span class="mut">무난</span>')
-      +bub('day:'+d,d+' '+ft.gz)+'</span>';
-  }catch(e){}
-  var used=tlUsed(d);
+    var pct=goalPct(g), mt=(g.metric&&g.metric.type)||'binary', lab, tip;
+    if(mt==='binary'&&g.status!=='done'){
+      var gs=goalStats(g.id,addDays(t,-29),t);
+      lab=gs.due?('실행 '+Math.round(gs.rate*100)+'%'):'—';
+      tip=gs.due?('완료/미완 목표 · 최근 30일 루틴 '+gs.done+'/'+gs.due+' 실행'):'완료/미완 목표 · 연결된 루틴이 없다';
+    }else{
+      lab=pct+'%';
+      tip=mt!=='binary'?(gnum(goalValue(g))+' / '+gnum(g.metric.target)+(g.metric.unit||'')
+        +(g.source&&g.source!=='manual'?' · 자동 연동':'')):'완료';
+    }
+    return '<span class="dgchip'+(pct>=100?' full':'')+'" data-gojump="'+g.id+'" title="'+sajuEsc(g.title+' · '+tip)+' · 누르면 목표·루틴 탭">'
+      +'<b class="gcode">'+g.code+'</b>'+sajuEsc(cut(g.title,10))+' <i>'+lab+'</i></span>';}).join('');
+  /* 📅 v4.74 — 상단은 **언제나 오늘**이다(로한). 달력에서 지난 날을 눌러도 오른쪽 칸만 그 날로 바뀐다.
+     🔮 일진 판정·💬 말풍선은 달력 칸 머리로 옮겼다(gcalCell) — 날마다 하나씩. */
+  var tr=dayRate(t), tfull=isFullDay(t), used=tlUsed(t);
+  /* 🏠 데일리는 로한북의 홈 — 자주 가는 곳을 바로 연다(로한: 드릴 · 뽀모도로) */
+  var quick='<span class="dquick">'
+   +'<button class="ghost sm" onclick="dailyGo(\'drill\')" title="학습 → 드릴">🈶 드릴</button>'
+   +'<button class="ghost sm" onclick="stPomoOpen()" title="뽀모도로 타이머">⏱ 뽀모도로</button></span>';
   var topbar='<div class="dtop">'
-   +'<div class="dtl"><b class="dtd">'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8),10)+'일 ('+DOW_KO[dowOf(d)]+')</b>'
-   +'<span class="'+(full?'dfull':'mut')+'">'+(full?'✅ 완전달성':(r?'오늘 '+r.done+'/'+r.total:'루틴 없음'))+'</span>'
-   +'<span class="mut">이번주 '+fullDaysInWeek(weekStart(d))+'/'+cfg.weekFullDays+'일</span>'
-   +'<span class="mut">기록 '+hrs(used)+' · 미기록 '+hrs(48-used)+'</span>'+sajuD+'</div>'
+   +'<div class="dtl"><b class="dtd">'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8),10)+'일 ('+DOW_KO[dowOf(t)]+')</b>'
+   +'<span class="'+(tfull?'dfull':'mut')+'">'+(tfull?'✅ 완전달성':(tr?'오늘 '+tr.done+'/'+tr.total:'루틴 없음'))+'</span>'
+   +'<span class="mut">이번주 '+fullDaysInWeek(weekStart(t))+'/'+cfg.weekFullDays+'일</span>'
+   +'<span class="mut">기록 '+hrs(used)+' · 미기록 '+hrs(48-used)+'</span>'+quick+'</div>'
    +'<div class="dgs">'+(gchips||'<span class="mut" data-gojump="">목표가 없다 — 목표·루틴 탭에서 시작해라</span>')+'</div></div>';
+  var dUsed=tlUsed(d);
 
   /* ── 좌: 통합 캘린더 (계획 + 실제) ── */
   var calPane='<div class="sec pane"><h4><span class="mnav2"><span data-mmv="-1">◀</span>'
@@ -12375,7 +12432,7 @@ function renderDaily(){
    +'<div class="dtabs"><span class="dtab'+(tab==='routine'?' on':'')+'" data-dtab="routine">✓ 루틴'
    +(nMiss?' <em>'+nMiss+'</em>':'')+'</span>'
    +'<span class="dtab'+(tab==='log'?' on':'')+'" data-dtab="log">⏳ 로그'
-   +(used?' <em>'+hrs(used)+'</em>':'')+'</span>'
+   +(dUsed?' <em>'+hrs(dUsed)+'</em>':'')+'</span>'
    +'<span class="dtab'+(tab==='meal'?' on':'')+'" data-dtab="meal">🍚 식사'
    +(mealHas(d,'a')?' <em>●</em>':(mealHas(d,'p')?' <em>🍽</em>':''))+'</span>'
    /* v3.1 — 실행은 데일리에서 일어난다 */
@@ -12822,7 +12879,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.73';
+var APP_VERSION='4.74';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12836,6 +12893,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.74',date:'2026-11-04',note:'<b>🏠 데일리 = 홈 · 화면 기본기.</b> ① 아래 메뉴를 누르면 새 화면이 <b>중간부터</b> 떴다 — 스크롤 위치가 남아 있었다 → 화면을 바꾸면 맨 위에서 시작 · PC 사이드바는 화면에 붙는다(sticky) ② 앱을 열면 지난번 눌러 둔 날(11/2)로 열렸다 → <b>언제나 오늘</b>에서 시작 · 상단 날짜는 늘 오늘, 지난 날을 눌러도 오른쪽 칸만 바뀐다 ③ 🔮 일진 판정(吉凶平)·💬 말풍선을 상단 한 칸에서 <b>달력 날짜 칸 머리</b>로 — 날마다 하나씩, 미래 날도 열린다 ④ 목표 A~E 가 늘 0% — A·C·D·E 는 「완료/미완」이라 완료 전엔 늘 0%, B 는 연동 소스가 비어 있었다 → A 보증금 = 현금성 자산 합계, B 체중 = 체성분 기록, C JLPT = 학습 진도(새 소스: 완료 단원/전체) · 수치 없는 D·E 는 0% 대신 <b>최근 30일 루틴 실행률</b>(「실행 N%」) ⑤ 데일리 상단 바로가기 🈶 드릴 · ⏱ 뽀모도로 ⑥ 새로고침하면 로그인 화면이 번쩍 떴다 → 세션 확인·데이터 로드가 끝날 때까지 표지만 보인다 ⑦ 모바일 현금흐름 대조표가 계좌 이름을 한 글자씩 세로로 쌓았다 → 이름 한 줄, 숫자는 아랫줄 · t62 신설'},
   {v:'4.73',date:'2026-11-03',note:'<b>📈 노랑우산 그래프·로그가 잔액과 달랐다 — 가계부로 계산하는 계좌는 추세도 계산한다.</b> 로한: <i>“노랑우산공제 클릭시 뜨는 그래프 안에 로그랑 잔액이랑 다르다. 저축·대출은 가계부 연동으로 자동 반영되어야 되잖아.”</i> · 원인: v2.12 에서 <b>잔액</b>은 기초잔액 기준으로 파생했는데, 같은 질문에 답하는 <b>그래프·로그·자동/수기 칩</b>은 옛 mode·hist 를 봤다. 노랑우산은 mode 가 수기로 남아 9/30 2,500,000 에서 멈추고 수기 입력칸까지 떴다 · 🔒 기초잔액이 있는 계좌: 기초 이전은 수기 기록, 기초 이후는 <b>월말마다 가계부로 계산</b> · 기초 이후에 적어 둔 실제 잔액은 계산값 옆에 두고 <b>차이를 빨간 글씨로</b> 보인다(은행 대사 칸) · 대출은 이미 거래(원금)로 계산하고 있었다 — 교보 10/26 이자 1건이 대출에 안 묶여 있던 것만 데이터로 묶었다 · t61 신설'},
   {v:'4.72',date:'2026-11-02',note:'<b>🩺 진료·증상 입력 · 처방은 약마다 투여 경로(필수) · 혈압 칸 — 사람마다.</b> 의사(순환기)께서 두 달째 청하신 것 · 「10/28 어머님 처방은 하나는 먹고 하나는 붙이고 하나는 흡입한다 — 약 이름만 적으면 <b>마시면 안 될 약을 마시는 사고</b>를 막을 수 없다」 · EMR 사람 탭 기록 화면에 <b>[+ 기록] [🩺 혈압]</b> · 기존 카드마다 [고치기] · 🔒 입력창은 하나 — 몸 탭의 「나」 사고·질병 창과 EMR 가족 입력이 같은 함수(사람 인자) · 💊 처방 줄: 병원·약·<b>경로(경구·흡입·네뷸라이저·부착·주사·점안·바르는 약·기타)</b>·용법·기간 — 🔴 경로 없는 약은 저장을 거부한다 · 화면에서 경구가 아닌 약은 「· 먹지 않음」을 주황으로 · 🩺 혈압: 날짜·아침/저녁·수축기/이완기·맥박·메모, 최근 14회 칩 — 90/60 미만 「낮음」, 140/90 이상 「높음」(표시일 뿐 진단 아님) · 숫자 검사(위가 아래보다 커야) · 🔒 사실 묶음에 처방(경로 붙여)과 혈압이 같이 간다 — 두 AI 가 흡입약을 먹는 약으로 읽지 않게 · 🔒 옛 기록(treatment 글)은 칸으로 쪼개 옮기지 않았다(데이터 보존) · 기록이 없으면 칸을 만들지 않는다'},
   {v:'4.71',date:'2026-11-02',note:'<b>💾 한 탭이 자기 자신과 충돌하던 결함 — 저장을 한 줄로 세웠다 · 🚇 K패스 교통비 이중 차감 5건 정리.</b> 🔴 10/29 5분 동안 「덮어쓰기 직전 서버본」 스냅샷이 10개 찍혔다. 로한: 「휴대폰과 PC 에 같이 열어둔 경우는 없어 · 크롬 여러 창도 없었다」 → <b>다른 곳이 아니라 앱 자신</b>이었다 · 원인: 본문이 814KB 라 업로드가 저장 대기(400ms)보다 길다. 저장 A 가 날아가는 동안 체크를 또 하면 저장 B 가 <b>A 가 돌아오기 전의 기준 시각</b>을 들고 출발 → A 가 성공해 서버 시각이 바뀌니 B 는 「같은 시각일 때만 쓴다」에 걸려 충돌로 읽혔다. 루틴을 연달아 체크한 5분(체크 59→64)과 정확히 맞는다 · 데이터 손실은 없었다(늘기만 했다) — 3자 병합이 지켰다 · 🔒 저장은 한 줄로 선다: 보내는 중이면 다음 것은 기다렸다가 돌아온 뒤 <b>그때의 최신 DB</b> 로 이어서 간다. 응답이 20초 안 오면 줄을 푼다(갇히지 않게) · 🔒 진짜 남의 쓰기(다른 방의 MCP 쓰기)는 여전히 충돌로 잡고 병합한다 · t60 신설 — 고치기 전 코드로 돌리면 동시 쓰기 4·자기 충돌 3 으로 <b>실패</b>하고 고친 뒤 통과하는 것을 확인했다 · 🚇 로한: 「K패스 후불은 항상 후불 · 지출일 기준으로 적었고 결제는 매월 우리카드 결제일에」 — 9/1 이후 후불 표시가 빠진 교통비 5건(34,900원)이 거래일에 한 번, 카드 결제일에 또 한 번 <b>두 번 빠지고 있었다</b>(K패스 결제 총 150,200 − 결제 완료 후불 86,850 = 63,350 ≈ 이 5건 + 8월분 64,550). 「후불·결제됨」으로 고쳤다(SUPER 잔액 +34,900). 🔒 9/1 이전 40건은 그대로 — 그 시기엔 카드 결제 기록이 없어 바꾸면 그 달 현금흐름에서 돈이 사라진다(지출 통계는 지출일 기준이라 어느 쪽이든 같다) · 🧪 [자체 발견] 11/1 이 되자 t53·t58 이 깨졌다 — 앱 결함이 아니라 테스트가 「이번 달 = 10월」을 전제한 시한폭탄이었다(고치기 전 코드로도 똑같이 실패). 두 테스트의 「오늘」을 10/20 으로 고정했다'},
@@ -15275,6 +15333,8 @@ for(var i=0;i<navs.length;i++)(function(m){m.addEventListener('click',function()
   var all=document.querySelectorAll('.side .m');for(var j=0;j<all.length;j++)all[j].classList.remove('on');m.classList.add('on');
   var vs=document.querySelectorAll('.view');for(var j=0;j<vs.length;j++)vs[j].classList.remove('on');
   document.getElementById('v-'+m.dataset.v).classList.add('on');
+  /* 🔒 v4.74 — 새 화면은 맨 위에서 시작한다. 스크롤 위치가 남으면 화면이 「중간부터」 뜬다(로한) */
+  try{window.scrollTo(0,0);}catch(e){}
   if(window.innerWidth<=900&&m.scrollIntoView)m.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
     var _fn=VIEW_RENDER[m.dataset.v];
   if(_fn)_fn(); else console.warn('[RohanBook] 렌더러가 등록되지 않은 탭: '+m.dataset.v);
@@ -15435,16 +15495,20 @@ document.getElementById('logoutBtn').addEventListener('click',function(){SB.auth
 /* 🔒 v4.20 문지기 — 같은 Supabase 에 아버지 당구 연습장(billiards/) 계정이 산다.
    그 계정은 DB 에서도 로한북 테이블이 막혀 있지만(RLS), 화면도 들이지 않는다. 빈 가계부를 보여주면 헷갈린다 */
 function isBilliardsUser(u){ return !!(u&&u.app_metadata&&u.app_metadata.app==='billiards'); }
+function bootDone(){document.documentElement.classList.remove('boot');}
+setTimeout(bootDone,10000);
 function enter(){
   /* 🔒 v3.5.1(당구) 로그아웃은 이 브라우저만(scope local) — 기본값(global)이면 아버지의 폰·PC 로그인까지 전부 끊겼다 */
   if(isBilliardsUser(USER)){ USER=null; SB.auth.signOut({scope:'local'});
-    document.getElementById('loginErr').innerHTML='이 계정은 로한북 계정이 아닙니다. <a href="billiards/">당구 연습장으로 가기</a>'; return; }
+    document.getElementById('loginErr').innerHTML='이 계정은 로한북 계정이 아닙니다. <a href="billiards/">당구 연습장으로 가기</a>'; bootDone(); return; }
   document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');loadState().then(function(d){
     /* 🔒 v4.13 병합 기준본 = 서버에서 받은 **원본**(마이그레이션 전). 마이그레이션도 '내가 바꾼 것'으로 쳐야 병합 때 살아남는다 */
     /* 🔒 v4.31 — migrateDB 가 d 를 직접 고칠 수 있으니 **비교용 원본을 먼저 뜬다** */
     var srvRaw=null; try{ srvRaw=JSON.parse(JSON.stringify(d)); }catch(e){}
     syncSetBase(d);
     DB=migrateDB(d);
+    /* 📅 v4.74 — 앱을 열면 데일리는 **오늘**에서 시작한다. 지난번에 눌러 둔 날(11/2)이 남아 있었다(로한) */
+    try{ DB.ui=DB.ui||{}; DB.ui.goalDate=todayStr(); DB.ui.goalMonth=todayStr().slice(0,7); DB.ui.tlPick=null; }catch(e){}
     /* 🔒 저장 못 한 변경이 남아 있으면 **무엇보다 먼저** 건져 올린다.
        아래 save() 들이 돌면 pendWrite 가 덮어써서 증거가 사라진다 */
     try{ pendRescue(srvRaw); }catch(e){}
@@ -15452,7 +15516,7 @@ function enter(){
     try{ if(stPomoBackfill())save(); }catch(e){}
     /* v4.15 — 겹친 id 를 갈랍으면 바로 쓴다. 안 쓰면 다음 병합에서 그만큼 사라진다 */
     try{ if(DUP_FIX.n){logAct('⚠️ 중복 id '+DUP_FIX.n+'건을 새 번호로 갈랐다 · '+DUP_FIX.where.join(' · '));save();} }catch(e){}
-    localBackup();netSnapTouch();sideApply();renderDaily();snapAutoOnLoad();
+    localBackup();netSnapTouch();sideApply();bootDone();renderDaily();snapAutoOnLoad();
     /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
     try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen(); } }catch(e){}
     /* ⌨ v4.54 — 🔒 **한 곳에서 한 번만** 매단다. 렌더마다 매달면 한 번 누른 키가 여러 번 먹는다 */
@@ -15462,9 +15526,10 @@ function doSignup(){var email=(document.getElementById('email').value||'').trim(
 document.getElementById('loginBtn').addEventListener('click',doLogin);
 document.getElementById('signupBtn').addEventListener('click',doSignup);
 document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
-SB.auth.getSession().then(function(r){if(r.data&&r.data.session){USER=r.data.session.user;footWho();enter();
+SB.auth.getSession().then(function(r){if(!(r.data&&r.data.session)){bootDone();return;}
+  {USER=r.data.session.user;footWho();enter();
   setTimeout(function(){var a=document.querySelector('.side .m.on');
-    if(a&&window.innerWidth<=900&&a.scrollIntoView)a.scrollIntoView({inline:'center',block:'nearest'});},300);}});
+    if(a&&window.innerWidth<=900&&a.scrollIntoView)a.scrollIntoView({inline:'center',block:'nearest'});},300);}},function(){bootDone();});
 </script>
 </body>
 </html>
