@@ -3023,7 +3023,10 @@ function renderDay(ds){
       if(_mix&&Object.keys(_mix).length){
         var _ks=Object.keys(_mix).sort(function(x,y){return _mix[y]-_mix[x];});
         _mx='<div class="instline">'+_ks.map(function(k){
-          return '<span>'+sajuEsc(k)+' '+comma(Math.round(_mix[k]))+'</span>';}).join('<i>·</i>')+'</div>';}
+          return '<span>'+sajuEsc(k)+' '+comma(Math.round(_mix[k]))+'</span>';}).join('<i>·</i>')
+          /* 🔴 v4.76 — 결제액이 구성보다 크면 그 차이를 숨기지 않는다 */
+          +(settleRest(t)?'<i>·</i><span class="warnx" title="결제액이 원장의 구성보다 크다 — 카드사 내역에 있는데 가계부에 없는 거래가 있다">내역미상 '+comma(Math.round(settleRest(t)))+'</span>':'')
+          +'</div>';}
       var _off=settleDateOff(t);
       var _w=_off?(' <span class="chip warn2" title="이 결제분의 실제 결제 예정일은 '+settleDueDate(t)+' 다. 여기 날짜가 '+Math.abs(_off)+'일 어긋나 있다.">날짜 '+(_off>0?'+':'')+_off+'일</span>'):'';
       h+=txRow('st','<span class="pill st">카드결제</span>',sajuEsc(t.method||'')+_w,
@@ -4154,10 +4157,22 @@ function cfBuildSankey(txns){
       A[_ac]=A[_ac]||{in:0,out:0};A[_ac].out+=t.amt;
       var mix=settleMix(t);
       if(mix&&Object.keys(mix).length){
+        /* 🔴 [결함 v4.76] 결제액과 구성 합이 다르면 **비례로 부풀려** 과목에 뿌렸다.
+             11/5 삼성 결제 403,489 / 구성 307,346 → 모든 과목 ×1.31 — 생활용품 189,533 이 248,826 으로 그려졌다.
+           🔒 구성은 구성만큼만 그린다. 남는 돈은 「카드결제 내역미상」 — 모르는 것을 아는 척 나누지 않는다.
+              (구성이 결제액보다 크면 — 부분 선결제 — 그때만 줄여서 맞춘다) */
         var msum=0;for(var mk in mix)msum+=mix[mk];
+        var f=(msum>t.amt)?(t.amt/msum):1, inst=settleInstMix(t);
         Object.keys(mix).forEach(function(ck){
-          var v=(msum?t.amt*mix[ck]/msum:0); if(v<=0)return;
-          K['ex:'+ck]=(K['ex:'+ck]||0)+v;linksAK.push({a:_ac,k:'ex:'+ck,v:v});});
+          var v=mix[ck]*f; if(v<=0)return;
+          /* 🧾 v4.76 — 할부 청구분은 같은 과목 안에서 따로 그린다(생활사 제안).
+               「11월 생활용품 19만」은 계산은 맞지만 「이번 달에 쓴 돈」으로 읽혔다 — 실제 새로 산 건 10,900 이었다. */
+          var vi=Math.min(v,(inst[ck]||0)*f), vn=v-vi;
+          if(vn>0.5){K['ex:'+ck]=(K['ex:'+ck]||0)+vn;linksAK.push({a:_ac,k:'ex:'+ck,v:vn});}
+          if(vi>0.5){K['ex:'+ck+'·할부']=(K['ex:'+ck+'·할부']||0)+vi;linksAK.push({a:_ac,k:'ex:'+ck+'·할부',v:vi});}
+        });
+        var rest=t.amt-msum*f;
+        if(rest>=1){K['ex:카드결제 내역미상']=(K['ex:카드결제 내역미상']||0)+rest;linksAK.push({a:_ac,k:'ex:카드결제 내역미상',v:rest});}
       }else{  /* 부분 선결제 등으로 구성을 가를 수 없는 경우에만 남는다 */
         K['ex:카드결제 내역미상']=(K['ex:카드결제 내역미상']||0)+t.amt;linksAK.push({a:_ac,k:'ex:카드결제 내역미상',v:t.amt});}
     }
@@ -12884,7 +12899,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.75';
+var APP_VERSION='4.76';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12898,6 +12913,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.76',date:'2026-11-05',note:'<b>🧾 카드결제가 현금흐름에서 과목을 부풀렸다 — 구성만큼만 그리고 남는 돈은 「내역미상」.</b> 생활사 핸드오프(card-installment v1·v2) 검증 결과: <b>할부·청구기간·card 플래그 결함 주장 3건은 데이터와 맞지 않았다</b>(앱 할부 234,066 = 카드사 할부 234,000 · 10/13 거래 메모가 카드사 기준 「11/25 결제」로 앱 주기와 같음 · 후불 판정은 txnIsCredit 이 하고 card 는 「미결제」 뜻). 대신 검증 중 실제 결함을 찾았다: 결제액(403,489)이 구성 합(307,346)보다 크면 Sankey 가 <b>모든 과목을 ×1.31 비례로 부풀렸다</b> — 생활용품 189,533 → 248,826. 🔒 이제 구성은 구성만큼만, 차이는 <code>카드결제 내역미상</code> 노드 · 가계부 결제 행에도 「내역미상 N」 표시. ➕ 생활사 제안 반영: <b>할부 청구분은 같은 과목 안에서 「과목·할부」로 따로</b> 그린다(<code>settleInstMix()</code> — 역산, 저장 안 함). 「11월 생활용품 19만」이 실제론 새로 산 10,900 + 할부 회차였다.'},
   {v:'4.75',date:'2026-11-04',note:'<b>◀ 뒤로가기가 로한북을 나가 버렸다 — 이제 직전 탭으로 간다.</b> 로한: <i>“뒤로가기 버튼 클릭 시 아예 페이지 이탈이 되버리는데.”</i> · 원인: 한 페이지 앱이라 탭을 바꿔도 브라우저 기록이 하나도 안 쌓였다 · 🔒 탭을 바꿀 때마다 기록을 쌓는다 → 뒤로/앞으로 = 탭 이동 · 모달·뽀모가 떠 있으면 뒤로가기는 그것만 닫는다 · 홈에서 한 번 더 누르면 「한 번 더 누르면 나갑니다」 안내 후, 그다음에 나간다 · t63 신설'},
   {v:'4.74',date:'2026-11-04',note:'<b>🏠 데일리 = 홈 · 화면 기본기.</b> ① 아래 메뉴를 누르면 새 화면이 <b>중간부터</b> 떴다 — 스크롤 위치가 남아 있었다 → 화면을 바꾸면 맨 위에서 시작 · PC 사이드바는 화면에 붙는다(sticky) ② 앱을 열면 지난번 눌러 둔 날(11/2)로 열렸다 → <b>언제나 오늘</b>에서 시작 · 상단 날짜는 늘 오늘, 지난 날을 눌러도 오른쪽 칸만 바뀐다 ③ 🔮 일진 판정(吉凶平)·💬 말풍선을 상단 한 칸에서 <b>달력 날짜 칸 머리</b>로 — 날마다 하나씩, 미래 날도 열린다 ④ 목표 A~E 가 늘 0% — A·C·D·E 는 「완료/미완」이라 완료 전엔 늘 0%, B 는 연동 소스가 비어 있었다 → A 보증금 = 현금성 자산 합계, B 체중 = 체성분 기록, C JLPT = 학습 진도(새 소스: 완료 단원/전체) · 수치 없는 D·E 는 0% 대신 <b>최근 30일 루틴 실행률</b>(「실행 N%」) ⑤ 데일리 상단 바로가기 🈶 드릴 · ⏱ 뽀모도로 ⑥ 새로고침하면 로그인 화면이 번쩍 떴다 → 세션 확인·데이터 로드가 끝날 때까지 표지만 보인다 ⑦ 모바일 현금흐름 대조표가 계좌 이름을 한 글자씩 세로로 쌓았다 → 이름 한 줄, 숫자는 아랫줄 · t62 신설'},
   {v:'4.73',date:'2026-11-03',note:'<b>📈 노랑우산 그래프·로그가 잔액과 달랐다 — 가계부로 계산하는 계좌는 추세도 계산한다.</b> 로한: <i>“노랑우산공제 클릭시 뜨는 그래프 안에 로그랑 잔액이랑 다르다. 저축·대출은 가계부 연동으로 자동 반영되어야 되잖아.”</i> · 원인: v2.12 에서 <b>잔액</b>은 기초잔액 기준으로 파생했는데, 같은 질문에 답하는 <b>그래프·로그·자동/수기 칩</b>은 옛 mode·hist 를 봤다. 노랑우산은 mode 가 수기로 남아 9/30 2,500,000 에서 멈추고 수기 입력칸까지 떴다 · 🔒 기초잔액이 있는 계좌: 기초 이전은 수기 기록, 기초 이후는 <b>월말마다 가계부로 계산</b> · 기초 이후에 적어 둔 실제 잔액은 계산값 옆에 두고 <b>차이를 빨간 글씨로</b> 보인다(은행 대사 칸) · 대출은 이미 거래(원금)로 계산하고 있었다 — 교보 10/26 이자 1건이 대출에 안 묶여 있던 것만 데이터로 묶었다 · t61 신설'},
@@ -13850,6 +13866,20 @@ function settleMix(t){
   });
   /* 🔒 합이 정확히 맞을 때만 믿는다 — 부분 선결제면 못 가른다 */
   return (sum>0&&Math.abs(sum-t.amt)<1)?mix:null;
+}
+/* 🧾 v4.76 — 이 결제 중 **할부 회차**로 나간 몫 {과목:금액}. 저장하지 않고 역산한다(settleTxns 와 같은 길).
+   🔒 구성(settleMix)보다 클 수는 없다 — 쓰는 쪽에서 min 으로 자른다. */
+function settleInstMix(t){
+  var m={};
+  settleTxns(t).forEach(function(r){
+    if(instN(r.t)>1)m[r.t.cat]=(m[r.t.cat]||0)+instAmt(r.t,r.k);});
+  return m;
+}
+/* 결제액 중 구성으로 설명되지 않는 돈 (0 이면 다 설명됨) */
+function settleRest(t){
+  var mix=settleMix(t); if(!mix)return 0;
+  var s=0;for(var k in mix)s+=mix[k];
+  var r=t.amt-s; return (r>=1)?r:0;
 }
 /* ══════ 선결제 — 결제분(청구주기) 단위 ══════
    ⚠️ 로한은 25일 자동출금을 기다리지 않는다. 5일·15일쯤 손으로 미리 지운다.

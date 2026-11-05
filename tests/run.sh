@@ -21,12 +21,12 @@ cd "$(dirname "$0")" || exit 2
 HTML="${HTML:-$(cd .. && pwd)/work.html}"
 
 # 🔒 전체 목록은 **한 곳**에만 적는다 — 세 군데에 적혀 있으면 하나만 고치는 날이 온다
-ALLT="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t43 t44 t45 t46 t47 t48 t49 t50 t51 t52 t53 t54 t55 t56 t57 t58 t59 t60 t61 t62 t63 b01 b02 b03 b04 t14 t18 t19 t20 t21"
+ALLT="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t43 t44 t45 t46 t47 t48 t49 t50 t51 t52 t53 t54 t55 t56 t57 t58 t59 t60 t61 t62 t63 t64 b01 b02 b03 b04 t14 t18 t19 t20 t21"
 # ── 영역 → 테스트 (t22·t23 은 데이터층이라 어디서든 잘 깨진다) ──
 case "${1:-all}" in
   all)   T="$ALLT" ;;
   emr)   T="t43 t44 t14 t22 t_reg" ;;
-  money) T="t_reg t61 t56 t50 t51 t20 t21 t25 t26 t27 t28 t31 t32 t37 t40 t41 t22" ;;
+  money) T="t_reg t64 t61 t56 t50 t51 t20 t21 t25 t26 t27 t28 t31 t32 t37 t40 t41 t22" ;;
   goal)  T="t_reg t62 t63 t24 t30 t36 t42 t45 t47 t48 t49 t22" ;;
   time)  T="t_reg t18 t19 t28 t22" ;;
   data)  T="t46 t49 t22 t23 t_reg t24 t25 t26 t27 t29 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42" ;;
