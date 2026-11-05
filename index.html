@@ -1684,6 +1684,12 @@ html.boot .bootsplash{display:flex;position:fixed;inset:0;align-items:center;jus
 .horoom span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .hocard{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--card)}
 .hocard:hover{border-color:var(--accent)}
+/* 📂 v4.77 증빙함 */
+.srcfig{max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;margin:8px 0}
+.srcrc{font-size:12px;margin:10px 0 4px;padding:8px 10px;border-radius:8px;background:var(--soft);line-height:1.6}
+.srcrc .neg{font-weight:700}
+.srctb td.miss{background:rgba(224,72,61,.10)}
+.srctb td.hit{color:var(--muted)}
 .horow{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px}
 .hotit{font-weight:700;font-size:13.5px;margin:5px 0 2px;line-height:1.35}
 .hosta{font-size:11.5px;color:var(--muted);line-height:1.5}
@@ -1762,6 +1768,7 @@ html.boot .bootsplash{display:flex;position:fixed;inset:0;align-items:center;jus
     <div class="m" data-v="agora">🏛 아고라</div>
     <div class="sub">🛡 기타</div>
     <div class="m" data-v="items">🗡️ 재물관리</div>
+    <div class="m" data-v="src">📂 증빙함</div>
     <div class="m" data-v="log">🪶 로그</div>
   </div>
   </div>
@@ -1784,6 +1791,7 @@ html.boot .bootsplash{display:flex;position:fixed;inset:0;align-items:center;jus
     <div class="view" id="v-agora"></div>
     <div class="view" id="v-items"></div>
     <div class="view" id="v-budget"></div>
+    <div class="view" id="v-src"></div>
     <div class="view" id="v-log"></div>
     <div class="foot"><span id="footVer"></span> · <b id="footWho"></b> · 데이터는 Supabase에 안전 저장 · <a id="reloadBtn">새로고침</a> · <a id="logoutBtn">로그아웃</a></div>
   </div>
@@ -12899,7 +12907,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.76';
+var APP_VERSION='4.77';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12913,6 +12921,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.77',date:'2026-11-05',note:'<b>📂 증빙함 신설 (기타 메뉴).</b> 로한: <i>“내가 각 담당사들에게 준 엑셀파일이나 정보들을 … 담당사들이 정리해서 원장을 업로드”</i> · 계기: 생활사가 삼성 청구서를 보고 결제액을 고쳤지만 제작사는 그 청구서를 볼 수 없어 96,143 차액이 설명되지 않았다. 🔒 원본 파일이 아니라 <b>담당사가 재편집한 원장</b>(표 · 다시 그린 SVG 그림 · 요약 · 가린 항목)이다. 저장은 새 테이블 <code>public.sources</code> — app_state 에 복사하지 않고 앱은 읽기만 한다. 덧붙이기만(같은 slug 에 version+1, 옛 판은 「이전 판」으로 접힘). 💳 <b>카드 이용내역은 가계부와 자동 대사</b> — 카드명 · 이용일 ±3일 · 금액 ±1원(할부는 개월수·원금), 「가계부에 없음 N건 ₩」과 반대 방향 「기간 안 가계부엔 있는데 자료에 없음」을 보여준다(고치지 않는다). 그림은 &lt;img&gt; 로만 그려 SVG 스크립트가 돌지 않는다. 업로드 채팅용 스킬 <code>skills/rohanbook-evidence/SKILL.md</code>.'},
   {v:'4.76',date:'2026-11-05',note:'<b>🧾 카드결제가 현금흐름에서 과목을 부풀렸다 — 구성만큼만 그리고 남는 돈은 「내역미상」.</b> 생활사 핸드오프(card-installment v1·v2) 검증 결과: <b>할부·청구기간·card 플래그 결함 주장 3건은 데이터와 맞지 않았다</b>(앱 할부 234,066 = 카드사 할부 234,000 · 10/13 거래 메모가 카드사 기준 「11/25 결제」로 앱 주기와 같음 · 후불 판정은 txnIsCredit 이 하고 card 는 「미결제」 뜻). 대신 검증 중 실제 결함을 찾았다: 결제액(403,489)이 구성 합(307,346)보다 크면 Sankey 가 <b>모든 과목을 ×1.31 비례로 부풀렸다</b> — 생활용품 189,533 → 248,826. 🔒 이제 구성은 구성만큼만, 차이는 <code>카드결제 내역미상</code> 노드 · 가계부 결제 행에도 「내역미상 N」 표시. ➕ 생활사 제안 반영: <b>할부 청구분은 같은 과목 안에서 「과목·할부」로 따로</b> 그린다(<code>settleInstMix()</code> — 역산, 저장 안 함). 「11월 생활용품 19만」이 실제론 새로 산 10,900 + 할부 회차였다.'},
   {v:'4.75',date:'2026-11-04',note:'<b>◀ 뒤로가기가 로한북을 나가 버렸다 — 이제 직전 탭으로 간다.</b> 로한: <i>“뒤로가기 버튼 클릭 시 아예 페이지 이탈이 되버리는데.”</i> · 원인: 한 페이지 앱이라 탭을 바꿔도 브라우저 기록이 하나도 안 쌓였다 · 🔒 탭을 바꿀 때마다 기록을 쌓는다 → 뒤로/앞으로 = 탭 이동 · 모달·뽀모가 떠 있으면 뒤로가기는 그것만 닫는다 · 홈에서 한 번 더 누르면 「한 번 더 누르면 나갑니다」 안내 후, 그다음에 나간다 · t63 신설'},
   {v:'4.74',date:'2026-11-04',note:'<b>🏠 데일리 = 홈 · 화면 기본기.</b> ① 아래 메뉴를 누르면 새 화면이 <b>중간부터</b> 떴다 — 스크롤 위치가 남아 있었다 → 화면을 바꾸면 맨 위에서 시작 · PC 사이드바는 화면에 붙는다(sticky) ② 앱을 열면 지난번 눌러 둔 날(11/2)로 열렸다 → <b>언제나 오늘</b>에서 시작 · 상단 날짜는 늘 오늘, 지난 날을 눌러도 오른쪽 칸만 바뀐다 ③ 🔮 일진 판정(吉凶平)·💬 말풍선을 상단 한 칸에서 <b>달력 날짜 칸 머리</b>로 — 날마다 하나씩, 미래 날도 열린다 ④ 목표 A~E 가 늘 0% — A·C·D·E 는 「완료/미완」이라 완료 전엔 늘 0%, B 는 연동 소스가 비어 있었다 → A 보증금 = 현금성 자산 합계, B 체중 = 체성분 기록, C JLPT = 학습 진도(새 소스: 완료 단원/전체) · 수치 없는 D·E 는 0% 대신 <b>최근 30일 루틴 실행률</b>(「실행 N%」) ⑤ 데일리 상단 바로가기 🈶 드릴 · ⏱ 뽀모도로 ⑥ 새로고침하면 로그인 화면이 번쩍 떴다 → 세션 확인·데이터 로드가 끝날 때까지 표지만 보인다 ⑦ 모바일 현금흐름 대조표가 계좌 이름을 한 글자씩 세로로 쌓았다 → 이름 한 줄, 숫자는 아랫줄 · t62 신설'},
@@ -15332,9 +15341,154 @@ function delTxn(id){
 
 /* 탭 → 렌더러 매핑. 사이드바에 탭을 추가하면 여기에도 반드시 등록할 것.
    (v5.0에서 dash 누락으로 현황판이 빈 화면이 되는 회귀가 있었음) */
+/* ══════ 📂 v4.77 증빙함 ══════
+   로한: 「내가 각 담당사들에게 준 엑셀파일이나 정보들을 … 담당사들이 정리해서 원장을 업로드」
+   🔴 계기: 생활사가 삼성 청구서를 보고 settle 을 고쳤는데 제작사는 그 청구서를 볼 수 없었다 —
+      96,143 차액이 「카드사 내역을 받아야 안다」에서 멈췄다. 방마다 본 자료가 달라서 검증이 안 됐다.
+   🔒 원본 파일이 아니라 **담당사가 재편집한 원장**이다 — 표(cols/rows) · 다시 그린 그림(figure, SVG) · 요약.
+   🔒 원본은 public.sources 테이블. app_state 에 복사하지 않는다(핸드오프와 같은 원칙). 앱은 **읽기만**.
+   🔒 덧붙이기만 — 새 판은 같은 slug 에 version+1. 옛 판은 「이전 판」으로 접힌다.
+   🔒 증빙은 증거, 가계부는 장부 — 다르면 **보여주기만** 한다. 고치는 건 로한이다. */
+var SOURCES=null, SRC_STATE='idle', SRC_ERR='', SRC_ROOM='', SRC_OPEN=null, SRC_OLD={};
+var SRC_KIND={card_statement:'💳 카드 이용내역',bank_statement:'🏦 통장 내역',lab_result:'🧪 검사 결과',prescription:'💊 처방',other:'📎 기타'};
+function srcVisible(){var e=document.getElementById('v-src');return !!(e&&e.classList.contains('on'));}
+function srcLoad(force){
+  if(SRC_STATE==='loading')return;
+  if(SOURCES&&!force)return;
+  if(SRC_STATE==='err'&&!force)return;   /* 🔒 실패 후 자동 재시도 금지 — hoLoad 의 무한루프 교훈 */
+  SRC_STATE='loading'; SRC_ERR='';
+  try{
+    SB.from('sources').select('*').order('as_of',{ascending:false}).order('version',{ascending:false})
+      .then(function(r){
+        if(r.error){SRC_STATE='err';SRC_ERR=r.error.message||'읽기 실패';}
+        else{SOURCES=r.data||[];SRC_STATE='ok';}
+        if(srcVisible())renderSources();
+      },function(e){SRC_STATE='err';SRC_ERR=(e&&e.message)||'읽기 실패';if(srcVisible())renderSources();});
+  }catch(e){SRC_STATE='err';SRC_ERR=e.message;}
+}
+/* slug 별 최신 판 + 이전 판 목록 */
+function srcGroups(){
+  var g={},o=[];
+  (SOURCES||[]).forEach(function(s){
+    if(!g[s.slug]){g[s.slug]={cur:s,old:[]};o.push(g[s.slug]);}
+    else if((s.version||1)>(g[s.slug].cur.version||1)){g[s.slug].old.push(g[s.slug].cur);g[s.slug].cur=s;}
+    else g[s.slug].old.push(s);
+  });
+  o.forEach(function(x){x.old.sort(function(a,b){return (b.version||1)-(a.version||1);});});
+  return o;
+}
+function srcSetRoom(r){SRC_ROOM=(SRC_ROOM===r?'':r);renderSources();}
+function srcToggle(id){SRC_OPEN=(SRC_OPEN===id?null:id);renderSources();}
+function srcToggleOld(slug){SRC_OLD[slug]=!SRC_OLD[slug];renderSources();}
+/* 💳 카드 이용내역 ↔ 가계부 대사
+   행 계약: {date 이용일, post 매입일?, merchant, amt 청구금액(할부면 이번 회차), card 로한북 카드명, inst 개월?, k 회차?, total 할부원금?, bill 청구월 YYYY-MM?}
+   🔒 거래 하나는 한 행에만 붙는다. 일시불: 같은 카드 · 이용일 ±3일 · 금액 ±1원.
+      할부: 같은 카드 · 같은 개월수 · 원금(total)이 거래액과 같거나, 이번 회차 금액이 instAmt 와 ±2원. */
+function srcReconcile(s){
+  var rows=Array.isArray(s.rows)?s.rows:[], used={}, res=[];
+  rows.forEach(function(r,i){
+    var card=cardBy(r.card), amt=parseFloat(r.amt), d=r.date, hit=null;
+    if(!card||!isDateStr(d)||!(amt>0)){res.push({i:i,st:card?'bad':'nocard'});return;}
+    var inst=parseInt(r.inst||1,10)||1;
+    (DB.transactions||[]).some(function(t){
+      if(used[t.id]||t.type!=='expense'||t.method!==card.name)return false;
+      if(inst>1){
+        if(instN(t)!==inst)return false;
+        var k=parseInt(r.k||0,10)||1;
+        var okAmt=(r.total!=null&&Math.abs(parseFloat(r.total)-t.amt)<=1)||Math.abs(instAmt(t,k)-amt)<=2;
+        if(!okAmt||Math.abs(daysBetween(t.date,d))>3)return false;
+      }else{
+        if(instN(t)>1||Math.abs(t.amt-amt)>1||Math.abs(daysBetween(t.date,d))>3)return false;
+      }
+      hit=t;return true;
+    });
+    if(hit){used[hit.id]=1;res.push({i:i,st:'hit',t:hit});}
+    else res.push({i:i,st:'miss'});
+  });
+  var miss=res.filter(function(x){return x.st==='miss';});
+  var missSum=miss.reduce(function(a,x){return a+(parseFloat(rows[x.i].amt)||0);},0);
+  /* 반대쪽 — 같은 카드 · 자료 기간 안의 일시불 거래인데 자료에 없는 것 */
+  var extra=[];
+  if(isDateStr(s.period_from)&&isDateStr(s.period_to)){
+    var names={};rows.forEach(function(r){var c=cardBy(r.card);if(c)names[c.name]=1;});
+    (DB.transactions||[]).forEach(function(t){
+      if(used[t.id]||t.type!=='expense'||!names[t.method]||instN(t)>1)return;
+      if(t.date>=s.period_from&&t.date<=s.period_to)extra.push(t);});
+  }
+  var hitN=res.filter(function(x){return x.st==='hit';}).length;
+  return {res:res,miss:miss,missSum:missSum,extra:extra,hit:hitN,odd:res.length-hitN-miss.length};
+}
+function srcTable(s,rc){
+  var cols=Array.isArray(s.cols)?s.cols:[], rows=Array.isArray(s.rows)?s.rows:[];
+  if(!rows.length)return '';
+  if(!cols.length)cols=Object.keys(rows[0]).map(function(k){return {k:k,label:k};});
+  cols=cols.map(function(c){return (typeof c==='string')?{k:c,label:c}:c;});
+  var st={}; if(rc)rc.res.forEach(function(x){st[x.i]=x.st;});
+  var lim=Math.min(rows.length,300);
+  var h='<div class="mdtw"><table class="mdtb srctb"><tr>'+cols.map(function(c){return '<th>'+mdEsc(c.label||c.k)+'</th>';}).join('')
+    +(rc?'<th>가계부</th>':'')+'</tr>';
+  for(var i=0;i<lim;i++){var r=rows[i]||{};
+    h+='<tr>'+cols.map(function(c){var v=r[c.k];
+      return '<td'+(typeof v==='number'?' style="text-align:right"':'')+'>'+mdEsc(typeof v==='number'?comma(v):(v==null?'':v))+'</td>';}).join('')
+      +(rc?(st[i]==='hit'?'<td class="hit">✓</td>':(st[i]==='miss'?'<td class="miss">🔴 없음</td>':'<td class="mut">카드명?</td>')):'')+'</tr>';}
+  h+='</table></div>';
+  if(rows.length>lim)h+='<div class="mut" style="font-size:11px">… '+(rows.length-lim)+'행 더</div>';
+  return h;
+}
+function srcBody(s){
+  var h='';
+  if(s.summary)h+='<div class="mdbody" style="max-height:none">'+mdRender(s.summary)+'</div>';
+  /* 🔒 그림은 <img> 로만 — SVG 안의 스크립트가 돌지 않는다(본문은 서버에서 온다) */
+  if(s.figure&&/^\s*<svg[\s>]/i.test(s.figure))
+    h+='<img class="srcfig" alt="'+mdEsc(s.title)+'" src="data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s.figure)+'">';
+  var rc=(s.kind==='card_statement')?srcReconcile(s):null;
+  if(rc){
+    h+='<div class="srcrc">🔎 <b>가계부 대사</b> · 맞음 '+rc.hit+'건'
+      +(rc.miss.length?' · <span class="neg">가계부에 없음 '+rc.miss.length+'건 '+won(rc.missSum)+'</span>':' · 빠진 것 없음 ✓')
+      +(rc.odd?' · <span class="mut">카드명·날짜·금액을 못 읽은 행 '+rc.odd+'건 (대사 안 함)</span>':'')
+      +(rc.extra.length?'<br>📜 기간 안 가계부 일시불인데 자료에 없음 '+rc.extra.length+'건: '
+        +rc.extra.slice(0,8).map(function(t){return t.date.slice(5)+' '+sajuEsc(t.memo||t.cat)+' '+comma(t.amt);}).join(' · ')
+        +(rc.extra.length>8?' …':''):'')
+      +'<br><span class="mut" style="font-size:11px">보여주기만 한다 — 가계부는 손대지 않는다.</span></div>';
+  }
+  h+=srcTable(s,rc);
+  var meta=[];
+  if(s.origin)meta.push('원본: '+mdEsc(s.origin));
+  if(s.masked)meta.push('가림: '+mdEsc(s.masked));
+  if(meta.length)h+='<div class="mut" style="font-size:11px;margin-top:6px;line-height:1.6">'+meta.join('<br>')+'</div>';
+  return h;
+}
+function renderSources(){
+  var el=document.getElementById('v-src'); if(!el)return;
+  srcLoad(false);
+  var h='<div class="sec"><h4>📂 증빙함 <span class="mut">담당사가 정리한 원장</span>'
+    +'<span style="float:right"><button class="ghost sm" onclick="srcLoad(true);renderSources()">↻</button></span></h4>'
+    +'<div class="mut" style="font-size:11.5px;line-height:1.6;margin-bottom:10px">로한이 준 자료(엑셀·캡처·서류)를 담당사가 표·그림으로 다시 정리해 올린다. 원본 파일은 올리지 않고, 민감정보는 가린다. 앱은 읽기만 한다.</div>';
+  if(SRC_STATE==='loading'&&!SOURCES){el.innerHTML=h+'<div class="mut">불러오는 중…</div></div>';return;}
+  if(SRC_STATE==='err'){el.innerHTML=h+'<div class="neg">읽기 실패 — '+mdEsc(SRC_ERR)+' <button class="ghost sm" onclick="srcLoad(true);renderSources()">다시</button></div></div>';return;}
+  var gs=srcGroups();
+  if(!gs.length){el.innerHTML=h+'<div class="mut" style="padding:20px 0;text-align:center">아직 올라온 자료가 없다.<br>증빙 업로드 채팅에서 자료를 주면 담당사가 정리해 올린다.</div></div>';return;}
+  var rooms=[];gs.forEach(function(x){if(rooms.indexOf(x.cur.room)<0)rooms.push(x.cur.room);});
+  h+='<div class="horoom">'+rooms.map(function(r){return '<span class="'+(SRC_ROOM===r?'on':'')+'" onclick="srcSetRoom(\''+mdEsc(r).replace(/'/g,'')+'\')">'+mdEsc(r)+'</span>';}).join('')+'</div>';
+  gs.filter(function(x){return !SRC_ROOM||x.cur.room===SRC_ROOM;}).forEach(function(x){
+    var s=x.cur, open=(SRC_OPEN===s.id), n=Array.isArray(s.rows)?s.rows.length:0;
+    h+='<div class="hocard">'
+      +'<div onclick="srcToggle('+s.id+')">'
+      +'<div class="horow"><span><span class="pill">'+mdEsc(s.room)+'</span> '+(SRC_KIND[s.kind]||mdEsc(s.kind))+'</span>'
+      +'<span class="mut">기준 '+mdEsc(s.as_of)+(s.version>1?' · v'+s.version:'')+'</span></div>'
+      +'<div class="hotit">'+mdEsc(s.title)+'</div>'
+      +'<div class="hosta">'+(s.period_from?mdEsc(s.period_from)+' ~ '+mdEsc(s.period_to||''):'')+(n?' · '+n+'행':'')+(s.figure?' · 🖼 그림':'')+'</div></div>'
+      +(open?'<div style="margin-top:8px;cursor:auto">'+srcBody(s)
+        +(x.old.length?'<div style="margin-top:8px"><button class="ghost sm" onclick="srcToggleOld(\''+mdEsc(s.slug).replace(/'/g,'')+'\')">이전 판 '+x.old.length+'개 '+(SRC_OLD[s.slug]?'▲':'▼')+'</button>'
+          +(SRC_OLD[s.slug]?x.old.map(function(o){return '<div class="mut" style="font-size:11px;margin-top:4px">v'+o.version+' · '+mdEsc(o.as_of)+' · '+mdEsc(o.title)+'</div>';}).join(''):'')+'</div>':'')
+        +'</div>':'')
+      +'</div>';
+  });
+  el.innerHTML=h+'</div>';
+}
 var VIEW_RENDER={emr:emrOpen,daily:renderDaily,goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
   acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,insu:renderInsu,
-  saju:sajuOpen,journal:renderJournal,agora:agoraOpen,items:renderItems,log:renderLog,study:renderStudy};
+  saju:sajuOpen,journal:renderJournal,agora:agoraOpen,items:renderItems,log:renderLog,study:renderStudy,src:renderSources};
 
 /* ====== 이벤트 ====== */
 /* v2.5 ⇔ 메뉴 텍스트를 아이콘/글자로 가른다. 접을 때 글자만 숨기면 된다.
