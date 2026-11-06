@@ -166,8 +166,9 @@ console.log('\n=== ④ 현금흐름 ↔ 가계부 기준 일치 (로한 지적) 
    const h=document.getElementById('v-cashflow').innerHTML;
    setCfMode('accrual');renderCashflow();
    const h2=document.getElementById('v-cashflow').innerHTML;
-   return {bar:/plbar/.test(h), diff:/아직 안 나간 카드값/.test(h),
-     onC:/plm on[^>]*>현금/.test(h), onA:/plm on[^>]*>발생/.test(h2),
+   /* 🧭 v4.81 — 공통 세그먼트(.seg2 .sg.on) */
+   return {bar:/plmsg/.test(h), diff:/아직 안 나간 카드값/.test(h),
+     onC:/sg on"[^>]*>현금/.test(h), onA:/sg on"[^>]*>발생/.test(h2),
      noOld:!/카드결제\(구\)/.test(h)&&!/카드결제\(구\)/.test(h2)};});
  ok(ui.bar&&ui.onC&&ui.onA,'현금/발생 토글이 동작한다');
  ok(ui.diff,'차이의 정체를 한 줄로 알려준다');

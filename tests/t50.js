@@ -138,8 +138,11 @@ const OUTACT=502944+308400+212890+140220+122020+60000+42652+40649+22000+14130;  
  await p.evaluate(()=>budToggleIdle());await p.waitForTimeout(300);
 
  /* ── E) 숫자 — 🔒 '예산 잔여'는 예산 **안** 실적으로만 잰다 ── */
- const stats=await p.$$eval('#v-budget .stat',es=>es.map(e=>({
-   l:e.querySelector('.sl').textContent,v:e.querySelector('.sv').textContent})));
+ /* 🧭 v4.81 — 숫자는 L2 KPI(.kpi .kl/.kv) 4개 · 총지출은 헤더 상태 줄로 올라갔다 */
+ const stats=await p.$$eval('#v-budget .kpi',es=>es.map(e=>({
+   l:e.querySelector('.kl').textContent,v:e.querySelector('.kv').textContent})));
+ const hd=await p.$eval('#v-budget .ph-s',e=>e.textContent);
+ stats.push({l:'이 달 총지출',v:((hd.match(/이 달 총지출s*([^·]+)/)||[])[1]||'')});
  const sv=(l)=>(stats.find(x=>x.l===l)||{}).v||'';
  const num=(s)=>+String(s).replace(/[^0-9-]/g,'');
  ok('E1 예산 합계',num(sv('예산 합계'))===TOTBUD,sv('예산 합계'));

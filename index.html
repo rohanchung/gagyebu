@@ -158,7 +158,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
    ⚠️ 이모지는 서로게이트 쌍이라 ::first-letter 로 못 자른다 — JS 로 한 번 감싼다. */
 .sidewrap{position:relative;flex-shrink:0}
 .side{transition:width .16s ease}
-.sidetog{position:absolute;top:8px;right:-11px;z-index:5;width:22px;height:22px;border-radius:50%;
+.sidetog{position:absolute;top:8px;right:-11px;z-index:45;width:22px;height:22px;border-radius:50%;
   border:1px solid #e3d9bd;background:#fff;color:var(--gold);font-size:11px;line-height:1;
   cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .sidetog:hover{background:#f6f1e3}
@@ -562,6 +562,87 @@ textarea.mla.same{background:#f2f9f4}
 .mednew{color:var(--pos);font-weight:700}
 .brand-crest{width:22px;height:22px;flex-shrink:0;margin:0}
 .main{flex:1;padding:18px;min-width:0}
+/* ══════ 🧭 v4.81 화면 틀 — 헤더 · L1 · L2 · 본문 ══════
+   🔒 간격·크기는 여기 한 곳. 페이지마다 따로 정하지 않는다. */
+:root{--pf-gap:12px;--pf-h1:19px;--navh:0px}
+.phead{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  position:sticky;top:0;z-index:40;background:var(--bg);
+  /* 🔒 배경을 좌우 여백까지 칠하되 **폭은 늘리지 않는다** — 음수 여백은 화면을 가로로 넘치게 했다(t54 가 잡았다) */
+  margin:-18px 0 0;padding:16px 0 10px;min-height:44px;box-shadow:-18px 0 0 var(--bg),18px 0 0 var(--bg)}
+.ph-t{min-width:0;flex:1}
+.phead h1{margin:0;font-size:var(--pf-h1);font-weight:800;letter-spacing:-.2px;line-height:1.25;display:flex;align-items:center;gap:7px;color:var(--ink)}
+.ph-i{font-size:18px;line-height:1}
+.ph-s{margin-top:3px;font-size:12px;color:var(--muted);line-height:1.45;overflow:hidden;text-overflow:ellipsis}
+.ph-s b{color:var(--ink)}
+.ph-a{display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.ph-a .btn,.ph-a .ghost{white-space:nowrap}
+/* L1 — 밑줄 탭 */
+.pl1{position:sticky;top:var(--phh,0px);z-index:39;background:var(--bg);margin:0 0 var(--pf-gap);padding:0;
+  border-bottom:1px solid var(--line);box-shadow:-18px 0 0 var(--bg),18px 0 0 var(--bg)}
+.pl1 .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.pl1 .tabs::-webkit-scrollbar{display:none}
+.pl1 .tabs .tab{flex:0 0 auto;min-width:0;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;
+  color:var(--muted);font-size:13px;font-weight:650;padding:10px 12px 9px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+.pl1 .tabs .tab:hover{color:var(--ink)}
+.pl1 .tabs .tab.on{color:var(--accent);border-bottom-color:var(--accent);background:transparent}
+.tn{display:inline-block;min-width:16px;padding:0 5px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:10.5px;font-weight:700;line-height:16px;text-align:center}
+.tab.on .tn,.chp.on .tn{background:var(--accent-bg);color:var(--accent)}
+/* L2 — 조건 줄 + KPI */
+.pl2{margin:0 0 var(--pf-gap)}
+.pl2c{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.pl2c:last-child{margin-bottom:0}
+.pl2c .sp{flex:1}
+.pnav{display:inline-flex;align-items:center;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px}
+.pn-b{border:0;background:transparent;width:28px;height:28px;border-radius:999px;font-size:17px;line-height:1;color:var(--muted);cursor:pointer}
+.pn-b:hover{background:var(--soft);color:var(--ink)}
+.pn-l{font-size:13.5px;font-weight:750;padding:0 6px;white-space:nowrap;cursor:default}
+.pn-l[data-pick],.pn-l[id]{cursor:pointer}
+.pn-t{border:0;border-left:1px solid var(--line);background:transparent;color:var(--accent);font-size:12px;font-weight:700;padding:0 10px 0 9px;height:24px;cursor:pointer}
+.pn-t.on{color:var(--muted);cursor:default}
+.seg2{display:inline-flex;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px}
+.seg2 .sg{border:0;background:transparent;border-radius:7px;font-size:12px;font-weight:650;color:var(--muted);padding:5px 10px;cursor:pointer;white-space:nowrap}
+.seg2 .sg.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(20,30,50,.12)}
+.chips{display:inline-flex;gap:6px;flex-wrap:wrap}
+.chips .chp{border:1px solid var(--line);background:var(--card);border-radius:999px;font-size:12px;font-weight:600;color:var(--muted);padding:4px 11px;cursor:pointer;white-space:nowrap}
+.chips .chp.on{background:var(--accent-bg);border-color:#c9dafd;color:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.kpi[data-metric],.kpi[onclick]{cursor:pointer}
+.kpi[data-metric]:hover,.kpi[onclick]:hover{border-color:#c9dafd}
+.kl{font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.2px}
+.ks{font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.pos .kv{color:var(--pos)}.kpi.neg .kv{color:var(--neg)}.kpi.warn .kv{color:var(--warn)}
+.kpi select{border:0;background:transparent;font-size:11.5px;color:var(--muted);font-weight:600;padding:0;max-width:100%;font-family:inherit;cursor:pointer}
+.watchbar{margin-bottom:10px}
+.watchbar .kpi{padding:8px 12px}
+.watchbar .kv{font-size:15px;margin-top:1px}
+[data-l1].pfoff{display:none!important}
+/* 옛 상단 상자(dtop·sthead·dgs)가 헤더·L2 안으로 들어오면 상자 모양을 벗는다 */
+.ph-s .dtop,.ph-s .sthead{display:inline;background:none;border:0;border-radius:0;padding:0;margin:0;box-shadow:none}
+.ph-s .dtd{font-family:var(--sans);font-size:12.5px;color:var(--ink)}
+.ph-s .stph{display:inline;margin:0}
+.ph-s .ghost.sm{padding:2px 8px;font-size:11px;vertical-align:baseline}
+.pl2c .dgs{margin:0;padding:0;border:0}
+/* 옛 사람 탭(hptabs·wtabs)이 L2 로 올라오면 세그먼트 모양을 입는다 — 테스트·호출부가 쓰는 이름은 그대로 */
+.pl2c .hptabs,.pl2c .wtabs{display:inline-flex;flex-wrap:nowrap;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:2px;gap:2px;margin:0;border-bottom:1px solid var(--line)}
+.pl2c .hptabs button,.pl2c .wtabs .wtab{border:0;background:transparent;border-radius:7px;font-size:12px;font-weight:650;color:var(--muted);padding:5px 10px;margin:0;cursor:pointer;white-space:nowrap}
+.pl2c .hptabs button.on,.pl2c .wtabs .wtab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(20,30,50,.12);border:0}
+@media(max-width:900px){
+  /* 모바일: 네비(고정) 밑에 L1 만 고정 · 헤더·L2 는 스크롤로 사라진다 */
+  .phead{position:static;margin:-12px 0 0;padding:12px 0 8px;flex-wrap:wrap;align-items:flex-start;box-shadow:none}
+  .phead h1{font-size:17px}
+  .ph-s{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal}
+  .pl1{top:var(--navh,0px);margin:0 0 10px;padding:0;box-shadow:-10px 0 0 var(--bg),10px 0 0 var(--bg)}
+  .pl1 .tabs .tab{padding:10px 10px 9px;font-size:12.5px}
+  .kpis{grid-template-columns:1fr 1fr;gap:6px}
+  .kpis[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .kpis[data-n="3"] .kv{font-size:14px}
+  .kpis[data-n="1"]{grid-template-columns:1fr}
+  .kpi{padding:9px 10px}
+  .kv{font-size:15.5px}
+  .pl2c{gap:6px}
+}
 .view{display:none}.view.on{display:block}
 .updated{font-size:11px;color:var(--muted);margin-bottom:12px}.updated b{color:var(--pos)}
 .cards3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
@@ -598,7 +679,7 @@ textarea.mla.same{background:#f2f9f4}
 .msum{display:flex;gap:8px}.msum div{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:11.5px;text-align:right}.msum .l{color:var(--muted);font-size:9.5px}
 .calwrap{display:flex;gap:16px;align-items:flex-start}
 .calmain{flex:1;min-width:0}
-.calside{width:360px;flex-shrink:0;position:sticky;top:18px;max-height:calc(100vh - 36px);overflow:auto}
+.calside{width:360px;flex-shrink:0;position:sticky;top:calc(var(--pfh,0px) + 12px);max-height:calc(100vh - var(--pfh,0px) - 24px);overflow:auto}
 .calside .detail{margin-top:0}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
 .dow{color:var(--muted);font-size:11px;text-align:center;padding:4px 0}.dow.s0{color:var(--neg)}.dow.s6{color:var(--accent)}
@@ -1045,10 +1126,10 @@ textarea.mla.same{background:#f2f9f4}
    ⚠️ 패널 **안의** 스크롤은 남긴다 — 기록은 길어질 수밖에 없다(§16.3) ══════ */
 @media(min-width:1151px){
   .aglay{align-items:stretch}
-  .agcol{display:flex;flex-direction:column;min-height:0;height:calc(100vh - 190px)}
+  .agcol{display:flex;flex-direction:column;min-height:0;height:calc(100vh - 230px)}
   .aghall{flex:1 1 auto;min-height:0;display:flex}
   .aghall svg{width:100%;height:100%;min-height:0}
-  .agpanel{height:calc(100vh - 190px);max-height:none}
+  .agpanel{height:calc(100vh - 230px);max-height:none}
 }
 @media(max-width:1150px){
   .agpanel{max-height:460px}
@@ -3077,6 +3158,86 @@ function topupNeed(bal,amt){
 }
 
 /* ====== 현황판 ====== */
+/* ══════ 🧭 v4.81 화면 틀 — 헤더 · 레이어1 · 레이어2 · 본문 (ui-frame-plan.md) ══════
+   🔴 로한: 「UI가 전 페이지가 통일화 됐으면 좋겠거든?」
+      실측: 페이지 제목 없음 5곳 · 탭 부품 9종 · 기간 이동 6가지 · 필터칩 3종 · 긴 페이지 3곳(5,300/2,600/2,000px).
+   🔒 약속 — 칸 순서는 절대 안 바뀐다. 빈 칸은 접는다.
+      헤더   = 여기가 어디 · 지금 상태 한 줄 · 주 행동(최대 2)          — **모든 페이지에 하나**
+      레이어1 = 무엇을 볼까 — 누르면 본문이 **다른 화면**                 (.pl1)
+      레이어2 = 언제·누구·어떻게 + 그 결과 숫자(KPI 최대 4)             (.pl2)
+      본문   = 카드
+   🔒 판정: 「누르면 무엇이 바뀌나」 — 다른 화면=L1 · 같은 화면의 범위/대상/숫자=L2 · 카드 하나=그 카드 안.
+   🔒 틀은 각 화면(.view) **안의 맨 위**에 그린다 — 렌더 한 번에 틀과 본문이 같이 새로 그려져 엇갈릴 수 없다.
+   🔒 부품은 하나씩: uiTabs · uiSeg · uiChips · uiPnav · uiKpi. 같은 역할에 다른 모양을 만들지 않는다. */
+function pfName(v){
+  var m=document.querySelector('.side .m[data-v="'+v+'"]');
+  if(!m)return {i:'',t:v};
+  var mi=m.querySelector('.mi'), mt=m.querySelector('.mt');
+  if(mi||mt)return {i:mi?mi.textContent:'',t:mt?mt.textContent:''};
+  var s=(m.textContent||'').trim(), sp=s.indexOf(' ');
+  return sp<0?{i:'',t:s}:{i:s.slice(0,sp),t:s.slice(sp+1)};
+}
+/* o = {status, actions, l1, cond, kpi:[…], l1cls} — l1/cond 는 이미 그린 html */
+function pf(v,o){
+  o=o||{}; var n=pfName(v);
+  var h='<header class="phead"><div class="ph-t"><h1><span class="ph-i">'+n.i+'</span>'+n.t+'</h1>'
+    +(o.status?'<div class="ph-s">'+o.status+'</div>':'')+'</div>'
+    +(o.actions?'<div class="ph-a">'+o.actions+'</div>':'')+'</header>';
+  if(o.l1)h+='<nav class="pl1">'+o.l1+'</nav>';
+  var k=(o.kpi||[]).filter(Boolean);
+  if(o.cond||k.length)h+='<div class="pl2">'+(o.cond?'<div class="pl2c">'+o.cond+'</div>':'')+(k.length?uiKpi(k):'')+'</div>';
+  setTimeout(pfMeasure,0);
+  return h;
+}
+/* 고정 높이 — 데스크톱: 헤더 밑에 L1 이 붙는다 · 모바일: 네비 밑에 L1 이 붙는다 */
+function pfMeasure(){
+  try{
+    var side=document.querySelector('.side'), nav=(window.innerWidth<=900&&side)?side.offsetHeight:0;
+    document.documentElement.style.setProperty('--navh',nav+'px');
+    var v=document.querySelector('.view.on'), ph=v&&v.querySelector('.phead');
+    var l1=v&&v.querySelector('.pl1'), wide=window.innerWidth>900;
+    if(v){v.style.setProperty('--phh',(ph&&wide?ph.offsetHeight:0)+'px');
+      /* 본문 안의 고정 요소(가계부 옆칸 등)가 틀 밑으로 숨지 않게 — 고정된 틀 전체 높이 */
+      v.style.setProperty('--pfh',((ph&&wide?ph.offsetHeight:0)+(l1?l1.offsetHeight:0)+(wide?0:nav))+'px');}
+  }catch(e){}
+}
+window.addEventListener('resize',function(){ clearTimeout(pfMeasure._t); pfMeasure._t=setTimeout(pfMeasure,120); });
+/* L1 탭 — items:[{k,label,n?}] · js: 'fn(\'%\')' (% 자리에 k) · cls: 옛 이름(호환) */
+function uiTabs(items,cur,js,cls){
+  return '<div class="tabs'+(cls?' '+cls:'')+'" role="tablist">'+items.map(function(x){
+    return '<button role="tab" class="tab'+(x.k===cur?' on':'')+'" aria-selected="'+(x.k===cur)+'" data-tab="'+x.k+'" onclick="'+js.replace(/%/g,x.k)+'">'
+      +x.label+(x.n!=null?' <span class="tn">'+x.n+'</span>':'')+'</button>';}).join('')+'</div>';
+}
+/* 세그먼트 — 둘~넷 중 하나 */
+function uiSeg(items,cur,js,cls,title){
+  return '<span class="seg2'+(cls?' '+cls:'')+'"'+(title?' title="'+title+'"':'')+'>'+items.map(function(x){
+    return '<button class="sg'+(x.k===cur?' on':'')+'" data-seg="'+x.k+'"'+(x.tip?' title="'+x.tip+'"':'')+(x.dis?' disabled':'')+' onclick="'+js.replace(/%/g,x.k)+'">'+x.label+'</button>';}).join('')+'</span>';
+}
+/* 필터칩 — 개수 표시 */
+function uiChips(items,cur,js,cls){
+  return '<span class="chips'+(cls?' '+cls:'')+'">'+items.map(function(x){
+    return '<button class="chp'+(x.k===cur?' on':'')+'" data-chip="'+x.k+'" onclick="'+js.replace(/%/g,x.k)+'">'+x.label+(x.n!=null?' <span class="tn">'+x.n+'</span>':'')+'</button>';}).join('')+'</span>';
+}
+/* 기간 이동 — [‹] 라벨 [›] [오늘]. prev/next/label/today 는 그대로 박힐 html 속성(onclick 또는 data-*) */
+function uiPnav(label,prev,next,o){
+  o=o||{};
+  return '<span class="pnav">'
+    +'<button class="pn-b" '+prev+' aria-label="이전">‹</button>'
+    +'<b class="pn-l"'+(o.labelAttr?' '+o.labelAttr:'')+'>'+label+'</b>'
+    +'<button class="pn-b" '+next+' aria-label="다음">›</button>'
+    +(o.today?'<button class="pn-t'+(o.isToday?' on':'')+'" '+o.today+'>'+(o.todayLabel||'오늘')+'</button>':'')
+    +'</span>';
+}
+/* KPI — [{l:라벨, v:값 html, cls:'pos|neg|warn', tip, attr}] 최대 4 */
+function uiKpi(list){
+  return '<div class="kpis" data-n="'+Math.min(4,list.length)+'">'+list.slice(0,4).map(function(x){
+    return '<div class="kpi'+(x.cls?' '+x.cls:'')+'"'+(x.tip?' title="'+x.tip+'"':'')+(x.attr?' '+x.attr:'')+'>'
+      +'<div class="kl">'+x.l+'</div><div class="kv">'+x.v+'</div>'+(x.s?'<div class="ks">'+x.s+'</div>':'')+'</div>';}).join('')+'</div>';
+}
+/* 긴 페이지를 L1 로 나눈 곳 — 본문 카드에 data-l1 을 달아 두고 지금 탭만 보인다 */
+function pfL1Get(v,def){ var u=(DB&&DB.ui)||{}; return (u.pfl1&&u.pfl1[v])||def; }
+function pfL1Set(v,k){ DB.ui=DB.ui||{}; DB.ui.pfl1=DB.ui.pfl1||{}; DB.ui.pfl1[v]=k; save(); if(VIEW_RENDER[v])VIEW_RENDER[v](); try{window.scrollTo(0,0);}catch(e){} }
+
 function renderDash(){
   var ta=totalAssets(),td=totalDebt(),net=ta-td,g=groupTotals();
   var groups=['현금성','투자','외환','저축'];
@@ -3112,19 +3273,15 @@ function renderDash(){
   }).join('');
   var posts=(DB.posts||[]).slice().sort(function(a,b){return a.date<b.date?1:-1;});
   var postList=posts.length?posts.map(function(p){return '<div class="row" style="cursor:pointer" data-post="'+p.id+'"><span>📜 '+p.title+'</span><span class="mut" style="font-size:10px;white-space:nowrap">'+(p.date||'')+'</span></div>';}).join(''):'<div class="mut" style="padding:8px 0">아직 정리 글 없음 — 로버트와 나눈 결론이 여기 쌓인다.</div>';
-  document.getElementById('v-dash').innerHTML=''
-   +'<div class="updated" style="display:flex;align-items:center;gap:8px">'
-     +'<span style="flex:1">🟢 실시간 · <b>'+todayStr()+' 기준 최신</b> · 행 클릭 → 12개월 추세</span>'
-     +noteBellHtml()+'</div>'
-   +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">'
-   +'<div class="sec" style="flex:1;min-width:280px;margin-bottom:0"><h4>자산 요약</h4>'
-   +'<table style="width:100%;border-collapse:collapse;font-size:14.5px">'
-   +'<tr data-metric="assets" style="cursor:pointer;border-bottom:1px solid var(--line)"><td style="padding:11px 4px;color:var(--muted)">총자산</td><td style="padding:11px 4px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums">'+won(ta)+'</td></tr>'
-   +'<tr data-metric="debt" style="cursor:pointer;border-bottom:1px solid var(--line)"><td style="padding:11px 4px;color:var(--muted)">총부채</td><td style="padding:11px 4px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums">'+won(td)+'</td></tr>'
-   +'<tr data-metric="net" style="cursor:pointer"><td style="padding:11px 4px;color:var(--muted)">순자산</td><td style="padding:11px 4px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums" class="'+(net<0?'neg':'pos')+'">'+signWon(net)+'</td></tr>'
-   +'</table></div>'
-   +'<div class="sec" style="flex:1;min-width:280px;margin-bottom:0"><h4>🪶 로버트의 정리</h4><div style="max-height:200px;overflow:auto">'+postList+'</div></div>'
-   +'</div>'
+  var _pend=cardPending();
+  document.getElementById('v-dash').innerHTML=pf('dash',{
+      status:'🟢 실시간 · <b class="updated">'+todayStr()+' 기준 최신</b> · 숫자를 누르면 12개월 추세',
+      actions:noteBellHtml(),
+      kpi:[{l:'총자산',v:won(ta),attr:'data-metric="assets"'},
+           {l:'총부채',v:won(td),attr:'data-metric="debt"'},
+           {l:'순자산',v:signWon(net),cls:(net<0?'neg':'pos'),attr:'data-metric="net"'},
+           {l:'💳 카드 미결제',v:won(_pend),cls:(_pend?'warn':'')}]})
+   +'<div class="sec"><h4>🪶 로버트의 정리</h4><div style="max-height:200px;overflow:auto">'+postList+'</div></div>'
    +'<div class="sec"><h4>자산</h4>'+gh
    +'</div>'
    /* 🔔 v4.47 — 띠는 종으로 옮겼다. 본문에 눌러앉지 않는다 */
@@ -3231,33 +3388,29 @@ function renderCal(){
   var expCatNames=DB.categories.filter(function(c){return c.type==='expense';}).map(function(c){return c.name;});
   var watchStats=WATCH.map(function(cat,i){
     var opts=expCatNames.map(function(n){return '<option'+(n===cat?' selected':'')+'>'+n+'</option>';}).join('');
-    return '<div class="stat watch"><select data-watch="'+i+'">'+opts+'</select><div class="sv neg">'+won(catSum[cat]||0)+'</div></div>';
+    return '<div class="kpi watch"><select data-watch="'+i+'" title="지켜볼 과목 바꾸기">'+opts+'</select><div class="kv neg">'+won(catSum[cat]||0)+'</div></div>';
   }).join('');
   var _cash=monthCashPL(m), _md=plMode(), _show=(_md==='cash')?_cash:pl;
   var _alt=(_md==='cash')?pl.exp:_cash.exp;
-  var plToggle='<div class="plmode" title="발생=거래일 기준 · 카드결제=카드 결제월 기준">'
-   +'<span class="plm'+(_md==='accrual'?' on':'')+'" onclick="setPlMode(\'accrual\')" title="거래일 기준 — 8월에 뭘 얼마나 샀나">발생</span>'
-   +'<span class="plm'+(_md==='cash'?' on':'')+'" onclick="setPlMode(\'cash\')" title="카드 결제월 기준 — 이 달에 통장에서 얼마 나가나">카드결제</span></div>';
-  var statBar='<div class="statbar">'
-   +'<div class="stat"><div class="sl">수입</div><div class="sv pos">'+signWon(_show.inc)+'</div></div>'
-   +'<div class="stat"><div class="sl">지출 '+(_md==='cash'?'<span class="mut" style="font-size:9px">결제</span>':'')+'</div><div class="sv neg">'+signWon(-_show.exp)+'</div></div>'
-   +'<div class="stat"><div class="sl">월 손익</div><div class="sv '+(_show.net<0?'neg':'pos')+'">'+signWon(_show.net)+'</div></div>'
-   +watchStats+'</div>';
-  document.getElementById('v-cal').innerHTML=''
-   +'<div class="calwrap"><div class="calmain">'
-   +'<div class="mhead"><div class="mnav"><span id="calPick" style="cursor:pointer;margin-right:6px" title="연·월 선택">📅</span><span data-mv="-1">◀</span><b id="calTitle" style="cursor:pointer">'+y+'년 '+mo+'월</b><span data-mv="1">▶</span></div>'
-   +statBar+'</div>'
-   +'<div class="plbar">'
-      +'<div class="plmode" title="가계부=거래 · 생활=루틴·복약·체중·식사" style="margin-left:0;margin-right:6px">'
-      +'<span class="plm'+(calView()==='money'?' on':'')+'" onclick="setCalView(\'money\')">💰 가계부</span>'
-      +'<span class="plm'+(calView()==='life'?' on':'')+'" onclick="setCalView(\'life\')">🩺 생활</span></div>'
-      +(calView()==='money'?plToggle:'')
-      +'<span class="plmsg">'+(calView()==='life'
-        ? '☀🌙 복약 · 체중 · 식사 — <b>검사일 앞뒤로 뭘 먹었는지</b> 대조하려고 만든 화면이다'
+  /* 🧭 v4.81 — 💰가계부/🩺생활은 **본문이 다른 화면**이라 L1 · 월·기준은 L2 · 손익은 KPI */
+  var plToggle=uiSeg([{k:'accrual',label:'발생',tip:'거래일 기준 — 이 달에 뭘 얼마나 샀나'},{k:'cash',label:'카드결제',tip:'카드 결제월 기준 — 이 달에 통장에서 얼마 나가나'}],_md,"setPlMode('%')",'plmode','발생=거래일 기준 · 카드결제=카드 결제월 기준');
+  var _tm=todayStr().slice(0,7);
+  var _msg=(calView()==='life'
+        ? '☀🌙 복약 · 체중 · 식사 — <b>검사일 앞뒤로 뭘 먹었는지</b> 대조하는 화면'
         : (_md==='cash'
         ? '이 달 <b>통장에서 나가는</b> 돈'+((_show.exp!==_alt)?(' · 이 달에 <b>산</b> 것은 '+won(pl.exp)):'')
-        : '이 달에 <b>산</b> 것'+((_show.exp!==_alt)?(' · 통장에서 <b>나가는</b> 돈은 '+won(_cash.exp)):'')))
-      +'</span></div>'
+        : '이 달에 <b>산</b> 것'+((_show.exp!==_alt)?(' · 통장에서 <b>나가는</b> 돈은 '+won(_cash.exp)):'')));
+  document.getElementById('v-cal').innerHTML=pf('cal',{
+      status:'<span class="plmsg">'+_msg+'</span>',
+      actions:'<button class="ghost sm" onclick="settleModal()">💳 선결제</button><button class="btn sm" onclick="txnModal(null)">+ 거래</button>',
+      l1:uiTabs([{k:'money',label:'💰 가계부'},{k:'life',label:'🩺 생활'}],calView(),"setCalView('%')",'calvtabs'),
+      cond:'<span class="mnav">'+uiPnav(y+'년 '+mo+'월','data-mv="-1"','data-mv="1"',{labelAttr:'id="calTitle" title="연·월 선택"',today:'onclick="jumpMonth(\''+_tm+'\')"',isToday:m===_tm})+'</span>'
+        +(calView()==='money'?plToggle:''),
+      kpi:calView()==='money'?[{l:'수입',v:signWon(_show.inc),cls:'pos'},
+           {l:'지출'+(_md==='cash'?' · 결제 기준':''),v:signWon(-_show.exp),cls:'neg'},
+           {l:'월 손익',v:signWon(_show.net),cls:(_show.net<0?'neg':'pos')}]:[]})
+   +'<div class="calwrap"><div class="calmain">'
+   +(calView()==='money'?'<div class="kpis watchbar" data-n="3" title="👀 지켜보는 과목 — 이름을 눌러 바꾼다">'+watchStats+'</div>':'')
    +'<div class="cal">'+cells+'</div></div>'
    +'<div class="calside" id="dayPanel"></div></div>';
   var def=(selDate&&selDate.slice(0,7)===m)?selDate:(today.slice(0,7)===m?today:m+'-01');
@@ -3363,11 +3516,19 @@ function renderAcct(){
   var bizC=DB.categories.filter(function(c){return c.type==='expense'&&c.deductible;});
   var perC=DB.categories.filter(function(c){return c.type==='expense'&&!c.deductible;});
   var catHtml=catGrp('💰 수입',incC)+catGrp('🧾 지출 · 사업경비',bizC)+catGrp('🏠 지출 · 개인',perC);
-  document.getElementById('v-acct').innerHTML=''
-   +'<div class="sec"><h4>계좌·자산 <button class="ghost" id="addAccBtn">+ 추가</button></h4>'+accHtml+'</div>'
-   +'<div class="sec"><h4>카드 <button class="ghost" id="addCardBtn">+ 추가</button></h4>'+cardHtml+'</div>'
-   +'<div class="sec"><h4>부채 <button class="ghost" id="addDebtBtn">+ 추가</button></h4>'+debtHtml+'<div class="mut" style="margin-top:6px">대출 0~N개 가변 · 상환 스케줄은 가계부에 예정 세출로 반영(2차).</div></div>'
-   +'<div class="sec"><h4>카테고리(분류) <button class="ghost" id="addCatBtn">+ 추가</button></h4>'+catHtml+'<div class="mut" style="margin-top:6px">지출 카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 세무 탭에 자동 연결.</div></div>';
+  /* 🧭 v4.81 — 네 묶음이 한 줄로 2,000px 이었다 → L1 4탭. 카드는 다 그리고 지금 탭만 보인다(data-l1) */
+  var _t=pfL1Get('acct','acc');
+  var _sec=function(k,inner){return '<div class="sec'+(_t===k?'':' pfoff')+'" data-l1="'+k+'">'+inner+'</div>';};
+  var _addBtn={acc:'addAccBtn',card:'addCardBtn',debt:'addDebtBtn',cat:'addCatBtn'}[_t];
+  document.getElementById('v-acct').innerHTML=pf('acct',{
+      status:'계좌 '+DB.accounts.length+' · 카드 '+DB.cards.length+' · 부채 '+DB.debts.length+' · 분류 '+DB.categories.length,
+      actions:'<button class="btn sm" onclick="document.getElementById(\''+_addBtn+'\').click()">+ 추가</button>',
+      l1:uiTabs([{k:'acc',label:'🏦 계좌',n:DB.accounts.length},{k:'card',label:'💳 카드',n:DB.cards.length},{k:'debt',label:'📉 부채',n:DB.debts.length},{k:'cat',label:'🏷 분류',n:DB.categories.length}],_t,"pfL1Set('acct','%')"),
+      kpi:[{l:'총자산',v:won(totalAssets())},{l:'총부채',v:won(totalDebt()),cls:'neg'},{l:'💳 카드 미결제',v:won(cardPending()),cls:(cardPending()?'warn':'')}]})
+   +_sec('acc','<h4>계좌·자산 <button class="ghost" id="addAccBtn">+ 추가</button></h4>'+accHtml)
+   +_sec('card','<h4>카드 <button class="ghost" id="addCardBtn">+ 추가</button></h4>'+cardHtml)
+   +_sec('debt','<h4>부채 <button class="ghost" id="addDebtBtn">+ 추가</button></h4>'+debtHtml+'<div class="mut" style="margin-top:6px">대출 0~N개 가변 · 상환 스케줄은 가계부에 예정 세출로 반영(2차).</div>')
+   +_sec('cat','<h4>카테고리(분류) <button class="ghost" id="addCatBtn">+ 추가</button></h4>'+catHtml+'<div class="mut" style="margin-top:6px">지출 카테고리를 \'사업경비\'로 지정+계정과목 매핑하면 세무 탭에 자동 연결.</div>');
 }
 
 var TAX_SEED={"biz":{"name":"홀리워터 데빌즈","bizNo":"273-06-02398","opened":"2023-02-22","office":"김포세무서","addr":"경기도 김포시 김포한강1로 240, 블루동 423호 (운양동, 라비드퐁네프)","sector":"정보통신업 / 응용 소프트웨어 개발 및 공급업"},"vatHistory":[{"from":"2023-02-22","type":"간이"},{"from":"2025-01-01","type":"일반"}],"units":[{"id":"u_holy","label":"홀리워터(스토어)","code":"722000","bizNo":"273-06-02398"},{"id":"u_lect","label":"강사(인적용역)","code":"940903","bizNo":""}],"catMap":{"스마트스토어":"u_holy","채움영어":"u_lect"},"rates":{"income":[[14000000,0.06,0],[50000000,0.15,1260000],[88000000,0.24,5760000],[150000000,0.35,15440000],[300000000,0.38,19940000],[500000000,0.4,25940000],[1000000000,0.42,35940000],[999999999999,0.45,65940000]],"simple":{"722000":0.749,"940903":0.617},"whtBiz":0.03,"local":0.1,"vat":0.1,"method":{"2024":"단순경비율","2025":"기준경비율"},"standard":{}},"filings":[{"id":"tf2024i","kind":"종소세","year":2024,"period":"귀속","status":"경정","filedDate":"2025-05-02","bookType":"간편장부대상자 · 단순경비율(신고유형 32)","units":[{"unitId":"u_holy","label":"홀리워터(스토어)","code":"722000","method":"단순경비율","revenue":33302692,"expense":24943716,"income":8358976},{"unitId":"u_lect","label":"강사(인적용역)","code":"940903","method":"단순경비율","revenue":25197306,"expense":15546737,"income":9650569}],"f":{"totalIncome":18009545,"deduct":1900000,"base":16109545,"calc":1156431,"taxCredit":90000,"decided":1066431,"prepaid":1511770,"due":-445339},"wht":{"gross":25197306,"tax":755885,"local":75540,"payer":"주식**** (873-81-027**)"},"correction":{"date":"2026-08-23","base":19542908,"calc":1671436,"mainTax":1270890,"under":127089,"late":135603,"total":1533582,"memo":"김포세무서 과세예고통지. 단순경비율 착오신고(실제 기준경비율 대상) + 기납부세액 과다기입. 세무사 이용희 선임, 회신 대기. 지방소득세 약 13만 별도 고지 예정."},"memo":"소득공제 = 본인 1,500,000 + 노란우산 400,000(조특법86조의3 코드115). 국민연금 공제 0. 세액공제 = 표준 70,000 + 전자신고 20,000.","src":"신고서 원본"},{"id":"tf2024v","kind":"부가세","year":2024,"period":"연","status":"신고완료","vatType":"간이","vat":{"from":"2024-01-01","to":"2024-12-31","sales":32875313,"exempt":0,"due":558556},"memo":"부가가치세 과세표준증명(발급 2026-08-24) 기준.","src":"과세표준증명"},{"id":"tf2025i","kind":"종소세","year":2025,"period":"귀속","status":"신고완료","filedDate":"2026-05-07","bookType":"간편장부대상자 · 기준경비율(신고유형 20)","units":[],"f":{"totalIncome":0,"deduct":2700000,"base":0,"calc":0,"taxCredit":0,"decided":0,"prepaid":190310,"due":-190310},"wht":{"gross":6343962,"tax":190310,"local":19010,"payer":"주식**** 940903 6,318,120 + (주)메타크래프트 940909 25,842"},"memo":"⚠️ 사업소득명세서 미확보 — 총수입금액·필요경비 미입력. 종합소득금액 0 의 근거(스토어 결손 통산 여부)도 미확인. 로한: 2025년은 강의를 그만둬서 수입 급감.","src":"신고서 원본(요약 1p)"},{"id":"tf2025v","kind":"부가세","year":2025,"period":"2기(9~12월)","status":"신고완료","vatType":"일반","vat":{"from":"2025-09-01","to":"2025-12-31","sales":11756000,"exempt":0,"due":533895},"memo":"⚠️ 과세표준증명에 2025-09-01 부터만 잡힌다. 2025-01-01~08-31 구간이 비어 있다 — 매출이 없었던 것인지, 간이 기간이라 따로 잡히는 것인지, 일반과세 전환일이 09-01 인지 미확인. 추측하지 않는다.","src":"과세표준증명(발급 2026-08-26)"},{"id":"tf2026v1","kind":"부가세","year":2026,"period":"1기","status":"신고완료","vatType":"일반","vat":{"from":"2026-01-01","to":"2026-06-30","sales":1621727,"exempt":0,"due":1912},"memo":"과세표준증명(발급 2026-08-26) 기준. 스토어 매출 급감으로 납부세액 1,912원.","src":"과세표준증명"}]};
@@ -3547,14 +3708,16 @@ function taxRow(l,v,cls){return '<div class="taxrow"><span>'+l+'</span><span'+(c
 
 function renderTax(){
   var T=taxDB(),v=taxView(),cur=String(+todayStr().slice(0,4));
-  var tabs=taxYears().map(function(y){
-    return '<span class="wtab'+(String(y)===v?' on':'')+'" onclick="setTaxView('+y+')">'+y
-      +(String(y)===cur?' <span class="mut" style="font-size:9px">진행</span>':'')+'</span>';}).join('')
-   +'<span class="wtab'+(v==='cfg'?' on':'')+'" onclick="setTaxView(\'cfg\')">⚙ 설정</span>';
+  /* 🧭 v4.81 — 연도와 설정이 탭 하나에 섞여 있었다. 연도는 같은 화면(L2), 설정은 다른 화면(L1) */
+  var yrs=taxYears().map(function(y){return {k:String(y),label:String(y)+(String(y)===cur?' 진행':'')};});
   var body=(v==='cfg')?taxCfgPane():(v===cur?taxLivePane(+v):taxArchivePane(+v));
-  document.getElementById('v-tax').innerHTML=
-    '<div class="sec"><h4>🧾 세무 <span class="mut">'+taxEsc(T.biz.name||'')+(T.biz.bizNo?' · '+T.biz.bizNo:'')+'</span></h4>'
-   +'<div class="wtabs">'+tabs+'</div></div>'+body;
+  var _due=null; try{ _due=taxDues(+cur).filter(function(x){return x.kind==='종소세';})[0]; }catch(e){}
+  document.getElementById('v-tax').innerHTML=pf('tax',{
+      status:taxEsc(T.biz.name||'')+(T.biz.bizNo?' · '+T.biz.bizNo:'')
+        +(_due?' · '+cur+' 귀속 종소세 기한 '+_due.due+' · <b>D-'+taxDaysTo(_due.due)+'</b>':''),
+      l1:uiTabs([{k:'file',label:'🧾 신고'},{k:'cfg',label:'⚙ 설정'}],v==='cfg'?'cfg':'file',"setTaxView('%'==='cfg'?'cfg':"+cur+")",'wtabs'),
+      cond:v==='cfg'?'':uiSeg(yrs,v,'setTaxView(%)','taxyrs')})
+   +body;
 }
 
 /* ── 진행 연도 — 내년 신고서를 미리 채워 두는 화면 ──
@@ -4087,9 +4250,12 @@ function renderItems(){
   var rows=active.map(function(it){return itemRow(it,false);}).join('');
   var archRows=archived.map(function(it){return itemRow(it,true);}).join('');
   var totMonthly=active.reduce(function(s,it){return s+itemMonthly(it)},0);
-  document.getElementById('v-items').innerHTML=''
-   +'<div class="sec"><h4>재물 감가상각 대장 <span class="mut" style="font-size:11px">사용중 '+active.length+'개</span> <button class="ghost" id="addItemBtn">+ 추가</button></h4>'
-   +'<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select id="itYear" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+yOpts+'</select><select id="itMonth" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+mOpts+'</select><span class="mut" style="align-self:center">구매일 기준 · 연/월/전체</span></div>'
+  document.getElementById('v-items').innerHTML=pf('items',{
+      status:'사용 중 '+active.length+'개'+(archived.length?' · 완료 '+archived.length+'개':'')+' · 구매일 기준',
+      actions:'<button class="btn sm" id="addItemBtn">+ 추가</button>',
+      cond:'<select id="itYear" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+yOpts+'</select><select id="itMonth" onchange="itemFilterChange()" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px">'+mOpts+'</select><span class="mut" style="align-self:center">구매일 기준 · 연/월/전체</span>',
+      kpi:[{l:'월 감가상각 (사용 중)',v:won(totMonthly)},{l:'사용 중',v:active.length+'개'}]})
+   +'<div class="sec"><h4>재물 감가상각 대장</h4>'
    +(rows||'<div class="mut">사용중 재물 없음</div>')
    +'<div class="taxrow big" style="margin-top:10px"><span>총 월 감가상각 ('+(iy==='전체'?'전체':iy+(im==='전체'?'':'-'+im))+', 사용중)</span><span>'+won(totMonthly)+'</span></div></div>'
    +(archived.length?'<div class="sec"><h4>✅ 완료·아카이브 <span class="mut">'+archived.length+'개</span></h4>'+archRows+'</div>':'');
@@ -4231,31 +4397,19 @@ function renderBudget(){
   var d=new Date(m+'-01T00:00:00'), dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
   var gone=isThis?(+todayStr().slice(8,10)):dim;
 
-  document.getElementById('v-budget').innerHTML=''
-   /* ── 상단: 월 전환 + 한눈 요약 ── */
+  /* 🧭 v4.81 — 월 이동·고정은 L2, 숫자 6개는 KPI 4개 + 나머지 둘은 아래 설명 카드로 */
+  document.getElementById('v-budget').innerHTML=pf('budget',{
+      /* 🔒 이 달이 확정본인지 기준값인지 **화면이 말한다** — 안 말하면 과거를 잘못 읽는다 */
+      status:'<span class="pill"'+(fixed?'':' style="background:#eef2f7;color:var(--muted)"')+'>'+(fixed?'이 달 확정 예산':'기준 예산')+'</span>'
+        +(isThis?' '+gone+'/'+dim+'일 지남':'')+' · 이 달 총지출 <b>'+won(tot)+'</b> · 그중 예산 안 '+(tot>0?Math.round(inAct/tot*100):0)+'%',
+      actions:(fixed?'<button class="ghost sm" onclick="budUnfreeze()">고정 해제</button>'
+                :'<button class="ghost sm" onclick="budFreeze()">이 달로 고정</button>'),
+      cond:'<span class="mnav">'+uiPnav(m.slice(0,4)+'년 '+(+m.slice(5,7))+'월','onclick="budMove(-1)"','onclick="budMove(1)"',{today:'onclick="budThisMonth()"',isToday:isThis,todayLabel:'이번 달'})+'</span>',
+      kpi:[{l:'예산 합계',v:won(totBud)},
+           {l:'예산 안 지출',v:won(inAct),cls:(inAct>totBud?'neg':'')},
+           {l:'예산 잔여',v:signWon(left),cls:(left<0?'neg':'pos')},
+           {l:'예산 밖 지출',v:won(outAct),cls:(outAct>0?'neg':'')}]})
    +'<div class="sec">'
-     +'<div class="row" style="padding:0 0 9px">'
-       +'<span class="mnav"><span onclick="budMove(-1)">◀</span>'
-         +'<b>'+m.slice(0,4)+'년 '+(+m.slice(5,7))+'월</b>'
-         +'<span onclick="budMove(1)">▶</span></span>'
-       +'<span style="display:flex;gap:7px;align-items:center">'
-         +(isThis?'<span class="mut" style="font-size:10.5px">'+gone+'/'+dim+'일 지남</span>'
-                 :'<button class="ghost sm" onclick="budThisMonth()">이번 달</button>')
-         /* 🔒 이 달이 확정본인지 기준값인지 **화면이 말한다** — 안 말하면 과거를 잘못 읽는다 */
-         +'<span class="pill"'+(fixed?'':' style="background:#eef2f7;color:var(--muted)"')+'>'
-           +(fixed?'이 달 확정 예산':'기준 예산')+'</span>'
-         +(fixed?'<button class="ghost sm" onclick="budUnfreeze()">고정 해제</button>'
-                :'<button class="ghost sm" onclick="budFreeze()">이 달로 고정</button>')
-       +'</span>'
-     +'</div>'
-     +'<div class="statbar" style="max-width:none;justify-self:auto">'
-       +'<div class="stat"><div class="sl">예산 합계</div><div class="sv">'+won(totBud)+'</div></div>'
-       +'<div class="stat"><div class="sl">예산 안 지출</div><div class="sv'+(inAct>totBud?' neg':'')+'">'+won(inAct)+'</div></div>'
-       +'<div class="stat"><div class="sl">예산 잔여</div><div class="sv '+(left<0?'neg':'pos')+'">'+signWon(left)+'</div></div>'
-       +'<div class="stat"><div class="sl">예산 밖 지출</div><div class="sv'+(outAct>0?' neg':'')+'">'+won(outAct)+'</div></div>'
-       +'<div class="stat"><div class="sl">이 달 총지출</div><div class="sv neg">'+won(tot)+'</div></div>'
-       +'<div class="stat"><div class="sl">총지출 중 예산 안</div><div class="sv">'+(tot>0?Math.round(inAct/tot*100):0)+'%</div></div>'
-     +'</div>'
      /* 🔒 "왜 초과했나"를 한 줄로 말해준다 — 옛 화면엔 이 줄이 없어서 예산 탓처럼 보였다 */
      +(outAct>0?('<div class="mut" style="font-size:10.5px;margin-top:9px">'
         +'⚠️ <b>예산이 안 잡힌 '+outB.length+'개 분류에서 '+won(outAct)+'</b>이 나갔다'
@@ -4386,6 +4540,10 @@ function cfUnassigned(txns){
       두 화면이 다른 기준으로 도는데 화면이 말을 안 해줬다. 🔒 같은 언어를 쓰게 만든다. */
 function cfMode(){return (DB.ui&&DB.ui.cfMode==='accrual')?'accrual':'cash';}
 function setCfMode(v){DB.ui.cfMode=v;save();renderCashflow();}
+/* 🧭 v4.81 — DB.ui.month 를 쓰는 화면들의 공용 월 이동 (가계부는 data-mv 길을 그대로 쓴다) */
+function ymLabel(ym){return parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5,7),10)+'월';}
+function ymShift(ym,d){var y=parseInt(ym.slice(0,4),10),mo=parseInt(ym.slice(5,7),10)-1+d;y+=Math.floor(mo/12);mo=((mo%12)+12)%12;return y+'-'+String(mo+1).padStart(2,'0');}
+function pfMonth(d,fn){DB.ui.month=(d===0)?todayStr().slice(0,7):ymShift(DB.ui.month,d);save();if(window[fn])window[fn]();}
 /* 발생 기준에서 그 거래가 걸릴 계좌 — 신용카드는 '선결제 계좌'로 본다 */
 function cfAcctAccrual(t){
   var c=cardBy(t.method);
@@ -4507,17 +4665,21 @@ function renderCashflow(){
   var orph=cfOrphanMethods(txns), orphK=Object.keys(orph);
   var pill=function(p,l){return '<button class="'+(per===p?'btn sm':'ghost')+'" onclick="setCfPeriod(\''+p+'\')">'+l+'</button>';};
   var perLabel=per==='all'?'전체':(per==='year'?todayStr().slice(0,4)+'년':DB.ui.month);
-  document.getElementById('v-cashflow').innerHTML=''
-   +'<div class="sec"><h4>🌊 현금흐름 <span class="mut">'+perLabel+'</span> <span style="float:right">'+pill('month','월')+' '+pill('year','올해')+' '+pill('all','전체')+'</span></h4>'
-   +'<div style="display:flex;gap:8px;margin:6px 0 14px;flex-wrap:wrap"><div class="stat"><div class="sl">유입</div><div class="sv pos">'+won(tin)+'</div></div><div class="stat"><div class="sl">유출</div><div class="sv neg">'+won(tout)+'</div></div><div class="stat"><div class="sl">순증</div><div class="sv '+((tin-tout)<0?'neg':'pos')+'">'+signWon(tin-tout)+'</div></div></div>'
-   +'<div class="plbar">'
-     +'<div class="plmode" title="현금=통장에서 실제 움직인 것 · 발생=거래일 기준(가계부와 같은 숫자)">'
-     +'<span class="plm'+(_cm==='cash'?' on':'')+'" onclick="setCfMode(\'cash\')">현금</span>'
-     +'<span class="plm'+(_cm==='accrual'?' on':'')+'" onclick="setCfMode(\'accrual\')">발생</span></div>'
-     +'<span class="plmsg">'+(_cm==='cash'
+  /* 🧭 v4.81 — 첫 카드가 페이지 제목·기간·숫자·경고를 다 품고 있었다 → 헤더·L2·본문으로 가른다 */
+  var _tm=todayStr().slice(0,7), _warn=[];
+  if(una.length)_warn.push('<b class="warnx">출금계좌 미지정 '+una.length+'건 · '+won(unaSum)+'</b>');
+  if(orphK.length)_warn.push('<b class="warnx">카드 목록에 없는 결제수단 '+orphK.length+'개</b>');
+  var _cmsg=(_cm==='cash'
         ? '통장에서 <b>나간</b> 돈'+((altOut!==tout)?(' · 이 달에 <b>산</b> 것은 '+won(altOut)+' <span class="mut">(차이 '+won(Math.abs(altOut-tout))+' = 아직 안 나간 카드값)</span>'):'')
-        : '이 달에 <b>산</b> 것 <span class="mut">(가계부와 같은 기준)</span>'+((altOut!==tout)?(' · 통장에서 <b>나간</b> 돈은 '+won(altOut)):''))
-     +'</span></div>'
+        : '이 달에 <b>산</b> 것 <span class="mut">(가계부와 같은 기준)</span>'+((altOut!==tout)?(' · 통장에서 <b>나간</b> 돈은 '+won(altOut)):''));
+  document.getElementById('v-cashflow').innerHTML=pf('cashflow',{
+      status:(_warn.length?_warn.join(' · ')+' · ':'')+'<span class="plmsg">'+_cmsg+'</span>',
+      cond:(per==='month'?uiPnav(ymLabel(DB.ui.month),'onclick="pfMonth(-1,\'renderCashflow\')"','onclick="pfMonth(1,\'renderCashflow\')"',{today:'onclick="pfMonth(0,\'renderCashflow\')"',isToday:DB.ui.month===_tm}):'<b class="pn-l">'+perLabel+'</b>')
+        +uiSeg([{k:'month',label:'월'},{k:'year',label:'올해'},{k:'all',label:'전체'}],per,"setCfPeriod('%')",'cfper')
+        +uiSeg([{k:'cash',label:'현금',tip:'통장에서 실제 움직인 것'},{k:'accrual',label:'발생',tip:'거래일 기준(가계부와 같은 숫자)'}],_cm,"setCfMode('%')",'plmode'),
+      kpi:[{l:'유입',v:won(tin),cls:'pos'},{l:'유출',v:won(tout),cls:'neg'},{l:'순증',v:signWon(tin-tout),cls:((tin-tout)<0?'neg':'pos')},
+           (altOut!==tout?{l:(_cm==='cash'?'이 달에 산 것':'통장에서 나간 돈'),v:won(altOut)}:null)]})
+   +'<div class="sec"><h4>🌊 흐름</h4>'
    +(orphK.length?('<div class="cfwarn"><span><b>결제수단 '+orphK.length+'개가 카드 목록에 없다</b>'
        +'<br><span class="mut">'+orphK.map(function(k){return sajuEsc(k)+' '+won(orph[k]);}).join(' · ')
        +' — 카드 이름을 바꿨다면 옛 거래가 연결을 잃는다</span></span></div>'):'')
@@ -4590,10 +4752,24 @@ function renderWeight(){
   }).join('');
   var ev=(H.events||[]).slice().sort(function(a,b){return a.date<b.date?1:-1;});
   var evlist=ev.map(function(e){var st=e.status==='진행중'?'<span class="chip" style="background:#fff6e2;color:#b26a00">진행중</span>':'<span class="chip check">완치</span>';return '<div class="row"><span>'+st+' <b>'+e.name+'</b>'+(e.symptom?' <span class="mut">· '+e.symptom+'</span>':'')+(e.memo?' <span class="mut">📄</span>':'')+'</span><span>'+e.date+' <span class="acts"><span data-editevent="'+e.id+'">수정</span><span data-delevent="'+e.id+'">삭제</span></span></span></div>';}).join('');
-  document.getElementById('v-weight').innerHTML=''
-   +'<div class="sec"><h4>⚖️ 체성분 추세 <span class="mut">'+(latest?latest.date+' · 키 '+whHeight()+'cm':'')+'</span> <button class="ghost" id="addWeightBtn" style="float:right">+ 기록</button></h4><div class="wtabs">'+tabs+'</div>'+metricChart(mkey)+'</div>'
-   +'<div class="sec"><h4>기록 <span class="mut">'+ws.length+'건 · <span style="opacity:.7">·계=자동계산</span></span></h4>'+(wlist||'<div class="mut">기록 없음</div>')+'</div>'
-   +'<div class="sec"><h4>🤕 사고·질병 이력 <button class="ghost" id="addEventBtn" style="float:right">+ 추가</button></h4>'+(evlist||'<div class="mut">기록 없음</div>')+'</div>';
+  /* 🧭 v4.81 — 5,300px 한 줄(기록 75건이 다 펼쳐짐) → L1 체성분 / 사고·질병 · 기록은 최근 10건 + 더 보기 */
+  var _wt=pfL1Get('weight','body'), _all=!!(DB.ui&&DB.ui.wtAll);
+  var _rows=wlist.split('<div class="row" data-editweight=').filter(Boolean).map(function(x){return '<div class="row" data-editweight='+x;});
+  var _wl=_all?_rows.join(''):_rows.slice(0,10).join('');
+  var _kp=function(f,lab,u){var md=WTABS.filter(function(x){return x.k===f;})[0], gv=function(w){var v=md?md.g(w):w[f];return (v==null||v===''||isNaN(+v))?null:+v;};
+    var a=ws.filter(function(w){return gv(w)!=null;});if(!a.length)return null;
+    var x=gv(a[a.length-1]), y=a.length>1?gv(a[a.length-2]):null;
+    return {l:lab,v:(Math.round(x*10)/10)+u,s:(y!=null?((x-y>=0?'+':'')+(Math.round((x-y)*10)/10)+u+' 직전 대비'):'')};};
+  var _nlive=ev.filter(function(e){return e.status==='진행중';}).length;
+  document.getElementById('v-weight').innerHTML=pf('weight',{
+      status:(latest?'최근 '+latest.date+' · ':'')+'키 '+whHeight()+'cm · 기록 '+ws.length+'건'+(_nlive?' · <b class="warnx">진행 중 '+_nlive+'건</b>':''),
+      actions:_wt==='body'?'<button class="btn sm" id="addWeightBtn">+ 기록</button>':'<button class="btn sm" id="addEventBtn">+ 추가</button>',
+      l1:uiTabs([{k:'body',label:'⚖️ 체성분'},{k:'event',label:'🤕 사고·질병',n:ev.length||null}],_wt,"pfL1Set('weight','%')"),
+      kpi:_wt==='body'?[_kp('kg','체중','kg'),_kp('fatPct','체지방률','%'),_kp('muscle','근육량','kg'),_kp('bmi','BMI','')]:[]})
+   +'<div class="sec'+(_wt==='body'?'':' pfoff')+'" data-l1="body"><h4>⚖️ 체성분 추세</h4><div class="wtabs">'+tabs+'</div>'+metricChart(mkey)+'</div>'
+   +'<div class="sec'+(_wt==='body'?'':' pfoff')+'" data-l1="body"><h4>기록 <span class="mut">'+ws.length+'건 · <span style="opacity:.7">·계=자동계산</span></span></h4>'+(_wl||'<div class="mut">기록 없음</div>')
+     +(_rows.length>10?'<div style="text-align:center;margin-top:8px"><button class="ghost sm" onclick="DB.ui.wtAll='+(!_all)+';save();renderWeight()">'+(_all?'최근 10건만 ▴':'전체 '+_rows.length+'건 보기 ▾')+'</button></div>':'')+'</div>'
+   +'<div class="sec'+(_wt==='event'?'':' pfoff')+'" data-l1="event"><h4>🤕 사고·질병 이력</h4>'+(evlist||'<div class="mut">기록 없음</div>')+'</div>';
 }
 function weightModal(date){
   var H=DB.health;H.weights=H.weights||[];
@@ -5295,19 +5471,18 @@ function setStTab(v){DB.ui=DB.ui||{};DB.ui.studyTab=v;save();renderStudy();}
 
 function stHead(){
   var e=stExam(), dd=stDday(), ph=stPhase(), left=stPhaseLeft(ph);
-  return '<div class="sthead">'
-   +'<div class="row" style="border-bottom:0;padding:0">'
-     +'<span><b style="font-size:14px">'+mdEsc(e.name||'시험')+'</b>'
-       +(e.date?'<span class="mut" style="font-size:11px"> '+e.date
-          +(e.enterBy?' · 입실 '+mdEsc(e.enterBy):'')+'</span>':'')+'</span>'
-     +'<span>'+(dd!=null
-        ?'<b class="'+(dd<0?'mut':(dd<30?'neg':''))+'" style="font-size:19px;cursor:pointer" onclick="stExamPrompt()">'
-          +(dd>=0?'D-'+dd:'D+'+(-dd))+'</b>'
-        :'<button class="ghost sm" onclick="stExamPrompt()">시험일 설정</button>')+'</span></div>'
-   +(ph?('<div class="stph"><b>'+mdEsc(ph.id)+' '+mdEsc(ph.name)+'</b>'
-        +(left!=null?'<span class="mut"> · '+(left>=0?left+'일 남음':'기간 지남')+'</span>':'')+'</div>')
-      :'<div class="mut" style="font-size:10.5px;margin-top:4px">구간(phase)이 설정되지 않았다</div>')
-   +'</div>';
+  /* 🧭 v4.81 — 페이지 헤더의 상태 줄이 됐다: 시험 · D-day · 입실 · 구간 한 줄 */
+  return '<span class="sthead">'
+   +'<b>'+mdEsc(e.name||'시험')+'</b>'
+   +(dd!=null
+      ?' <b class="'+(dd<0?'mut':(dd<30?'neg':''))+'" style="cursor:pointer" onclick="stExamPrompt()" title="시험일 바꾸기">'
+        +(dd>=0?'D-'+dd:'D+'+(-dd))+'</b>'
+      :' <button class="ghost sm" onclick="stExamPrompt()">시험일 설정</button>')
+   +(e.date?' · '+e.date+(e.enterBy?' · 입실 '+mdEsc(e.enterBy):''):'')
+   +(ph?(' · <span class="stph"><b>'+mdEsc(ph.id)+' '+mdEsc(ph.name)+'</b>'
+        +(left!=null?' '+(left>=0?left+'일 남음':'기간 지남'):'')+'</span>')
+      :' · 구간(phase)이 설정되지 않았다')
+   +'</span>';
 }
 /* v3.7 — 옛 '오늘' 탭(stPaneHome)은 **캘린더가 대체**했다(로한: "캘린더랑 중복이야").
    옮긴 것: 오늘 할 일 → 캘린더 우측 패널(날짜별) / 과락 게이지·오답 요약·이번 주 → 우측 하단
@@ -7995,18 +8170,16 @@ function renderStudy(){
   /* 🔒 탭은 4개다. 400px 에서 5개는 글자가 잘린다 —
      뽀모는 탭이 아니라 캘린더 안의 버튼에서 전체화면으로 띄운다(로한 지시). */
   /* 🧭 v4.52 — 순서도 로한이 정했다: 캘린더 / 전략 / 드릴 / 오답 */
-  var tabs='<div class="logtabs">'
-    +'<button class="'+(t==='cal'?'on':'')+'" onclick="setStTab(\'cal\')">📅 캘린더</button>'
-    +'<button class="'+(t==='plan'?'on':'')+'" onclick="setStTab(\'plan\')">🧭 전략'
-      +(stStraArr('kpis').length?' <b>'+stStraArr('kpis').length+'</b>':'')+'</button>'
-    /* v3.9 — 이 탭에 단어 드릴과 문법 드릴이 같이 들어갔다(키는 'word' 유지) */
-    +'<button class="'+(t==='word'?'on':'')+'" onclick="setStTab(\'word\')">🈶 드릴'
-      +(stWords().length?' <b>'+stWords().length+'</b>':'')+'</button>'
-    +'<button class="'+(t==='err'?'on':'')+'" onclick="setStTab(\'err\')">❌ 오답'
-      +(stErrOpen().length?' <b>'+stErrOpen().length+'</b>':'')+'</button></div>';
+  /* v3.9 — 드릴 탭에 단어 드릴과 문법 드릴이 같이 들어갔다(키는 'word' 유지) */
+  var tabs=uiTabs([{k:'cal',label:'📅 캘린더'},
+      {k:'plan',label:'🧭 전략',n:stStraArr('kpis').length||null},
+      {k:'word',label:'🈶 드릴',n:stWords().length||null},
+      {k:'err',label:'❌ 오답',n:stErrOpen().length||null}],t,"setStTab('%')",'logtabs');
   /* 🔒 D-day·입실시각·phase 는 **전 탭 공통 헤더**다.
-     2025년 시험장 앞에서 돌아온 이력 때문에 '입실까지'가 목표에 포함된다 — 어느 화면에서도 보여야 한다. */
-  document.getElementById('v-study').innerHTML=tabs+stHead()
+     2025년 시험장 앞에서 돌아온 이력 때문에 '입실까지'가 목표에 포함된다 — 어느 화면에서도 보여야 한다.
+     🧭 v4.81 — 그래서 페이지 헤더 자체가 됐다(탭 아래 따로 있던 sthead 줄 → 헤더 상태 줄) */
+  document.getElementById('v-study').innerHTML=pf('study',{status:stHead(),
+      actions:'<button class="btn sm" onclick="stPomoOpen()">⏱ 뽀모 시작</button>',l1:tabs})
     +(t==='err'?stPaneErr():t==='plan'?stPanePlan():t==='word'?stPaneWord():stPaneCal());
   /* 🔊 음성 문항은 **뜨면 한 번 읽어준다** — 매 문항 버튼을 눌러야 하면 문항이 성립하지 않는다.
      ⚠️ 문항당 1회만. 채점 후 다시 그릴 때 또 읽으면 시끄럽다(다시 듣기는 버튼으로). */
@@ -8176,8 +8349,12 @@ function emrRelayLine(p,no){return 'EMR 답할 거 있나 봐 — '+p.slug+' 턴
 function renderEmr(){
   var box=document.getElementById('v-emr');if(!box)return;
   var q=document.getElementById('emrQ');if(q)EMR.draft=q.value;   /* 다시 그려도 쓰던 질문은 남긴다 */
-  var head='<div class="emrhead"><div><h2>🩺 EMR</h2><p>같은 건강 기록을 바탕으로, 두 개의 독립된 의견.</p></div>'
-    +'<span class="emrstage">로버트·수연이 각자 방에서 답한다</span></div>';
+  /* 🧭 v4.81 — h2 제목 블록 → 공통 헤더 · 사람 탭은 「누구를」 = L2 */
+  var _np=(EMR.problems||[]).filter(function(x){return x.status==='active'&&emrPersonOf(x)===emrPerson();}).length;
+  var head=pf('emr',{status:'같은 건강 기록을 바탕으로, 두 개의 독립된 의견 · <span class="emrstage">로버트·수연이 각자 방에서 답한다</span>',
+      actions:'<button class="btn sm" onclick="emrNewModal()">+ 신규 문제</button>',
+      cond:EMR.problems===null?'':emrTabsHtml(),
+      kpi:EMR.problems===null?[]:[{l:'진행 중 문제',v:_np+'개'},{l:'진료·증상 기록',v:emrEvents(emrPerson()).length+'건'}]});
   if(!USER||!SB.from){box.innerHTML=head+'<div class="emrnotice">로그인하면 문제 목록이 뜬다.</div>';return;}
   if(EMR.problems===null){box.innerHTML=head+'<div class="emrnotice">불러오는 중…</div>';emrLoad();return;}
   var p=emrSel();
@@ -8233,11 +8410,11 @@ function emrBpHtml(k){
       +'<i onclick="bpDel(\''+k+'\',\''+x.id+'\')" title="지우기">×</i></span>';}).join('')+'</div></div>';
 }
 function emrTabsHtml(){var cur=emrPerson();
-  return '<div class="hptabs emrptabs">'+EMR_PEOPLE.map(function(x){
+  return '<div class="seg2 emrptabs">'+EMR_PEOPLE.map(function(x){
     var n=EMR.problems.filter(function(p){return emrPersonOf(p)===x.k&&p.status!=='closed';}).length
          +emrEvents(x.k).filter(function(e){return /진행|치료중|관찰/.test(String(e.status||''));}).length;
-    return '<button class="'+(cur===x.k?'on':'')+'" data-emrp="'+x.k+'" onclick="emrSetPerson(this.dataset.emrp)">'+x.ic+' '+x.ko
-      +'<span class="hpn">'+n+'</span></button>';}).join('')+'</div>';}
+    return '<button class="sg'+(cur===x.k?' on':'')+'" data-emrp="'+x.k+'" onclick="emrSetPerson(this.dataset.emrp)">'+x.ic+' '+x.ko
+      +' <span class="tn">'+n+'</span></button>';}).join('')+'</div>';}
 function emrListHtml(sel){var who=emrPerson();
   var html=[['active','●'],['watch','◐'],['closed','○']].map(function(g){
     var ps=EMR.problems.filter(function(p){return p.status===g[0]&&emrPersonOf(p)===who;});if(!ps.length)return '';
@@ -8250,7 +8427,7 @@ function emrListHtml(sel){var who=emrPerson();
   var nEv=emrEvents(who).length, nLive=emrEvents(who).filter(function(e){return /진행|치료중|관찰/.test(String(e.status||''));}).length;
   var tl='<div class="emrli emrtlli'+(sel?'':' on')+'" onclick="emrPick(\'\')"><span>📋 진료·증상 기록</span><span class="mut">'
     +(nLive?'<b class="emrpend" title="진행중">● '+nLive+'</b> ':'')+nEv+'</span></div>';
-  return '<div class="emrlist">'+emrTabsHtml()+tl+(html||'<div class="mut" style="font-size:12px;padding:6px 2px">'+emrPersonInfo(who).ko+'의 문제가 아직 없다.</div>')
+  return '<div class="emrlist">'+tl+(html||'<div class="mut" style="font-size:12px;padding:6px 2px">'+emrPersonInfo(who).ko+'의 문제가 아직 없다.</div>')
     +'<div class="emrlistbtn"><button class="ghost sm" onclick="emrNewModal()">+ 신규 문제</button>'
     +'<button class="ghost sm" onclick="emrLoad()">↻ 새로고침</button></div></div>';
 }
@@ -8525,12 +8702,13 @@ function renderLabs(){
       body+='</tr>';
     });
   });
-  document.getElementById('v-labs').innerHTML=''
-   +hTabsHtml()
-   +'<div class="sec"><h4>🩸 피검사 <span class="mut">'+hPersonOf().ko+' · '+N+'회 · 지표 '+(H.metrics||[]).length+'개</span>'
-   +'<span class="hacts"><button class="ghost sm" onclick="setMedDose('+(medDoseOn()?'false':'true')+')" title="약 용량을 표에 표시할지 — 끄면 마우스를 올렸을 때만 보인다">💊 용량 '+(medDoseOn()?'켬':'끔')+'</button> '
-   +'<button class="ghost sm" id="labAddBtn">+ 검사일</button> '
-   +'<button class="ghost sm" id="labAddMetric">+ 지표</button></span></h4>'
+  /* 🧭 v4.81 — 사람·용량 표시는 「누구를·어떻게」 = L2 · 검사일 추가는 페이지 행동 */
+  var _ld=(H.labDates||[]), _last=_ld.length?_ld[_ld.length-1]:'';
+  document.getElementById('v-labs').innerHTML=pf('labs',{
+      status:hPersonOf().ko+' · '+N+'회 · 지표 '+(H.metrics||[]).length+'개'+(_last?' · 최근 검사 '+_last:''),
+      actions:'<button class="ghost sm" id="labAddMetric">+ 지표</button><button class="btn sm" id="labAddBtn">+ 검사일</button>',
+      cond:hTabsHtml()+uiSeg([{k:'true',label:'💊 용량 표시'},{k:'false',label:'숨김'}],String(medDoseOn()),'setMedDose(%)','meddose','약 용량을 표에 표시할지 — 끄면 마우스를 올렸을 때만 보인다')})
+   +'<div class="sec"><h4>🩸 검사표</h4>'
    +'<div class="mut" style="font-size:10px;margin-bottom:8px">정상범위 벗어나면 <span class="lab-hi">↑높음</span>/<span class="lab-lo">↓낮음</span> · 셀 클릭 → 값 편집·추세 · 지표명 ✎ → 이름·정상범위 수정 · 날짜 클릭 → 검사일·진료일·약 수정 · 체중 셀도 눌러서 기록한다</div>'
    +'<div class="labwrap"><table class="labtbl"><thead><tr><th class="cM">지표</th>'+dcols+'</tr></thead><tbody>'+body+'</tbody></table></div></div>';
   var lw=document.querySelector('#v-labs .labwrap');if(lw)lw.scrollLeft=lw.scrollWidth;
@@ -8880,12 +9058,22 @@ function renderInsu(){
      +'</div>';
   });
 
-  document.getElementById('v-insu').innerHTML=top
-   +'<div class="sec"><h4>계약 <span class="mut">'+pols.length+'건 · 월 '+(insMonthly(me)?won(insMonthly(me)):'미상')+'</span>'
-   +'<button class="ghost" id="addInsPolBtn">+ 계약 추가</button></h4>'
-   +'<div class="wtabs">'+tabs+'</div>'
+  /* 🧭 v4.81 — 2,600px 한 줄 → L1 한눈에 / 계약 / 매트릭스 · 사람은 「누구를」 = L2 */
+  var _it=pfL1Get('insu','all');
+  var _tag=function(html,k){return html?html.split('<div class="sec">').join('<div class="sec'+(_it===k?'':' pfoff')+'" data-l1="'+k+'">'):'';};
+  var _npol=0; INS_PEOPLE.forEach(function(P){_npol+=insPols(P.k).length;});
+  document.getElementById('v-insu').innerHTML=pf('insu',{
+      status:'사고가 나면 얼마가 나오는가 · 가족 확인된 월 보험료 <b>'+won(known)+'</b>'+(unk?' · 보험료 미확인 '+unk+'건':'')+(gaps.length?' · <b class="warnx">보장 공백 '+gaps.length+'개</b>':''),
+      actions:'<button class="btn sm" id="addInsPolBtn">+ 계약 추가</button>',
+      l1:uiTabs([{k:'all',label:'📋 한눈에'},{k:'pol',label:'📑 계약',n:_npol},{k:'mtx',label:'📊 보장 매트릭스'}],_it,"pfL1Set('insu','%')"),
+      cond:_it==='all'?'':'<div class="wtabs">'+tabs+'</div>',
+      kpi:[{l:'가족 월 보험료',v:won(known)},{l:'계약',v:_npol+'건'},{l:'보장 공백',v:gaps.length+'개',cls:(gaps.length?'warn':'')},
+           (_it!=='all'?{l:'선택한 사람 월',v:(insMonthly(me)?won(insMonthly(me)):'미상')}:null)]})
+   +_tag(top,'all')+_tag(gapBox,'all')
+   +'<div class="sec'+(_it==='pol'?'':' pfoff')+'" data-l1="pol"><h4>계약 <span class="mut">'+pols.length+'건 · 월 '+(insMonthly(me)?won(insMonthly(me)):'미상')+'</span></h4>'
    +(plist||'<div class="mut" style="padding:6px 0">계약 없음 — 위 <b>+ 계약 추가</b></div>')+'</div>'
-   +gapBox+mtx+rid;
+   +_tag(rid,'pol')
+   +_tag(mtx,'mtx');
 }
 
 /* ── 계약 편집 ── */
@@ -10383,9 +10571,10 @@ function agBub(){
 
 function renderAgora(){
   var box=document.getElementById('v-agora');if(!box)return;
-  var head='<div class="aghd"><div><h2>🏛 아고라</h2>'
-    +'<p>같은 기간을, 일곱 개의 눈으로. <b>15일 중간</b>·<b>말일 월말</b>로 각 방이 평가를 올리고 서로 대댓글을 단다.</p></div>'
-    +'<span class="emrstage">🔒 방은 자기 평가를 제출한 뒤에야 남의 글을 본다</span></div>';
+  /* 🧭 v4.81 — h2 제목 블록 → 공통 헤더. 회의장/문서 = L1 · 달·단계 = L2 */
+  var _ags='같은 기간을, 일곱 개의 눈으로 · <b>15일 중간</b>·<b>말일 월말</b> · <span class="emrstage">🔒 방은 자기 평가를 제출한 뒤에야 남의 글을 본다</span>';
+  var _aga='<button class="ghost sm" onclick="agLoad();agLoadNotices()">↻ 새로고침</button>';
+  var head=pf('agora',{status:_ags,actions:_aga});
   if(!USER||!SB.from){box.innerHTML=head+'<div class="emrnotice">로그인하면 아고라가 열린다.</div>';return;}
   /* 🔒 명단만 오고 글이 아직이면 **그리지 않는다** — 그리면 일곱이 전부 미제출로 보인다 */
   if(AG.mem===null||AG.posts===null){box.innerHTML=head
@@ -10396,6 +10585,12 @@ function renderAgora(){
     +'(글 48건이라야 44 kB 다. 정상이면 1초 안에 온다)</div></div>';
     agLoad();return;}
   var ym=agYm(), ph=agPhase(), tn=agTurn();
+  var _turn=(ym===tn.ym&&ph===tn.phase);
+  head=pf('agora',{status:_ags,actions:_aga,
+      l1:uiTabs([{k:'hall',label:'🏰 회의장'},{k:'doc',label:'📄 문서'}],agView(),"agSetView('%')",'agview'),
+      cond:uiPnav(mdEsc(ym),'onclick="agMove(-1)"','onclick="agMove(1)"',{today:_turn?'':'onclick="agGoTurn()"',isToday:_turn,todayLabel:_turn?'오늘의 차례':'오늘의 차례로'})
+        /* 🕐 단계 토글 — 🔒 기본값은 오늘의 차례다 */
+        +uiSeg([{k:'mid',label:'중간 (1~15)',dis:agWhen(ym,'mid')==='none',tip:(agWhen(ym,'mid')==='none'?'이 달엔 중간평가가 없었다 — '+AG_MID_FROM+' 부터 생겼다':'')},{k:'full',label:'월말 (전체)'}],ph,"agSetPhase('%')",'agph')});
   box.innerHTML=head
     +(AG.err?'<div class="emrnotice emrbad">⚠ '+mdEsc(AG.err)
       +' <button class="ghost sm" onclick="agRetry()">다시 시도</button></div>':'')
@@ -10403,25 +10598,7 @@ function renderAgora(){
        밀렸다(머리만 260px). 회의장에선 오른쪽 패널의 📢 탭이 그 일을 한다(§16.1).
        🔒 문서 보기엔 패널이 없으니 띠를 그대로 둔다 — 자리를 옮기는 것이지 없애는 게 아니다 */
     +(agView()==='hall'?'':agNoticeBar())
-    +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:9px;flex-wrap:wrap">'
-      +'<button class="ghost sm" onclick="agMove(-1)">◀</button>'
-      +'<b style="font-size:15px">'+mdEsc(ym)+'</b>'
-      +'<button class="ghost sm" onclick="agMove(1)">▶</button>'
-      /* 🕐 단계 토글 — 🔒 기본값은 오늘의 차례다 */
-      +'<span class="agview" style="margin-left:6px">'
-        +'<button class="'+(agView()==='hall'?'on':'')+'" onclick="agSetView(&#39;hall&#39;)">🏰 회의장</button>'
-        +'<button class="'+(agView()==='doc'?'on':'')+'" onclick="agSetView(&#39;doc&#39;)">📄 문서</button>'
-      +'</span>'
-      +'<span class="agph" style="margin-left:6px">'
-        +'<button class="'+(ph==='mid'?'on':'')+'"'
-          +(agWhen(ym,'mid')==='none'?' disabled title="이 달엔 중간평가가 없었다 — '+AG_MID_FROM+' 부터 생겼다"':'')
-          +' onclick="agSetPhase(&#39;mid&#39;)">중간 (1~15)</button>'
-        +'<button class="'+(ph==='full'?'on':'')+'" onclick="agSetPhase(&#39;full&#39;)">월말 (전체)</button>'
-      +'</span>'
-      +((ym===tn.ym&&ph===tn.phase)
-        ?'<span class="mut" style="font-size:10.5px">← 오늘의 차례</span>'
-        :'<button class="ghost sm" onclick="agGoTurn()">오늘의 차례로</button>')
-      +'<button class="ghost sm" style="margin-left:auto" onclick="agLoad();agLoadNotices()">↻ 새로고침</button></div>'
+    +'<div class="agctl" hidden></div>'
     /* 🔒 v4.38 — 왜 비었는지 말한다. 말 안 하면 고장으로 읽힌다 */
     +agNoneHtml()
     +agHallFactsNote(ym)
@@ -11197,8 +11374,12 @@ function renderSaju(){
      로한: 「예측과 검증에 월별이 있는데 내려보면 또 있다. 차라리 합쳐서 가로로.」
      같은 일(기간 고르기)을 두 UI 가 하고 있었다 → sjCascade() 하나로 합쳤다. */
   /* 🏛 v4.62 — 탭. 🔒 기존 화면은 손대지 않고 첫 탭에 그대로 둔다 */
-  var tabs='<div class="logtabs"><button class="'+(sjTab()==='main'?'on':'')+'" onclick="sjSetTab(\'main\')">🔮 사주</button>'
-    +'<button class="'+(sjTab()==='summit'?'on':'')+'" onclick="sjSetTab(\'summit\')">🏛 '+SM_YEAR+' 대토론</button></div>';
+  /* 🧭 v4.81 — 사주 / 대토론은 다른 화면 = L1 · 원국 요약은 헤더 상태 줄 */
+  var _ig=S.ilgan||'';
+  var tabs=pf('saju',{
+      status:(S.birth&&S.birth.solar?S.birth.solar+' · ':'')+'일간 '+_ig+(SAJU_OH[_ig]?'('+SAJU_OH[_ig]+')':'')+(S.gyeok?' · '+S.gyeok:'')+(S.gongmang?' · 공망 '+S.gongmang.join(''):'')
+        +' · <span class="mut">예언이 아니라 구조적 렌즈</span>',
+      l1:uiTabs([{k:'main',label:'🔮 사주'},{k:'summit',label:'🏛 '+SM_YEAR+' 대토론'}],sjTab(),"sjSetTab('%')",'logtabs')});
   if(sjTab()==='summit'){document.getElementById('v-saju').innerHTML=tabs+renderSummit();return;}
   document.getElementById('v-saju').innerHTML=tabs
    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">'
@@ -12676,12 +12857,14 @@ function renderDaily(){
   var quick='<span class="dquick">'
    +'<button class="ghost sm" onclick="dailyGo(\'drill\')" title="학습 → 드릴">🈶 드릴</button>'
    +'<button class="ghost sm" onclick="stPomoOpen()" title="뽀모도로 타이머">⏱ 뽀모도로</button></span>';
-  var topbar='<div class="dtop">'
-   +'<div class="dtl"><b class="dtd">'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8),10)+'일 ('+DOW_KO[dowOf(t)]+')</b>'
-   +'<span class="'+(tfull?'dfull':'mut')+'">'+(tfull?'✅ 완전달성':(tr?'오늘 '+tr.done+'/'+tr.total:'루틴 없음'))+'</span>'
-   +'<span class="mut">이번주 '+fullDaysInWeek(weekStart(t))+'/'+cfg.weekFullDays+'일</span>'
-   +'<span class="mut">기록 '+hrs(used)+' · 미기록 '+hrs(48-used)+'</span>'+quick+'</div>'
-   +'<div class="dgs">'+(gchips||'<span class="mut" data-gojump="">목표가 없다 — 목표·루틴 탭에서 시작해라</span>')+'</div></div>';
+  /* 🧭 v4.81 — 헤더 = 오늘(날짜·달성·기록) + 빠른 이동 · L2 = 목표 칩. 달력·날짜 이동은 각 카드 안(그 카드만 바뀐다) */
+  var topbar=pf('daily',{
+      status:'<span class="dtop"><b class="dtd">'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8),10)+'일 ('+DOW_KO[dowOf(t)]+')</b>'
+        +' · <span class="'+(tfull?'dfull':'')+'">'+(tfull?'✅ 완전달성':(tr?'오늘 '+tr.done+'/'+tr.total:'루틴 없음'))+'</span>'
+        +' · 이번주 '+fullDaysInWeek(weekStart(t))+'/'+cfg.weekFullDays+'일'
+        +' · 기록 '+hrs(used)+' · 미기록 '+hrs(48-used)+'</span>',
+      actions:quick,
+      cond:'<div class="dgs">'+(gchips||'<span class="mut" data-gojump="">목표가 없다 — 목표·루틴 탭에서 시작해라</span>')+'</div>'});
   var dUsed=tlUsed(d);
 
   /* ── 좌: 통합 캘린더 (계획 + 실제) ── */
@@ -12951,13 +13134,21 @@ function renderGoal(){
   }).join('');
 
   var ws=yearWeekStats(yy), mw=yearMonthWins(yy);
-  var yearPane='<div class="ctxwrap"><div class="ctxtop">'
+  /* 🧭 v4.81 — 「주간 성공」 숫자 줄은 KPI 로 올리고, 카드엔 펼치는 손잡이만 남긴다 */
+  var _rs=rewardSpend(yy);
+  var yearPane=pf('goal',{
+      status:yy+'년 연간 목표 '+yg.length+'개 · 이번 달 과제 '+((DB.goals||[]).filter(function(g){return g.kind==='milestone'&&g.period===ym;}).length+soloGoals(ym).length)+'개 · 루틴 '+(DB.routines||[]).filter(function(r){return r.status!=='retired';}).length+'개',
+      actions:'<button class="btn sm" id="addYGoalBtn">+ 목표</button>',
+      kpi:[{l:'주간 성공',v:ws.win+' / '+ws.elapsed+'주',s:'완전달성 '+cfg.weekFullDays+'일↑'},
+           {l:'월 성공',v:mw+' / '+cfg.yearMonths+'달'},
+           {l:'최장 연속',v:ws.best+'주'},
+           {l:'🎁 올해 보상 지출',v:won(_rs.total||0),s:(_rs.count||0)+'건'}]})
+   +'<div class="ctxwrap"><div class="ctxtop">'
    +'<span class="ctxtitle">⚑ '+yy+'년 연간 목표</span>'
-   +'<span class="ctxacts">'+rwChip('year',yy,'연간')+'<button class="ghost sm" id="addYGoalBtn">+ 목표</button></span></div>'
+   +'<span class="ctxacts">'+rwChip('year',yy,'연간')+'</span></div>'
    +(ctx||'<div class="mut" style="font-size:12px;padding:6px 2px">올해 목표가 없다. 여기서부터 시작해라.</div>')
-   +'<div class="wtwrap"><div class="wthd" id="wtToggle" style="cursor:pointer"><span class="wtt">📊 주간 성공 '+(DB.ui.wtOpen?'▴':'▾')+'</span>'
-   +'<span class="mut"><b>'+ws.win+'</b>/'+ws.elapsed+'주 · 월 <b>'+mw+'</b>/'+cfg.yearMonths+' · 최장 <b>'+ws.best+'</b>주'
-   +' <span class="mut" style="opacity:.7">(칸 1개=1주, 완전달성 '+cfg.weekFullDays+'일↑)</span></span></div>'
+   +'<div class="wtwrap"><div class="wthd" id="wtToggle" style="cursor:pointer"><span class="wtt">📊 주간 성공 '+(DB.ui.wtOpen?'접기 ▴':'펼치기 ▾')+'</span>'
+   +'<span class="mut" style="opacity:.7">칸 1개=1주</span></div>'
    +(DB.ui.wtOpen?('<div class="wtrack">'+weekTracker(yy)+'</div>'):'')+(function(){
       var rs=rewardSpend(yy); if(!rs.total)return '';
       var fin=(DB.goals||[]).filter(function(g){return g.kind==='year'&&g.period===yy&&g.source==='cash'&&g.metric&&g.metric.target;})[0];
@@ -13122,10 +13313,12 @@ function renderReward(){
   var rs=rewardSpend(yy), logN=usedCards().length;
   var real=bucketRealistic().length;
 
-  document.getElementById('v-reward').innerHTML=''
-   +'<div class="sec"><h4>🎁 보상 계단'
-   +'<span class="hacts"><span class="mut" id="rwHistBtn2" style="font-size:11px;cursor:pointer">📜 사용 '+logN+'건</span>'
-   +'<button class="ghost sm" id="rwCfgBtn2">문턱 조정</button></span></h4>'
+  /* 🧭 v4.81 — 계단 카드는 눌러서 배치하는 **내용**이라 본문에 둔다. 사용 내역·문턱은 페이지 행동 */
+  document.getElementById('v-reward').innerHTML=pf('reward',{
+      status:'주 완전달성 '+cfg.weekFullDays+'일 · 월 주성공 '+cfg.monthWeeks+'회 · 연 월성공 '+cfg.yearMonths+'회'
+        +(rs.total?' · 올해 보상 지출 <b>'+won(rs.total)+'</b> ('+rs.count+'건)':''),
+      actions:'<button class="ghost sm" id="rwHistBtn2">📜 사용 '+logN+'건</button><button class="ghost sm" id="rwCfgBtn2">문턱 조정</button>'})
+   +'<div class="sec"><h4>🪜 보상 계단</h4>'
    +'<div class="tgrid3">'+tiers+'</div>'
    +(goalRows?'<div class="grwbox">'+goalRows+'</div>':'')
    +'<div class="mut" style="font-size:11px;margin-top:9px;padding-top:8px;border-top:1px dashed var(--line)">'
@@ -13148,7 +13341,10 @@ function renderJournal(){
     return '<div class="jentry" data-editjournal="'+e.id+'"><div style="margin-bottom:5px"><div style="font-family:var(--serif);font-weight:700;font-size:14px">'+(e.title||'(무제)')+'</div><div class="mut" style="font-size:10.5px">'+fmtJ(e.date)+(e.place?' · '+e.place:'')+'</div></div>'+(tags?'<div style="margin-bottom:6px">'+tags+'</div>':'')+((e.body||'')?'<div style="font-size:12.5px;color:#41506a;line-height:1.65;white-space:pre-wrap">'+sajuEsc(e.body)+'</div>':'')+'</div>';
   }).join('');
   var grid=rows?'<div class="jgrid">'+rows+'</div>':'<div class="mut" style="padding:10px 0">아직 기록이 없다. 생각·마음·흔들림·기쁨을 그때그때 남겨라.</div>';
-  document.getElementById('v-journal').innerHTML='<div class="sec"><h4>📖 일지 <span class="mut">생각·마음·흔들림·기쁨 ('+J.length+') · 카드 클릭 → 수정/삭제</span> <button class="ghost" id="addJournalBtn" style="float:right">+ 기록</button></h4>'+grid+'</div>';
+  document.getElementById('v-journal').innerHTML=pf('journal',{
+      status:'생각·마음·흔들림·기쁨 '+J.length+'개'+(J.length?' · 마지막 '+fmtJ(J[0].date).slice(0,10):'')+' · 카드를 누르면 수정',
+      actions:'<button class="btn sm" id="addJournalBtn">+ 기록</button>'})
+    +'<div class="sec">'+grid+'</div>';
 }
 function journalModal(id){
   var e=id?(DB.journal||[]).filter(function(x){return x.id===id})[0]:{date:nowLocal(),title:'',moods:[],place:'',body:''};
@@ -13172,7 +13368,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.80';
+var APP_VERSION='4.81';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -13186,6 +13382,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.81',date:'2026-11-06',note:'<b>🧭 화면 틀 통일 — 모든 페이지가 헤더 · 레이어1 · 레이어2 · 본문 순서를 지킨다.</b> 로한: <i>“UI가 전 페이지가 통일화 됐으면 좋겠거든? … 헤더, 레이어1, 레이어2, 본문 … 모바일도 똑같은 개념으로”</i> · 실측: 페이지 제목 없음 5곳 · 탭 부품 9종 · 기간 이동 6가지 · 긴 페이지 3곳. 🔒 약속(ui-frame-plan.md): <b>헤더</b>=이름·상태 한 줄·주 행동 / <b>L1</b>=누르면 본문이 다른 화면 / <b>L2</b>=언제·누구·어떻게 + KPI 최대 4 / <b>본문</b>=카드. 판정은 「누르면 무엇이 바뀌나」. 부품은 하나씩 — <code>pf()</code> 틀 + <code>uiTabs·uiSeg·uiChips·uiPnav·uiKpi</code>. 고정: 데스크톱 헤더+L1 · 모바일 L1(네비 밑). 긴 페이지 L1 신설: 계좌·부채(계좌/카드/부채/분류 · 2,004→628px) · 체성분·사고(체성분/사고 · 5,301→1,406px · 기록 최근 10건+더 보기) · 보험(한눈에/계약/매트릭스 · 2,634→511px). 가계부 💰/🩺 → L1 · 세무 연도(L2)와 설정(L1) 분리 · EMR·아고라 h2 블록 → 공통 헤더 · 현황판 자산 요약·목표 주간 성공·예산 숫자 → KPI.'},
   {v:'4.80',date:'2026-11-06',note:'<b>⚡ v5 P4 — 다른 곳의 변경이 열린 탭에 들어온다 · 시작은 바뀐 칸만 받는다.</b> 🔴 탭은 열 때 한 번 받고 끝이었다 — 낡은 사본을 들고 있다가 저장할 때에야 충돌을 알았고, 켤 때마다 95만 자를 내려받았다. 🔒 시작: 서버엔 <b>판 번호·시각만</b> 묻고 기기 사본(IndexedDB)과 다른 칸만 받는다(판 번호·시각이 둘 다 같아야 같은 것). 🔒 그 뒤: 작은 신호 테이블 <code>kv_ping</code> 실시간 구독(app_kv 통째가 아니라 「어느 칸이 몇 판」만) + 탭 복귀 + 1분마다 → 바뀐 칸만 받아 합친다. 내 쪽에 안 보낸 변경이 같은 칸이면 3자 병합 후 다시 저장. 입력 중이거나 창이 떠 있으면 화면을 다시 그리지 않는다(쓰던 글 보존). 저장 중이면 받기를 미룬다. 커서는 5분 겹쳐 묻는다(늦게 커밋된 변경을 놓치지 않게). 받아오기가 실패해도 옛 길로 떨어진다.'},
   {v:'4.79',date:'2026-11-06',note:'<b>🧾 v5 P2 — 변경 이력 · 담당사 권한 · 쓰기 창구.</b> 로한: <i>“여러 ai들이 동시에 로한북에서 작업한다고 해봐.”</i> · 🔒 <code>events</code> — 서버 트리거가 app_kv 의 <b>모든 변경</b>을 남긴다(누가·동사·키·바뀐 레코드·이유). 지운 레코드도 원본째 남아 되살릴 수 있다. 🔒 <code>actors</code> — 담당사별 쓸 수 있는 키(생활사=재무·보험 · 순환기=건강 · 학습=study · 사주=saju). 🚪 <code>rb_call(actor, 동사, args)</code> — rec_add · rec_edit · rec_remove · map_put · map_del · kv_put. 레코드 한 건만 원자적으로 바꾸고, 권한 밖·잘못된 값·중복 id·이유 없는 삭제·레코드 배열 통째 교체를 거절한다. 창구를 안 거친 직접 SQL 은 아직 막지 않고 <b>「direct-sql」로 보이게</b> 한다. 📱 로그 → <b>🧾 이력</b> 탭(actor 별 거르기). 🔴 P1 보안 수리: 함수가 기본값으로 비로그인(anon)에게 열려 있었다 — kv_join 은 전체 데이터를 돌려준다. 전부 회수(앱이 쓰는 kv_save·kv_verify 만 로그인 사용자에게). 담당사용 스킬 <code>skills/rohanbook-write</code>.'},
   {v:'4.78',date:'2026-11-06',note:'<b>🧱 v5 P1 — 키별 저장. 뽀모 한 판에 95만 자를 올리던 것을 그 키만 올린다.</b> 로한: <i>“실시간 저장인데 왜 자꾸 변경의 충돌이 일어나는거야?”</i> · 원인: 모든 데이터가 app_state <b>한 칸</b>이었다 — 담당사가 거래를 고치면 학습 탭 저장까지 충돌로 걸렸고, 화면 상태(ui)까지 섞여 탭만 바꿔도 저장했다. 🔒 새 테이블 <code>app_kv</code>(47행 · study 는 words/sents/units/drills/errors/pomos/tests/strategy/rest 로 쪼갬) · <b>바뀐 키만</b> <code>kv_save</code> 로 보내고 잠금도 키별 rev — 한 키라도 어긋나면 아무것도 안 쓴다(원자성), 충돌은 <b>그 키만</b> 3자 병합. 화면 상태는 기기 로컬(rb_ui), 기기끼리 나눌 것(pomoRun·pomo·seenNotes·watchCats)만 서버 pref. 🔁 이중 쓰기: 서버 트리거가 app_state 와 양방향으로 맞춘다(방이 옛 습관대로 덩어리를 고쳐도 kv 가 따라온다) · 접속마다 <code>kv_verify</code> 대조. ↩ 되돌리기: localStorage <code>rb_kv=off</code>. 화면 코드는 0줄 수정.'},
@@ -13603,8 +13800,9 @@ function logPaneEv(){
 function renderLog(){
   var t=logTab();
   if(t==='ho')hoLoad();
-  var tabs='<div class="logtabs">'+LOG_TABS.map(function(x){
-    return '<button class="'+(x.k===t?'on':'')+'" onclick="setLogTab(\''+x.k+'\')">'+x.label+'</button>';}).join('')+'</div>';
+  /* 🧭 v4.81 — 다섯 탭은 서로 다른 화면 = L1 */
+  var tabs=pf('log',{status:'방들이 남긴 인계 · 누가 무엇을 바꿨나 · 백업 · 버전',
+      l1:uiTabs(LOG_TABS,t,"setLogTab('%')",'logtabs')});
   if(t==='ev')evLoad();
   var body = t==='ho'?logPaneHo() : t==='ev'?logPaneEv() : t==='act'?logPaneAct() : t==='ver'?logPaneVer() : logPaneBak();
   document.getElementById('v-log').innerHTML=tabs+body;
@@ -15784,15 +15982,19 @@ function srcBody(s){
 function renderSources(){
   var el=document.getElementById('v-src'); if(!el)return;
   srcLoad(false);
-  var h='<div class="sec"><h4>📂 증빙함 <span class="mut">담당사가 정리한 원장</span>'
-    +'<span style="float:right"><button class="ghost sm" onclick="srcLoad(true);renderSources()">↻</button></span></h4>'
-    +'<div class="mut" style="font-size:11.5px;line-height:1.6;margin-bottom:10px">로한이 준 자료(엑셀·캡처·서류)를 담당사가 표·그림으로 다시 정리해 올린다. 원본 파일은 올리지 않고, 민감정보는 가린다. 앱은 읽기만 한다.</div>';
-  if(SRC_STATE==='loading'&&!SOURCES){el.innerHTML=h+'<div class="mut">불러오는 중…</div></div>';return;}
-  if(SRC_STATE==='err'){el.innerHTML=h+'<div class="neg">읽기 실패 — '+mdEsc(SRC_ERR)+' <button class="ghost sm" onclick="srcLoad(true);renderSources()">다시</button></div></div>';return;}
-  var gs=srcGroups();
-  if(!gs.length){el.innerHTML=h+'<div class="mut" style="padding:20px 0;text-align:center">아직 올라온 자료가 없다.<br>증빙 업로드 채팅에서 자료를 주면 담당사가 정리해 올린다.</div></div>';return;}
-  var rooms=[];gs.forEach(function(x){if(rooms.indexOf(x.cur.room)<0)rooms.push(x.cur.room);});
-  h+='<div class="horoom">'+rooms.map(function(r){return '<span class="'+(SRC_ROOM===r?'on':'')+'" onclick="srcSetRoom(\''+mdEsc(r).replace(/'/g,'')+'\')">'+mdEsc(r)+'</span>';}).join('')+'</div>';
+  /* 🧭 v4.81 — 담당사 칩은 「누구 것을 볼까」 = L2 */
+  var gs=SOURCES?srcGroups():[], rooms=[];
+  gs.forEach(function(x){if(rooms.indexOf(x.cur.room)<0)rooms.push(x.cur.room);});
+  var _rk=function(r){return mdEsc(r).replace(/'/g,'');};
+  var h=pf('src',{
+      status:'담당사가 정리한 원장 '+gs.length+'건 · 로한이 준 자료(엑셀·캡처·서류)를 표·그림으로 다시 정리한 것 · 원본 파일은 올리지 않고 민감정보는 가린다',
+      actions:'<button class="ghost sm" onclick="srcLoad(true);renderSources()">↻ 새로고침</button>',
+      cond:rooms.length>1?uiChips([{k:'',label:'전체',n:gs.length}].concat(rooms.map(function(r){
+          return {k:_rk(r),label:mdEsc(r),n:gs.filter(function(x){return x.cur.room===r;}).length};})),SRC_ROOM?_rk(SRC_ROOM):'',"srcSetRoom('%')",'horoom'):''})
+    +'<div class="srclist">';
+  if(SRC_STATE==='loading'&&!SOURCES){el.innerHTML=h+'<div class="sec mut">불러오는 중…</div></div>';return;}
+  if(SRC_STATE==='err'){el.innerHTML=h+'<div class="sec neg">읽기 실패 — '+mdEsc(SRC_ERR)+' <button class="ghost sm" onclick="srcLoad(true);renderSources()">다시</button></div></div>';return;}
+  if(!gs.length){el.innerHTML=h+'<div class="sec mut" style="padding:20px 0;text-align:center">아직 올라온 자료가 없다.<br>증빙 업로드 채팅에서 자료를 주면 담당사가 정리해 올린다.</div></div>';return;}
   gs.filter(function(x){return !SRC_ROOM||x.cur.room===SRC_ROOM;}).forEach(function(x){
     var s=x.cur, open=(SRC_OPEN===s.id), n=Array.isArray(s.rows)?s.rows.length:0;
     h+='<div class="hocard">'

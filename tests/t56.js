@@ -163,8 +163,9 @@ async function boot(st){
     const t=DB.transactions.filter(x=>x.debtId)[0];
     delete t.debtId; delete t.debtPrin;      /* 알림을 하나 되살린다 */
     renderDash();
-    const b=document.querySelector('#v-dash .updated .bell');
-    return {있나:!!b, 머리글:!!document.querySelector('#v-dash .updated'),
+    /* 🧭 v4.81 — 종은 페이지 헤더의 행동 자리(.ph-a) 오른쪽 끝 */
+    const b=document.querySelector('#v-dash .phead .ph-a .bell');
+    return {있나:!!b, 머리글:!!document.querySelector('#v-dash .phead .updated'),
             끝쪽:!!(b&&b.parentElement&&b.parentElement.lastElementChild===b),
             알림:noteList().length};});
   ok('E5 🔔 알릴 것이 생기면 종이 현황판 머리에 뜬다',

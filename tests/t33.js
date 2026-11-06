@@ -419,7 +419,8 @@ const lenOK = p => p.evaluate(()=>{
   await p.evaluate(()=>renderLabs()); await p.waitForTimeout(250);
   const seen=await p.evaluate(()=>({
     표:document.querySelector('#v-labs .labtbl').textContent.replace(/\s+/g,' '),
-    머리:document.querySelector('#v-labs h4').textContent}));
+    /* 🧭 v4.81 — 「누구 표인지」는 페이지 헤더 상태 줄로 올라갔다 */
+    머리:document.querySelector('#v-labs .phead').textContent}));
   ok('P13 엄마 표에 간수치가 ↑ 로 보인다',/45↑/.test(seen.표)&&/37↑/.test(seen.표),'');
   ok('P14 머리에 누구 표인지 적는다',/엄마/.test(seen.머리),seen.머리.slice(0,30));
 

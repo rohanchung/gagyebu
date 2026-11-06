@@ -231,7 +231,7 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
    delete DB.ui.emrSel;emrSetPerson('mom');});await settle();
  const tl=await p.evaluate(()=>{const m=document.querySelector('.emrmain');return {t:m?m.textContent:'',
    heads:[...document.querySelectorAll('.emrev .emrevh')].map(x=>x.textContent),live:document.querySelectorAll('.emrev.live').length,
-   bold:[...document.querySelectorAll('.emrev b')].map(x=>x.textContent),tab:(document.querySelector('.emrptabs button[data-emrp="mom"] .hpn')||{}).textContent,want:String(EMR.problems.filter(x=>emrPersonOf(x)==='mom'&&x.status!=='closed').length+1)};});
+   bold:[...document.querySelectorAll('.emrev b')].map(x=>x.textContent),tab:(document.querySelector('.emrptabs button[data-emrp="mom"] .tn')||{}).textContent,want:String(EMR.problems.filter(x=>emrPersonOf(x)==='mom'&&x.status!=='closed').length+1)};});
  ok('TL1 🔴 어머니 탭 — 문제가 0건이어도 진료·증상 기록이 보인다',tl.t.indexOf('진료·증상 기록')>=0&&tl.heads.length===3);
  ok('TL2 진행중이 맨 위, 그다음 최신 순',/2026-10-28/.test(tl.heads[0])&&/2026-10-20/.test(tl.heads[1])&&/2026-05-21/.test(tl.heads[2]),JSON.stringify(tl.heads));
  ok('TL3 진행중은 강조',tl.live===1);

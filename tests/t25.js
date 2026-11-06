@@ -156,8 +156,9 @@ console.log('\n=== 발생 / 카드결제 토글 ===');
    const a=document.getElementById('v-cal').innerHTML;
    setPlMode('cash');renderCal();
    const b=document.getElementById('v-cal').innerHTML;
-   return {aOn:/plm on[^>]*>발생/.test(a), bOn:/plm on[^>]*>카드결제/.test(b),
-           note:/plbar/.test(b)&&/통장에서 나가는/.test(b)&&/산<\/b> 것은/.test(b), persist:DB.ui.plMode};});
+   /* 🧭 v4.81 — 토글은 공통 세그먼트(.seg2 .sg.on) · 안내 문구는 헤더 상태 줄(.plmsg) */
+   return {aOn:/sg on"[^>]*>발생/.test(a), bOn:/sg on"[^>]*>카드결제/.test(b),
+           note:/plmsg/.test(b)&&/통장에서 나가는/.test(b)&&/산<\/b> 것은/.test(b), persist:DB.ui.plMode};});
  ok(ui.aOn&&ui.bOn,'토글 상태가 화면에 반영된다');
  ok(ui.note,'토글 옆에 두 숫자를 나란히 안내한다 (헷갈리던 지점)');
  ok(ui.persist==='cash','선택이 저장된다');
