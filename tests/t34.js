@@ -82,7 +82,8 @@ async function boot(st,opt){
  {
   const {b,p,errs}=await boot(BASE());
   const tabs=await p.$$eval('.logtabs button',es=>es.map(e=>e.textContent.trim()));
-  ok('A1 탭 4개',tabs.length===4,tabs.length);
+  ok('A1 탭 5개 (v4.79 🧾 이력 추가)',tabs.length===5,tabs.length);
+  ok('A1b 이력 탭 존재',tabs.some(t=>t.indexOf('이력')>=0));
   ok('A2 핸드오프 탭 존재',tabs.some(t=>t.indexOf('핸드오프')>=0),JSON.stringify(tabs));
   ok('A3 활동 탭 존재',tabs.some(t=>t.indexOf('활동')>=0));
   ok('A4 백업·복원 탭 존재',tabs.some(t=>t.indexOf('백업')>=0));

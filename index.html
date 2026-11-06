@@ -13034,7 +13034,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.78';
+var APP_VERSION='4.79';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -13048,6 +13048,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.79',date:'2026-11-06',note:'<b>🧾 v5 P2 — 변경 이력 · 담당사 권한 · 쓰기 창구.</b> 로한: <i>“여러 ai들이 동시에 로한북에서 작업한다고 해봐.”</i> · 🔒 <code>events</code> — 서버 트리거가 app_kv 의 <b>모든 변경</b>을 남긴다(누가·동사·키·바뀐 레코드·이유). 지운 레코드도 원본째 남아 되살릴 수 있다. 🔒 <code>actors</code> — 담당사별 쓸 수 있는 키(생활사=재무·보험 · 순환기=건강 · 학습=study · 사주=saju). 🚪 <code>rb_call(actor, 동사, args)</code> — rec_add · rec_edit · rec_remove · map_put · map_del · kv_put. 레코드 한 건만 원자적으로 바꾸고, 권한 밖·잘못된 값·중복 id·이유 없는 삭제·레코드 배열 통째 교체를 거절한다. 창구를 안 거친 직접 SQL 은 아직 막지 않고 <b>「direct-sql」로 보이게</b> 한다. 📱 로그 → <b>🧾 이력</b> 탭(actor 별 거르기). 🔴 P1 보안 수리: 함수가 기본값으로 비로그인(anon)에게 열려 있었다 — kv_join 은 전체 데이터를 돌려준다. 전부 회수(앱이 쓰는 kv_save·kv_verify 만 로그인 사용자에게). 담당사용 스킬 <code>skills/rohanbook-write</code>.'},
   {v:'4.78',date:'2026-11-06',note:'<b>🧱 v5 P1 — 키별 저장. 뽀모 한 판에 95만 자를 올리던 것을 그 키만 올린다.</b> 로한: <i>“실시간 저장인데 왜 자꾸 변경의 충돌이 일어나는거야?”</i> · 원인: 모든 데이터가 app_state <b>한 칸</b>이었다 — 담당사가 거래를 고치면 학습 탭 저장까지 충돌로 걸렸고, 화면 상태(ui)까지 섞여 탭만 바꿔도 저장했다. 🔒 새 테이블 <code>app_kv</code>(47행 · study 는 words/sents/units/drills/errors/pomos/tests/strategy/rest 로 쪼갬) · <b>바뀐 키만</b> <code>kv_save</code> 로 보내고 잠금도 키별 rev — 한 키라도 어긋나면 아무것도 안 쓴다(원자성), 충돌은 <b>그 키만</b> 3자 병합. 화면 상태는 기기 로컬(rb_ui), 기기끼리 나눌 것(pomoRun·pomo·seenNotes·watchCats)만 서버 pref. 🔁 이중 쓰기: 서버 트리거가 app_state 와 양방향으로 맞춘다(방이 옛 습관대로 덩어리를 고쳐도 kv 가 따라온다) · 접속마다 <code>kv_verify</code> 대조. ↩ 되돌리기: localStorage <code>rb_kv=off</code>. 화면 코드는 0줄 수정.'},
   {v:'4.77',date:'2026-11-05',note:'<b>📂 증빙함 신설 (기타 메뉴).</b> 로한: <i>“내가 각 담당사들에게 준 엑셀파일이나 정보들을 … 담당사들이 정리해서 원장을 업로드”</i> · 계기: 생활사가 삼성 청구서를 보고 결제액을 고쳤지만 제작사는 그 청구서를 볼 수 없어 96,143 차액이 설명되지 않았다. 🔒 원본 파일이 아니라 <b>담당사가 재편집한 원장</b>(표 · 다시 그린 SVG 그림 · 요약 · 가린 항목)이다. 저장은 새 테이블 <code>public.sources</code> — app_state 에 복사하지 않고 앱은 읽기만 한다. 덧붙이기만(같은 slug 에 version+1, 옛 판은 「이전 판」으로 접힘). 💳 <b>카드 이용내역은 가계부와 자동 대사</b> — 카드명 · 이용일 ±3일 · 금액 ±1원(할부는 개월수·원금), 「가계부에 없음 N건 ₩」과 반대 방향 「기간 안 가계부엔 있는데 자료에 없음」을 보여준다(고치지 않는다). 그림은 &lt;img&gt; 로만 그려 SVG 스크립트가 돌지 않는다. 업로드 채팅용 스킬 <code>skills/rohanbook-evidence/SKILL.md</code>.'},
   {v:'4.76',date:'2026-11-05',note:'<b>🧾 카드결제가 현금흐름에서 과목을 부풀렸다 — 구성만큼만 그리고 남는 돈은 「내역미상」.</b> 생활사 핸드오프(card-installment v1·v2) 검증 결과: <b>할부·청구기간·card 플래그 결함 주장 3건은 데이터와 맞지 않았다</b>(앱 할부 234,066 = 카드사 할부 234,000 · 10/13 거래 메모가 카드사 기준 「11/25 결제」로 앱 주기와 같음 · 후불 판정은 txnIsCredit 이 하고 card 는 「미결제」 뜻). 대신 검증 중 실제 결함을 찾았다: 결제액(403,489)이 구성 합(307,346)보다 크면 Sankey 가 <b>모든 과목을 ×1.31 비례로 부풀렸다</b> — 생활용품 189,533 → 248,826. 🔒 이제 구성은 구성만큼만, 차이는 <code>카드결제 내역미상</code> 노드 · 가계부 결제 행에도 「내역미상 N」 표시. ➕ 생활사 제안 반영: <b>할부 청구분은 같은 과목 안에서 「과목·할부」로 따로</b> 그린다(<code>settleInstMix()</code> — 역산, 저장 안 함). 「11월 생활용품 19만」이 실제론 새로 산 10,900 + 할부 회차였다.'},
@@ -13230,7 +13231,7 @@ function logAct(m){ if(!DB)return; if(!DB.activity)DB.activity=[]; DB.activity.u
       아래쪽 활동/기록은 스크롤에 묻혀 사실상 안 보였다.
    🔒 핸드오프는 DB(app_state)에 복사하지 않는다 — 원본은 handoffs 테이블이다.
       복사하면 방에서 갱신해도 앱이 옛 판을 들고 있게 된다. 파생은 저장하지 않는다. */
-var LOG_TABS=[{k:'ho',label:'📋 핸드오프'},{k:'act',label:'🕑 활동'},{k:'bak',label:'🛟 백업·복원'},{k:'ver',label:'📦 버전'}];
+var LOG_TABS=[{k:'ho',label:'📋 핸드오프'},{k:'ev',label:'🧾 이력'},{k:'act',label:'🕑 활동'},{k:'bak',label:'🛟 백업·복원'},{k:'ver',label:'📦 버전'}];
 function logTab(){var t=(DB&&DB.ui&&DB.ui.logTab)||'ho',ok=0;LOG_TABS.forEach(function(x){if(x.k===t)ok=1;});return ok?t:'ho';}
 function setLogTab(k){DB.ui=DB.ui||{};DB.ui.logTab=k;save();renderLog();}
 
@@ -13406,12 +13407,67 @@ function logPaneBak(){
      +'<div id="snaplist"></div>'
    +'</div>';
 }
+/* ══════ 🧾 v5 P2 — 변경 이력 (events) ══════
+   🔒 서버 트리거가 app_kv 의 모든 변경을 남긴다 — 누가(actor)·무엇을(verb)·어느 키·바뀐 레코드.
+      지운 레코드도 원본째 남는다(diff.rem). 앱은 읽기만 한다.
+   🔒 actor 「direct-sql」 은 창구(rb_call)를 안 거치고 SQL 로 바로 쓴 것이다 — P2 는 막지 않고 **보이게만** 한다. */
+var EVENTS=null, EV_STATE='idle', EV_ERR='', EV_ACTOR='';
+function evLoad(force){
+  if(EV_STATE==='loading')return; if(EVENTS&&!force)return; if(EV_STATE==='err'&&!force)return;
+  EV_STATE='loading';
+  try{
+    SB.from('events').select('id,at,actor,verb,target,op,note,diff').order('id',{ascending:false}).limit(200)
+      .then(function(r){
+        if(r.error){EV_STATE='err';EV_ERR=r.error.message||'읽기 실패';}else{EVENTS=r.data||[];EV_STATE='ok';}
+        if(logVisible()&&logTab()==='ev')renderLog();
+      },function(e){EV_STATE='err';EV_ERR=(e&&e.message)||'읽기 실패';if(logVisible())renderLog();});
+  }catch(e){EV_STATE='err';EV_ERR=e.message;}
+}
+function evSetActor(a){EV_ACTOR=(EV_ACTOR===a?'':a);renderLog();}
+function evLabel(x){
+  if(!x||typeof x!=='object')return String(x);
+  var s=x.memo||x.title||x.jp||x.name||x.cat||x.item||x.id||'';
+  return sajuEsc(String(s).slice(0,24))+(typeof x.amt==='number'?' '+comma(x.amt):'');
+}
+function evSummary(e){
+  var d=e.diff||{}, out=[];
+  var arr=function(v){return Array.isArray(v)?v:(v&&typeof v==='object'?Object.keys(v).map(function(k){var o=v[k];return (o&&typeof o==='object'&&!Array.isArray(o))?Object.assign({id:k},o):{id:k};}):[]);};
+  var ad=arr(d.add), rm=arr(d.rem), ch=arr(d.chg);
+  if(ad.length)out.push('<span class="pos">+'+ad.length+'</span> '+ad.slice(0,3).map(evLabel).join(' · '));
+  if(rm.length)out.push('<span class="neg">−'+rm.length+'</span> '+rm.slice(0,3).map(evLabel).join(' · '));
+  if(ch.length)out.push('✎'+ch.length+' '+ch.slice(0,3).map(function(c){
+    var f=c&&c.f&&typeof c.f==='object'&&!Array.isArray(c.f)?Object.keys(c.f):[];
+    return sajuEsc(String(c.id||''))+(f.length?'('+f.slice(0,3).map(sajuEsc).join(',')+')':'');}).join(' · '));
+  if(!out.length&&(d.new!==undefined||d.old!==undefined))out.push(e.op==='insert'?'새로 만듦':(e.op==='delete'?'키 삭제':'통째 교체'));
+  return out.join('<br>');
+}
+function logPaneEv(){
+  var h='<div class="sec"><h4>🧾 변경 이력 <span class="mut">누가 · 언제 · 무엇을</span>'
+    +'<span style="float:right"><button class="ghost sm" onclick="evLoad(true);renderLog()">↻</button></span></h4>'
+    +'<div class="mut" style="font-size:11.5px;line-height:1.6;margin-bottom:10px">서버가 자동으로 남긴다. 지운 것도 원본째 남아 되살릴 수 있다. 「direct-sql」 = 쓰기 창구를 안 거치고 바로 쓴 것.</div>';
+  if(EV_STATE==='loading'&&!EVENTS)return h+'<div class="mut">불러오는 중…</div></div>';
+  if(EV_STATE==='err')return h+'<div class="neg">읽기 실패 — '+mdEsc(EV_ERR)+' <button class="ghost sm" onclick="evLoad(true);renderLog()">다시</button></div></div>';
+  var ev=EVENTS||[];
+  if(!ev.length)return h+'<div class="mut" style="padding:20px 0;text-align:center">아직 기록된 변경이 없다.</div></div>';
+  var acts=[];ev.forEach(function(e){if(acts.indexOf(e.actor)<0)acts.push(e.actor);});
+  h+='<div class="horoom">'+acts.map(function(a){return '<span class="'+(EV_ACTOR===a?'on':'')+'" onclick="evSetActor(\''+mdEsc(a).replace(/'/g,'')+'\')">'+mdEsc(a)+'</span>';}).join('')+'</div>';
+  ev.filter(function(e){return !EV_ACTOR||e.actor===EV_ACTOR;}).forEach(function(e){
+    h+='<div class="row" style="align-items:flex-start;gap:10px;font-size:12px">'
+      +'<span class="mut" style="min-width:86px;font-variant-numeric:tabular-nums">'+mdEsc(String(e.at||'').replace('T',' ').slice(5,16))+'</span>'
+      +'<span style="flex:1;min-width:0"><span class="pill'+(/^direct/.test(e.actor)?' warn2':'')+'">'+mdEsc(e.actor)+'</span> '
+      +'<b>'+mdEsc(String(e.target||'').replace(/^kv:/,''))+'</b>'+(e.verb?' <span class="mut">'+mdEsc(e.verb)+'</span>':'')
+      +(e.note?' <span class="mut">— '+mdEsc(e.note)+'</span>':'')
+      +'<div style="margin-top:2px;line-height:1.5;word-break:break-all">'+evSummary(e)+'</div></span></div>';
+  });
+  return h+'</div>';
+}
 function renderLog(){
   var t=logTab();
   if(t==='ho')hoLoad();
   var tabs='<div class="logtabs">'+LOG_TABS.map(function(x){
     return '<button class="'+(x.k===t?'on':'')+'" onclick="setLogTab(\''+x.k+'\')">'+x.label+'</button>';}).join('')+'</div>';
-  var body = t==='ho'?logPaneHo() : t==='act'?logPaneAct() : t==='ver'?logPaneVer() : logPaneBak();
+  if(t==='ev')evLoad();
+  var body = t==='ho'?logPaneHo() : t==='ev'?logPaneEv() : t==='act'?logPaneAct() : t==='ver'?logPaneVer() : logPaneBak();
   document.getElementById('v-log').innerHTML=tabs+body;
   if(t==='bak')snapRender();
 }
