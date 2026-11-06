@@ -79,6 +79,31 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     const C=await p.evaluate(()=>({tabsInL1:document.querySelectorAll('.pl1 .tabs .tab').length>0,
       pnavCal:(document.querySelector('.side .m[data-v="cal"]').click(),!!document.querySelector('#v-cal .pl2 .pnav'))}));
     ok('부품 — L1 은 .tabs · 가계부 기간 이동은 .pnav',C.tabsInL1&&C.pnavCal,JSON.stringify(C));
+    /* v4.82 — 카드 안 옛 부품이 표준 세 모양을 입는다: 밑줄 탭 · 세그먼트 · 칩 */
+    const S=await p.evaluate(async()=>{
+      const cs=(el,pr)=>el?getComputedStyle(el)[pr]:'';
+      document.querySelector('.side .m[data-v="daily"]').click();await new Promise(r=>setTimeout(r,200));
+      const dt=document.querySelector('#v-daily .dtab.on'), l1=null;
+      const acc=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+      document.querySelector('.side .m[data-v="cal"]').click();await new Promise(r=>setTimeout(r,200));
+      const sg2=document.querySelector('#v-cal .seg2 .sg.on');
+      txnModal(null);await new Promise(r=>setTimeout(r,200));
+      const sg=document.querySelector('#ov .seg button.on');
+      const out={dtabLine:cs(dt,'borderBottomColor'),dtabBg:cs(dt,'backgroundColor'),
+        segBg:cs(sg,'backgroundColor'),seg2Bg:cs(sg2,'backgroundColor'),segShadow:cs(sg,'boxShadow')!=='none'};
+      /* 🔴 v4.82 — 덮개(z 20)가 고정 헤더(z 40) 밑에 깔려 헤더가 어둡게 안 덮였다 */
+      const hb=document.querySelector('#v-cal .phead').getBoundingClientRect();
+      const top=document.elementFromPoint(hb.left+40,hb.top+hb.height/2);
+      out.ovOverHead=!!(top&&top.closest('#ov'));
+      closeModal();
+      document.querySelector('.side .m[data-v="log"]').click();await new Promise(r=>setTimeout(r,200));
+      out.logChipsInL2=!!document.querySelector('#v-log .pl2 .horoom')||HO_STATE!=='ok';
+      out.noChipsInBody=!document.querySelector('#v-log .sec .horoom');
+      return out;});
+    ok('부품 — 카드 안 탭(.dtab)은 밑줄 탭 모양',/rgb\(47, 109, 246\)/.test(S.dtabLine)&&/rgba\(0, 0, 0, 0\)|transparent/.test(S.dtabBg),JSON.stringify(S));
+    ok('부품 — 입력창 .seg 와 틀의 .seg2 는 같은 모양',S.segBg&&S.segBg===S.seg2Bg&&S.segShadow,JSON.stringify(S));
+    ok('부품 — 로그 칩은 L2 에(본문에 없다)',S.logChipsInL2&&S.noChipsInBody,JSON.stringify(S));
+    ok('🔴 모달 덮개는 고정 헤더 위에 깔린다',S.ovOverHead,JSON.stringify(S));
    }
    ok('Z 페이지 에러 없음 @'+W,errs.length===0,errs.join(' | '));
    await ctx.close();
