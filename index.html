@@ -6514,10 +6514,28 @@ function stSynOK(s){
   return String(s.ja).indexOf(String(s.syn))<0;
 }
 function stSynPool(){return stSents().filter(stSynOK);}
+/* 🧩 v4.86 — 같은 뜻 묶음. 교재(다락원 95~118)의 시험 꼴(うそでした · はこびましょう …)은 기존 짝과 뜻이 같다.
+   🔴 묶음 없이 넣으면 「うそでした」 문항에 옛 짝의 답 「ほんとうじゃ ありません」이 **오답 보기로** 섞여 정답이 둘이 된다.
+   🔒 grp(없으면 id) 가 같은 것 · 같은 표현의 다른 짝 · 짝의 짝(さいしょに≒はじめに · はじめに≒まず) 은 보기에서 뺀다. */
+function stSynKey(x){return String((x&&x.grp)||(x&&x.id)||'');}
+/* 같은 뜻 덩어리 — 묶음(grp)·같은 표현·같은 답·짝의 짝을 **끝까지** 따라간다(한 단계만 보면
+   「きゃくが すくない」→「おきゃくさんが すくないです」→「おきゃくさんが あまり いません」이 새어 나온다) */
+function stSynComp(all){
+  var par={}; function f(a){while(par[a]!==a){par[a]=par[par[a]];a=par[a];}return a;}
+  function u(a,b){a=f(a);b=f(b);if(a!==b)par[a]=b;}
+  var by={};
+  all.forEach(function(x){par[x.id]=x.id;});
+  function link(k,id){k='\u0001'+k;if(by[k])u(by[k],id);else by[k]=id;}
+  all.forEach(function(x){
+    link('k:'+stSynKey(x),x.id);
+    link('t:'+x.ja,x.id); link('t:'+x.syn,x.id);   /* 표현이든 답이든 같은 글이면 같은 덩어리 */
+  });
+  var out={}; all.forEach(function(x){out[x.id]=f(x.id);}); return out;
+}
 function stSynQ(s){
-  var all=stSynPool();
+  var all=stSynPool(), comp=stSynComp(all);
   var cand=all.filter(function(x){
-    return x.id!==s.id&&x.ja!==s.ja&&x.syn!==s.syn
+    return x.id!==s.id&&comp[x.id]!==comp[s.id]
       &&String(s.ja).indexOf(x.syn)<0&&String(x.syn).indexOf(s.ja)<0;
   }).map(function(x){return x.syn;});
   var uniq=[];
@@ -13455,7 +13473,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.85';
+var APP_VERSION='4.86';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -13469,6 +13487,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.86',date:'2026-11-06',note:'<b>🧩 유의표현 — 교재 95~118쪽(로한 11/6 공부분) 투입 · 같은 뜻 덩어리는 오답 보기로 안 나온다.</b> 기존 115쌍(스피드체크북)이 기출을 거의 다 담고 있었다. 새로 넣은 것 11개: 새 짝 3(うんどう·しょうらい·はじめに≒まず) · 다른 짝 1(ちゅうしゃじょう) · 시험 꼴 7(うそでした·はこびましょう 등, grp=기존 짝). 🔴 시험 꼴을 그냥 넣으면 옛 짝의 답이 오답 보기로 섞여 정답이 둘이 된다 → stSynComp: grp·같은 표현·같은 답·짝의 짝을 끝까지 따라가 한 덩어리는 보기에서 뺀다.'},
   {v:'4.85',date:'2026-11-06',note:'<b>🔁 재점검 큐가 밀린 것부터 나온다 — 학습사 v28 회신(제작사가 빠뜨렸던 답).</b> 학습사: <i>「10/23 r2m 20문항에서 retestOn=10/22(어제분 17개)는 하나도 나오지 않았다」</i> · 맞다. 출제 점수에서 재점검 +200 은 모두 같고, <b>처음 보는 단어 +100 이 그 위에 얹혔다</b> — 10/23 교재 투입분(새 단어 · retestOn 다음날)이 300점대로 올라 이미 본 단어의 밀린 재점검(200점대)을 통째로 앞질렀다. 실측(11/06): <b>10/29 분 3개가 8일째 밀려 있다.</b> 🔒 재점검 대상끼리는 점수가 아니라 <b>retestOn 오래된 순 → 같은 날이면 miss 많은 순</b> · 재점검 대상 전체가 그 밖의 단어보다 앞 · 재점검이 아닌 단어는 옛 점수식 그대로.'},
   {v:'4.84',date:'2026-11-06',note:'<b>🏛 아고라 숫자(agora_facts) 보강 — 10월 월말평가에서 제작사가 약속한 것.</b> 방들이 같은 숫자로 토론하려면 그 숫자가 있어야 한다. 🔒 기존 키는 그대로(방들이 읽는 계약), 새 키만 덧붙였다: <b>뽀모</b>(회·분·중단 — 날짜 칸이 없어 at 을 KST 로 바꿔 거른다 · 10월 「뽀모 0건」의 원인) · <b>학습분</b>(뽀모 분 / 타임로그 학습 분 — 겹칠 수 있어 따로) · <b>드릴상세</b>(일수·회·문항·정답·정답률) · <b>예산밖지출</b>·<b>예산밖과목</b>(그 달 확정 예산이 있으면 그것 기준) · <b>지출구분</b>(개인/사업) · <b>루틴별</b>(코드마다 실행/예정·실행률) · <b>가족진료</b>(나·가족의 진료·증상 기록 + 검사일). 실측 대조: 10월 뽀모 17회·422분(10/15 손으로 센 값과 같다) · 개인+사업 = 지출 합 2,668,267. 📱 회의장 숫자 띠에 「예산 밖」「뽀모」 칸 추가, 「드릴」 칸에 일수·정답률.'},
   {v:'4.83',date:'2026-11-06',note:'<b>🧩 두 기기가 동시에 쓰면 활동 로그 한쪽이 사라지던 결함.</b> v5 키별 저장 이후에도 남은 충돌의 원천을 찾았다: <code>activity</code>(활동 로그)는 거래·선결제·뽀모… 거의 모든 저장에 한 줄씩 붙는데 <b>줄마다 id 가 없다</b>. 폰·PC 가 각자 한 줄씩 쓰면 3자 병합이 「같은 칸을 양쪽이 다르게」로 보고 내 것으로 덮었다 — 상대 기기의 줄이 사라지고 매번 덮어쓰기 직전 스냅샷이 쌓였다. <code>netSnapshots</code>(월별 자산)도 id 가 없어 같은 꼴이었다. 🔒 쌓이는 칸은 덮지 않고 합친다(<code>KV_MERGE</code>): activity = 합집합 → 최신순 → 200줄(한쪽이 잘라낸 옛 줄은 되살리지 않는다) · netSnapshots = 달별로 내가 바꾼 달은 내 것, 아니면 서버 것. 저장 충돌(kv_save)과 받아오기(kvPull) 두 길 모두. 규칙을 끄면 t73 이 결함을 그대로 재현한다(폰 줄 증발 + 스냅샷 1).'},
