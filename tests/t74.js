@@ -31,7 +31,7 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     /* 오늘 막 넣은 새 단어 30개 — retestOn 오늘, 한 번도 안 봄(옛 점수식에선 300점대로 최상위) */
     for(let i=0;i<30;i++)W.push({id:'n'+i,kana:'あたら'+i,ko:'새'+i,seen:0,miss:0,retestOn:t});
     /* 재점검 아님 */
-    W.push({id:'p1',kana:'ふつう',ko:'보통',seen:5,miss:4,lastSeen:d(-3)});
+    W.push({id:'p1',kana:'ふつう',ko:'보통',seen:5,miss:2,lastSeen:d(-3)});   /* v4.87 — miss 4/seen 5 면 「어려운 단어」로 빠진다 */
     W.push({id:'p2',kana:'みたこと',ko:'안본',seen:0,miss:0});
     DB.study.words=W;
     const pool=stDrillPool('r2m').map(w=>w.id);

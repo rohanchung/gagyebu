@@ -21,13 +21,13 @@ cd "$(dirname "$0")" || exit 2
 HTML="${HTML:-$(cd .. && pwd)/work.html}"
 
 # 🔒 전체 목록은 **한 곳**에만 적는다 — 세 군데에 적혀 있으면 하나만 고치는 날이 온다
-ALLT="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t43 t44 t45 t46 t47 t48 t49 t50 t51 t52 t53 t54 t55 t56 t57 t58 t59 t60 t61 t62 t63 t64 t65 t70 t71 t72 t73 t74 t75 t80 b01 b02 b03 b04 t14 t18 t19 t20 t21"
+ALLT="t_reg t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42 t43 t44 t45 t46 t47 t48 t49 t50 t51 t52 t53 t54 t55 t56 t57 t58 t59 t60 t61 t62 t63 t64 t65 t70 t71 t72 t73 t74 t75 t76 t77 t80 b01 b02 b03 b04 t14 t18 t19 t20 t21"
 # ── 영역 → 테스트 (t22·t23 은 데이터층이라 어디서든 잘 깨진다) ──
 case "${1:-all}" in
   all)   T="$ALLT" ;;
   emr)   T="t43 t44 t14 t22 t_reg" ;;
   money) T="t_reg t73 t72 t70 t65 t64 t61 t56 t50 t51 t20 t21 t25 t26 t27 t28 t31 t32 t37 t40 t41 t22" ;;
-  goal)  T="t_reg t74 t71 t62 t63 t24 t30 t36 t42 t45 t47 t48 t49 t22" ;;
+  goal)  T="t_reg t77 t76 t75 t74 t71 t62 t63 t24 t30 t36 t42 t45 t47 t48 t49 t22" ;;
   time)  T="t_reg t18 t19 t28 t22" ;;
   data)  T="t46 t49 t22 t23 t_reg t24 t25 t26 t27 t29 t31 t32 t33 t34 t35 t36 t37 t40 t41 t42" ;;
   css)   T="t80 t62 t14 t26 t29 t36 t51 t53 t54 t_reg" ;;
@@ -115,7 +115,7 @@ T2=$(printf "$ORD" | sort -rn | awk "{print \$2}")
 for t in $T2; do
   while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n 2>/dev/null || sleep 0.2; done
   ( _s=$(date +%s%3N)
-    timeout 280 node "$t.js" "$HTML" > ".out/$t.log" 2>&1; _rc=$?
+    timeout 420 node "$t.js" "$HTML" > ".out/$t.log" 2>&1; _rc=$?   # v4.87 — t42 가 538건으로 늘어 동시 8개일 때 280초를 넘는다
     _e=$(date +%s%3N)
     echo $_rc > ".out/$t.rc"; echo $((_e-_s)) > ".out/$t.ms" ) &
 done

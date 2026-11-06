@@ -7,7 +7,9 @@
       ⑤ 체크는 켜고 끄기 둘 다 된다. 오늘 끝낸 것은 목록에 남는다.
       ⑥ 빈 상태(units·errors·tests 전부 [])에서 죽지 않는다 — 지금이 그 상태였다.
    🚫 문항 본문·채점 엔진은 없다. 출제·채점은 대화방에서 한다. */
-const {chromium}=require('playwright');const path=require('path');
+const {chromium}=require('playwright');
+const _d=(n)=>{const d=new Date(Date.now()+n*86400000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const addDaysT=_d, todayT=()=>_d(0);const path=require('path');
 const file=process.argv[2]||path.join(__dirname,'..','work.html');
 let pass=0,fail=0;const bad=[];
 const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:''));}};
@@ -656,18 +658,22 @@ async function boot(st){
   /* 🔒 miss=0 단어가 영영 안 나오는 문제가 해결됐는지 — 경과일이 정렬을 주도한다 */
   ok('Q6 오늘 본 flag 단어가 꼴찌로 밀린다',order.indexOf('q2')>order.indexOf('q3'));
   /* streak — 3번 틀린 단어는 6번 연속 맞혀야 0 */
+  /* 🔁 v4.87 — r2m 세트는 「때가 된 것」이 먼저다(오늘 본 q1 은 내일이 때). 연속 정답 규칙을 재려고 q1 을 가장 밀린 재점검으로 둔다 */
+  const overdue=()=>p.evaluate(()=>{stWordById('q1').retestOn='2026-01-01';});
+  await overdue();
   await p.evaluate(()=>stDrillStart('r2m',1));await p.waitForTimeout(300);
-  ok('Q7 첫 문항은 miss 최다',(await p.evaluate(()=>ST_DRILL.ids[0]))==='q1');
+  ok('Q7 첫 문항은 가장 밀린 재점검',(await p.evaluate(()=>ST_DRILL.ids[0]))==='q1');
   await p.evaluate(()=>stDrillGrade('비'));await p.waitForTimeout(250);
   ok('Q8 1회 정답: streak 1, miss 그대로',
      (await p.evaluate(()=>{const w=stWordById('q1');return w.streak===1&&w.miss===3&&w.seen===11;}))===true,
      JSON.stringify(await p.evaluate(()=>stWordById('q1'))));
-  await p.evaluate(()=>{stDrillStart('r2m',1);});await p.waitForTimeout(300);
+  await overdue();await p.evaluate(()=>{stDrillStart('r2m',1);});await p.waitForTimeout(300);
   await p.evaluate(()=>stDrillGrade('비'));await p.waitForTimeout(250);
-  ok('Q9 2회 연속 정답: miss −1, streak 리셋',
-     (await p.evaluate(()=>{const w=stWordById('q1');return w.streak===0&&w.miss===2;}))===true,
+  /* 🔴 v4.87 — 전엔 여기서 streak 를 0 으로 되돌렸다 → streak≥2 가 구조적으로 불가능했다(학습사 「2연속 0개」) */
+  ok('Q9 2회 연속 정답: miss −1, streak 2 유지 · 다음 출제 3일 뒤',
+     (await p.evaluate((t3)=>{const w=stWordById('q1');return w.streak===2&&w.miss===2&&w.retestOn===t3;},addDaysT(3)))===true,
      JSON.stringify(await p.evaluate(()=>stWordById('q1'))));
-  await p.evaluate(()=>{stDrillStart('r2m',1);});await p.waitForTimeout(300);
+  await overdue();await p.evaluate(()=>{stDrillStart('r2m',1);});await p.waitForTimeout(300);
   await p.evaluate(()=>stDrillGrade('틀린답'));await p.waitForTimeout(250);
   ok('Q10 오답: miss+1, streak 0',
      (await p.evaluate(()=>{const w=stWordById('q1');return w.miss===3&&w.streak===0;}))===true);
@@ -2051,7 +2057,8 @@ async function boot(st){
     stDrillRecord(true,'결과',false);
     const a=JSON.parse(JSON.stringify(stWordById('w0859')));
     ST_DRILL=null; return a;});
-  ok('CTX59 🔁 문맥 없이 맞히면 재점검이 풀린다',!('retestOn' in pass),JSON.stringify(pass));
+  /* 🔁 v4.87 — 풀리는 게 아니라 **다음 간격으로 밀린다**(학습사 11/6 간격 반복): streak 1 → 내일 */
+  ok('CTX59 🔁 문맥 없이 맞히면 오늘 재점검에서 빠지고 1일 뒤로 밀린다',pass.retestOn===addDaysT(1)&&!(pass.retestOn<=todayT()),JSON.stringify(pass));
   ok('CTX60 그때 비로소 streak 가 오른다',pass.streak===1,JSON.stringify(pass));
   const fail=await p.evaluate(()=>{
     const w=stWordById('w0859');
