@@ -2277,7 +2277,7 @@ function forceSave(stamp){
    🔒 ui 는 기기 것(rb_ui · localStorage)이다. 기기 사이에 나눌 것(pref)만 서버로 간다.
    🔒 이중 쓰기: 서버 트리거가 app_state 와 양방향으로 맞춘다 — 방이 옛 습관대로 덩어리를 고쳐도 kv 가 따라온다.
    🔒 되돌리기: localStorage rb_kv='off' 이면 옛 길(app_state 통째 저장)로 간다. 데이터는 양쪽 다 최신이다. */
-var KV_ON=false, KV_REV={}, KV_BASE={};   /* KV_BASE: 키 → 마지막으로 서버와 맞춘 값의 정렬 문자열 */
+var KV_ON=false, KV_REV={}, KV_BASE={}, KV_LOADINFO=null;   /* KV_BASE: 키 → 마지막으로 서버와 맞춘 값의 정렬 문자열 */
 var KV_KIDS={study:['words','sents','units','drills','errors','pomos','tests','strategy'],
   health:['labValues','metrics','weights'],insurance:['covers','policies'],saju:['readings']};
 var KV_PREF=['pomoRun','pomo','seenNotes','watchCats'];
@@ -2319,16 +2319,82 @@ function kvUiAssemble(local,pref){
 }
 function kvOff(){ try{ return localStorage.getItem('rb_kv')==='off'; }catch(e){ return false; } }
 /* 불러오기 — 행이 정상이면 kv, 아니면 null(옛 길) */
+/* ══════ ⚡ v5 P4 — 기기 사본(IndexedDB) · 변경분만 받기 · 실시간 신호 ══════
+   🔴 탭은 열 때 한 번 받아 오고 끝이었다 — 낡은 사본을 들고 있다가 저장할 때에야 충돌을 알았다.
+      시작할 때마다 95만 자를 내려받았다.
+   🔒 시작: 서버엔 **판 번호(rev)·시각만** 먼저 묻고, 기기 사본과 다른 칸만 내려받는다.
+      판 번호와 시각이 둘 다 같아야 같은 것으로 본다(지웠다 다시 만든 칸은 rev 가 1 로 돌아간다).
+   🔒 그 뒤: kv_ping(작은 신호 테이블) 실시간 구독 + 탭이 다시 보일 때 + 1분마다 — 바뀐 칸만 받아 와 합친다.
+      내 쪽에 안 보낸 변경이 있으면 그 칸만 3자 병합한다(mrg3). 실시간이 끊겨도 맞게 돈다. */
+var KV_AT={}, KV_CUR='', KV_PULLING=false, KV_CH=null, KV_TICK=null;
+function idbOpen(){
+  return new Promise(function(res,rej){
+    try{ var r=indexedDB.open('rohanbook',1);
+      r.onupgradeneeded=function(){ try{ r.result.createObjectStore('kv'); }catch(e){} };
+      r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+    }catch(e){ rej(e); }
+  });
+}
+function idbGet(k){
+  var t=new Promise(function(res){ setTimeout(function(){ res(null); },1500); });   /* 🔒 사본이 막혀도 기다리지 않는다 */
+  var g=idbOpen().then(function(db){ return new Promise(function(res){
+    try{ var q=db.transaction('kv','readonly').objectStore('kv').get(k);
+      q.onsuccess=function(){ res(q.result||null); }; q.onerror=function(){ res(null); };
+    }catch(e){ res(null); } }); },function(){ return null; });
+  return Promise.race([g,t]);
+}
+function idbPut(k,v){
+  return idbOpen().then(function(db){ return new Promise(function(res){
+    try{ var tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k);
+      tx.oncomplete=function(){ res(true); }; tx.onerror=function(){ res(false); };
+    }catch(e){ res(false); } }); },function(){ return false; });
+}
+/* 기기 사본 갱신 — 서버와 맞춘 값(KV_BASE)을 둔다. 저장이 몰리면 한 번만 */
+var KV_CACHE_T=null;
+function kvCacheSoon(){
+  clearTimeout(KV_CACHE_T);
+  KV_CACHE_T=setTimeout(function(){
+    if(!KV_ON||!USER)return;
+    var rows={}; Object.keys(KV_BASE).forEach(function(k){ rows[k]={s:KV_BASE[k],rev:KV_REV[k],at:KV_AT[k]||''}; });
+    idbPut('kv:'+USER.id,{v:1,rows:rows,saved:new Date().toISOString()});
+  },2500);
+}
+function kvCurBump(at){ if(at&&String(at)>KV_CUR)KV_CUR=String(at); }
+function kvQ(){ try{ return SB.from('app_kv'); }catch(e){ return null; } }
 function kvLoad(){
   if(kvOff())return Promise.resolve(null);
   /* 🔒 무엇이 잘못되든 **옛 길로 떨어진다** — 불러오기가 막히면 로한이 갇힌다 */
-  var qq=null; try{ qq=SB.from('app_kv').select('key,data,rev').eq('user_id',USER.id); }catch(e){ qq=null; }
+  var qq=null; try{ qq=kvQ().select('key,rev,updated_at').eq('user_id',USER.id); }catch(e){ qq=null; }
   if(!qq||typeof qq.then!=='function')return Promise.resolve(null);
+  var heads=null;
   return Promise.resolve(qq).then(function(r){
-    var rows=(r&&!r.error&&r.data)||[];
-    if(!rows.length||!rows.every(function(x){return x&&typeof x.key==='string'&&typeof x.rev==='number';}))return null;
-    var m={}; KV_REV={}; KV_BASE={};
-    rows.forEach(function(x){ m[x.key]=x.data; KV_REV[x.key]=x.rev; KV_BASE[x.key]=stableStr(x.data); });
+    heads=(r&&!r.error&&r.data)||[];
+    if(!heads.length||!heads.every(function(x){return x&&typeof x.key==='string'&&typeof x.rev==='number';}))return null;
+    return idbGet('kv:'+USER.id).then(function(cache){
+      var crow=(cache&&cache.v===1&&cache.rows)||{}, need=[], have={};
+      heads.forEach(function(h){
+        var c=crow[h.key];
+        if(c&&c.rev===h.rev&&c.at&&c.at===h.updated_at&&typeof c.s==='string')have[h.key]=c;
+        else need.push(h.key);
+      });
+      var get;
+      if(!need.length)get=Promise.resolve([]);
+      else{
+        var q2=kvQ().select('key,data,rev,updated_at').eq('user_id',USER.id);
+        if(need.length<heads.length&&typeof q2.in==='function')q2=q2.in('key',need);
+        get=Promise.resolve(q2).then(function(r2){ if(!r2||r2.error)throw (r2&&r2.error)||new Error('kv 읽기 실패'); return r2.data||[]; });
+      }
+      return get.then(function(rows){ return {heads:heads,have:have,rows:rows,need:need}; });
+    });
+  }).then(function(R){
+    if(!R)return null;
+    var m={}; KV_REV={}; KV_BASE={}; KV_AT={}; KV_CUR='';
+    var hk={}; R.heads.forEach(function(h){ hk[h.key]=h; });
+    Object.keys(R.have).forEach(function(k){ var c=R.have[k]; m[k]=JSON.parse(c.s); KV_BASE[k]=c.s; KV_REV[k]=c.rev; KV_AT[k]=c.at; kvCurBump(c.at); });
+    R.rows.forEach(function(x){ if(!hk[x.key])return; m[x.key]=x.data; KV_REV[x.key]=x.rev; KV_BASE[x.key]=stableStr(x.data); KV_AT[x.key]=x.updated_at||''; kvCurBump(x.updated_at); });
+    /* 🔒 머리엔 있는데 몸을 못 받은 칸이 있으면 믿지 않는다 — 옛 길로 */
+    if(R.heads.some(function(h){ return !(h.key in m); }))return null;
+    KV_LOADINFO={keys:R.heads.length,fetched:R.rows.length,cached:Object.keys(R.have).length};
     var d=kvJoin(m), local=kvUiRead();
     var fin=function(lu){ d.ui=kvUiAssemble(lu,m.pref); KV_ON=true; return d; };
     if(local)return fin(local);
@@ -2350,8 +2416,9 @@ function kvSend(tries){
     if(res&&res.ok){
       Object.keys(sent).forEach(function(k){
         if(sent[k]===null){ delete KV_BASE[k]; delete KV_REV[k]; }
-        else { KV_BASE[k]=sent[k]; KV_REV[k]=(res.revs&&res.revs[k])||((KV_REV[k]||0)+1); }
+        else { KV_BASE[k]=sent[k]; KV_REV[k]=(res.revs&&res.revs[k])||((KV_REV[k]||0)+1); KV_AT[k]=(res.ats&&res.ats[k])||''; }
       });
+      kvCacheSoon();
       syncOK(stamp); return;
     }
     if(res&&Array.isArray(res.conflicts)){ kvMerge(res.conflicts,tries); return; }
@@ -2392,7 +2459,78 @@ function kvVerify(){
     try{ logAct('⚠ v5 이중 쓰기 대조 불일치 · '+ks); }catch(e){}
   },function(){}); }catch(e){}
 }
-function loadState(){ return kvLoad().then(function(d){ if(d)return d; return loadStateLegacy(); }); }
+function loadState(){ return kvLoad().then(function(d){ if(d)return d; KV_ON=false; return loadStateLegacy(); },function(){ KV_ON=false; return loadStateLegacy(); }); }
+/* ⚡ v5 P4 — 바뀐 칸만 받아 와 합친다.
+   🔒 저장 중·저장 대기 중이면 미룬다 — 내 변경과 엇갈리면 병합이 두 번 돈다.
+   🔒 커서는 5분 겹쳐 묻는다 — 늦게 커밋된 트랜잭션의 시각이 커서보다 앞설 수 있다(판 번호로 걸러지니 헛받기는 없다). */
+function kvPull(why){
+  if(!KV_ON||!USER||KV_PULLING)return Promise.resolve(0);
+  if(SAVE_INFLIGHT||SAVE_DIRTY){ setTimeout(function(){ kvPull(why); },1500); return Promise.resolve(0); }
+  var q=kvQ(); if(!q)return Promise.resolve(0);
+  var since=KV_CUR?new Date(new Date(KV_CUR).getTime()-300000).toISOString():'1970-01-01T00:00:00Z';
+  q=q.select('key,rev,updated_at').eq('user_id',USER.id);
+  if(typeof q.gt==='function')q=q.gt('updated_at',since);
+  KV_PULLING=true;
+  return Promise.resolve(q).then(function(r){
+    var heads=(r&&!r.error&&r.data)||[];
+    heads.forEach(function(h){ kvCurBump(h.updated_at); });
+    var need=heads.filter(function(h){ return h&&typeof h.key==='string'&&h.rev!==KV_REV[h.key]; }).map(function(h){ return h.key; });
+    if(!need.length){ KV_PULLING=false; return 0; }
+    var q2=kvQ().select('key,data,rev,updated_at').eq('user_id',USER.id);
+    if(typeof q2.in==='function')q2=q2.in('key',need);
+    return Promise.resolve(q2).then(function(r2){
+      KV_PULLING=false;
+      var rows=((r2&&!r2.error&&r2.data)||[]).filter(function(x){ return need.indexOf(x.key)>=0&&x.rev!==KV_REV[x.key]; });
+      /* 그 사이 내가 저장을 시작했으면 이번엔 손대지 않는다 — 다음 번에 받는다 */
+      if(!rows.length||SAVE_INFLIGHT||SAVE_DIRTY)return 0;
+      return kvAbsorb(rows,why);
+    });
+  },function(){ KV_PULLING=false; return 0; });
+}
+function kvAbsorb(rows,why){
+  MRG.conflict=0;
+  var m=kvSplit(DB), resave=false, got=[];
+  rows.forEach(function(x){
+    var k=x.key, base=KV_BASE[k], loc=m[k], v;
+    if(base===undefined||stableStr(loc)===base)v=x.data;                       /* 내가 안 바꿨다 → 서버 것 */
+    else { v=mrg3(JSON.parse(base),loc,x.data); if(stableStr(v)!==stableStr(x.data))resave=true; }
+    m[k]=v; KV_BASE[k]=stableStr(x.data); KV_REV[k]=x.rev; KV_AT[k]=x.updated_at||''; got.push(k);
+  });
+  var d=kvJoin(m); d.ui=DB.ui||{};
+  if(mrgIsObj(m.pref))Object.keys(m.pref).forEach(function(f){ d.ui[f]=m.pref[f]; });
+  try{ fixDupIds(d,true); }catch(e){}
+  Object.keys(DB).forEach(function(k){ if(!(k in d))delete DB[k]; });
+  Object.keys(d).forEach(function(k){ DB[k]=d[k]; });
+  kvCacheSoon();
+  saveBadge('⤵ 다른 곳의 변경을 받아왔다 · '+got.join('·'),'ok');
+  setTimeout(function(){ if(!SAVE_DIRTY)saveBadge('',''); },2500);
+  kvRerender();
+  if(resave)save();
+  return got.length;
+}
+/* 🔒 보고 있는 화면만 다시 그린다. 입력 중이거나 창이 떠 있으면 그리지 않는다 — 쓰던 글이 날아간다 */
+function kvRerender(){
+  try{
+    var ae=document.activeElement, typing=ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName);
+    if(typing||ov.classList.contains('on'))return;
+    var v=navCur(); if(VIEW_RENDER[v])VIEW_RENDER[v]();
+  }catch(e){}
+}
+function kvLiveStart(){
+  if(!KV_ON||!USER)return;
+  kvCacheSoon();
+  /* 실시간 신호 — 끊겨도 아래 두 길이 받친다 */
+  try{
+    if(SB.channel&&!KV_CH){
+      KV_CH=SB.channel('kv_ping_'+USER.id)
+        .on('postgres_changes',{event:'*',schema:'public',table:'kv_ping',filter:'user_id=eq.'+USER.id},function(){ clearTimeout(kvLiveStart._t); kvLiveStart._t=setTimeout(function(){ kvPull('실시간'); },400); })
+        .subscribe();
+    }
+  }catch(e){ KV_CH=null; }
+  if(!KV_TICK)KV_TICK=setInterval(function(){ if(!document.hidden)kvPull('주기'); },60000);
+  if(!kvLiveStart._vis){ kvLiveStart._vis=1;
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden)kvPull('복귀'); }); }
+}
 function loadStateLegacy(){ return SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
   var row=r&&r.data; LAST_SYNC=(row&&row.updated_at)||null;
   if(row&&row.data&&Object.keys(row.data).length)return row.data;
@@ -13034,7 +13172,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.79';
+var APP_VERSION='4.80';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -13048,6 +13186,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.80',date:'2026-11-06',note:'<b>⚡ v5 P4 — 다른 곳의 변경이 열린 탭에 들어온다 · 시작은 바뀐 칸만 받는다.</b> 🔴 탭은 열 때 한 번 받고 끝이었다 — 낡은 사본을 들고 있다가 저장할 때에야 충돌을 알았고, 켤 때마다 95만 자를 내려받았다. 🔒 시작: 서버엔 <b>판 번호·시각만</b> 묻고 기기 사본(IndexedDB)과 다른 칸만 받는다(판 번호·시각이 둘 다 같아야 같은 것). 🔒 그 뒤: 작은 신호 테이블 <code>kv_ping</code> 실시간 구독(app_kv 통째가 아니라 「어느 칸이 몇 판」만) + 탭 복귀 + 1분마다 → 바뀐 칸만 받아 합친다. 내 쪽에 안 보낸 변경이 같은 칸이면 3자 병합 후 다시 저장. 입력 중이거나 창이 떠 있으면 화면을 다시 그리지 않는다(쓰던 글 보존). 저장 중이면 받기를 미룬다. 커서는 5분 겹쳐 묻는다(늦게 커밋된 변경을 놓치지 않게). 받아오기가 실패해도 옛 길로 떨어진다.'},
   {v:'4.79',date:'2026-11-06',note:'<b>🧾 v5 P2 — 변경 이력 · 담당사 권한 · 쓰기 창구.</b> 로한: <i>“여러 ai들이 동시에 로한북에서 작업한다고 해봐.”</i> · 🔒 <code>events</code> — 서버 트리거가 app_kv 의 <b>모든 변경</b>을 남긴다(누가·동사·키·바뀐 레코드·이유). 지운 레코드도 원본째 남아 되살릴 수 있다. 🔒 <code>actors</code> — 담당사별 쓸 수 있는 키(생활사=재무·보험 · 순환기=건강 · 학습=study · 사주=saju). 🚪 <code>rb_call(actor, 동사, args)</code> — rec_add · rec_edit · rec_remove · map_put · map_del · kv_put. 레코드 한 건만 원자적으로 바꾸고, 권한 밖·잘못된 값·중복 id·이유 없는 삭제·레코드 배열 통째 교체를 거절한다. 창구를 안 거친 직접 SQL 은 아직 막지 않고 <b>「direct-sql」로 보이게</b> 한다. 📱 로그 → <b>🧾 이력</b> 탭(actor 별 거르기). 🔴 P1 보안 수리: 함수가 기본값으로 비로그인(anon)에게 열려 있었다 — kv_join 은 전체 데이터를 돌려준다. 전부 회수(앱이 쓰는 kv_save·kv_verify 만 로그인 사용자에게). 담당사용 스킬 <code>skills/rohanbook-write</code>.'},
   {v:'4.78',date:'2026-11-06',note:'<b>🧱 v5 P1 — 키별 저장. 뽀모 한 판에 95만 자를 올리던 것을 그 키만 올린다.</b> 로한: <i>“실시간 저장인데 왜 자꾸 변경의 충돌이 일어나는거야?”</i> · 원인: 모든 데이터가 app_state <b>한 칸</b>이었다 — 담당사가 거래를 고치면 학습 탭 저장까지 충돌로 걸렸고, 화면 상태(ui)까지 섞여 탭만 바꿔도 저장했다. 🔒 새 테이블 <code>app_kv</code>(47행 · study 는 words/sents/units/drills/errors/pomos/tests/strategy/rest 로 쪼갬) · <b>바뀐 키만</b> <code>kv_save</code> 로 보내고 잠금도 키별 rev — 한 키라도 어긋나면 아무것도 안 쓴다(원자성), 충돌은 <b>그 키만</b> 3자 병합. 화면 상태는 기기 로컬(rb_ui), 기기끼리 나눌 것(pomoRun·pomo·seenNotes·watchCats)만 서버 pref. 🔁 이중 쓰기: 서버 트리거가 app_state 와 양방향으로 맞춘다(방이 옛 습관대로 덩어리를 고쳐도 kv 가 따라온다) · 접속마다 <code>kv_verify</code> 대조. ↩ 되돌리기: localStorage <code>rb_kv=off</code>. 화면 코드는 0줄 수정.'},
   {v:'4.77',date:'2026-11-05',note:'<b>📂 증빙함 신설 (기타 메뉴).</b> 로한: <i>“내가 각 담당사들에게 준 엑셀파일이나 정보들을 … 담당사들이 정리해서 원장을 업로드”</i> · 계기: 생활사가 삼성 청구서를 보고 결제액을 고쳤지만 제작사는 그 청구서를 볼 수 없어 96,143 차액이 설명되지 않았다. 🔒 원본 파일이 아니라 <b>담당사가 재편집한 원장</b>(표 · 다시 그린 SVG 그림 · 요약 · 가린 항목)이다. 저장은 새 테이블 <code>public.sources</code> — app_state 에 복사하지 않고 앱은 읽기만 한다. 덧붙이기만(같은 slug 에 version+1, 옛 판은 「이전 판」으로 접힘). 💳 <b>카드 이용내역은 가계부와 자동 대사</b> — 카드명 · 이용일 ±3일 · 금액 ±1원(할부는 개월수·원금), 「가계부에 없음 N건 ₩」과 반대 방향 「기간 안 가계부엔 있는데 자료에 없음」을 보여준다(고치지 않는다). 그림은 &lt;img&gt; 로만 그려 SVG 스크립트가 돌지 않는다. 업로드 채팅용 스킬 <code>skills/rohanbook-evidence/SKILL.md</code>.'},
@@ -15918,7 +16057,7 @@ function enter(){
     try{ if(stPomoBackfill())save(); }catch(e){}
     /* v4.15 — 겹친 id 를 갈랍으면 바로 쓴다. 안 쓰면 다음 병합에서 그만큼 사라진다 */
     try{ if(DUP_FIX.n){logAct('⚠️ 중복 id '+DUP_FIX.n+'건을 새 번호로 갈랐다 · '+DUP_FIX.where.join(' · '));save();} }catch(e){}
-    localBackup();netSnapTouch();sideApply();bootDone();renderDaily();navInit();snapAutoOnLoad();kvVerify();
+    localBackup();netSnapTouch();sideApply();bootDone();renderDaily();navInit();snapAutoOnLoad();kvVerify();kvLiveStart();
     /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
     try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen(); } }catch(e){}
     /* ⌨ v4.54 — 🔒 **한 곳에서 한 번만** 매단다. 렌더마다 매달면 한 번 누른 키가 여러 번 먹는다 */
