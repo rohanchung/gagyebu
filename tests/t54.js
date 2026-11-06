@@ -101,6 +101,7 @@ const FACTS={ym:'2026-09',phase:'full','기간':'2026-09-01 ~ 2026-09-30','일�
  '그달일수':30,'기간진행률':100,'예산단위':'월 — 이 숫자는 한 달치다',
  '거래건수':183,'수입':3342106,'지출':3858012,'학습과제':42,'과제완료':25,
  '드릴':18,'시험':3,'체크한날':25,'식단':28,'타임로그':23,'체중기록':5,'EMR턴':6,'일지':1,
+ '예산밖지출':612000,'뽀모':{'회':17,'분':422,'중단':4},'드릴상세':{'일수':8,'회':18,'문항':360,'정답':220,'정답률':61.1},
  '주의':'「기록 없음」은 「하지 않음」이 아니다.'};
 
 const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCards:{},
@@ -200,7 +201,7 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
  /* ── C) 📊 사실 묶음 — 파생이다 ── */
  const rpc=await p.evaluate(()=>window.__rpc.filter(x=>x.fn==='agora_facts'));
  ok('C1 agora_facts 를 DB 에서 가져온다',rpc.length>=1&&rpc[0].args.p_ym==='2026-09',JSON.stringify(rpc[0]||{}));
- ok('C2 숫자 칸 11개',(await q('.agf'))===11,String(await q('.agf')));
+ ok('C2 숫자 칸 13개 (v4.84 예산 밖·뽀모 추가)',(await q('.agf'))===13,String(await q('.agf')));
  /* 🔒 0 은 드러낸다. 다만 이 달엔 0 인 칸이 없다 — 「로그 0」이 거짓이었기 때문이다 */
  ok('C3 0 인 칸이 없다 (전부 기록이 있었다)',(await q('.agf.zero'))===0,String(await q('.agf.zero')));
  ok('C3b 타임로그가 23일분으로 뜬다',/23/.test(await txt()));
