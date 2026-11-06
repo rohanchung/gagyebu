@@ -1923,6 +1923,7 @@ function doSave(){
   if(SAVE_INFLIGHT&&Date.now()-SAVE_INFLIGHT<20000){ SAVE_QUEUED=true; pendWrite(); return; }
   SAVE_INFLIGHT=Date.now();
   pendWrite();   /* 🔒 v4.31 보내기 **전에** 로컬에 박는다 — 서버에 닿지 못해도 남아 있어야 한다 */
+  if(KV_ON){ kvSend(0); return; }   /* 🧱 v5 P1 — 바뀐 키만 보낸다 */
   var stamp=new Date().toISOString(), payload=JSON.stringify(DB);   /* 저장에 성공하면 이게 다음 병합의 기준본이다 */
   var q=SB.from('app_state').update({data:DB,updated_at:stamp}).eq('user_id',USER.id);
   if(LAST_SYNC)q=q.eq('updated_at',LAST_SYNC);
@@ -2266,7 +2267,133 @@ function forceSave(stamp){
   var payload=JSON.stringify(DB);
   SB.from('app_state').upsert({user_id:USER.id,data:DB,updated_at:stamp}).then(function(){ syncSetBase(JSON.parse(payload)); syncOK(stamp); },function(e){ saveFail(e); });
 }
-function loadState(){ return SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
+/* ══════ 🧱 v5 P1 — 키별 저장 (app_kv) ══════
+   🔴 로한: 「실시간 저장인데 왜 자꾸 변경의 충돌이 일어나는거야?」
+      원인: 모든 데이터가 app_state **한 칸**(95만 자)이었다. 뽀모 한 판도 단어 1,149개를 같이 올렸고,
+      담당사가 거래를 고치면 학습 탭의 저장까지 충돌로 걸렸다. 화면 상태(ui)까지 섞여 탭만 바꿔도 저장했다.
+   🔒 이제 키별 행(app_kv · 47행)이다. **바뀐 키만** 보내고, 잠금도 키별 rev 로 건다.
+      지도(KV_KIDS·KV_PREF)는 서버 kv_kids()·kv_pref() 와 **같아야 한다** — 바꾸면 양쪽을 같이 바꾼다.
+   🔒 화면 코드는 그대로다 — DB 모양이 안 바뀐다. 바뀐 건 저장·불러오기 두 곳뿐이다.
+   🔒 ui 는 기기 것(rb_ui · localStorage)이다. 기기 사이에 나눌 것(pref)만 서버로 간다.
+   🔒 이중 쓰기: 서버 트리거가 app_state 와 양방향으로 맞춘다 — 방이 옛 습관대로 덩어리를 고쳐도 kv 가 따라온다.
+   🔒 되돌리기: localStorage rb_kv='off' 이면 옛 길(app_state 통째 저장)로 간다. 데이터는 양쪽 다 최신이다. */
+var KV_ON=false, KV_REV={}, KV_BASE={};   /* KV_BASE: 키 → 마지막으로 서버와 맞춘 값의 정렬 문자열 */
+var KV_KIDS={study:['words','sents','units','drills','errors','pomos','tests','strategy'],
+  health:['labValues','metrics','weights'],insurance:['covers','policies'],saju:['readings']};
+var KV_PREF=['pomoRun','pomo','seenNotes','watchCats'];
+function kvSplit(d){
+  var out={};
+  Object.keys(d||{}).forEach(function(k){
+    var v=d[k]; if(v===undefined)return;
+    if(k==='ui'){ if(mrgIsObj(v)){var p={};KV_PREF.forEach(function(f){if(v[f]!==undefined)p[f]=v[f];});out.pref=p;} return; }
+    var kids=KV_KIDS[k];
+    if(kids&&mrgIsObj(v)){
+      var rest={};
+      Object.keys(v).forEach(function(c){ if(v[c]===undefined)return; if(kids.indexOf(c)>=0)out[k+'/'+c]=v[c]; else rest[c]=v[c]; });
+      out[k+'/rest']=rest; return;
+    }
+    out[k]=v;
+  });
+  return out;
+}
+/* ui 는 따로 붙인다 — 여기선 pref 를 빼고 조립한다 */
+function kvJoin(m){
+  var d={};
+  Object.keys(m).sort().forEach(function(key){
+    if(key==='pref')return;
+    var v=m[key], i=key.indexOf('/');
+    if(i<0){d[key]=v;return;}
+    var p=key.slice(0,i), c=key.slice(i+1);
+    if(!mrgIsObj(d[p]))d[p]={};
+    if(c==='rest'){ if(mrgIsObj(v))Object.keys(v).forEach(function(x){d[p][x]=v[x];}); }
+    else d[p][c]=v;
+  });
+  return d;
+}
+function kvUiRead(){ try{ var s=localStorage.getItem('rb_ui'); return s?JSON.parse(s):null; }catch(e){ return null; } }
+function kvUiWrite(){ try{ if(DB&&DB.ui)localStorage.setItem('rb_ui',JSON.stringify(DB.ui)); }catch(e){} }
+function kvUiAssemble(local,pref){
+  var ui={}; if(mrgIsObj(local))Object.keys(local).forEach(function(k){ if(KV_PREF.indexOf(k)<0)ui[k]=local[k]; });
+  if(mrgIsObj(pref))Object.keys(pref).forEach(function(k){ ui[k]=pref[k]; });
+  return ui;
+}
+function kvOff(){ try{ return localStorage.getItem('rb_kv')==='off'; }catch(e){ return false; } }
+/* 불러오기 — 행이 정상이면 kv, 아니면 null(옛 길) */
+function kvLoad(){
+  if(kvOff())return Promise.resolve(null);
+  /* 🔒 무엇이 잘못되든 **옛 길로 떨어진다** — 불러오기가 막히면 로한이 갇힌다 */
+  var qq=null; try{ qq=SB.from('app_kv').select('key,data,rev').eq('user_id',USER.id); }catch(e){ qq=null; }
+  if(!qq||typeof qq.then!=='function')return Promise.resolve(null);
+  return Promise.resolve(qq).then(function(r){
+    var rows=(r&&!r.error&&r.data)||[];
+    if(!rows.length||!rows.every(function(x){return x&&typeof x.key==='string'&&typeof x.rev==='number';}))return null;
+    var m={}; KV_REV={}; KV_BASE={};
+    rows.forEach(function(x){ m[x.key]=x.data; KV_REV[x.key]=x.rev; KV_BASE[x.key]=stableStr(x.data); });
+    var d=kvJoin(m), local=kvUiRead();
+    var fin=function(lu){ d.ui=kvUiAssemble(lu,m.pref); KV_ON=true; return d; };
+    if(local)return fin(local);
+    /* 🔒 이 기기에서 처음이면 화면 상태를 옛 덩어리에서 한 번 받아 온다 — 탭 위치가 초기화되지 않게 */
+    return SB.from('app_state').select('ui:data->ui').eq('user_id',USER.id).maybeSingle()
+      .then(function(q){ return fin((q&&q.data&&q.data.ui)||{}); },function(){ return fin({}); });
+  },function(){ return null; });
+}
+/* 저장 — 바뀐 키만, 한 번에(kv_save 가 모든 rev 를 확인하고 한 트랜잭션으로 쓴다) */
+function kvSend(tries){
+  kvUiWrite();
+  var stamp=new Date().toISOString(), m=kvSplit(DB), ch=[], sent={};
+  Object.keys(m).forEach(function(k){ var s=stableStr(m[k]); if(KV_BASE[k]!==s){ ch.push({key:k,data:m[k],rev:KV_REV[k]||0}); sent[k]=s; } });
+  Object.keys(KV_BASE).forEach(function(k){ if(!(k in m)){ ch.push({key:k,del:true,rev:KV_REV[k]||0}); sent[k]=null; } });
+  if(!ch.length){ syncOK(stamp); return; }
+  SB.rpc('kv_save',{p_changes:ch}).then(function(r){
+    if(r&&r.error){ saveFail(r.error); return; }
+    var res=r&&r.data;
+    if(res&&res.ok){
+      Object.keys(sent).forEach(function(k){
+        if(sent[k]===null){ delete KV_BASE[k]; delete KV_REV[k]; }
+        else { KV_BASE[k]=sent[k]; KV_REV[k]=(res.revs&&res.revs[k])||((KV_REV[k]||0)+1); }
+      });
+      syncOK(stamp); return;
+    }
+    if(res&&Array.isArray(res.conflicts)){ kvMerge(res.conflicts,tries); return; }
+    saveFail({message:'kv_save 응답을 못 읽었다'});
+  },function(e){ saveFail(e); });
+}
+/* 충돌 — **어긋난 키만** 3자 병합한다(기존 mrg3 를 키 단위로) */
+function kvMerge(conf,tries){
+  if(tries>=3){ saveFail({message:'다른 곳에서 계속 쓰고 있다 — 곧 다시 저장한다'}); return; }
+  MRG.conflict=0;
+  var m=kvSplit(DB), srvPart={};
+  conf.forEach(function(c){
+    var k=c.key, b=(KV_BASE[k]!=null)?JSON.parse(KV_BASE[k]):undefined, l=m[k];
+    if(c.rev===0){ delete KV_BASE[k]; KV_REV[k]=0; return; }          /* 서버엔 없다 — 내 것을 새로 넣는다 */
+    srvPart[k]=c.data;
+    var v=mrg3(b,l,c.data);
+    if(v===undefined)delete m[k]; else m[k]=v;
+    KV_REV[k]=c.rev; KV_BASE[k]=stableStr(c.data);
+  });
+  var apply=function(){
+    var d=kvJoin(m); d.ui=DB.ui||{};
+    if(mrgIsObj(m.pref))Object.keys(m.pref).forEach(function(f){ d.ui[f]=m.pref[f]; });
+    try{ fixDupIds(d,true); }catch(e){}
+    Object.keys(DB).forEach(function(k){ if(!(k in d))delete DB[k]; });
+    Object.keys(d).forEach(function(k){ DB[k]=d[k]; });
+    saveBadge('⤵ 다른 곳의 변경을 합쳤다 · '+Object.keys(srvPart).join('·')+(MRG.conflict?(' · 같은 칸 '+MRG.conflict+'건은 내 것으로(서버본 스냅샷 남김)'):''),'wait');
+    kvSend(tries+1);
+  };
+  if(MRG.conflict&&Object.keys(srvPart).length)syncSnapBefore(srvPart,new Date().toISOString(),apply); else apply();
+}
+/* 접속할 때 한 번 — 이중 쓰기 대조. 어긋나면 숨기지 않는다 */
+function kvVerify(){
+  if(!KV_ON)return;
+  try{ SB.rpc('kv_verify').then(function(r){
+    var v=r&&r.data; if(!v||v.ok!==false)return;
+    var ks=(v.diff||[]).join('·');
+    saveBadge('⚠ v5 이중 쓰기 대조 불일치 · '+ks,'bad');
+    try{ logAct('⚠ v5 이중 쓰기 대조 불일치 · '+ks); }catch(e){}
+  },function(){}); }catch(e){}
+}
+function loadState(){ return kvLoad().then(function(d){ if(d)return d; return loadStateLegacy(); }); }
+function loadStateLegacy(){ return SB.from('app_state').select('data,updated_at').eq('user_id',USER.id).maybeSingle().then(function(r){
   var row=r&&r.data; LAST_SYNC=(row&&row.updated_at)||null;
   if(row&&row.data&&Object.keys(row.data).length)return row.data;
   return JSON.parse(JSON.stringify(SEED));
@@ -12907,7 +13034,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.77';
+var APP_VERSION='4.78';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -12921,6 +13048,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.78',date:'2026-11-06',note:'<b>🧱 v5 P1 — 키별 저장. 뽀모 한 판에 95만 자를 올리던 것을 그 키만 올린다.</b> 로한: <i>“실시간 저장인데 왜 자꾸 변경의 충돌이 일어나는거야?”</i> · 원인: 모든 데이터가 app_state <b>한 칸</b>이었다 — 담당사가 거래를 고치면 학습 탭 저장까지 충돌로 걸렸고, 화면 상태(ui)까지 섞여 탭만 바꿔도 저장했다. 🔒 새 테이블 <code>app_kv</code>(47행 · study 는 words/sents/units/drills/errors/pomos/tests/strategy/rest 로 쪼갬) · <b>바뀐 키만</b> <code>kv_save</code> 로 보내고 잠금도 키별 rev — 한 키라도 어긋나면 아무것도 안 쓴다(원자성), 충돌은 <b>그 키만</b> 3자 병합. 화면 상태는 기기 로컬(rb_ui), 기기끼리 나눌 것(pomoRun·pomo·seenNotes·watchCats)만 서버 pref. 🔁 이중 쓰기: 서버 트리거가 app_state 와 양방향으로 맞춘다(방이 옛 습관대로 덩어리를 고쳐도 kv 가 따라온다) · 접속마다 <code>kv_verify</code> 대조. ↩ 되돌리기: localStorage <code>rb_kv=off</code>. 화면 코드는 0줄 수정.'},
   {v:'4.77',date:'2026-11-05',note:'<b>📂 증빙함 신설 (기타 메뉴).</b> 로한: <i>“내가 각 담당사들에게 준 엑셀파일이나 정보들을 … 담당사들이 정리해서 원장을 업로드”</i> · 계기: 생활사가 삼성 청구서를 보고 결제액을 고쳤지만 제작사는 그 청구서를 볼 수 없어 96,143 차액이 설명되지 않았다. 🔒 원본 파일이 아니라 <b>담당사가 재편집한 원장</b>(표 · 다시 그린 SVG 그림 · 요약 · 가린 항목)이다. 저장은 새 테이블 <code>public.sources</code> — app_state 에 복사하지 않고 앱은 읽기만 한다. 덧붙이기만(같은 slug 에 version+1, 옛 판은 「이전 판」으로 접힘). 💳 <b>카드 이용내역은 가계부와 자동 대사</b> — 카드명 · 이용일 ±3일 · 금액 ±1원(할부는 개월수·원금), 「가계부에 없음 N건 ₩」과 반대 방향 「기간 안 가계부엔 있는데 자료에 없음」을 보여준다(고치지 않는다). 그림은 &lt;img&gt; 로만 그려 SVG 스크립트가 돌지 않는다. 업로드 채팅용 스킬 <code>skills/rohanbook-evidence/SKILL.md</code>.'},
   {v:'4.76',date:'2026-11-05',note:'<b>🧾 카드결제가 현금흐름에서 과목을 부풀렸다 — 구성만큼만 그리고 남는 돈은 「내역미상」.</b> 생활사 핸드오프(card-installment v1·v2) 검증 결과: <b>할부·청구기간·card 플래그 결함 주장 3건은 데이터와 맞지 않았다</b>(앱 할부 234,066 = 카드사 할부 234,000 · 10/13 거래 메모가 카드사 기준 「11/25 결제」로 앱 주기와 같음 · 후불 판정은 txnIsCredit 이 하고 card 는 「미결제」 뜻). 대신 검증 중 실제 결함을 찾았다: 결제액(403,489)이 구성 합(307,346)보다 크면 Sankey 가 <b>모든 과목을 ×1.31 비례로 부풀렸다</b> — 생활용품 189,533 → 248,826. 🔒 이제 구성은 구성만큼만, 차이는 <code>카드결제 내역미상</code> 노드 · 가계부 결제 행에도 「내역미상 N」 표시. ➕ 생활사 제안 반영: <b>할부 청구분은 같은 과목 안에서 「과목·할부」로 따로</b> 그린다(<code>settleInstMix()</code> — 역산, 저장 안 함). 「11월 생활용품 19만」이 실제론 새로 산 10,900 + 할부 회차였다.'},
   {v:'4.75',date:'2026-11-04',note:'<b>◀ 뒤로가기가 로한북을 나가 버렸다 — 이제 직전 탭으로 간다.</b> 로한: <i>“뒤로가기 버튼 클릭 시 아예 페이지 이탈이 되버리는데.”</i> · 원인: 한 페이지 앱이라 탭을 바꿔도 브라우저 기록이 하나도 안 쌓였다 · 🔒 탭을 바꿀 때마다 기록을 쌓는다 → 뒤로/앞으로 = 탭 이동 · 모달·뽀모가 떠 있으면 뒤로가기는 그것만 닫는다 · 홈에서 한 번 더 누르면 「한 번 더 누르면 나갑니다」 안내 후, 그다음에 나간다 · t63 신설'},
@@ -15734,7 +15862,7 @@ function enter(){
     try{ if(stPomoBackfill())save(); }catch(e){}
     /* v4.15 — 겹친 id 를 갈랍으면 바로 쓴다. 안 쓰면 다음 병합에서 그만큼 사라진다 */
     try{ if(DUP_FIX.n){logAct('⚠️ 중복 id '+DUP_FIX.n+'건을 새 번호로 갈랐다 · '+DUP_FIX.where.join(' · '));save();} }catch(e){}
-    localBackup();netSnapTouch();sideApply();bootDone();renderDaily();navInit();snapAutoOnLoad();
+    localBackup();netSnapTouch();sideApply();bootDone();renderDaily();navInit();snapAutoOnLoad();kvVerify();
     /* ⏱ 새로고침 전에 돌던 뽀모가 있으면 이어서 보여준다 — 시작 시각으로 계산하니 시간이 안 틀어진다 */
     try{ if(DB.ui&&DB.ui.pomoRun){ stPomoOpen(); } }catch(e){}
     /* ⌨ v4.54 — 🔒 **한 곳에서 한 번만** 매단다. 렌더마다 매달면 한 번 누른 키가 여러 번 먹는다 */

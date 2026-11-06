@@ -41,7 +41,7 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     /* 부분 선결제: 구성 > 결제액 */
     DB.transactions.push({id:'s2',type:'settle',acct:acct,amt:5000,date:'2026-11-06',method:'테스트카드 결제',cat:'카드결제',cycle:'2026-12',catMix:{'식비':10000}});
     var g2=cfBuildSankey([DB.transactions[4]]), t2=0; for(var k2 in g2.K)t2+=g2.K[k2];
-    DB.ui.month='2026-11'; try{renderCal();}catch(e){}
+    DB.ui.month='2026-11'; selDate='2026-11-05'; try{renderCal();}catch(e){}
     var html=(document.getElementById('v-cal')||{}).innerHTML||'';
     return {K:K,tot:tot,K2:g2.K,t2:t2,rest:settleRest(DB.transactions[3]),inst:settleInstMix(DB.transactions[3]),html:/내역미상 50,000/.test(html)};
   });
