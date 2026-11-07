@@ -5589,7 +5589,26 @@ function stPaneErr(){
   return '<div class="sec"><div class="bkhd"><span class="subhd2">❌ 오답노트 <span class="mut">미회수 '+stErrOpen().length+' / 전체 '+stErrs().length+'</span></span>'
    +'<span><button class="ghost sm" onclick="stErrSheet()">📄 회독 목록</button> '
    +'<button class="btn sm" onclick="stErrModal(null)">+ 오답</button></span></div>'+rows
-   +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 <b>2회 연속 맞아야</b> 회수된다. 한 번 맞으면 지우는 방식은 <b>운으로 맞은 것까지</b> 지운다.</div></div>';
+   +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 <b>2회 연속 맞아야</b> 회수된다. 한 번 맞으면 지우는 방식은 <b>운으로 맞은 것까지</b> 지운다.</div></div>'
+   +stPaneDrillMiss();
+}
+/* ❌ v4.88 — 드릴 오답 구역(학습사 v30). 교재 오답노트(study.errors)와 따로다 — 이건 드릴 miss 에서 **파생**한다.
+   🔒 저장·복사하지 않는다. 보이는 숫자가 곧 words.miss 다 */
+var ST_MISS_ALL=false;
+function stPaneDrillMiss(){
+  var L=stMissWords(), show=ST_MISS_ALL?L:L.slice(0,30);
+  var POS={noun:'명사',verb:'동사','i-adj':'い형',adj:'형용사','na-adj':'な형',adv:'부사',conj:'접속사',pron:'대명사'};
+  var CAT={sino:'한자어',native:'고유어',loan:'외래어'};
+  var rows=show.map(function(w){
+    return '<div class="row" style="font-size:12px;gap:8px"><span style="flex:1;min-width:0"><b style="font-family:var(--ja)">'+mdEsc(w.kana)+'</b>'
+      +(w.kanji?' <span class="mut" style="font-family:var(--ja)">'+mdEsc(w.kanji)+'</span>':'')+' · '+mdEsc(w.ko)+'</span>'
+      +'<span class="mut" style="white-space:nowrap">'+mdEsc(POS[w.pos]||w.pos||'')+(w.cat?' · '+mdEsc(CAT[w.cat]||w.cat):'')+'</span>'
+      +'<b class="neg" style="white-space:nowrap;font-variant-numeric:tabular-nums" title="틀린 횟수(miss) / 본 횟수(seen)">'+(+w.miss||0)+'/'+(+w.seen||0)+'</b></div>';}).join('');
+  return '<div class="sec"><div class="bkhd"><span class="subhd2">🈶 드릴 오답 <span class="mut">miss 2회 이상 '+L.length+'개 · 많이 틀린 순</span></span>'
+    +(L.length?'<span><button class="btn sm" onclick="stDrillStart(\'r2m\','+Math.min(20,L.length)+',\'miss\')">🔁 오답 회전 '+Math.min(20,L.length)+'문항</button></span>':'')+'</div>'
+    +(rows||'<div class="mut" style="padding:8px 0;font-size:11.5px">드릴에서 두 번 이상 틀린 단어가 없다.</div>')
+    +(L.length>30?'<div style="text-align:center;margin-top:8px"><button class="ghost sm" onclick="ST_MISS_ALL=!ST_MISS_ALL;renderStudy()">'+(ST_MISS_ALL?'30개만 ▴':'전체 '+L.length+'개 보기 ▾')+'</button></div>':'')
+    +'<div class="mut" style="font-size:11px;margin-top:10px">🔒 드릴에서 틀린 횟수(miss)에서 <b>바로 계산</b>한다 — 따로 적어 두지 않는다. 연속 두 번 맞히면 하나씩 줄어든다.</div></div>';
 }
 /* ══════ 🧭 v4.52 전략 — 학습방이 짜고, 앱이 **숫자로 받친다** ══════
    로한: *"학습방이랑 논의해서 전략 탭을 만들꺼야. 학습방이 날 합격시키기 위한 전략을 짜는 곳과
@@ -6190,19 +6209,24 @@ function stDrillStart(mode,n){
   }
   if(!stModeOK(mode))return;
   if(mode==='a2m'&&!stTtsReady())return;   /* 소리를 못 내면 음성 모드는 시작하지 않는다 */
-  var hard=(mode==='r2m'&&arguments[2]===true);
-  var pool=stDrillPool(mode,hard);
-  /* 보기는 어려운 단어 세트라도 전체에서 빌린다 — 어려운 것끼리만 섞으면 보기가 모자란다 */
-  var optPool=hard?pool.concat(stDrillPool(mode)):pool;
+  var setK=(mode==='r2m')?(arguments[2]===true?'hard':(arguments[2]==='miss'?'miss':'')):'';
+  var hard=(setK==='hard');
+  var pool=(setK==='miss')?stMissWords():stDrillPool(mode,hard);
+  /* 보기는 특별 세트라도 전체에서 빌린다 — 어려운 것끼리만 섞으면 보기가 모자란다 */
+  var optPool=setK?pool.concat(stDrillPool(mode)):pool;
+  /* 🔒 v4.88 — 같은 단어는 **하루 최대 2번**(학습사 v30). 오늘 두 번 본 단어는 출제에서 뺀다(보기로는 쓴다) */
+  var tc=stTodayCounts();
+  pool=pool.filter(function(w){return (tc[w.id]||0)<2;});
   if(optPool.length<4||!pool.length)return;   /* 보기 4개를 못 만들면 문항이 성립하지 않는다 */
   n=Math.min(+n||20,pool.length);   /* v3.5 — 한 세트 20문항이 기본(학습방 v10) */
   /* 🔁 v4.87 — r2m 은 「때가 된 것 12 + 처음 보는 것 8」(학습사 요구 2). 어려운 단어 세트는 오래 밀린 순 */
-  var picked=(mode==='r2m'&&!hard)?stR2mPick(pool,n)
+  var picked=(mode==='r2m'&&!setK)?stR2mPick(pool,n)
     :(hard?pool.slice().sort(function(a,b){var x=stDueOf(a)||'',y=stDueOf(b)||'';return x<y?-1:(x>y?1:0);}).slice(0,n):pool.slice(0,n));
   ST_DRILL={mode:mode,ids:picked.map(function(w){return w.id;}),
     opts:picked.map(function(w){return stMkOpts(w,mode,optPool);}),
     i:0,res:[],show:false,fin:false,start:Date.now()};
   if(hard)ST_DRILL.hard=true;
+  if(setK==='miss')ST_DRILL.set='miss';
   DB.ui=DB.ui||{};DB.ui.studyTab='word';save();renderStudy();
 }
 /* 🔒 채점 결과를 기록하는 곳은 **여기 하나뿐이다.**
@@ -6219,9 +6243,15 @@ function stDrillRecord(ok,my,dunno){
        재출제가 안 된 것도 있지만 **더 밑의 원인**: 2연속이 되는 순간 streak 를 0 으로 되돌렸다(v9 miss 감쇠를 그렇게 짰다).
        그래서 streak 는 구조적으로 1 을 못 넘었다 — 간격 반복(Leitner)의 2·3 단계가 올 수가 없었다.
      🔒 streak 는 **연속 정답 수 그대로** 센다(틀리면 0). miss 감쇠는 **짝수 번째 정답마다** — v9 의 뜻(3번 틀리면 6연속에 0) 그대로. */
+  /* 🔴 v4.88 — 학습사 v30 정정: 「재출제는 된다. **같은 날 반복이 streak 로 샌다**」(11/6 22:53 streak≥2 149개).
+       몇 분 전에 본 것을 또 맞힌 것은 「서로 다른 날 정답」(v26 승급 규칙)이 아니다.
+     🔒 오늘 이미 본 단어(lastSeen=오늘)를 또 맞혀도 streak 는 그대로 — 첫 정답(streak 0 → 1)만 센다. 틀리면 언제나 0 */
+  var sameDay=(w.lastSeen===todayStr())&&(+w.streak||0)>0;
   if(ok){
-    w.streak=(+w.streak||0)+1;
-    if(w.streak%2===0)w.miss=Math.max(0,(+w.miss||0)-1);
+    if(!sameDay){
+      w.streak=(+w.streak||0)+1;
+      if(w.streak%2===0)w.miss=Math.max(0,(+w.miss||0)-1);
+    }
   }else{
     w.miss=(+w.miss||0)+1; w.streak=0;
   }
@@ -6328,6 +6358,9 @@ function stDrillFinish(){
   /* ⚠️ 빈 서랍을 남기지 않는다 — 0 이면 키를 만들지 않는다 */
   if(dunno)rec.dunno=dunno;
   if(D.hard)rec.set='hard';   /* 🧱 v4.87 — 어려운 단어 세트(학습사가 따로 본다) */
+  if(D.set==='miss')rec.set='miss';   /* ❌ v4.88 — 드릴 오답 회전 세트 */
+  /* 🔒 v4.88 — 실제로 낸 단어 id. 「하루 최대 2번」을 세려면 맞힌 것까지 알아야 한다(wrongIds 만으로는 못 센다) */
+  if(!stIsGram(D.mode))rec.ids=D.res.map(function(r){return r.id;});
   /* 📝 v4.50 — 하부(문장 점검) 결과를 같은 기록에 남긴다.
      🔒 본문항 수(rec.n)와 **섞지 않는다** — 「10문항」이 20이 되면 숫자가 거짓말을 한다.
      🔒 틀린 것은 무엇을 어떻게 틀렸는지까지 남긴다(내 답 포함) — 그게 오답노트의 재료다. */
@@ -6448,7 +6481,7 @@ function stDrillResult(){
          +'<span>'+mdEsc(r.my||'—')+' → <b>'+mdEsc(stDrillA(w,D.mode))+'</b></span></div>';}).join(''))
      :'<div class="mut" style="font-size:11.5px;padding:6px 0">전부 맞았다.</div>')
    +'<div style="margin-top:13px;display:flex;gap:7px;flex-wrap:wrap">'
-     +'<button class="btn" onclick="stDrillStart(\''+D.mode+'\','+n+(D.hard?',true':'')+')">한 번 더</button>'
+     +'<button class="btn" onclick="stDrillStart(\''+D.mode+'\','+n+(D.hard?',true':(D.set==='miss'?',\'miss\'':''))+')">한 번 더</button>'
      +'<button class="ghost" onclick="stDrillClose()">닫기</button></div>'
    +'<div class="mut" style="font-size:10.5px;margin-top:10px">🔒 드릴 오답은 <b>오답노트로 바로 안 넘긴다.</b> '
    +'하루 20문항이면 며칠 만에 오답노트가 쓸모없어진다 — <b>miss 3회 이상</b>만 로버트가 승격한다.</div></div>';
@@ -7065,6 +7098,21 @@ function stRetestSet(w){
 function stRetestDue(w,ds){
   ds=ds||todayStr();
   return !!(w&&w.retestOn&&String(w.retestOn)<=ds);
+}
+/* 🔒 v4.88 — 오늘 각 단어가 몇 번 나왔나(학습사 v30 「하루 최대 2회」). 저장하지 않고 오늘 드릴 기록에서 센다.
+   v4.88 이전 기록은 ids 가 없어 틀린 것(wrongIds)만 센다 — 맞힌 것은 모른다(지어내지 않는다) */
+function stTodayCounts(){
+  var t=todayStr(), m={};
+  (studyDB().drills||[]).forEach(function(d){
+    if(!d||d.date!==t)return;
+    (d.ids||d.wrongIds||[]).forEach(function(id){m[id]=(m[id]||0)+1;});
+  });
+  return m;
+}
+/* ❌ v4.88 드릴 오답(학습사 v30) — miss≥2 · miss 많은 순. 🔒 파생이다 — study.errors 로 복사하지 않는다(숫자가 어긋난다) */
+function stMissWords(){
+  return stWords().filter(function(w){return (+w.miss||0)>=2&&!!stNorm(w.kana)&&!!stNorm(w.ko);})
+    .sort(function(a,b){return (+b.miss||0)-(+a.miss||0)||((+b.seen||0)-(+a.seen||0));});
 }
 /* 🔁 v4.87 간격 반복 — streak 1→1일 · 2→3일 · 3↑→7일 (학습사 11/6) */
 function stLeitner(s){s=+s||0;return s>=3?7:(s===2?3:1);}
@@ -13554,7 +13602,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.87';
+var APP_VERSION='4.88';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -13568,6 +13616,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.88',date:'2026-11-07',note:'<b>🔁 같은 날 반복은 승급이 아니다 · 하루 최대 2번 · 오답 탭에 「드릴 오답」 — 학습사 v30 정정.</b> 학습사: <i>「v29 전제는 틀렸다. 재출제는 된다(11/6 22:53 streak≥2 149개). 진짜 문제는 같은 날 반복이 streak 로 새는 것」</i> · v4.87 이 리셋을 없애자 몇 분 전에 본 것을 또 맞힌 것까지 승급으로 셌다(v26 「서로 다른 날」 규칙과 어긋남). 🔒 오늘 이미 본 단어를 또 맞혀도 streak 는 그대로(첫 정답만) · 같은 단어는 <b>하루 최대 2번</b>(오늘 드릴 기록에서 센다 — 기록에 실제로 낸 ids 를 새로 남긴다). ❌ 오답 탭에 <b>🈶 드릴 오답</b>: miss≥2 · 많이 틀린 순 · 가나·뜻·miss/seen·품사·분류 — <b>파생</b>(errors 로 복사하지 않는다) · 「🔁 오답 회전」 버튼으로 그 단어들만 r2m 세트(기록 set:miss). 실측: 드릴 오답 98개(3회↑ 35) · streak≥2 261개 중 201개가 11/06 — 같은 날 반복으로 부풀었을 수 있다(되돌리기는 학습사 판단).'},
   {v:'4.87',date:'2026-11-06',note:'<b>🔁 가나→뜻 간격 반복 · 세트 구성 · 어려운 단어 분리 — 학습사 11/6 저녁 요청.</b> 학습사: <i>「streak≥2 가 0개 — 정답 단어가 다시 안 나와 승급 경로가 막혀 있다」</i>. 🔴 더 밑의 원인: <b>2연속 정답이 되는 순간 streak 를 0 으로 되돌렸다</b>(v9 miss 감쇠를 그렇게 짰다) — streak 는 구조적으로 1 을 못 넘었다. 🔒 streak = 연속 정답 수 그대로 · miss 감쇠는 짝수 번째 정답마다(v9 뜻 그대로). 🔁 r2m 에서 맞히면 다음 출제를 1일 → 3일 → 7일 뒤로, 틀리면 언제나 내일(retestOn 확장). retestOn 없는 옛 단어는 「마지막 본 날 + 간격」으로 <b>계산</b>(저장 안 함). 📦 한 세트 = 때가 된 것 최대 60%(20문항이면 12 · 오래된 순) + 처음 보는 것 8, 모자라면 서로 채움. 🧱 seen≥4 · 정답률 30% 미만(틀린 횟수 = miss 와 드릴 기록 중 큰 쪽 · 파생값)은 일반 세트에서 빼고 「🧱 어려운 단어」 버튼으로 10문항씩 — 기록에 set:hard. 실측: 어려운 단어 31 · 지금 때가 된 단어 520 · 처음 보는 단어 499. ➕ <b>🈶 드릴 시간도 데일리 로그에</b>(로한: <i>「드릴 했던 시간도 데일리로그에 시간으로 표현되게 해줘. 현재 뽀모도로처럼」</i>) — 드릴 기록에 시작 시각(at)을 남기고, 뽀모와 같은 길(stTlMarkStudy)로 그 시간대에 「🈶 드릴 · 모드 N문항」을 찍는다(빈 칸=학습 블록 · 다른 활동 칸=서브). 학습 분은 칸마다 <b>실제 분</b>(3분 드릴이 30분이 되지 않게) · 뽀모 안의 드릴은 큰 쪽만(두 번 안 센다). 시각이 없는 옛 드릴은 소급하지 않는다.'},
   {v:'4.86',date:'2026-11-06',note:'<b>🧩 유의표현 — 교재 95~118쪽(로한 11/6 공부분) 투입 · 같은 뜻 덩어리는 오답 보기로 안 나온다.</b> 기존 115쌍(스피드체크북)이 기출을 거의 다 담고 있었다. 새로 넣은 것 11개: 새 짝 3(うんどう·しょうらい·はじめに≒まず) · 다른 짝 1(ちゅうしゃじょう) · 시험 꼴 7(うそでした·はこびましょう 등, grp=기존 짝). 🔴 시험 꼴을 그냥 넣으면 옛 짝의 답이 오답 보기로 섞여 정답이 둘이 된다 → stSynComp: grp·같은 표현·같은 답·짝의 짝을 끝까지 따라가 한 덩어리는 보기에서 뺀다.'},
   {v:'4.85',date:'2026-11-06',note:'<b>🔁 재점검 큐가 밀린 것부터 나온다 — 학습사 v28 회신(제작사가 빠뜨렸던 답).</b> 학습사: <i>「10/23 r2m 20문항에서 retestOn=10/22(어제분 17개)는 하나도 나오지 않았다」</i> · 맞다. 출제 점수에서 재점검 +200 은 모두 같고, <b>처음 보는 단어 +100 이 그 위에 얹혔다</b> — 10/23 교재 투입분(새 단어 · retestOn 다음날)이 300점대로 올라 이미 본 단어의 밀린 재점검(200점대)을 통째로 앞질렀다. 실측(11/06): <b>10/29 분 3개가 8일째 밀려 있다.</b> 🔒 재점검 대상끼리는 점수가 아니라 <b>retestOn 오래된 순 → 같은 날이면 miss 많은 순</b> · 재점검 대상 전체가 그 밖의 단어보다 앞 · 재점검이 아닌 단어는 옛 점수식 그대로.'},

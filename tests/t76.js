@@ -31,14 +31,18 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     DB.study.words=[{id:'a',kana:'あめ',ko:'비',seen:1,miss:3,streak:0,lastSeen:addDays(t,-5)}];
     for(let i=0;i<30;i++)DB.study.words.push({id:'f'+i,kana:'かな'+i,ko:'뜻'+i,seen:0,miss:0,streak:0});
     const w=DB.study.words[0], out=[];
-    const hit=(ok)=>{ST_DRILL={mode:'r2m',ids:['a'],opts:[[]],i:0,res:[],show:false,fin:false,start:Date.now()};
+    /* v4.88 — 하루씩 지나며 맞힌다(같은 날 정답은 streak 에 안 더한다 · 학습사 v30) */
+    const hit=(ok,same)=>{if(!same)w.lastSeen=addDays(t,-1);ST_DRILL={mode:'r2m',ids:['a'],opts:[[]],i:0,res:[],show:false,fin:false,start:Date.now()};
       stDrillRecord(ok,ok?'비':'x',false);ST_DRILL=null;
       out.push({s:w.streak,m:w.miss,r:w.retestOn?Math.round((new Date(w.retestOn)-new Date(t))/86400000):null});};
     hit(true);hit(true);hit(true);hit(true);hit(false);
+    /* 같은 날 두 번째 정답 */
+    hit(true);hit(true,true);
     return out;});
-  ok('L1 🔴 간격 — 1일 → 3일 → 7일 → 7일 · 틀리면 내일',L.map(x=>x.r).join()==='1,3,7,7,1',JSON.stringify(L));
-  ok('L2 🔴 streak 는 리셋 없이 쌓인다(1,2,3,4) · 틀리면 0',L.map(x=>x.s).join()==='1,2,3,4,0',JSON.stringify(L));
-  ok('L2b miss 는 짝수 번째 정답마다 −1 (3→2→2→1) · 틀리면 +1',L.map(x=>x.m).join()==='3,2,2,1,2',JSON.stringify(L));
+  ok('L1 🔴 간격 — 1일 → 3일 → 7일 → 7일 · 틀리면 내일',L.slice(0,5).map(x=>x.r).join()==='1,3,7,7,1',JSON.stringify(L));
+  ok('L3 🔴 같은 날 또 맞혀도 streak 는 그대로(1 → 1) — 학습사 v30',L[5].s===1&&L[6].s===1,JSON.stringify(L.slice(5)));
+  ok('L2 🔴 streak 는 리셋 없이 쌓인다(1,2,3,4) · 틀리면 0',L.slice(0,5).map(x=>x.s).join()==='1,2,3,4,0',JSON.stringify(L));
+  ok('L2b miss 는 짝수 번째 정답마다 −1 (3→2→2→1) · 틀리면 +1',L.slice(0,5).map(x=>x.m).join()==='3,2,2,1,2',JSON.stringify(L));
 
   /* S1~S4 — 세트 구성 */
   const S=await p.evaluate(()=>{
@@ -75,7 +79,8 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     W.push({id:'e2',kana:'かわ',ko:'강',seen:3,miss:3,streak:0,lastSeen:addDays(t,-3)});      /* seen 3 — 아직 판단 안 한다 */
     for(let i=0;i<10;i++)W.push({id:'f'+i,kana:'ふ'+i,ko:'새'+i,seen:0,miss:0,streak:0});
     DB.study.words=W;
-    DB.study.drills=[];for(let i=0;i<7;i++)DB.study.drills.push({id:'d'+i,date:t,mode:'r2m',n:1,correct:0,wrongIds:['h2']});
+    /* 지난 날의 드릴 기록 — 오늘 것이면 「하루 최대 2번」에 걸린다 */
+    DB.study.drills=[];for(let i=0;i<7;i++)DB.study.drills.push({id:'d'+i,date:addDays(t,-(i+1)),mode:'r2m',n:1,correct:0,wrongIds:['h2']});
     const pool=stDrillPool('r2m').map(w=>w.id), hard=stHardWords().map(w=>w.id);
     stDrillStart('r2m',10,true); const hs=ST_DRILL.ids.slice(), flag=ST_DRILL.hard;
     ST_DRILL.res=[{id:hs[0],ok:false}];ST_DRILL.i=hs.length;stDrillFinish();

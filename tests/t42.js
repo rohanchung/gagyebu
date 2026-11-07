@@ -659,7 +659,9 @@ async function boot(st){
   ok('Q6 오늘 본 flag 단어가 꼴찌로 밀린다',order.indexOf('q2')>order.indexOf('q3'));
   /* streak — 3번 틀린 단어는 6번 연속 맞혀야 0 */
   /* 🔁 v4.87 — r2m 세트는 「때가 된 것」이 먼저다(오늘 본 q1 은 내일이 때). 연속 정답 규칙을 재려고 q1 을 가장 밀린 재점검으로 둔다 */
-  const overdue=()=>p.evaluate(()=>{stWordById('q1').retestOn='2026-01-01';});
+  /* v4.88 — 「하루씩 지난 것」으로 만든다: 같은 날 정답은 streak 에 안 더하고(학습사 v30) · 같은 단어는 하루 2번까지라 오늘 기록도 비운다 */
+  const overdue=()=>p.evaluate(()=>{const w=stWordById('q1');w.retestOn='2026-01-01';w.lastSeen=addDays(todayStr(),-1);
+    studyDB().drills=(studyDB().drills||[]).filter(d=>d.date!==todayStr());});
   await overdue();
   await p.evaluate(()=>stDrillStart('r2m',1));await p.waitForTimeout(300);
   ok('Q7 첫 문항은 가장 밀린 재점검',(await p.evaluate(()=>ST_DRILL.ids[0]))==='q1');
