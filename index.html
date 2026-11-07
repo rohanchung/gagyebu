@@ -317,6 +317,19 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   background:var(--soft);color:#7a869a;font-size:10px;font-weight:700;text-align:center;
   font-variant-numeric:tabular-nums}
 @media(hover:none){.optk{display:none}}   /* 손가락으로 쓰는 화면엔 키가 없다 */
+/* 👍 v4.89 — 「다음」·「한 번 더」 자리. 로한: 「패드로 학습할 땐 정답 누르고 다음이 가운데 있잖아 … 오른손 엄지 위치로」
+   🔒 컴퓨터(마우스)는 그대로 가운데 · 손가락 화면만 오른쪽 아래에 크게 고정한다(엄지가 닿는 곳) */
+.stnext{margin-top:12px;display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
+.stnext.stfin{justify-content:flex-start;margin-top:13px}
+@media(hover:none){
+  .stnext,.stnext.stfin{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
+    z-index:55;margin:0;flex-direction:row-reverse;align-items:center}
+  .stnext .btn{min-width:132px;min-height:58px;font-size:17px;border-radius:16px;box-shadow:0 6px 18px rgba(20,40,90,.28)}
+  .stnext .ghost{min-height:48px;border-radius:14px;background:var(--card)}
+  #v-study{padding-bottom:104px}   /* 고정 단추에 마지막 줄이 가리지 않게 */
+  /* 저장 배지는 왼쪽 아래로 — 오른쪽 아래는 엄지 자리다 */
+  .savebadge{right:auto!important;left:max(10px,env(safe-area-inset-left))}
+}
 /* ⏱ v4.58 뽀모 앞자리 · 기록 모달 */
 .pmbar{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
 .unitfold{margin-top:10px;border-top:1px dashed var(--line);padding-top:7px}
@@ -2022,8 +2035,22 @@ function saveBadge(t,c){var el=document.getElementById('savebadge');if(!el)retur
    ⚠️ 접속 직후에 따로 저장하지 않는다 — 처음엔 그렇게 만들었다가 t20·t21 이 잡았다.
      사용자가 아무것도 안 했는데 쓰면 updated_at 이 밀려 <b>다른 탭과 헛된 충돌</b>이 난다.
    거래 하나만 써도 같이 올라가므로 실질적으로 매일 갱신된다. */
-function save(){ if(!USER||!DB)return; netSnapTouch(); SAVE_DIRTY=true; saveBadge('● 저장 중…','wait');
-  clearTimeout(saveTimer); saveTimer=setTimeout(doSave,400); }
+function save(){ if(!USER||!DB)return; netSnapTouch(); SAVE_DIRTY=true;
+  /* 💾 v4.89 — 드릴 중엔 **모아서** 올린다. 실측 11/07: 한 문항마다 단어장 전체(26만 자)를 올려 하루 914번.
+     🔒 30초에 한 번(타이머를 미루지 않는다 — 5초마다 답하면 영영 안 올라간다) · 세트가 끝나면 바로 · 화면을 떠나면 바로.
+     🔒 답마다 기기에는 바로 남긴다(pendWrite) — 올리기 전에 창이 닫혀도 다음 접속에 건져 올린다. */
+  if(stDrilling()){
+    pendWrite(); saveBadge('● 드릴 중 — 모아서 저장','wait');
+    if(!saveTimer)saveTimer=setTimeout(function(){saveTimer=null;doSave();},30000);
+    return;
+  }
+  saveBadge('● 저장 중…','wait');
+  clearTimeout(saveTimer); saveTimer=setTimeout(function(){saveTimer=null;doSave();},400); }
+function stDrilling(){ try{ return !!(typeof ST_DRILL!=='undefined'&&ST_DRILL&&!ST_DRILL.fin); }catch(e){ return false; } }
+/* 화면을 떠나면(앱 전환·탭 숨김) 모아 둔 것을 바로 올린다 */
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden&&SAVE_DIRTY&&saveTimer){ clearTimeout(saveTimer); saveTimer=null; doSave(); }
+});
 /* 🔴 v4.71 — [결함] 한 탭이 **자기 자신과** 충돌했다(10/29 5분간 덮어쓰기 10회 · 로한: 휴대폰·PC·다른 창 없음).
    저장 A 가 서버에 가 있는 동안 체크를 또 하면 저장 B 가 **A 가 돌아오기 전의 LAST_SYNC** 를 들고 출발했다.
    A 가 성공해 서버 시각이 바뀌니 B 는 「eq(updated_at)」 에 걸려 0행 → 충돌로 읽혔고,
@@ -6309,9 +6336,14 @@ function stKeyParts(){
   return {opts:opts,dunno:dunno,next:next};
 }
 function stDrillKey(ev){
-  if(!ST_DRILL||ST_DRILL.fin)return;
+  if(!ST_DRILL)return;
   if(ev.ctrlKey||ev.metaKey||ev.altKey)return;
   if(stKeyBusy())return;
+  /* ↵ v4.89 — 결과 화면에서 엔터 = 「한 번 더」(로한: 「한번더 버튼 있잖아 이것도 엔터로 진행할 수 있게」) */
+  if(ST_DRILL.fin){
+    if(ev.key==='Enter'){var ag=document.querySelector('#v-study .stagain');if(ag){ev.preventDefault();ag.click();}}
+    return;
+  }
   var p=stKeyParts(); if(!p)return;
   var k=ev.key;
   /* 🔒 보기가 떠 있을 때만 숫자·스페이스가 산다. 채점 뒤에는 엔터만 —
@@ -6412,10 +6444,10 @@ function stDrillRun(){
            return mdEsc((stNorm(x.kanji)?x.kanji+' ':'')+(x.ko||''));}).join(' / ')
          +(stSoundMode(D.mode)?' <b>도 정답</b>':'')+'</div>'):'')
       +'<div class="mut" style="font-size:10.5px;margin-top:5px">누적 '+(+w.miss||0)+'틀림/'+(+w.seen||0)+'회'
-        +((+w.streak||0)?' · 연속 '+w.streak+'회 (2회면 틀림 −1)':'')+'</div>'
+        +((+w.streak||0)?' · 연속 '+w.streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
       +(stTtsReady()&&stNorm(w.kana)?'<div style="margin-top:10px"><button class="ghost sm" '
         +'onclick="stSpeak('+JSON.stringify(String(w.kana)).replace(/"/g,'&quot;')+')">🔊 다시 듣기</button></div>':'')
-      +'<div style="margin-top:12px"><button class="btn" onclick="stDrillNext()">'
+      +'<div class="stnext"><button class="btn" onclick="stDrillNext()">'
         +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 → <span class="optk">↵</span>')+'</button></div>';
   }else{
     /* 🔊 음성 모드는 글자가 없다. 청해는 한 번에 안 들리니 반복 버튼은 필수 */
@@ -6439,7 +6471,7 @@ function stDrillRun(){
      /* ⚠️ 뜻을 9px 보조 텍스트로 두면 안 읽고 찍는다. r2k 에선 뜻이 **정답을 결정하는 정보**다. */
      +(hint?'<div class="stdhint">'+mdEsc(hint)+'</div>':'')
      +body+'</div>'
-   +'<div class="mut" style="font-size:10.5px">출제 순서 = <b>틀린 횟수×10 + 체크 3 + 안 본 날수(최대 7)</b>. 랜덤이 아니다.'
+   +'<div class="mut" style="font-size:10.5px">'+(D.mode==='r2m'?'출제 = <b>다시 볼 때가 된 단어(오래된 순) 최대 60% + 처음 보는 단어</b> · 맞히면 1→3→7일 뒤 · 같은 단어 하루 2번까지.':'출제 순서 = <b>틀린 횟수×10 + 안 본 날수(최대 7)</b> · 처음 보는 단어 먼저. 랜덤이 아니다.')
    +(D.mode==='r2k'?' · 뜻을 같이 보여주는 이유: <b>동음이의어</b>(は→葉·歯)는 뜻 없이는 정답이 하나로 안 정해진다.':'')
    +(D.mode==='a2m'?' · 🔴 <b>읽히는 건 히라가나다</b> — 한자를 읽히면 開く 를 ひらく 로 읽어 틀린 발음을 외운다.':'')
    +'</div></div>';
@@ -6480,8 +6512,8 @@ function stDrillResult(){
          +'<span class="mut">'+mdEsc(w.ko||'')+'</span></span>'
          +'<span>'+mdEsc(r.my||'—')+' → <b>'+mdEsc(stDrillA(w,D.mode))+'</b></span></div>';}).join(''))
      :'<div class="mut" style="font-size:11.5px;padding:6px 0">전부 맞았다.</div>')
-   +'<div style="margin-top:13px;display:flex;gap:7px;flex-wrap:wrap">'
-     +'<button class="btn" onclick="stDrillStart(\''+D.mode+'\','+n+(D.hard?',true':(D.set==='miss'?',\'miss\'':''))+')">한 번 더</button>'
+   +'<div class="stnext stfin">'
+     +'<button class="btn stagain" onclick="stDrillStart(\''+D.mode+'\','+n+(D.hard?',true':(D.set==='miss'?',\'miss\'':''))+')">한 번 더 <span class="optk">↵</span></button>'
      +'<button class="ghost" onclick="stDrillClose()">닫기</button></div>'
    +'<div class="mut" style="font-size:10.5px;margin-top:10px">🔒 드릴 오답은 <b>오답노트로 바로 안 넘긴다.</b> '
    +'하루 20문항이면 며칠 만에 오답노트가 쓸모없어진다 — <b>miss 3회 이상</b>만 로버트가 승격한다.</div></div>';
@@ -7257,7 +7289,7 @@ function stCtxSum(){
        +(c.mastered?'✅ 숙달된 문장이다'
         :(S.pass?'통과 '+c.streak+'회 — <b>다른 날</b> 한 번 더 전부 맞히면 숙달이다'
                :'🔒 하나라도 틀리면 통과가 아니다 — 연속이 0 으로 돌아갔다'))+'</div>'
-     +'<div style="margin-top:12px"><button class="btn" onclick="stCtxSumNext()">'
+     +'<div class="stnext"><button class="btn" onclick="stCtxSumNext()">'
        +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 문장 → <span class="optk">↵</span>')+'</button></div>'
    +'</div></div>';
 }
@@ -7311,7 +7343,7 @@ function stCtxRun(){
             :'⚠️ 이 말은 <b>단어은행에 없다</b> — 카운터는 안 올라가고 <b>드릴 기록에만</b> 남는다(학습방이 읽는다).')
           +'</div>'
         :'')
-      +'<div style="margin-top:12px"><button class="btn" onclick="stCtxNext()">'
+      +'<div class="stnext"><button class="btn" onclick="stCtxNext()">'
         +(S.j+1>=S.list.length?'이 문장 끝 → <span class="optk">↵</span>':'다음 단어 → <span class="optk">↵</span>')+'</button></div>';
   }else{
     body='<div class="stdopt">'+it.opts.map(function(o,i){
@@ -7479,8 +7511,8 @@ function stVconjRun(){
           return mdEsc(f.label)+' <b>'+mdEsc(F[f.k])+'</b>';}).join(' · ')+'</div>'
       +(q.note?'<div class="stdhint" style="margin-top:7px">⚠️ '+mdEsc(q.note)+'</div>':'')
       +'<div class="mut" style="font-size:10.5px;margin-top:5px">누적 '+(+w.miss||0)+'틀림/'+(+w.seen||0)+'회'
-        +((+w.streak||0)?' · 연속 '+w.streak+'회 (2회면 틀림 −1)':'')+'</div>'
-      +'<div style="margin-top:12px"><button class="btn" onclick="stDrillNext()">'
+        +((+w.streak||0)?' · 연속 '+w.streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
+      +'<div class="stnext"><button class="btn" onclick="stDrillNext()">'
         +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 → <span class="optk">↵</span>')+'</button></div>';
   }else{
     body='<div class="stdopt">'+q.opts.map(function(o,i){
@@ -7555,11 +7587,11 @@ function stGramRun(){
       +((D.mode!=='gctx'&&!last.ok)&&stNorm(q.why)?'<div class="gwhy">💡 '+mdEsc(q.why)+'</div>':'')
       +'<div class="mut" style="font-size:10.5px;margin-top:6px">'
         +(s.src?mdEsc(s.src)+' · ':'')+'누적 '+(+s.miss||0)+'틀림/'+(+s.seen||0)+'회'
-        +((+s.streak||0)?' · 연속 '+s.streak+'회 (2회면 틀림 −1)':'')+'</div>'
+        +((+s.streak||0)?' · 연속 '+s.streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
       /* 📝 v4.50 — 문맥규정은 여기서 끝나지 않는다. 문장의 나머지 단어를 묻는 사슬로 간다.
          🔒 물을 게 없으면(보기를 못 만들면) stCtxGo 가 그대로 다음 문항으로 넘긴다 —
             빈 화면을 띄우지 않는다. */
-      +'<div style="margin-top:12px">'
+      +'<div class="stnext">'
         +(D.mode==='gctx'
           ?(function(){var k=stCtxSubs(s,q).length;
              return '<button class="btn" onclick="stCtxGo()">'
@@ -13602,7 +13634,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.88';
+var APP_VERSION='4.89';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -13616,6 +13648,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.89',date:'2026-11-07',note:'<b>💾 드릴 중 저장 묶기 · ↵ 결과에서 엔터 = 한 번 더 · 👍 패드에선 「다음」이 오른손 엄지 자리.</b> 로한: <i>「저장 묶기 하고, 한번더 버튼도 엔터로, 패드로 학습할 땐 정답 누르고 다음이 가운데라 불편 — 오른손 엄지 위치로」</i> · 실측 11/07: 드릴 한 문항마다 단어장 전체(26만 자)를 올려 하루 914번. 🔒 드릴 중엔 30초에 한 번만 올리고(타이머를 미루지 않는다) · 세트가 끝나면 바로 · 화면을 떠나면(앱 전환) 바로 — 답마다 기기에는 바로 남긴다(rb_pending). 👍 손가락 화면(hover:none)에서만 「다음 →」·「결과 보기」·「한 번 더」를 오른쪽 아래에 크게(58px) 고정, 저장 배지는 왼쪽 아래로 비킨다 — 컴퓨터는 그대로. 설명 줄도 새 규칙으로(연속 정답 · r2m 세트 구성).'},
   {v:'4.88',date:'2026-11-07',note:'<b>🔁 같은 날 반복은 승급이 아니다 · 하루 최대 2번 · 오답 탭에 「드릴 오답」 — 학습사 v30 정정.</b> 학습사: <i>「v29 전제는 틀렸다. 재출제는 된다(11/6 22:53 streak≥2 149개). 진짜 문제는 같은 날 반복이 streak 로 새는 것」</i> · v4.87 이 리셋을 없애자 몇 분 전에 본 것을 또 맞힌 것까지 승급으로 셌다(v26 「서로 다른 날」 규칙과 어긋남). 🔒 오늘 이미 본 단어를 또 맞혀도 streak 는 그대로(첫 정답만) · 같은 단어는 <b>하루 최대 2번</b>(오늘 드릴 기록에서 센다 — 기록에 실제로 낸 ids 를 새로 남긴다). ❌ 오답 탭에 <b>🈶 드릴 오답</b>: miss≥2 · 많이 틀린 순 · 가나·뜻·miss/seen·품사·분류 — <b>파생</b>(errors 로 복사하지 않는다) · 「🔁 오답 회전」 버튼으로 그 단어들만 r2m 세트(기록 set:miss). 실측: 드릴 오답 98개(3회↑ 35) · streak≥2 261개 중 201개가 11/06 — 같은 날 반복으로 부풀었을 수 있다(되돌리기는 학습사 판단).'},
   {v:'4.87',date:'2026-11-06',note:'<b>🔁 가나→뜻 간격 반복 · 세트 구성 · 어려운 단어 분리 — 학습사 11/6 저녁 요청.</b> 학습사: <i>「streak≥2 가 0개 — 정답 단어가 다시 안 나와 승급 경로가 막혀 있다」</i>. 🔴 더 밑의 원인: <b>2연속 정답이 되는 순간 streak 를 0 으로 되돌렸다</b>(v9 miss 감쇠를 그렇게 짰다) — streak 는 구조적으로 1 을 못 넘었다. 🔒 streak = 연속 정답 수 그대로 · miss 감쇠는 짝수 번째 정답마다(v9 뜻 그대로). 🔁 r2m 에서 맞히면 다음 출제를 1일 → 3일 → 7일 뒤로, 틀리면 언제나 내일(retestOn 확장). retestOn 없는 옛 단어는 「마지막 본 날 + 간격」으로 <b>계산</b>(저장 안 함). 📦 한 세트 = 때가 된 것 최대 60%(20문항이면 12 · 오래된 순) + 처음 보는 것 8, 모자라면 서로 채움. 🧱 seen≥4 · 정답률 30% 미만(틀린 횟수 = miss 와 드릴 기록 중 큰 쪽 · 파생값)은 일반 세트에서 빼고 「🧱 어려운 단어」 버튼으로 10문항씩 — 기록에 set:hard. 실측: 어려운 단어 31 · 지금 때가 된 단어 520 · 처음 보는 단어 499. ➕ <b>🈶 드릴 시간도 데일리 로그에</b>(로한: <i>「드릴 했던 시간도 데일리로그에 시간으로 표현되게 해줘. 현재 뽀모도로처럼」</i>) — 드릴 기록에 시작 시각(at)을 남기고, 뽀모와 같은 길(stTlMarkStudy)로 그 시간대에 「🈶 드릴 · 모드 N문항」을 찍는다(빈 칸=학습 블록 · 다른 활동 칸=서브). 학습 분은 칸마다 <b>실제 분</b>(3분 드릴이 30분이 되지 않게) · 뽀모 안의 드릴은 큰 쪽만(두 번 안 센다). 시각이 없는 옛 드릴은 소급하지 않는다.'},
   {v:'4.86',date:'2026-11-06',note:'<b>🧩 유의표현 — 교재 95~118쪽(로한 11/6 공부분) 투입 · 같은 뜻 덩어리는 오답 보기로 안 나온다.</b> 기존 115쌍(스피드체크북)이 기출을 거의 다 담고 있었다. 새로 넣은 것 11개: 새 짝 3(うんどう·しょうらい·はじめに≒まず) · 다른 짝 1(ちゅうしゃじょう) · 시험 꼴 7(うそでした·はこびましょう 등, grp=기존 짝). 🔴 시험 꼴을 그냥 넣으면 옛 짝의 답이 오답 보기로 섞여 정답이 둘이 된다 → stSynComp: grp·같은 표현·같은 답·짝의 짝을 끝까지 따라가 한 덩어리는 보기에서 뺀다.'},
