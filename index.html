@@ -2,7 +2,13 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<script>document.documentElement.className+=' boot';</script>
+<script>document.documentElement.className+=' boot';
+/* 👆 v4.91 손가락 화면 판정 — 패드(S펜·키보드 커버)는 hover:none 이 아니라고 답한다. 매체 질의 + 실제로 손가락·펜으로 누르면 그때부터 tch.
+   🔒 바꾸는 건 손을 뗀 뒤(누르는 순간 단추가 움직이면 그 클릭이 사라진다) */
+(function(){var H=document.documentElement;function set(t){if(H.classList.contains('tch')!==t)H.classList.toggle('tch',t);}
+try{set(matchMedia('(hover:none),(pointer:coarse)').matches);}catch(e){}
+addEventListener('pointerup',function(e){var t=e.pointerType==='touch'||e.pointerType==='pen'?true:(e.pointerType==='mouse'?false:null);
+  if(t!==null)setTimeout(function(){set(t);},400);},{capture:true,passive:true});})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rohan Book</title>
 <link rel="icon" type="image/png" href="favicon.png">
@@ -257,8 +263,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   border-bottom:2px solid var(--line);color:var(--muted)}
 .gslot.star{border-color:var(--gold);color:var(--gold);font-weight:800}
 .gfull{margin-top:9px;font-size:14.5px;font-weight:700;line-height:1.7}
-.gwhy{margin-top:9px;background:var(--warn-bg);border:1px solid #f0dfae;border-radius:9px;
-  padding:8px 10px;font-size:11.5px;line-height:1.6;color:#6b5412;text-align:left}
+/* v4.91 — 오답 카드와 같이 가운데 · 크게(로한) */
+.gwhy{margin:12px auto 0;max-width:620px;background:var(--warn-bg);border:1px solid #f0dfae;border-radius:12px;
+  padding:11px 14px;font-size:16px;line-height:1.7;color:#6b5412;text-align:center}
 .gsec{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-top:12px;background:var(--soft)}
 .gsec .ghd{font-size:12px;font-weight:800;margin-bottom:7px}
 @media(max-width:480px){
@@ -316,20 +323,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .optk{display:inline-block;min-width:14px;padding:0 4px;margin-right:6px;border-radius:4px;
   background:var(--soft);color:#7a869a;font-size:10px;font-weight:700;text-align:center;
   font-variant-numeric:tabular-nums}
-@media(hover:none){.optk{display:none}}   /* 손가락으로 쓰는 화면엔 키가 없다 */
+html.tch .optk{display:none}   /* 손가락으로 쓰는 화면엔 키가 없다 */
 /* 👍 v4.89 — 「다음」·「한 번 더」 자리. 로한: 「패드로 학습할 땐 정답 누르고 다음이 가운데 있잖아 … 오른손 엄지 위치로」
    🔒 컴퓨터(마우스)는 그대로 가운데 · 손가락 화면만 오른쪽 아래에 크게 고정한다(엄지가 닿는 곳) */
 .stnext{margin-top:12px;display:flex;gap:7px;flex-wrap:wrap;justify-content:center}
 .stnext.stfin{justify-content:flex-start;margin-top:13px}
-@media(hover:none){
-  .stnext,.stnext.stfin{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
+/* v4.91 — 매체 질의 대신 html.tch (패드도 손가락 화면이다) */
+html.tch .stnext,html.tch .stnext.stfin{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));
     z-index:55;margin:0;flex-direction:row-reverse;align-items:center}
-  .stnext .btn{min-width:132px;min-height:58px;font-size:17px;border-radius:16px;box-shadow:0 6px 18px rgba(20,40,90,.28)}
-  .stnext .ghost{min-height:48px;border-radius:14px;background:var(--card)}
-  #v-study{padding-bottom:104px}   /* 고정 단추에 마지막 줄이 가리지 않게 */
-  /* 저장 배지는 왼쪽 아래로 — 오른쪽 아래는 엄지 자리다 */
-  .savebadge{right:auto!important;left:max(10px,env(safe-area-inset-left))}
-}
+html.tch .stnext .btn{min-width:132px;min-height:58px;font-size:17px;border-radius:16px;box-shadow:0 6px 18px rgba(20,40,90,.28)}
+html.tch .stnext .ghost{min-height:48px;border-radius:14px;background:var(--card)}
+html.tch #v-study{padding-bottom:104px}   /* 고정 단추에 마지막 줄이 가리지 않게 */
+html.tch .savebadge{right:auto!important;left:max(10px,env(safe-area-inset-left))}   /* 오른쪽 아래는 엄지 자리 */
 /* ⏱ v4.58 뽀모 앞자리 · 기록 모달 */
 .pmbar{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
 .unitfold{margin-top:10px;border-top:1px dashed var(--line);padding-top:7px}
@@ -496,10 +501,15 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
 .stdk .mut{display:block;font-size:11.5px;font-weight:600;letter-spacing:0;margin-top:6px}
 .stdhint{font-size:15px;font-weight:700;color:var(--accent);margin-top:9px}
 .stdopt{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
-.oops{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px;text-align:left;background:var(--card)}
-.oopsk{font-size:26px;font-weight:800;line-height:1.25}.oopskj{font-size:18px;font-weight:700;opacity:.75}
-.oopsvs{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--bg);font-size:13px;line-height:1.7}
-.oopsrow{margin-top:8px;font-size:12.5px;line-height:1.6}
+/* v4.91 로한: 「오답 설명을 가운데 해야지 왜 왼쪽에 있냐 · 글씨도 키워」 */
+.oops{border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;margin:14px auto 0;max-width:620px;text-align:center;background:var(--card)}
+.oopsk{font-size:38px;font-weight:800;line-height:1.2}.oopskj{font-size:25px;font-weight:700;opacity:.75}
+.oopsko{font-size:22px;font-weight:800;margin-top:4px}
+.oopsmeta{font-size:13.5px;margin-top:5px}
+.oopsvs{margin-top:14px;padding:11px 12px;border-radius:12px;background:var(--bg);font-size:17px;line-height:1.75}
+.oopsrow{margin-top:12px;font-size:16px;line-height:1.7}
+.oopscap{font-size:12.5px;display:block;margin-bottom:2px}
+.oopsrow .oopssub{font-size:14px}
 mark.smk{background:#ffe48a;color:#1a1a1a;border-radius:3px;padding:0 1px}
 .stdopt.dg1{grid-template-columns:1fr}.stdopt.dg1 button{text-align:left}
 .dgpass{font-family:var(--ja);font-size:14px;line-height:1.8;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:4px 0 10px;text-align:left}
@@ -6469,33 +6479,33 @@ function stOopsCard(w,mode,last){
   if(stNorm(w.orig))meta.push('원어 '+w.orig);
   var h='<div class="oops">'
     +'<div class="oopsk" style="font-family:var(--ja)">'+mdEsc(w.kana||'')+(stNorm(w.kanji)?' <span class="oopskj">'+mdEsc(w.kanji)+'</span>':'')+'</div>'
-    +'<div style="font-size:16px;font-weight:800;margin-top:2px">'+mdEsc(w.ko||'')+'</div>'
-    +(meta.length?'<div class="mut" style="font-size:11px;margin-top:3px">'+meta.map(mdEsc).join(' · ')+'</div>':'');
+    +'<div class="oopsko">'+mdEsc(w.ko||'')+'</div>'
+    +(meta.length?'<div class="mut oopsmeta">'+meta.map(mdEsc).join(' · ')+'</div>':'');
   /* ② 내가 고른 것의 정체 · ③ 대비 한 줄 */
   if(!last.dunno){
     var cw=stChoseWords(w,mode,last.my), c=cw[0];
     if(c){
       var mk=stLcsMark(stNorm(w.kana),stNorm(c.kana)), near=mk.n>0&&stLev(stNorm(w.kana),stNorm(c.kana))<=Math.ceil(Math.max(stNorm(w.kana).length,1)/2);
-      h+='<div class="oopsvs"><div class="mut" style="font-size:10.5px">정답 ↔ 내가 고른 것'+(near?' · <mark class="smk">닮은 소리</mark>':'')+'</div>'
+      h+='<div class="oopsvs"><div class="mut oopscap">정답 ↔ 내가 고른 것'+(near?' · <mark class="smk">닮은 소리</mark>':'')+'</div>'
         +'<div>'+stWordLine(w,near?mk.a:null)+'</div>'
         +'<div>↔ '+stWordLine(c,near?mk.b:null)+'</div>'
-        +(cw.length>1?'<div class="mut" style="font-size:10.5px">같은 답을 가진 다른 단어: '+cw.slice(1,4).map(function(x){return stWordLine(x);}).join(' · ')+'</div>':'')+'</div>';
+        +(cw.length>1?'<div class="mut oopscap" style="margin-top:4px">같은 답을 가진 다른 단어: '+cw.slice(1,4).map(function(x){return stWordLine(x);}).join(' · ')+'</div>':'')+'</div>';
     }else if(stNorm(last.my)){
-      h+='<div class="oopsvs"><div class="mut" style="font-size:10.5px">내가 고른 것</div><div><b style="font-family:var(--ja)">'+mdEsc(last.my)+'</b> <span class="mut">— 단어장에 없는 꼴이다(읽기·표기 변형)</span></div></div>';
+      h+='<div class="oopsvs"><div class="mut oopscap">내가 고른 것</div><div><b style="font-family:var(--ja)">'+mdEsc(last.my)+'</b> <span class="mut">— 단어장에 없는 꼴이다(읽기·표기 변형)</span></div></div>';
     }
   }
   /* ④ 동음이의어 — homophone 표시가 없어도 kana 가 같으면 */
   var kn=stNorm(w.kana);
   var homo=stWords().filter(function(x){return x.id!==w.id&&stNorm(x.kana)===kn;});
-  if(homo.length)h+='<div class="oopsrow"><span class="mut">같은 소리</span> '+homo.map(function(x){return stWordLine(x);}).join(' · ')
+  if(homo.length)h+='<div class="oopsrow"><span class="mut oopscap">같은 소리</span>'+homo.map(function(x){return stWordLine(x);}).join(' · ')
     +(stSoundMode(mode)?' <span class="mut">(소리 문항에선 이것도 정답)</span>':'')+'</div>';
   /* ⑤ 헷갈리기 쉬운 단어 — 읽기 한 글자 차이 최대 3 */
   var cid=(stChoseWords(w,mode,last.my)[0]||{}).id;
   var like=stByLev(stWords().filter(function(x){return x.id!==w.id&&x.id!==cid&&stNorm(x.kana)!==kn&&stNorm(x.ko);}),w.kana,'kana',1).slice(0,3);
-  if(like.length)h+='<div class="oopsrow"><span class="mut">헷갈리기 쉬운</span> '+like.map(function(x){return stWordLine(x,stLcsMark(kn,stNorm(x.kana)).b);}).join(' · ')+'</div>';
+  if(like.length)h+='<div class="oopsrow"><span class="mut oopscap">헷갈리기 쉬운</span>'+like.map(function(x){return stWordLine(x,stLcsMark(kn,stNorm(x.kana)).b);}).join(' · ')+'</div>';
   /* ⑥ 예문 */
   var ex=stWordExample(w);
-  if(ex)h+='<div class="oopsrow"><span class="mut">예문</span> <span style="font-family:var(--ja)">'+mdEsc(ex.ja)+'</span>'+(stNorm(ex.ko)?'<div class="mut" style="font-size:11px">'+mdEsc(ex.ko)+'</div>':'')+'</div>';
+  if(ex)h+='<div class="oopsrow"><span class="mut oopscap">예문</span><span style="font-family:var(--ja)">'+mdEsc(ex.ja)+'</span>'+(stNorm(ex.ko)?'<div class="mut oopssub">'+mdEsc(ex.ko)+'</div>':'')+'</div>';
   return h+'</div>';
 }
 /* ── 진행 화면 ── */
@@ -14056,7 +14066,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.90';
+var APP_VERSION='4.91';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -14070,6 +14080,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.91',date:'2026-11-09',note:'<b>👆 패드에서도 「다음」이 오른쪽 아래 · 🃏 오답 설명은 가운데 · 크게.</b> 로한: <i>「모바일에선 다음이 오른쪽 아래에 뜨던데 탭도 그렇게 · 오답 설명을 가운데, 글씨도 키워」</i> · 원인: 패드(S펜·키보드 커버)는 「마우스 있음(hover)」이라고 답해서 v4.89 의 손가락 화면 규칙이 안 걸렸다 → 매체 질의 + 실제로 손가락·펜으로 누르면 그때부터 손가락 화면(html.tch) · 마우스로 누르면 다시 컴퓨터 배치 · 🔒 배치는 손을 뗀 뒤에 바꾼다(누르는 순간 단추가 움직이면 그 클릭이 사라진다). 🃏 오답 카드: 가운데 정렬 · 가나 38px · 뜻 22px · 대비·같은 소리·예문 16~17px · 문법 해설(💡)도 같이.'},
   {v:'4.90',date:'2026-11-09',note:'<b>🩺 진단 모드 · 🃏 드릴 오답 카드.</b> 학습방: <i>「매주 자체 진단을 하기로 했는데 앱에 시험 기능이 없어 세 번 다 못 돌았다」</i> · 학습 헤더 <b>🩺 진단</b> → 세트(study.diag) 처음 열 때 문항 확정(drawn) · 정답·해설은 제출 뒤에만 · 섹션 사이엔 다음 섹션 이름만 · 경과 시간/목표(강제 종료 없음) · 같은 날 이어 풀기 · 🔒 진단은 seen·miss·streak 를 안 바꾼다(제출 뒤 틀린 단어만 retestOn 내일) · 결과: 섹션별 · JLPT 참고정보 밴드 A/B/C(합격선 환산 안 함) · 가나 인지 따로 · 청해 직접 입력 · 오답 복습 · tests 에 kind:diag. 🃏 로한: <i>“해설엔 한자나, 내가 누른 게 틀린 건 뭐였고, 동음어 같은 걸 한 번에”</i> · 단어 드릴에서 틀리면 한 장 카드: 정답(가나·한자·뜻·품사·그룹) · 내가 고른 보기의 정체(역조회) · 닮은 소리 강조 · 같은 소리 · 한 글자 차이 단어 · 예문 · 「확인」을 눌러야 넘어간다 · drills 에 picks:[{id,chose}] · 결과 화면 오답 목록에 고른 것까지.'},
   {v:'4.89',date:'2026-11-07',note:'<b>💾 드릴 중 저장 묶기 · ↵ 결과에서 엔터 = 한 번 더 · 👍 패드에선 「다음」이 오른손 엄지 자리.</b> 로한: <i>「저장 묶기 하고, 한번더 버튼도 엔터로, 패드로 학습할 땐 정답 누르고 다음이 가운데라 불편 — 오른손 엄지 위치로」</i> · 실측 11/07: 드릴 한 문항마다 단어장 전체(26만 자)를 올려 하루 914번. 🔒 드릴 중엔 30초에 한 번만 올리고(타이머를 미루지 않는다) · 세트가 끝나면 바로 · 화면을 떠나면(앱 전환) 바로 — 답마다 기기에는 바로 남긴다(rb_pending). 👍 손가락 화면(hover:none)에서만 「다음 →」·「결과 보기」·「한 번 더」를 오른쪽 아래에 크게(58px) 고정, 저장 배지는 왼쪽 아래로 비킨다 — 컴퓨터는 그대로. 설명 줄도 새 규칙으로(연속 정답 · r2m 세트 구성).'},
   {v:'4.88',date:'2026-11-07',note:'<b>🔁 같은 날 반복은 승급이 아니다 · 하루 최대 2번 · 오답 탭에 「드릴 오답」 — 학습사 v30 정정.</b> 학습사: <i>「v29 전제는 틀렸다. 재출제는 된다(11/6 22:53 streak≥2 149개). 진짜 문제는 같은 날 반복이 streak 로 새는 것」</i> · v4.87 이 리셋을 없애자 몇 분 전에 본 것을 또 맞힌 것까지 승급으로 셌다(v26 「서로 다른 날」 규칙과 어긋남). 🔒 오늘 이미 본 단어를 또 맞혀도 streak 는 그대로(첫 정답만) · 같은 단어는 <b>하루 최대 2번</b>(오늘 드릴 기록에서 센다 — 기록에 실제로 낸 ids 를 새로 남긴다). ❌ 오답 탭에 <b>🈶 드릴 오답</b>: miss≥2 · 많이 틀린 순 · 가나·뜻·miss/seen·품사·분류 — <b>파생</b>(errors 로 복사하지 않는다) · 「🔁 오답 회전」 버튼으로 그 단어들만 r2m 세트(기록 set:miss). 실측: 드릴 오답 98개(3회↑ 35) · streak≥2 261개 중 201개가 11/06 — 같은 날 반복으로 부풀었을 수 있다(되돌리기는 학습사 판단).'},

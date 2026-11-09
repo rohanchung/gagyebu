@@ -1,5 +1,6 @@
 /* t79 — 💾 드릴 중 저장 묶기 · ↵ 한 번 더 · 👍 엄지 자리 (v4.89)
    로한: 「저장 묶기 하고, 한번더 버튼도 엔터로, 패드에선 다음이 가운데라 불편 — 오른손 엄지 위치로」
+   v4.91 P3 패드(hover 있다고 답하는 기기)도 손가락·펜으로 누르면 엄지 자리 · O 오답 카드 가운데·크게
    🔒 B1 드릴 중엔 답마다 서버로 안 보낸다(모아서) · B2 답마다 기기엔 남긴다(rb_pending)
       B3 세트가 끝나면 바로 올린다 · B4 화면을 떠나면 바로 올린다
       E1 결과 화면에서 엔터 = 한 번 더
@@ -69,6 +70,20 @@ const FAKE=()=>{
   await p.evaluate(()=>{const w=stWordById(ST_DRILL.ids[0]);stDrillGrade(String(w.ko));});await p.waitForTimeout(200);
   const P1=await p.evaluate(()=>{const n=document.querySelector('#v-study .stnext');return {pos:getComputedStyle(n).position,jc:getComputedStyle(n).justifyContent};});
   ok('P1 컴퓨터는 가운데 그대로',P1.pos==='static'&&P1.jc==='center',JSON.stringify(P1));
+  /* P3 — v4.91 패드: hover 가 있다고 답하는 기기라도 손가락·펜으로 누르면 엄지 자리로 · 마우스로 누르면 돌아온다 */
+  const pos=()=>p.evaluate(()=>getComputedStyle(document.querySelector('#v-study .stnext')).position);
+  await p.evaluate(()=>document.body.dispatchEvent(new PointerEvent('pointerup',{pointerType:'pen',bubbles:true})));
+  const P3a=await pos(); await p.waitForTimeout(600); const P3b=await pos();
+  ok('P3 🔴 패드(펜·손가락)로 누르면 「다음」이 오른쪽 아래로 — 누르는 순간엔 안 움직인다',P3a==='static'&&P3b==='fixed',P3a+'→'+P3b);
+  await p.evaluate(()=>document.body.dispatchEvent(new PointerEvent('pointerup',{pointerType:'mouse',bubbles:true})));await p.waitForTimeout(600);
+  ok('P3b 마우스로 누르면 다시 가운데',(await pos())==='static');
+  /* O — v4.91 오답 카드는 가운데 · 크게 */
+  await p.evaluate(()=>{stDrillNext();stDrillGrade('틀린답xx');});await p.waitForTimeout(200);
+  const O=await p.evaluate(()=>{const c=document.querySelector('#v-study .oops');if(!c)return null;const r=c.getBoundingClientRect(),pr=c.parentElement.getBoundingClientRect();
+    return {ta:getComputedStyle(c).textAlign,k:parseFloat(getComputedStyle(c.querySelector('.oopsk')).fontSize),ko:parseFloat(getComputedStyle(c.querySelector('.oopsko')).fontSize),
+      mid:Math.abs((r.left+r.right)/2-(pr.left+pr.right)/2)};});
+  ok('O1 🔴 오답 카드가 가운데(정렬·위치)',O&&O.ta==='center'&&O.mid<4,JSON.stringify(O));
+  ok('O2 글씨가 크다(가나 ≥34 · 뜻 ≥20)',O&&O.k>=34&&O.ko>=20,JSON.stringify(O));
   ok('Z 페이지 에러 없음',errs.length===0,errs.join(' | '));
   await ctx.close();
   /* P2 — 손가락 화면(태블릿): 터치 기기 창에서 연다(hover:none) */
