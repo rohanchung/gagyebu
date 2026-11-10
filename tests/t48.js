@@ -152,7 +152,7 @@ const EXP={
  }
  const rec=await p.evaluate(()=>DB.study.drills[DB.study.drills.length-1]);
  ok('D5 기록 1건 — mode:vconj · 3문항',rec&&rec.mode==='vconj'&&rec.n===3,JSON.stringify(rec));
- ok('D6 채점이 words 카운터에 쌓인다',await p.evaluate(()=>stWords().some(w=>(+w.seen||0)>0)));
+ ok('D6 채점이 words 카운터에 쌓인다',await p.evaluate(()=>stWords().some(w=>(+stCt(w,'vconj').seen||0)>0&&!(+stCt(w,'r2m').seen||0))));
  ok('D7 결과 화면이 뜬다(형 표기 포함)',
     await p.evaluate(()=>{const h=document.getElementById('v-study').innerHTML;return /동사 활용 결과/.test(h);}));
  await p.evaluate(()=>stDrillClose());await p.waitForTimeout(150);

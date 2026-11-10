@@ -49,7 +49,7 @@ const FAKE=()=>{
   await p.waitForTimeout(1200);
   const B=await p.evaluate(()=>({saves:window.__S.saves,pend:(JSON.parse(localStorage.getItem('rb_pending')||'null')||{}).data,badge:(document.getElementById('savebadge')||{}).textContent}));
   ok('B1 🔴 드릴 중엔 답마다 서버로 안 보낸다',B.saves===s0,s0+'→'+B.saves);
-  ok('B2 답은 기기에 바로 남는다(rb_pending)',!!(B.pend&&B.pend.study&&B.pend.study.words.filter(w=>w.seen>0).length===5),'');
+  ok('B2 답은 기기에 바로 남는다(rb_pending)',!!(B.pend&&B.pend.study&&B.pend.study.words.filter(w=>w.m&&w.m.r2m&&w.m.r2m.seen>0).length===5),'');
   ok('B2b 배지가 「모아서 저장」을 말한다',/모아서 저장/.test(B.badge||''),B.badge);
   /* B4 — 화면을 떠나면 바로 */
   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new Event('visibilitychange'));});

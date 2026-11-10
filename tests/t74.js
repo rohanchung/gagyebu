@@ -36,7 +36,7 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     DB.study.words=W;
     const pool=stDrillPool('r2m').map(w=>w.id);
     return {pool, top20:pool.slice(0,20), idxOld:['old0','old1','old2'].map(x=>pool.indexOf(x)),
-      yMiss:pool.filter(x=>/^y/.test(x)).map(x=>W.find(w=>w.id===x).miss),
+      yMiss:pool.filter(x=>/^y/.test(x)).map(x=>stCt(W.find(w=>w.id===x),'r2m').miss),
       firstNew:pool.findIndex(x=>/^n/.test(x)), lastY:Math.max(...pool.map((x,i)=>/^y/.test(x)?i:-1)),
       lastRe:Math.max(...pool.map((x,i)=>/^(old|y|n)/.test(x)?i:-1)), p:[pool.indexOf('p1'),pool.indexOf('p2')]};});
   ok('R1 🔴 밀린 재점검(8일 전)이 맨 앞',R.idxOld.every(i=>i>=0&&i<3),JSON.stringify(R.idxOld));

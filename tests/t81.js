@@ -50,9 +50,9 @@ const SEED=()=>{
   await p.evaluate(()=>{document.querySelector('.side .m[data-v="study"]').click();});await p.waitForTimeout(300);
   /* D1 */
   const d1=await p.evaluate(()=>{const b=[...document.querySelectorAll('#v-study button')].find(x=>/🩺 진단/.test(x.textContent));return b&&!b.disabled;});
-  ok('D1 ready 세트가 있으면 헤더에 「🩺 진단」',d1);
+  ok('D1 ready 세트가 있으면 🩺 진단 탭 · 시작 버튼 (v4.91)',d1&&(await p.evaluate(()=>stPaneDiagTab().indexOf("stDiagOpen('dg01')")>=0&&/🩺 시작/.test(stPaneDiagTab()))));
   /* D2 */
-  const before=await p.evaluate(()=>JSON.stringify(DB.study.words.map(w=>[w.seen,w.miss,w.streak,w.lastSeen])));
+  const before=await p.evaluate(()=>JSON.stringify(DB.study.words.map(w=>JSON.stringify(w.m||{})+[w.seen,w.miss,w.streak,w.lastSeen])));
   await p.evaluate(()=>stDiagOpen('dg01'));await p.waitForTimeout(200);
   const D2=await p.evaluate(()=>{const s=stDiagById('dg01'),qs=s.drawn.qs;const by={};qs.forEach(q=>by[q.sec]=(by[q.sec]||0)+1);
     const wids=qs.filter(q=>q.t==='w').map(q=>q.ref);
@@ -83,7 +83,7 @@ const SEED=()=>{
   await p.evaluate(()=>{const s=stDiagById('dg01'),qs=s.drawn.qs;
     while(DB.ui.diagRun.i<qs.length){const r=DB.ui.diagRun;if(r.gate!==r.i){stDiagGate();continue;}const q=qs[r.i];
       stDiagPick(q.sec==='ctx'&&!window.__dk?(window.__dk=1,null):q.ans);}});
-  const after=await p.evaluate(()=>JSON.stringify(DB.study.words.map(w=>[w.seen,w.miss,w.streak,w.lastSeen])));
+  const after=await p.evaluate(()=>JSON.stringify(DB.study.words.map(w=>JSON.stringify(w.m||{})+[w.seen,w.miss,w.streak,w.lastSeen])));
   ok('D3b 🔴 카운터(seen·miss·streak·lastSeen)가 안 바뀐다',before===after);
   ok('D3c 문항마다 서버 저장 안 한다',await p.evaluate(()=>window.__saves)===0,await p.evaluate(()=>window.__saves));
   const end=await p.evaluate(()=>document.getElementById('v-study').innerText);
@@ -93,8 +93,8 @@ const SEED=()=>{
   const wid=await p.evaluate(()=>stDiagById('dg01').drawn.qs[0].ref);
   await p.keyboard.press('Enter');await p.waitForTimeout(200);
   const D5=await p.evaluate(wid=>{const t=DB.study.tests.find(x=>x.id==='dg01'),s=stDiagById('dg01');
-    return {t,st:s.status,ans:!!s.answers,ret:stWordById(wid).retestOn,tom:addDays(todayStr(),1),
-      others:DB.study.words.filter(w=>w.id!==wid&&w.retestOn).map(w=>w.id),txt:document.getElementById('v-study').innerText,run:!!DB.ui.diagRun};},wid);
+    return {t,st:s.status,ans:!!s.answers,ret:(w=>{let r=null;Object.keys(w.m||{}).forEach(k=>{if(w.m[k].retestOn)r=w.m[k].retestOn;});return r;})(stWordById(wid)),tom:addDays(todayStr(),1),
+      others:DB.study.words.filter(w=>w.id!==wid&&Object.keys(w.m||{}).some(k=>w.m[k].retestOn)).map(w=>w.id),txt:document.getElementById('v-study').innerText,run:!!DB.ui.diagRun};},wid);
   ok('D5 🔴 tests 에 kind:diag · n/correct · sections · listen',D5.t&&D5.t.kind==='diag'&&D5.t.n===9&&D5.t.correct===7&&D5.t.sections.length===5
      &&D5.t.listen&&D5.t.listen.n===6&&D5.t.listen.correct===3&&D5.t.dunno===1,JSON.stringify(D5.t));
   ok('D5b 섹션 기록 {k,label,band,n,correct,secs}',D5.t&&D5.t.sections.every(s=>'k' in s&&'label' in s&&'band' in s&&'n' in s&&'correct' in s&&'secs' in s)&&D5.t.sections[0].band===null);
@@ -102,8 +102,8 @@ const SEED=()=>{
   ok('D5d 틀린 단어만 retestOn 내일',D5.ret===D5.tom&&D5.others.length===0,JSON.stringify([D5.ret,D5.others]));
   ok('D6 결과: 밴드 A/B/C · 가나 인지 따로 · 청해 %',/문자·어휘/.test(D5.txt)&&/독해/.test(D5.txt)&&/가나 인지/.test(D5.txt)&&/청해\(직접 입력\) 3\/6 · 50%/.test(D5.txt)&&/합격선으로 바꿔 말하지 않는다/.test(D5.txt),D5.txt.slice(0,700));
   ok('D6b 오답 복습 — 틀린 것 2개 · 모르겠다',/틀린 것 2개/.test(D5.txt)&&/모르겠다/.test(D5.txt),D5.txt.slice(0,900));
-  const d1b=await p.evaluate(()=>[...document.querySelectorAll('#v-study button')].some(x=>/🩺 진단 결과/.test(x.textContent)));
-  ok('D1b 끝난 뒤엔 「🩺 진단 결과」',d1b);
+  const d1b=await p.evaluate(()=>{const h=stPaneDiagTab();return /📝 기록/.test(h)&&h.indexOf("stDiagOpen('dg01')")>=0&&/📈 추이/.test(h);});
+  ok('D1b 끝난 뒤엔 진단 탭 기록 줄 → 결과 · 추이 (v4.91)',d1b);
 
   /* D8 — 같은 날 이어 풀기 · 문항 고정 */
   const D8=await p.evaluate(()=>{const s=stDiagById('dg01');s.status='ready';delete s.answers;

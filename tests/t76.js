@@ -34,7 +34,7 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     /* v4.88 — 하루씩 지나며 맞힌다(같은 날 정답은 streak 에 안 더한다 · 학습사 v30) */
     const hit=(ok,same)=>{if(!same)w.lastSeen=addDays(t,-1);ST_DRILL={mode:'r2m',ids:['a'],opts:[[]],i:0,res:[],show:false,fin:false,start:Date.now()};
       stDrillRecord(ok,ok?'비':'x',false);ST_DRILL=null;
-      out.push({s:w.streak,m:w.miss,r:w.retestOn?Math.round((new Date(w.retestOn)-new Date(t))/86400000):null});};
+      {const c=stCt(w,'r2m');out.push({s:c.streak,m:c.miss,r:c.retestOn?Math.round((new Date(c.retestOn)-new Date(t))/86400000):null});}};
     hit(true);hit(true);hit(true);hit(true);hit(false);
     /* 같은 날 두 번째 정답 */
     hit(true);hit(true,true);
@@ -94,7 +94,7 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
   /* U1 — 화면 */
   await p.evaluate(()=>{ST_DRILL=null;DB.ui.stdMode='r2m';setStTab('word');});await p.waitForTimeout(300);
   const U=await p.evaluate(()=>document.getElementById('v-study').innerText);
-  ok('U1 세트 구성을 말한다',/다시 볼 때가 된 단어/.test(U)&&/처음 보는 단어/.test(U),U.slice(0,300));
+  ok('U1 세트 구성을 말한다 (v4.91 🎯 남은 목표 상자)',/남은 목표/.test(U)&&/다시 볼 때/.test(U)&&/처음/.test(U),U.slice(0,300));
   ok('U1b 어려운 단어 버튼',/🧱 어려운 단어 2개/.test(U),U.slice(0,500));
   ok('Z 페이지 에러 없음',errs.length===0,errs.join(' | '));
   await ctx.close();

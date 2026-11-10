@@ -501,10 +501,19 @@ html.tch .savebadge{right:auto!important;left:max(10px,env(safe-area-inset-left)
 .stdk .mut{display:block;font-size:11.5px;font-weight:600;letter-spacing:0;margin-top:6px}
 .stdhint{font-size:15px;font-weight:700;color:var(--accent);margin-top:9px}
 .stdopt{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
+.dgtrend{width:100%;border-collapse:collapse;font-size:12px}.dgtrend th,.dgtrend td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.dgtrend th{font-size:10.5px;color:var(--muted);font-weight:700}
+/* 🎯 v4.91 드릴별 남은 목표 */
+.stgoal{border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin:4px 0 8px;background:var(--soft)}
+.stgoalk{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.stgoaln{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.stgoalr{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;margin-top:2px}
+.stgoalb{display:block;font-size:10.5px;font-weight:700;color:#3b5bdb;margin-top:2px}
 /* v4.91 로한: 「오답 설명을 가운데 해야지 왜 왼쪽에 있냐 · 글씨도 키워」 */
 .oops{border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;margin:14px auto 0;max-width:620px;text-align:center;background:var(--card)}
 .oopsk{font-size:38px;font-weight:800;line-height:1.2}.oopskj{font-size:25px;font-weight:700;opacity:.75}
 .oopsko{font-size:22px;font-weight:800;margin-top:4px}
+.oops.okc{border-color:#b7dfc4;background:#f6fcf8}
 .oopsmeta{font-size:13.5px;margin-top:5px}
 .oopsvs{margin-top:14px;padding:11px 12px;border-radius:12px;background:var(--bg);font-size:17px;line-height:1.75}
 .oopsrow{margin-top:12px;font-size:16px;line-height:1.7}
@@ -5165,10 +5174,8 @@ function studyDB(){
   S.words.forEach(function(w){
     if(w.cat===undefined)w.cat='';
     if(w.flag===undefined)w.flag=false;
-    if(w.seen===undefined)w.seen=0;
-    if(w.miss===undefined)w.miss=0;
-    if(w.lastSeen===undefined)w.lastSeen=null;
-    if(w.streak===undefined)w.streak=0;   /* v3.4 연속 정답 — miss 하향에 쓴다 */
+    /* 🔀 v4.91 — 카운터는 모드별(w.m[mode]) · 최상위 카운터는 m.r2m 으로 옮긴다(학습사 v33 · 멱등) */
+    stMigW(w);
   });
   return S;
 }
@@ -5350,7 +5357,8 @@ function stStudyMins(ds){
   /* 🈶 v4.87 — 드릴도 칸마다 **실제 분**으로 센다(드릴이 찍은 study 칸을 30분으로 세면 3분 드릴이 30분이 된다).
      🔒 드릴은 보통 뽀모 **안에서** 돈다 — 둘을 더하면 같은 시간을 두 번 센다. 칸마다 큰 쪽만 */
   var dper={};
-  ((studyDB().drills)||[]).forEach(function(d){
+  /* 🩺 v4.91 — 진단도 드릴과 같은 칸(실제 분)으로 센다 */
+  ((studyDB().drills)||[]).concat((studyDB().tests||[]).filter(function(t){return t&&t.kind==='diag';})).forEach(function(d){
     if(!d||!d.at)return; var sp=stDrillSpan(d); if(sp.date!==ds)return;
     sp.slots.forEach(function(s){dper[s.i]=Math.min(30,(dper[s.i]||0)+s.m);});
   });
@@ -5426,10 +5434,10 @@ function stDelErr(id){
 /* ── 기록(tests) ── */
 function stTests(){return studyDB().tests.slice().sort(function(a,b){return a.date<b.date?1:-1;});}
 function stPct(t){var n=+t.n||0;return n?Math.round((+t.correct||0)/n*100):0;}
-function stTestModal(id){
+function stTestModal(id,kind0){
   var t=id?(studyDB().tests.filter(function(x){return x.id===id;})[0]||null):null;
   if(id&&!t)return;
-  t=t||{date:todayStr(),kind:'weekly',scope:'',n:'',correct:'',lang:null,listen:null,memo:''};
+  t=t||{date:todayStr(),kind:kind0||'weekly',scope:'',n:'',correct:'',lang:null,listen:null,memo:''};
   var kind=t.kind||'weekly';
   var kopt=ST_TKIND.map(function(x){return '<option value="'+x.k+'"'+(x.k===kind?' selected':'')+'>'+x.label+'</option>';}).join('');
   var mrows=stExam().parts.map(function(p){
@@ -5593,7 +5601,7 @@ function stDailyPane(ds){
 function stTab(){
   var t=(DB.ui&&DB.ui.studyTab);
   if(t==='rec')t='plan';
-  return (t==='err'||t==='plan'||t==='word')?t:'cal';
+  return (t==='err'||t==='plan'||t==='word'||t==='diag')?t:'cal';
 }
 function setStTab(v){DB.ui=DB.ui||{};DB.ui.studyTab=v;delete DB.ui.diagView;save();renderStudy();}
 
@@ -5643,6 +5651,12 @@ function stPaneErr(){
 /* ❌ v4.88 — 드릴 오답 구역(학습사 v30). 교재 오답노트(study.errors)와 따로다 — 이건 드릴 miss 에서 **파생**한다.
    🔒 저장·복사하지 않는다. 보이는 숫자가 곧 words.miss 다 */
 var ST_MISS_ALL=false;
+/* 🔀 v4.91 — 모드별 miss/seen 한 줄(학습사 v33: 「드릴 오답·오답 카드는 모드를 함께 표시」) */
+var ST_CT_SHORT={r2m:'뜻',k2r:'읽기',r2k:'표기',k2m:'한자뜻',a2m:'음성',kata:'가타',vconj:'활용'};
+function stCtLine(w){
+  return ST_CTMODES.filter(function(k){return (+stCt(w,k).seen||0)>0||(+stCt(w,k).miss||0)>0;})
+    .map(function(k){var c=stCt(w,k);return ST_CT_SHORT[k]+' '+(+c.miss||0)+'/'+(+c.seen||0);}).join(' · ')||'0/0';
+}
 function stPaneDrillMiss(){
   var L=stMissWords(), show=ST_MISS_ALL?L:L.slice(0,30);
   var POS={noun:'명사',verb:'동사','i-adj':'い형',adj:'형용사','na-adj':'な형',adv:'부사',conj:'접속사',pron:'대명사'};
@@ -5651,7 +5665,7 @@ function stPaneDrillMiss(){
     return '<div class="row" style="font-size:12px;gap:8px"><span style="flex:1;min-width:0"><b style="font-family:var(--ja)">'+mdEsc(w.kana)+'</b>'
       +(w.kanji?' <span class="mut" style="font-family:var(--ja)">'+mdEsc(w.kanji)+'</span>':'')+' · '+mdEsc(w.ko)+'</span>'
       +'<span class="mut" style="white-space:nowrap">'+mdEsc(POS[w.pos]||w.pos||'')+(w.cat?' · '+mdEsc(CAT[w.cat]||w.cat):'')+'</span>'
-      +'<b class="neg" style="white-space:nowrap;font-variant-numeric:tabular-nums" title="틀린 횟수(miss) / 본 횟수(seen)">'+(+w.miss||0)+'/'+(+w.seen||0)+'</b></div>';}).join('');
+      +'<b class="neg" style="white-space:nowrap;font-variant-numeric:tabular-nums" title="모드별 틀린 횟수(miss) / 본 횟수(seen)">'+stCtLine(w)+'</b></div>';}).join('');
   return '<div class="sec"><div class="bkhd"><span class="subhd2">🈶 드릴 오답 <span class="mut">miss 2회 이상 '+L.length+'개 · 많이 틀린 순</span></span>'
     +(L.length?'<span><button class="btn sm" onclick="stDrillStart(\'r2m\','+Math.min(20,L.length)+',\'miss\')">🔁 오답 회전 '+Math.min(20,L.length)+'문항</button></span>':'')+'</div>'
     +(rows||'<div class="mut" style="padding:8px 0;font-size:11.5px">드릴에서 두 번 이상 틀린 단어가 없다.</div>')
@@ -5708,9 +5722,9 @@ var ST_METRICS=[
   {k:'errOpen',     label:'미회수 오답', unit:'건',
    f:function(){ return stErrOpen().length; }},
   {k:'wordsHot',    label:'3회 이상 틀린 단어', unit:'개',
-   f:function(){ return stWords().filter(function(w){return (+w.miss||0)>=3;}).length; }},
+   f:function(){ return stWords().filter(function(w){return (+stCt(w,'r2m').miss||0)>=3;}).length; }},
   {k:'wordsFresh',  label:'아직 한 번도 안 나온 단어', unit:'개',
-   f:function(){ return stWords().filter(function(w){return !(+w.seen||0);}).length; }}];
+   f:function(){ return stWords().filter(function(w){return !(+stCt(w,'r2m').seen||0);}).length; }}];
 function stMetric(k){
   var m=null; ST_METRICS.forEach(function(x){ if(x.k===k)m=x; });
   if(!m)return null;                       /* 🔒 모르는 지표는 null — 화면이 그렇게 말한다 */
@@ -5747,7 +5761,7 @@ function stPanePlan(){
         return '<div class="glrow"><span class="glw"><code>'+m.k+'</code></span>'
           +'<span class="glb">'+mdEsc(m.label)+'</span>'
           +'<span class="glk">지금 <b>'+(c?c.v:'—')+'</b>'+mdEsc(m.unit||'')+'</span></div>';
-      }).join('')+'</div></div>'+stPaneRec();
+      }).join('')+'</div></div>';
   }
   var head='<div class="sec"><div class="bkhd"><span class="subhd2">🧭 전략</span>'
     +'<span class="mut" style="font-size:10.5px">'
@@ -5815,8 +5829,7 @@ function stPanePlan(){
     +stStraSec('📊 앱이 센 숫자','학습방 글자와 섞지 않는다',app)
     +(stNorm2(S.md)
       ?'<div class="sec"><details><summary class="subhd2" style="cursor:pointer">📄 원문 보기</summary>'
-       +'<div class="stramd">'+mdEsc(String(S.md))+'</div></details></div>':'')
-    +stPaneRec();
+       +'<div class="stramd">'+mdEsc(String(S.md))+'</div></details></div>':'');
 }
 function stPaneRec(){
   var ts=stTests();
@@ -5826,13 +5839,15 @@ function stPaneRec(){
                :(t.n?(t.correct+'/'+t.n+' · '+stPct(t)+'%'):'—');
     var cls=v?(v.pass?'pos':'neg'):(stPct(t)>=80?'pos':(stPct(t)>=60?'':'neg'));
     var kl='주간 확인';ST_TKIND.forEach(function(x){if(x.k===t.kind)kl=x.label;});
-    return '<div class="sttest" data-sttest="'+t.id+'">'
+    /* 🩺 v4.91 — 진단 기록은 누르면 결과 화면(섹션별 표 + 오답 복습)으로 */
+    var dset=(t.kind==='diag')?stDiagById(t.id):null;
+    return '<div class="sttest" '+(dset?'onclick="stDiagOpen(\''+t.id+'\')" style="cursor:pointer"':'data-sttest="'+t.id+'"')+'>'
       +'<div class="row" style="border-bottom:0;padding:2px 0"><span><span class="pill">'+kl+'</span> <b>'+mdEsc(t.scope||'')+'</b></span>'
       +'<span class="'+cls+'" style="font-weight:800;font-variant-numeric:tabular-nums">'+right+'</span></div>'
       +'<div class="mut" style="font-size:10.5px">'+t.date+(t.memo?' · '+mdEsc(t.memo):'')+'</div></div>';}).join('')
     : '<div class="mut" style="padding:8px 0;font-size:11.5px">기록이 없다.</div>';
   return '<div class="sec"><div class="bkhd"><span class="subhd2">📝 기록</span>'
-   +'<button class="btn sm" onclick="stTestModal(null)">+ 기록</button></div>'+rows
+   +'<span><button class="ghost sm" onclick="stTestModal(null,\'mock\')">+ 모의고사</button> <button class="btn sm" onclick="stTestModal(null)">+ 기록</button></span></div>'+rows
    +'<div class="mut" style="font-size:11px;margin-top:10px">🚫 문항 본문은 저장하지 않는다 — 출제·채점은 대화방에서 한다.</div></div>';
 }
 /* ══════ v3.2 🈶 단어 드릴 ══════
@@ -5988,6 +6003,10 @@ function stAnsSet(w,mode){
   });
   return out.filter(function(v,i,arr){return !!v&&arr.indexOf(v)===i;});
 }
+/* 뜻 토큰 — 괄호(설명)를 떼고 , 、 · / 로 나눈다(stAnsSet 과 같은 규칙) */
+function stKoToks(ko){var a=String(ko||'').replace(/[(（][^)）]*[)）]/g,' '),out=[];
+  a.split(/[,、·/]/).forEach(function(p){var n=stNorm(p);if(n&&out.indexOf(n)<0)out.push(n);});
+  var whole=stNorm(a);if(whole&&out.indexOf(whole)<0)out.push(whole);return out;}
 function stIsRight(w,mode,my){
   var n=stNorm(my); if(!n)return false;
   return stAnsSet(w,mode).indexOf(n)>=0;
@@ -5996,6 +6015,51 @@ function stModeLabel(k){var r=ST_MODE_OLD[k]||k;
   ST_MODES.forEach(function(m){if(m.k===k)r=m.label;});
   ST_GMODES.forEach(function(m){if(m.k===k)r=m.label;});
   if(k==='vconj')r='동사 활용';return r;}
+
+/* ══ 🔀 v4.91 모드별 단어 카운터 — 학습사 v33 ══
+   「한자 읽기를 맞히면 『가나만 보고 뜻 앎』이 올라가는 오염 · retestOn 한 칸을 r2m 과 k2r 이 서로 덮어쓴다」
+   🔒 words[].m = {r2m:{seen,miss,streak,lastSeen,retestOn}, k2r:{…}, r2k, k2m, a2m, kata, vconj}
+      옛 최상위 카운터(거의 전부 r2m 실적)는 m.r2m 으로 옮기고 나머지 모드는 0 에서 시작한다.
+   🔒 예문(sents)은 그대로 최상위 카운터다 — 모드가 하나뿐이라 나눌 게 없다.
+   🔒 카운터를 읽고 쓰는 길은 stCt(읽기) · stCtW(쓰기) 둘뿐이다 */
+var ST_CTMODES=['r2m','k2r','r2k','k2m','a2m','kata','vconj'];
+var ST_MIG_N=0;
+var ST_CTKEYS=['seen','miss','streak','lastSeen','retestOn'];
+function stIsCtMode(m){return ST_CTMODES.indexOf(m)>=0;}
+function stMigW(w){
+  if(!w||typeof w!=='object')return;
+  var had=ST_CTKEYS.some(function(k){return w[k]!==undefined;});
+  if(!w.m||typeof w.m!=='object'||Array.isArray(w.m))w.m={};
+  if(had)ST_MIG_N++;
+  if(had&&!w.m.r2m){
+    var c={seen:+w.seen||0,miss:+w.miss||0,streak:+w.streak||0,lastSeen:w.lastSeen||null};
+    if(w.retestOn)c.retestOn=w.retestOn;
+    if(c.seen||c.miss||c.streak||c.lastSeen||c.retestOn)w.m.r2m=c;
+  }else if(had){
+    /* 옮긴 뒤에 누가 최상위에 또 썼다(옛 판 탭 · 손으로 고친 값) — 버리지 않고 r2m 에 얹는다(🔒 데이터 보존) */
+    ST_CTKEYS.forEach(function(k){if(w[k]!==undefined){if(w[k]===null&&k==='retestOn')delete w.m.r2m[k];else w.m.r2m[k]=w[k];}});
+  }
+  ST_CTKEYS.forEach(function(k){delete w[k];});
+}
+/* 읽기 — 옮기기 전 단어(m 없음)는 최상위가 곧 r2m 이다. 예문은 언제나 최상위 */
+function stHasTop(x){return x.seen!==undefined||x.miss!==undefined||x.streak!==undefined||x.lastSeen!==undefined||x.retestOn!==undefined;}
+function stCt(x,mode){
+  if(!x)return {};
+  if(x.m&&stHasTop(x))stMigW(x);
+  if(!x.m)return (!mode||mode==='r2m'||!stIsCtMode(mode))?x:{};
+  return x.m[stIsCtMode(mode)?mode:'r2m']||{};
+}
+function stCtW(x,mode){
+  if(!x)return {};
+  if(x.m&&stHasTop(x))stMigW(x);
+  if(!x.m){ if(!mode||mode==='r2m'||!stIsCtMode(mode))return x; stMigW(x); }
+  var k=stIsCtMode(mode)?mode:'r2m';
+  return x.m[k]||(x.m[k]={seen:0,miss:0,streak:0,lastSeen:null});
+}
+/* 어느 모드에서든 본 적 — 진단 표집용(「seen≥1 · 오늘 안 본 것」) */
+function stAnySeen(w){if(!w)return 0;if(!w.m)return +w.seen||0;var n=0;Object.keys(w.m).forEach(function(k){n+=(+(w.m[k]||{}).seen||0);});return n;}
+function stSeenToday(w,ds){ds=ds||todayStr();if(!w)return false;if(!w.m)return w.lastSeen===ds;
+  return Object.keys(w.m).some(function(k){return (w.m[k]||{}).lastSeen===ds;});}
 
 /* 출제 대상 — 🚫 랜덤 금지. 랜덤이면 아는 단어만 계속 나온다.
    ① miss 많은 것 → ② 책에 체크한 것(flag) → ③ 오래 안 본 것(미출제가 먼저) */
@@ -6015,14 +6079,15 @@ function stDrillPool(mode,hardOnly){
          재점검 +200 은 다 같고, 처음 보는 단어 +100 이 그 위에 얹혀서 — 10/23 교재 투입분(새 단어)이
          10/22 재점검분(이미 본 단어)을 통째로 앞질렀다. 실측 10/23: 10/22분 17개가 하나도 안 나왔다.
        🔒 재점검 대상끼리는 점수가 아니라 **retestOn 오래된 순 → 같은 날이면 miss 많은 순**. 밀린 것부터 갚는다. */
-    var ra=stRetestDue(a,ds), rb=stRetestDue(b,ds);
+    var ca=stCt(a,mode), cb=stCt(b,mode);
+    var ra=stRetestDue(a,ds,mode), rb=stRetestDue(b,ds,mode);
     if(ra!==rb)return ra?-1:1;
     if(ra&&rb){
-      if(String(a.retestOn)!==String(b.retestOn))return String(a.retestOn)<String(b.retestOn)?-1:1;
-      var md=(+b.miss||0)-(+a.miss||0); if(md)return md;
+      if(String(ca.retestOn)!==String(cb.retestOn))return String(ca.retestOn)<String(cb.retestOn)?-1:1;
+      var md=(+cb.miss||0)-(+ca.miss||0); if(md)return md;
     }
-    var d=stWordScore(b,ds)-stWordScore(a,ds); if(d)return d;
-    var sd=(+a.seen||0)-(+b.seen||0); if(sd)return sd;  /* 동점이면 덜 본 것 먼저 */
+    var d=stWordScore(b,ds,mode)-stWordScore(a,ds,mode); if(d)return d;
+    var sd=(+ca.seen||0)-(+cb.seen||0); if(sd)return sd;  /* 동점이면 덜 본 것 먼저 */
     /* 그래도 동점이면 랜덤. 🚫 출제 **대상 선정**은 여전히 규칙이다 —
        미출제 358건이 전부 같은 점수라 여기서 고정 순서를 쓰면 매번 같은 20개만 나온다. */
     return Math.random()-0.5;
@@ -6039,18 +6104,19 @@ function stDrillPool(mode,hardOnly){
    🔒 `seen==0` 에 100 을 주면 **전 단어 1회 순회가 끝난 뒤에야** miss 정렬이 작동한다.
       로한: "시험은 무조건 전체를 내되, 오답 지표가 모이면 그때 빈도를 늘려라."
    ⚠️ 경과일 결합은 유지한다 — 없으면 miss=0 단어가 영영 안 나온다. */
-function stWordScore(w,ds){
+function stWordScore(w,ds,mode){
   ds=ds||todayStr();
-  var gap=w.lastSeen?daysBetween(w.lastSeen,ds):7;
+  var c=stCt(w,mode);
+  var gap=c.lastSeen?daysBetween(c.lastSeen,ds):7;
   if(gap<0)gap=0; if(gap>7)gap=7;
   /* 🔁 v4.53 — 문맥에서 모르던 단어의 **재점검이 최우선**이다(학습방 v24 · +200).
      미출제(100)보다 위다 — 한 번 모른다고 드러난 단어가 처음 보는 단어보다 급하다. */
-  return (stRetestDue(w,ds)?200:0)
-       + ((+w.seen||0)===0?100:0)+(+w.miss||0)*10+gap;
+  return (stRetestDue(w,ds,mode)?200:0)
+       + ((+c.seen||0)===0?100:0)+(+c.miss||0)*10+gap;
 }
 /* 아직 한 번도 안 나온 단어 — 커버리지 단계인지 약점 집중 단계인지 화면이 말해준다 */
 function stFreshCount(mode){
-  return stDrillPool(mode).filter(function(w){return (+w.seen||0)===0;}).length;
+  return stDrillPool(mode).filter(function(w){return (+stCt(w,mode).seen||0)===0;}).length;
 }
 /* 🔒 세션 상태는 DB 에 저장하지 않는다 — 끝나면 drills 1건만 남는다.
    새로고침하면 진행 중 드릴은 사라진다(의도됨). */
@@ -6200,6 +6266,9 @@ function stMkOpts(w,mode,pool){
     var v=stDrillA(x,mode); if(!stNorm(v)||stNorm(v)===an)return false;
     if(ansSet.indexOf(stNorm(v))>=0)return false;
     if(stSoundMode(mode)&&stNorm(x.kana)===stNorm(w.kana))return false;
+    /* 🔴 v4.91 학습방 진단 결함 1 — よう 문항에 「볼일, 용무」와 「용무, 용건, 볼일」이 같이 나왔다(정답 둘).
+       🔒 뜻 모드는 쉼표로 나눈 뜻 토큰이 **하나라도** 정답과 겹치면 보기에서 뺀다 */
+    if(stKoMode(mode)&&stKoToks(x.ko).some(function(t){return ansSet.indexOf(t)>=0;}))return false;
     return true;});
   var tiers=stDistractors(w,mode,pool,cand), seen={};
   seen[an]=1;
@@ -6263,12 +6332,13 @@ function stDrillStart(mode,n){
   /* 보기는 특별 세트라도 전체에서 빌린다 — 어려운 것끼리만 섞으면 보기가 모자란다 */
   var optPool=setK?pool.concat(stDrillPool(mode)):pool;
   /* 🔒 v4.88 — 같은 단어는 **하루 최대 2번**(학습사 v30). 오늘 두 번 본 단어는 출제에서 뺀다(보기로는 쓴다) */
-  var tc=stTodayCounts();
+  var tc=stTodayCounts(mode);
   pool=pool.filter(function(w){return (tc[w.id]||0)<2;});
   if(optPool.length<4||!pool.length)return;   /* 보기 4개를 못 만들면 문항이 성립하지 않는다 */
   n=Math.min(+n||20,pool.length);   /* v3.5 — 한 세트 20문항이 기본(학습방 v10) */
   /* 🔁 v4.87 — r2m 은 「때가 된 것 12 + 처음 보는 것 8」(학습사 요구 2). 어려운 단어 세트는 오래 밀린 순 */
-  var picked=(mode==='r2m'&&!setK)?stR2mPick(pool,n)
+  /* 🔀 v4.91 — 「때가 된 것 + 처음 보는 것」을 단어 드릴 전 모드에 (카운터가 모드별이라 이제 뜻이 있다) */
+  var picked=(!setK)?stR2mPick(pool,n,mode)
     :(hard?pool.slice().sort(function(a,b){var x=stDueOf(a)||'',y=stDueOf(b)||'';return x<y?-1:(x>y?1:0);}).slice(0,n):pool.slice(0,n));
   ST_DRILL={mode:mode,ids:picked.map(function(w){return w.id;}),
     opts:picked.map(function(w){return stMkOpts(w,mode,optPool);}),
@@ -6294,22 +6364,28 @@ function stDrillRecord(ok,my,dunno){
   /* 🔴 v4.88 — 학습사 v30 정정: 「재출제는 된다. **같은 날 반복이 streak 로 샌다**」(11/6 22:53 streak≥2 149개).
        몇 분 전에 본 것을 또 맞힌 것은 「서로 다른 날 정답」(v26 승급 규칙)이 아니다.
      🔒 오늘 이미 본 단어(lastSeen=오늘)를 또 맞혀도 streak 는 그대로 — 첫 정답(streak 0 → 1)만 센다. 틀리면 언제나 0 */
-  var sameDay=(w.lastSeen===todayStr())&&(+w.streak||0)>0;
+  /* 🔀 v4.91 — 단어는 그 모드의 카운터만 움직인다(stCtW) · 예문은 최상위 */
+  var c=stCtW(w,D.mode), wasDue=stRetestDue(w,todayStr(),D.mode);
+  var sameDay=(c.lastSeen===todayStr())&&(+c.streak||0)>0;
   if(ok){
     if(!sameDay){
-      w.streak=(+w.streak||0)+1;
-      if(w.streak%2===0)w.miss=Math.max(0,(+w.miss||0)-1);
+      c.streak=(+c.streak||0)+1;
+      if(c.streak%2===0)c.miss=Math.max(0,(+c.miss||0)-1);
     }
   }else{
-    w.miss=(+w.miss||0)+1; w.streak=0;
+    c.miss=(+c.miss||0)+1; c.streak=0;
   }
-  w.seen=(+w.seen||0)+1; w.lastSeen=todayStr();
+  c.seen=(+c.seen||0)+1; c.lastSeen=todayStr();
   /* 🔁 v4.53 — 재점검(학습방 v24). 🔒 **문맥 없는 r2m 에서만** 움직인다 —
      가나를 보고 뜻을 떠올리는 것이 「알게 됐다」의 정의다.
      🔁 v4.87 — 간격 반복(학습사 요구 1): 맞히면 다음 출제를 streak 1→1일 · 2→3일 · 3↑→7일 뒤로,
         틀리면 **언제나** 내일(전엔 retestOn 이 이미 있던 단어만 내일로 잡았다). retestOn 이 그 칸이다. */
-  if(D.mode==='r2m'){
-    if(ok)w.retestOn=addDays(todayStr(),stLeitner(w.streak)); else stRetestSet(w);
+  /* 🔀 v4.91 — 단어 드릴 전 모드가 같은 간격 규칙(학습사 v33: 「k2r 정렬·간격은 r2m 과 동일」) */
+  if(stModeOK(D.mode)){
+    if(ok)c.retestOn=addDays(todayStr(),stLeitner(c.streak)); else stRetestSet(w,D.mode);
+  }else if(stIsGram(D.mode)&&wasDue){
+    /* 🩺 v4.91 — 진단에서 틀린 문장(retestOn)을 문법 드릴에서 다시 만났다: 맞히면 칸을 비우고, 틀리면 내일 또 */
+    if(ok)delete w.retestOn; else stRetestSet(w);
   }
   var r={id:w.id,my:String(my||''),ok:ok};
   if(dunno)r.dunno=true;
@@ -6471,18 +6547,25 @@ function stWordExample(w){
   });
   return hit;
 }
-function stOopsCard(w,mode,last){
+function stOopsCard(w,mode,last,opts){
   var meta=[];
   if(w.pos)meta.push(ST_POS_KO[w.pos]||w.pos);
   var vg=stVGroup(w); if(vg)meta.push(vg+'그룹 · 사전형 '+(w.kanji||w.kana));
   if(w.sub)meta.push(w.sub);
   if(stNorm(w.orig))meta.push('원어 '+w.orig);
-  var h='<div class="oops">'
+  if(stNorm(w.src))meta.push(w.src);
+  var h='<div class="oops'+(last.ok?' okc':'')+'">'
     +'<div class="oopsk" style="font-family:var(--ja)">'+mdEsc(w.kana||'')+(stNorm(w.kanji)?' <span class="oopskj">'+mdEsc(w.kanji)+'</span>':'')+'</div>'
     +'<div class="oopsko">'+mdEsc(w.ko||'')+'</div>'
     +(meta.length?'<div class="mut oopsmeta">'+meta.map(mdEsc).join(' · ')+'</div>':'');
   /* ② 내가 고른 것의 정체 · ③ 대비 한 줄 */
-  if(!last.dunno){
+  /* v4.91 — 맞혔을 때: 나머지 보기가 원래 어떤 단어였나 */
+  if(last.ok&&opts&&opts.length){
+    var an=stAnsSet(w,mode), others=opts.filter(function(o){return an.indexOf(stNorm(o))<0;});
+    var lines=others.map(function(o){var x=stChoseWords(w,mode,o)[0];return x?'<div>'+stWordLine(x)+'</div>':'<div class="mut">'+mdEsc(o)+' — 단어장에 없는 꼴</div>';});
+    if(lines.length)h+='<div class="oopsvs"><div class="mut oopscap">나머지 보기는 이 단어들이다</div>'+lines.join('')+'</div>';
+  }
+  if(!last.dunno&&!last.ok){
     var cw=stChoseWords(w,mode,last.my), c=cw[0];
     if(c){
       var mk=stLcsMark(stNorm(w.kana),stNorm(c.kana)), near=mk.n>0&&stLev(stNorm(w.kana),stNorm(c.kana))<=Math.ceil(Math.max(stNorm(w.kana).length,1)/2);
@@ -6500,7 +6583,7 @@ function stOopsCard(w,mode,last){
   if(homo.length)h+='<div class="oopsrow"><span class="mut oopscap">같은 소리</span>'+homo.map(function(x){return stWordLine(x);}).join(' · ')
     +(stSoundMode(mode)?' <span class="mut">(소리 문항에선 이것도 정답)</span>':'')+'</div>';
   /* ⑤ 헷갈리기 쉬운 단어 — 읽기 한 글자 차이 최대 3 */
-  var cid=(stChoseWords(w,mode,last.my)[0]||{}).id;
+  var cid=last.ok?null:(stChoseWords(w,mode,last.my)[0]||{}).id;
   var like=stByLev(stWords().filter(function(x){return x.id!==w.id&&x.id!==cid&&stNorm(x.kana)!==kn&&stNorm(x.ko);}),w.kana,'kana',1).slice(0,3);
   if(like.length)h+='<div class="oopsrow"><span class="mut oopscap">헷갈리기 쉬운</span>'+like.map(function(x){return stWordLine(x,stLcsMark(kn,stNorm(x.kana)).b);}).join(' · ')+'</div>';
   /* ⑥ 예문 */
@@ -6530,29 +6613,16 @@ function stDrillRun(){
     else if(!stKoMode(D.mode)&&stNorm(w.ko))full.push(mdEsc(w.ko));
     /* 같은 읽기의 다른 뜻도 정답이었다는 걸 알려준다 — 안 알려주면 채점이 틀린 줄 안다 */
     var homo=stHomoWords(w,D.mode).filter(function(x){return x.id!==w.id;});
-    /* 🃏 v4.90 — 틀리면 한 장 카드(정답 전체 · 내가 고른 것의 정체 · 같은 소리 · 헷갈리는 단어 · 예문). 「확인」을 눌러야 넘어간다 */
-    if(!last.ok)body='<div class="stdmark no">✗ 틀림</div>'+stOopsCard(w,D.mode,last)
-      +'<div class="mut" style="font-size:10.5px;margin-top:6px">누적 '+(+w.miss||0)+'틀림/'+(+w.seen||0)+'회</div>'
+    /* 🃏 v4.90 — 틀리면 한 장 카드(정답 전체 · 내가 고른 것의 정체 · 같은 소리 · 헷갈리는 단어 · 예문). 「확인」을 눌러야 넘어간다
+       🃏 v4.91 — 맞혀도 같은 카드다(로한: 「찍어서 맞은 걸 수도 있어서 오답처럼 해설이 나오는 게 좋겠다」).
+          맞혔을 땐 「내가 고른 것」 대신 **나머지 보기의 정체**를 보여준다 — 찍었다면 거기서 드러난다 */
+    body='<div class="stdmark '+(last.ok?'ok':'no')+'">'+(last.ok?'○ 맞음':'✗ 틀림')+'</div>'+stOopsCard(w,D.mode,last,D.opts&&D.opts[D.i])
+      +'<div class="mut" style="font-size:10.5px;margin-top:6px">'+stModeLabel(D.mode)+' 누적 '+(+stCt(w,D.mode).miss||0)+'틀림/'+(+stCt(w,D.mode).seen||0)+'회'
+        +((+stCt(w,D.mode).streak||0)?' · 연속 '+stCt(w,D.mode).streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
       +(stTtsReady()&&stNorm(w.kana)?'<div style="margin-top:8px"><button class="ghost sm" '
         +'onclick="stSpeak('+JSON.stringify(String(w.kana)).replace(/"/g,'&quot;')+')">🔊 다시 듣기</button></div>':'')
       +'<div class="stnext"><button class="btn" onclick="stDrillNext()">확인 · '
         +(D.i+1>=D.ids.length?'결과 보기':'다음 →')+' <span class="optk">↵</span></button></div>';
-    else body='<div class="stdmark '+(last.ok?'ok':'no')+'">'+(last.ok?'○ 맞음':'✗ 틀림')+'</div>'
-      +'<div style="margin-top:8px;font-size:22px;font-weight:800">'+mdEsc(ans)+'</div>'
-      +'<div class="mut" style="font-size:11.5px;margin-top:5px">'
-        +(last.ok?'':'내 답 <b>'+mdEsc(last.my||'—')+'</b> · ')
-        +full.join(' · ')+(w.src?' · '+mdEsc(w.src):'')+'</div>'
-      +(w.sub?'<div style="margin-top:6px"><span class="pill">'+mdEsc(w.sub)+'</span></div>':'')
-      +(homo.length?('<div class="mut" style="font-size:11px;margin-top:5px">같은 읽기 <b>'
-         +mdEsc(w.kana)+'</b> — '+homo.map(function(x){
-           return mdEsc((stNorm(x.kanji)?x.kanji+' ':'')+(x.ko||''));}).join(' / ')
-         +(stSoundMode(D.mode)?' <b>도 정답</b>':'')+'</div>'):'')
-      +'<div class="mut" style="font-size:10.5px;margin-top:5px">누적 '+(+w.miss||0)+'틀림/'+(+w.seen||0)+'회'
-        +((+w.streak||0)?' · 연속 '+w.streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
-      +(stTtsReady()&&stNorm(w.kana)?'<div style="margin-top:10px"><button class="ghost sm" '
-        +'onclick="stSpeak('+JSON.stringify(String(w.kana)).replace(/"/g,'&quot;')+')">🔊 다시 듣기</button></div>':'')
-      +'<div class="stnext"><button class="btn" onclick="stDrillNext()">'
-        +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 → <span class="optk">↵</span>')+'</button></div>';
   }else{
     /* 🔊 음성 모드는 글자가 없다. 청해는 한 번에 안 들리니 반복 버튼은 필수 */
     body=(D.mode==='a2m'?'<div style="margin:6px 0 2px"><button class="btn" onclick="stSpeakCur()">🔊 다시 듣기</button></div>':'')
@@ -7221,65 +7291,68 @@ function stCtxStat(){
 function stCtxWordHit(g,ok){
   var w=(g&&g.wordId)?stWordById(g.wordId):null; if(!w)return;
   if(ok)return;                       /* 🔒 힌트로 맞힌 정답은 안 센다 */
-  w.miss=(+w.miss||0)+1; w.streak=0;
-  w.seen=(+w.seen||0)+1; w.lastSeen=todayStr();
-  stRetestSet(w);                     /* 틀렸으니 내일 문맥 없이 다시 묻는다 */
+  var c=stCtW(w,'r2m');               /* 문맥에서 뜻을 몰랐다 = 가나→뜻(r2m) 실적 */
+  c.miss=(+c.miss||0)+1; c.streak=0;
+  c.seen=(+c.seen||0)+1; c.lastSeen=todayStr();
+  stRetestSet(w,'r2m');                     /* 틀렸으니 내일 문맥 없이 다시 묻는다 */
 }
 /* 🔁 v4.53 — 「하루 뒤 문맥 없이 다시 묻는다」(학습방 v24).
    🔒 **이 재점검의 정답만이 「알게 됐다」는 증거다.** 문맥 안에서 맞힌 건 증거가 아니다.
    ⚠️ 빈 서랍 금지 — 재점검이 끝나면 칸을 지운다. */
-function stRetestSet(w){
+function stRetestSet(w,mode){
   if(!w)return;
-  w.retestOn=addDays(todayStr(),1);
+  stCtW(w,mode).retestOn=addDays(todayStr(),1);
 }
-function stRetestDue(w,ds){
-  ds=ds||todayStr();
-  return !!(w&&w.retestOn&&String(w.retestOn)<=ds);
+function stRetestDue(w,ds,mode){
+  ds=ds||todayStr(); var c=stCt(w,mode);
+  return !!(w&&c.retestOn&&String(c.retestOn)<=ds);
 }
 /* 🔒 v4.88 — 오늘 각 단어가 몇 번 나왔나(학습사 v30 「하루 최대 2회」). 저장하지 않고 오늘 드릴 기록에서 센다.
    v4.88 이전 기록은 ids 가 없어 틀린 것(wrongIds)만 센다 — 맞힌 것은 모른다(지어내지 않는다) */
-function stTodayCounts(){
+function stTodayCounts(mode){
   var t=todayStr(), m={};
   (studyDB().drills||[]).forEach(function(d){
     if(!d||d.date!==t)return;
+    if(mode&&d.mode!==mode)return;   /* 🔀 v4.91 — 모드마다 따로 센다(카운터가 모드별이다) */
     (d.ids||d.wrongIds||[]).forEach(function(id){m[id]=(m[id]||0)+1;});
   });
   return m;
 }
 /* ❌ v4.88 드릴 오답(학습사 v30) — miss≥2 · miss 많은 순. 🔒 파생이다 — study.errors 로 복사하지 않는다(숫자가 어긋난다) */
 function stMissWords(){
-  return stWords().filter(function(w){return (+w.miss||0)>=2&&!!stNorm(w.kana)&&!!stNorm(w.ko);})
-    .sort(function(a,b){return (+b.miss||0)-(+a.miss||0)||((+b.seen||0)-(+a.seen||0));});
+  return stWords().filter(function(w){return (+stCt(w,'r2m').miss||0)>=2&&!!stNorm(w.kana)&&!!stNorm(w.ko);})
+    .sort(function(a,b){var x=stCt(a,'r2m'),y=stCt(b,'r2m');return (+y.miss||0)-(+x.miss||0)||((+y.seen||0)-(+x.seen||0));});
 }
 /* 🔁 v4.87 간격 반복 — streak 1→1일 · 2→3일 · 3↑→7일 (학습사 11/6) */
 function stLeitner(s){s=+s||0;return s>=3?7:(s===2?3:1);}
 /* 다음 출제일 — retestOn 이 있으면 그것. 🔒 없으면 **계산한다**(저장하지 않는다):
    본 적 있는 단어 = 마지막으로 본 날 + 간격(streak 0 이면 1일). v4.87 이전 단어 635개는 retestOn 이 없다 — 그대로 계산으로 들어온다. */
-function stDueOf(w){
-  if(!w)return null;
-  if(w.retestOn)return String(w.retestOn);
-  if((+w.seen||0)>0)return addDays(w.lastSeen||todayStr(),(+w.streak||0)>0?stLeitner(+w.streak):1);
+function stDueOf(w,mode){
+  if(!w)return null; var c=stCt(w,mode);
+  if(c.retestOn)return String(c.retestOn);
+  if((+c.seen||0)>0)return addDays(c.lastSeen||todayStr(),(+c.streak||0)>0?stLeitner(+c.streak):1);
   return null;
 }
 /* 🧱 어려운 단어(학습사 요구 3) — seen≥4 · 정답률 30% 미만. 🔒 파생값이다(저장하지 않는다).
    단어에 정답 수 칸이 없다 — 틀린 횟수는 miss(감쇠됨)와 드릴 기록 wrongIds 중 **큰 쪽**으로 잡는다. */
 function stWrongCounts(){
-  var m={}; (studyDB().drills||[]).forEach(function(d){(d.wrongIds||[]).forEach(function(id){m[id]=(m[id]||0)+1;});});
+  var m={}; (studyDB().drills||[]).forEach(function(d){if(d&&d.mode&&d.mode!=='r2m')return;(d.wrongIds||[]).forEach(function(id){m[id]=(m[id]||0)+1;});});
   return m;
 }
 function stIsHard(w,wc){
-  var s=+w.seen||0; if(s<4)return false;
-  var wr=Math.max(+w.miss||0,(wc&&wc[w.id])||0);
+  var c=stCt(w,'r2m'), s=+c.seen||0; if(s<4)return false;
+  var wr=Math.max(+c.miss||0,(wc&&wc[w.id])||0);
   return (s-wr)/s<0.3;
 }
 function stHardWords(){var wc=stWrongCounts();return stWords().filter(function(w){return stIsHard(w,wc)&&!!stNorm(w.kana)&&!!stNorm(w.ko);});}
 /* r2m 한 세트 — 때가 된 단어 최대 60%(20문항이면 12) + 처음 보는 단어 나머지(8).
    모자라면 서로 채운다 · 그래도 모자라면 나머지 풀 순서대로. 때가 된 것은 **오래된 순 → miss 많은 순**(v28) */
-function stR2mPick(pool,n){
+function stR2mPick(pool,n,mode){
+  mode=mode||'r2m';
   var ds=todayStr(), used={}, out=[];
-  var due=pool.filter(function(w){var d=stDueOf(w);return d&&d<=ds;})
-    .sort(function(a,b){var x=stDueOf(a),y=stDueOf(b);if(x!==y)return x<y?-1:1;return (+b.miss||0)-(+a.miss||0);});
-  var fresh=pool.filter(function(w){var d=stDueOf(w);return (+w.seen||0)===0&&!(d&&d<=ds);});
+  var due=pool.filter(function(w){var d=stDueOf(w,mode);return d&&d<=ds;})
+    .sort(function(a,b){var x=stDueOf(a,mode),y=stDueOf(b,mode);if(x!==y)return x<y?-1:1;return (+stCt(b,mode).miss||0)-(+stCt(a,mode).miss||0);});
+  var fresh=pool.filter(function(w){var d=stDueOf(w,mode);return (+stCt(w,mode).seen||0)===0&&!(d&&d<=ds);});
   var cap=Math.round(n*0.6);
   function take(arr,k){for(var i=0;i<arr.length&&out.length<n&&k>0;i++){if(!used[arr[i].id]){used[arr[i].id]=1;out.push(arr[i]);k--;}}}
   take(due,cap); take(fresh,n); take(due,n); take(pool,n);
@@ -7580,10 +7653,10 @@ function stVFormLabel(f){var r=f;ST_VFORMS.forEach(function(x){if(x.k===f)r=x.la
 function stVerbPool(){
   var ds=todayStr();
   return stWords().filter(stVerbOK).slice().sort(function(a,b){
-    var d=stWordScore(b,ds)-stWordScore(a,ds); if(d)return d;
+    var d=stWordScore(b,ds,'vconj')-stWordScore(a,ds,'vconj'); if(d)return d;
     var nd=(b.vnote?1:0)-(a.vnote?1:0); if(nd)return nd;
     var gd=(stVGroup(b)===2?1:0)-(stVGroup(a)===2?1:0); if(gd)return gd;
-    var sd=(+a.seen||0)-(+b.seen||0); if(sd)return sd;
+    var sd=(+stCt(a,'vconj').seen||0)-(+stCt(b,'vconj').seen||0); if(sd)return sd;
     return Math.random()-0.5;
   });
 }
@@ -7615,8 +7688,8 @@ function stVconjRun(){
         +ST_VFORMS.map(function(f){
           return mdEsc(f.label)+' <b>'+mdEsc(F[f.k])+'</b>';}).join(' · ')+'</div>'
       +(q.note?'<div class="stdhint" style="margin-top:7px">⚠️ '+mdEsc(q.note)+'</div>':'')
-      +'<div class="mut" style="font-size:10.5px;margin-top:5px">누적 '+(+w.miss||0)+'틀림/'+(+w.seen||0)+'회'
-        +((+w.streak||0)?' · 연속 '+w.streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
+      +'<div class="mut" style="font-size:10.5px;margin-top:5px">'+stModeLabel(D.mode)+' 누적 '+(+stCt(w,D.mode).miss||0)+'틀림/'+(+stCt(w,D.mode).seen||0)+'회'
+        +((+stCt(w,D.mode).streak||0)?' · 연속 '+stCt(w,D.mode).streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
       +'<div class="stnext"><button class="btn" onclick="stDrillNext()">'
         +(D.i+1>=D.ids.length?'결과 보기 <span class="optk">↵</span>':'다음 → <span class="optk">↵</span>')+'</button></div>';
   }else{
@@ -7683,13 +7756,13 @@ function stGramRun(){
          🔒 번역 자체가 점검 B(문장 번역 고르기)의 정답이기도 하다. 번역은 정리 화면에서 편다.
          🔒 일본어 완성문(ja)은 보여준다 — 그건 뜻을 흘리지 않고, 빈칸이 메워진 걸 봐야 한다. */
       +((D.mode!=='gctx'&&stNorm(s.ko))?'<div class="mut" style="font-size:11.5px;margin-top:4px">'+mdEsc(s.ko)+'</div>':'')
-      /* 🔒 해설은 **틀렸을 때만** 띄운다 — 맞힌 사람에게 읽히면 다음 문항까지의 리듬이 끊긴다.
+      /* 🃏 v4.91 — 해설은 맞혀도 띄운다(로한: 「찍어서 맞은 걸 수도 있다」 · 전엔 틀렸을 때만).
          🔴 v4.51 [결함] 문맥규정은 여기서 해설을 **통째로** 띄웠다. 그런데 그 해설에는
          문장의 모든 단어 뜻이 적혀 있다 — 그걸 보여준 다음에 「이 단어 뜻은?」을 물으면
          **방금 본 표를 보고 맞힌다.** 점검이 점검이 아니게 된다.
          로한: "정답을 누르고, **정답만 정오답을 알려주고**, 구성요소 물어보고, 그다음 최종 정리된걸"
          🔒 그래서 문맥규정은 여기서 **빈칸의 정오답만** 말한다. 해설(why 포함)은 정리 화면으로 민다. */
-      +((D.mode!=='gctx'&&!last.ok)&&stNorm(q.why)?'<div class="gwhy">💡 '+mdEsc(q.why)+'</div>':'')
+      +((D.mode!=='gctx')&&stNorm(q.why)?'<div class="gwhy">💡 '+mdEsc(q.why)+'</div>':'')
       +'<div class="mut" style="font-size:10.5px;margin-top:6px">'
         +(s.src?mdEsc(s.src)+' · ':'')+'누적 '+(+s.miss||0)+'틀림/'+(+s.seen||0)+'회'
         +((+s.streak||0)?' · 연속 '+s.streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
@@ -7741,6 +7814,32 @@ function stGramRun(){
    +'</div></div>';
 }
 /* ── 시작 화면 ── */
+/* 🎯 v4.91 — 한 모드의 오늘 목표. 🔒 파생이다(저장하지 않는다) · 세트를 고르는 규칙(stR2mPick)과 같은 기준으로 센다
+   due = 다시 볼 때가 된 것(retestOn·간격) · fresh = 이 모드로 처음 보는 것 · wait = 아직 때가 아닌 것(다음 날짜) · cap = 오늘 두 번 나와 쉬는 것 */
+function stGoal(mode){
+  var ds=todayStr(), pool=stDrillPool(mode), tc=stTodayCounts(mode), g={due:0,fresh:0,wait:0,cap:0,next:null,total:pool.length,done:0};
+  pool.forEach(function(w){
+    if((tc[w.id]||0)>=2){g.cap++;return;}
+    var c=stCt(w,mode), d=stDueOf(w,mode);
+    if(d&&d<=ds)g.due++;
+    else if((+c.seen||0)===0)g.fresh++;
+    else{g.wait++; if(d&&(!g.next||d<g.next))g.next=d;}
+  });
+  (studyDB().drills||[]).forEach(function(d){if(d&&d.date===ds&&d.mode===mode)g.done+=(+d.n||0);});
+  g.left=g.due+g.fresh;
+  return g;
+}
+function stGoalHtml(mode){
+  var g=stGoal(mode);
+  return '<div class="stgoal"><div class="stgoalk"><span>🎯 <b>'+stModeLabel(mode)+'</b> 남은 목표</span><b class="stgoaln">'+g.left+'</b></div>'
+    +'<div class="stgoalr"><span>🔁 다시 볼 때 <b>'+g.due+'</b></span><span>🆕 처음 <b>'+g.fresh+'</b></span>'
+    +'<span class="mut">⏳ 쉬는 중 '+g.wait+(g.next?' (다음 '+g.next.slice(5).replace('-','/')+')':'')+'</span>'
+    +(g.cap?'<span class="mut">오늘 2번 본 것 '+g.cap+'</span>':'')
+    +'<span class="mut">오늘 '+g.done+'문항 함</span></div>'
+    +'<div class="mut" style="font-size:10.5px;margin-top:3px">한 세트 = 때가 된 것 최대 60% + 처음 보는 것 · 맞히면 1일 → 3일 → 7일 뒤에 다시 나온다 · 이 모드의 기록만 센다</div></div>';
+}
+/* 버튼에 붙는 짧은 꼴 */
+function stGoalShort(mode){var g=stGoal(mode);return '남은 '+g.left+' (때 '+g.due+' · 새 '+g.fresh+')';}
 function stPaneWord(){
   var D=ST_DRILL;
   if(D&&D.fin)return stDrillResult();
@@ -7748,10 +7847,11 @@ function stPaneWord(){
   var ws=stWords(), ds=stDrills();
   var flag=ws.filter(function(w){return w.flag;}).length;
   /* 미출제 = seen 0. lastSeen 이 아니라 seen 으로 센다 — 출제 가중식과 같은 기준이어야 한다 */
-  var fresh=ws.filter(function(w){return (+w.seen||0)===0;}).length;
-  var hot=ws.filter(function(w){return (+w.miss||0)>0;}).slice()
-    .sort(function(a,b){return (+b.miss||0)-(+a.miss||0);}).slice(0,12);
   var cur=stdMode();
+  /* 🔀 v4.91 — 미출제·자주 틀림은 **지금 고른 모드**의 카운터로 센다 */
+  var fresh=ws.filter(function(w){return (+stCt(w,cur).seen||0)===0;}).length;
+  var hot=ws.filter(function(w){return (+stCt(w,cur).miss||0)>0;}).slice()
+    .sort(function(a,b){return (+stCt(b,cur).miss||0)-(+stCt(a,cur).miss||0);}).slice(0,12);
   /* 🔒 pool 이 0 인 모드는 누를 수 없다 — 누르면 빈 화면이 나오는 입구는 만들지 않는다.
      🔒 음성 모드는 일본어 음성이 없으면 **카드 자체를 그리지 않는다.** */
   var tts=stTtsReady();
@@ -7762,7 +7862,8 @@ function stPaneWord(){
     var n=stDrillPool(m.k).length, on=n>=4;
     return '<button class="'+(on?(cur===m.k?'on':''):'off')+'"'
       +(on?' onclick="setStdMode(\''+m.k+'\')"':' disabled title="'+(n?'단어가 '+n+'개뿐이라 4지선다를 못 만든다':'이 모드로 낼 단어가 없다')+'"')+'>'
-      +'<b>'+(m.tts?'🔊 ':'')+m.label+'</b><span class="mut">'+m.hint+' · '+(on?n+'개':n+'개 · 4개 이상 필요')+'</span></button>';}).join('')
+      +'<b>'+(m.tts?'🔊 ':'')+m.label+'</b><span class="mut">'+m.hint+' · '+(on?n+'개':n+'개 · 4개 이상 필요')+'</span>'
+      +(on?'<span class="stgoalb">🎯 '+stGoalShort(m.k)+'</span>':'')+'</button>';}).join('')
     +'</div>'
     +(tts?'':'<div class="mut" style="font-size:10.5px;margin:-4px 0 10px">'
       +'🔊 음성 모드는 이 기기에 <b>일본어 음성이 없어</b> 숨겼다. '
@@ -7778,14 +7879,11 @@ function stPaneWord(){
         return '<button class="btn sm" onclick="stDrillStart(\''+cur+'\','+n+')">'+n+'문항 시작</button>';}).join(' ')
       +'<span class="mut" style="font-size:10.5px">'+stModeLabel(cur)+'</span></div>'
     : '';
-  /* 🔁🧱 v4.87 — r2m: 세트 구성을 말해 주고, 어려운 단어는 따로 소량 */
+  /* 🎯 v4.91 — 모드마다 「오늘 남은 목표」(로한: 「히라가나 뜻은 몇 개 남았다 새로운 게 몇 개다 — 각 드릴마다. 내가 해야 할 목표가 몇 개인지」) */
+  start+=stGoalHtml(cur);
   if(cur==='r2m'){
-    var _ds=todayStr(), _rp=stDrillPool('r2m');
-    var _due=_rp.filter(function(w){var d=stDueOf(w);return d&&d<=_ds;}).length;
-    var _fr=_rp.filter(function(w){return (+w.seen||0)===0;}).length, _hw=stHardWords().length;
-    start+='<div class="mut" style="font-size:10.5px;margin:2px 0 6px">🔁 다시 볼 때가 된 단어 <b>'+_due+'</b> · 처음 보는 단어 <b>'+_fr+'</b>'
-      +' — 한 세트는 때가 된 것 최대 60% + 처음 보는 것. 맞히면 1일 → 3일 → 7일 뒤에 다시 나온다</div>'
-      +(_hw?'<div style="margin:0 0 6px"><button class="ghost sm" onclick="stDrillStart(\'r2m\','+Math.min(10,_hw)+',true)">🧱 어려운 단어 '+_hw+'개 · '+Math.min(10,_hw)+'문항</button>'
+    var _hw=stHardWords().length;
+    start+=(_hw?'<div style="margin:0 0 6px"><button class="ghost sm" onclick="stDrillStart(\'r2m\','+Math.min(10,_hw)+',true)">🧱 어려운 단어 '+_hw+'개 · '+Math.min(10,_hw)+'문항</button>'
         +' <span class="mut" style="font-size:10.5px">4번 넘게 봤는데 정답률 30% 미만 — 일반 세트에서 빼고 따로 조금씩</span></div>':'');
   }
   /* 🔒 콘텐츠는 학습방이 올린다 — 제작방은 빈 상태가 안 죽는 것만 보장한다 */
@@ -7833,7 +7931,7 @@ function stPaneWord(){
    +(hot.length?('<div class="sec"><div class="bkhd"><span class="subhd2">자주 틀리는 단어</span>'
      +'<span class="mut" style="font-size:10.5px">miss 3회↑ 는 로버트가 오답노트로 승격</span></div>'
      +hot.map(function(w){
-       var mi=+w.miss||0, se=+w.seen||0;
+       var mi=+stCt(w,cur).miss||0, se=+stCt(w,cur).seen||0;
        /* ⚠️ seen 이 0 인데 miss 가 있으면 '5/0' 이 된다 — 숫자가 거짓말을 한다.
           로버트가 miss 를 손으로 넣는 경우가 있으니 그때는 틀린 횟수만 쓴다. */
        return '<span class="stdw'+(mi>=3?' hot':'')+'" title="'
@@ -7857,7 +7955,12 @@ function stGramBox(){
       +(on?' onclick="stDrillStart(\''+m.k+'\','+Math.min(ST_SET,n)+')"'
           :' disabled title="'+mdEsc(why)+'"')+'>'
       +'<b>'+m.label+'</b><span class="mut">'+m.hint+' · '+n+'문항'
-      +(n>ST_SET?' <b>→ '+ST_SET+'개씩</b>':'')+'</span></button>';}).join('');
+      +(n>ST_SET?' <b>→ '+ST_SET+'개씩</b>':'')+'</span>'
+      /* 🎯 v4.91 — 문법도 남은 목표(처음 보는 문항 · 다시 볼 때가 된 문장) */
+      +(on?(function(){var ds=todayStr(),seenS={},fr=0,du=0;stGramItems(m.k).forEach(function(it){if(!it.s)return;if((+it.s.seen||0)===0)fr++;
+          if(!seenS[it.s.id]&&stRetestDue(it.s,ds)){du++;}seenS[it.s.id]=1;});
+        return '<span class="stgoalb">🎯 남은 '+(fr+du)+' (다시 볼 때 '+du+' · 새 '+fr+')</span>';})():'')
+      +'</button>';}).join('');
   return '<div class="sec"><div class="bkhd"><span class="subhd2">📖 문법 '
       +'<span class="mut">예문 '+ss.length+'개</span></span>'
       +'<span class="mut" style="font-size:10.5px">もんだい1·2·3</span></div>'
@@ -8545,7 +8648,9 @@ var ST_DG_TICK=null;
 function stDiagSets(){var d=studyDB().diag;return (d&&Array.isArray(d.sets))?d.sets.filter(function(x){return x&&x.id;}):[];}
 function stDiagById(id){return stDiagSets().filter(function(x){return x.id===id;})[0]||null;}
 /* 학습방: 「status==ready 인 가장 이른 세트를 연다」 */
-function stDiagReady(){return stDiagSets().filter(function(x){return x.status==='ready';})
+/* 🩺 v4.91 날짜 게이트(학습사 v33-2) — ready 는 날짜와 무관하게 · scheduled 는 date ≤ 오늘이면 연다 */
+function stDiagOpenable(x){return !!x&&(x.status==='ready'||(x.status==='scheduled'&&!!x.date&&String(x.date)<=todayStr()));}
+function stDiagReady(){return stDiagSets().filter(stDiagOpenable)
   .sort(function(a,b){return String(a.date||'')<String(b.date||'')?-1:1;})[0]||null;}
 function stDiagLastDone(){return stDiagSets().filter(function(x){return x.status==='done';})
   .sort(function(a,b){return String(a.date||'')<String(b.date||'')?1:-1;})[0]||null;}
@@ -8570,7 +8675,7 @@ function stDiagDraw(set){
       var mode=sec.mode||'r2m';
       /* 🧱 어려운 단어도 넣는다 — 드릴에서 따로 돈다고 시험에서 빠지지 않는다 */
       var pool=stDrillPool(mode); if(mode==='r2m')pool=pool.concat(stDrillPool('r2m',true));
-      var cand=pool.filter(function(w){return (+w.seen||0)>=1&&w.lastSeen!==ds;});
+      var cand=pool.filter(function(w){return stAnySeen(w)>=1&&!stSeenToday(w,ds);});
       var took=0;
       stGShuffle(cand).forEach(function(w){
         if(took>=(+sec.n||0)||usedW[w.id])return;
@@ -8628,7 +8733,7 @@ function stDiagRun(set){
 function stDiagOpen(id){
   var set=id?stDiagById(id):stDiagReady(); if(!set)return;
   DB.ui=DB.ui||{}; DB.ui.diagView=set.id;
-  if(set.status==='ready'&&!stDiagQs(set).length){
+  if(stDiagOpenable(set)&&!stDiagQs(set).length){
     set.drawn={date:todayStr(),at:new Date().toISOString(),qs:stDiagDraw(set)};
     logAct('🩺 진단 문항 확정 · '+(set.title||set.id)+' '+set.drawn.qs.length+'문항');
     save();
@@ -8638,7 +8743,7 @@ function stDiagOpen(id){
 /* 🔒 나가면 멈춘다 — 돌아와서 「이어서 풀기」를 눌러야 시계가 다시 간다(자리 비운 시간이 섹션 시간에 안 섞인다) */
 function stDiagClose(){if(DB.ui){var r=DB.ui.diagRun;if(r&&r.go){var set=stDiagById(r.id),q=stDiagQs(set)[r.i];if(q&&r.gate===r.i)stDiagTick(r,q.sec);r.go=false;}delete DB.ui.diagView;} kvUiWrite(); renderStudy();}
 function stDiagStart(fresh){
-  var set=stDiagById(DB.ui&&DB.ui.diagView); if(!set||set.status!=='ready')return;
+  var set=stDiagById(DB.ui&&DB.ui.diagView); if(!set||!stDiagOpenable(set))return;
   var r=stDiagRun(set);
   if(!r||fresh){ r={id:set.id,date:todayStr(),i:0,a:{},secs:{},gate:0,t0:Date.now(),started:new Date().toISOString()}; DB.ui.diagRun=r; }
   r.go=true; r.t0=Date.now();
@@ -8684,7 +8789,7 @@ function stDiagScore(set,ans){
 }
 function stDiagGradeBand(p){return p>=67?'A':(p>=34?'B':'C');}
 function stDiagSubmit(){
-  var set=stDiagById(DB.ui&&DB.ui.diagView), r=stDiagRun(set); if(!set||!r||set.status!=='ready')return;
+  var set=stDiagById(DB.ui&&DB.ui.diagView), r=stDiagRun(set); if(!set||!r||!stDiagOpenable(set))return;
   var qs=stDiagQs(set); if(r.i<qs.length)return;
   var lsec=(set.sections||[]).filter(function(x){return x.src==='manual';})[0];
   var listen=null;
@@ -8702,15 +8807,39 @@ function stDiagSubmit(){
   var dunno=qs.filter(function(q){return r.a[q.q]===-1;}).length;
   var rec={id:set.id,date:todayStr(),kind:'diag',scope:String(set.title||set.id),n:n,correct:c,
     sections:secs,wrongIds:wrongIds,listen:listen,lang:null,memo:'',secs:stDiagElapsed(r)};
+  /* 🕒 v4.91 — 시작 시각(at). 데일리 로그·학습 분에 진단 시간이 들어간다(로한: 「진단 본 것도 데일리에 학습으로」).
+     🔒 at = 제출 시각 − 푼 시간(멈춘 시간은 빼고 잰 값이라 실제보다 약간 늦게 잡힐 수 있다) */
+  rec.at=new Date(Date.now()-(+rec.secs||0)*1000).toISOString();
   if(dunno)rec.dunno=dunno;
   var S=studyDB();
   S.tests=S.tests.filter(function(t){return t.id!==set.id;}); S.tests.push(rec);
   set.status='done'; set.answers=r.a; set.doneAt=new Date().toISOString();
   /* 🔒 제출 뒤에만 — 틀린 **단어** 문항의 단어에 retestOn=내일. 카운터는 그대로 */
-  qs.forEach(function(q){ if(q.t==='w'&&r.a[q.q]!==q.ans)stRetestSet(stWordById(q.ref)); });
+  /* 🔀 v4.91 — 단어는 **그 섹션의 모드**에 재점검을 건다(가나 인지·뜻 = r2m · 한자읽기 = k2r · 표기 = r2k) */
+  qs.forEach(function(q){ if(q.t==='w'&&r.a[q.q]!==q.ans)stRetestSet(stWordById(q.ref),stIsCtMode(q.mode)?q.mode:'r2m'); });
+  /* 🩺 v4.91 — 틀린 **문장** 문항도 내일 문법 드릴에서 먼저(학습사 v33-4). 문장의 카운터는 그대로 */
+  qs.forEach(function(q){ if(q.t==='s'&&r.a[q.q]!==q.ans){var ss=stSentById(q.ref);if(ss)stRetestSet(ss);} });
+  try{ stDiagLog(rec); }catch(e){}
   delete DB.ui.diagRun;
   logAct('🩺 진단 제출 · '+rec.scope+' '+c+'/'+n+(listen?' · 청해 '+listen.correct+'/'+listen.n:''));
   save(); renderStudy();
+}
+/* 🕒 v4.91 — 진단 시간을 타임로그에 찍는다(드릴과 같은 창구 stTlMarkStudy) */
+function stDiagLog(rec){
+  var sp=stDrillSpan(rec); if(!sp.date||!sp.slots.length)return;
+  stTlMarkStudy(sp,'🩺 진단 · '+String(rec.scope||rec.id||''));
+  rec.tl=true;
+}
+/* 소급 — v4.90 진단 기록엔 at 이 없다. 세트의 doneAt − 푼 시간으로 잡는다(사실 두 개로 계산한다 · 지어내지 않는다). 한 번만(rec.tl) */
+function stDiagBackfill(){
+  var n=0;
+  (studyDB().tests||[]).forEach(function(t){
+    if(!t||t.kind!=='diag'||t.tl)return;
+    if(!t.at){var set=stDiagById(t.id);if(!set||!set.doneAt||!(+t.secs>0))return;
+      var d=new Date(set.doneAt); if(isNaN(d.getTime()))return; t.at=new Date(d.getTime()-(+t.secs)*1000).toISOString();}
+    stDiagLog(t); if(t.tl)n++;
+  });
+  return n;
 }
 function stDiagQuitRun(){
   if(!confirm('진행 중인 진단을 버리고 처음부터 다시 할 수 있게 한다.\n(문항은 그대로다) 진행할까?'))return;
@@ -8849,6 +8978,45 @@ function stDiagKey(ev){
   if(opts.length&&(k===' '||k==='Spacebar')){ev.preventDefault();stDiagPick(null);return true;}
   return true;
 }
+/* ══ 🩺 v4.91 진단 탭(학습사 v33-1 · 로한: 「진단 기록은 따로 상단 탭에 — 진단 드릴이나 모의고사는 거기서 수집하자」) ══
+   🔒 측정 기록 전용이다 — 드릴 통계는 드릴 탭에 둔다. 전략 탭에 있던 「기록」을 이리 옮겼다(같은 데이터를 두 화면에서 계산하지 않는다) */
+function stDiagTrendCells(t){
+  /* 문자·어휘 / 문법 / 독해 = 섹션 band 로 묶은 % · 청해 = listen % (모의고사는 과목 점수) */
+  var out={vocab:null,grammar:null,read:null,listen:null};
+  if(t.kind==='diag'){
+    ['vocab','grammar','read'].forEach(function(bk){var n=0,c=0;(t.sections||[]).forEach(function(x){if(x.band===bk){n+=+x.n||0;c+=+x.correct||0;}});
+      if(n){var p=Math.round(c/n*100);out[bk]={p:p,g:stDiagGradeBand(p),t:c+'/'+n};}});
+    if(t.listen&&t.listen.n){var lp=Math.round(t.listen.correct/t.listen.n*100);out.listen={p:lp,g:stDiagGradeBand(lp),t:t.listen.correct+'/'+t.listen.n};}
+  }
+  return out;
+}
+function stPaneDiagTab(){
+  var sets=stDiagSets().slice().sort(function(a,b){return String(a.date||'')<String(b.date||'')?-1:1;});
+  var next=sets.filter(function(x){return x.status!=='done';});
+  var nx=next.map(function(x){
+    var op=stDiagOpenable(x), run=stDiagRun(x), qn=stDiagQs(x).length;
+    return '<div class="row" style="gap:8px"><span><b>'+mdEsc(x.title||x.id)+'</b>'
+      +' <span class="mut" style="font-size:11px">'+(x.targetMin?'목표 '+x.targetMin+'분':'')+(qn?' · '+qn+'문항 확정':'')+'</span></span>'
+      +(op?'<button class="btn sm" onclick="stDiagOpen(\''+x.id+'\')">🩺 '+(run?'이어서':'시작')+'</button>'
+          :'<span class="mut" style="font-size:12px">'+(x.date?String(x.date).slice(5).replace('-','/')+' 예정':'예정')+'</span>')+'</div>';}).join('');
+  var ts=stTests().slice().sort(function(a,b){return String(a.date||'')<String(b.date||'')?1:-1;});
+  /* 추이 — 진단·모의고사만, 회차별로 */
+  var tr=ts.filter(function(t){return t.kind==='diag'||t.kind==='mock';}).slice().reverse();
+  var cell=function(c){return c?'<td><b class="'+(c.g==='A'?'pos':(c.g==='C'?'neg':''))+'">'+c.g+'</b> <span class="mut">'+c.p+'%</span></td>':'<td class="mut">—</td>';};
+  var trend=tr.length?('<div class="sec"><div class="bkhd"><span class="subhd2">📈 추이</span><span class="mut" style="font-size:10.5px">A 67%↑ · B 34~67% · C 34%↓ (JLPT 참고정보 방식 · 합격선 환산 안 함)</span></div>'
+    +'<div style="overflow-x:auto"><table class="dgtrend"><thead><tr><th>회차</th><th>문자·어휘</th><th>문법</th><th>독해</th><th>청해</th><th>총점</th></tr></thead><tbody>'
+    +tr.map(function(t){
+      if(t.kind==='mock'){var v=stMockVerdict(t);
+        return '<tr><td>'+mdEsc(String(t.date||'').slice(5))+' <span class="pill">모의</span></td><td colspan="3">언어지식·독해 <b>'+(stPartVal(t,'lang')==null?'—':stPartVal(t,'lang'))+'</b></td>'
+          +'<td>'+(stPartVal(t,'listen')==null?'—':'<b>'+stPartVal(t,'listen')+'</b>')+'</td><td><b class="'+(v&&v.pass?'pos':'neg')+'">'+(v?v.sum+'점':'—')+'</b></td></tr>';}
+      var c=stDiagTrendCells(t);
+      return '<tr><td>'+mdEsc(String(t.date||'').slice(5))+' <span class="pill">진단</span></td>'+cell(c.vocab)+cell(c.grammar)+cell(c.read)+cell(c.listen)
+        +'<td><b>'+(t.correct||0)+'/'+(t.n||0)+'</b></td></tr>';}).join('')+'</tbody></table></div></div>'):'';
+  return '<div class="sec"><div class="bkhd"><span class="subhd2">🩺 다음 진단</span><span class="mut" style="font-size:10.5px">학습방이 세트를 올린다</span></div>'
+      +(nx||'<div class="mut" style="padding:6px 0;font-size:11.5px">예정된 진단이 없다.</div>')+'</div>'
+    +trend
+    +stPaneRec();
+}
 function stDiagBtn(){
   var rd=stDiagReady();
   if(rd)return '<button class="btn sm" onclick="stDiagOpen(\''+rd.id+'\')" title="'+mdEsc(rd.title||'')+'">🩺 진단</button>';
@@ -8866,15 +9034,17 @@ function renderStudy(){
   var tabs=uiTabs([{k:'cal',label:'📅 캘린더'},
       {k:'plan',label:'🧭 전략',n:stStraArr('kpis').length||null},
       {k:'word',label:'🈶 드릴',n:stWords().length||null},
-      {k:'err',label:'❌ 오답',n:stErrOpen().length||null}],t,"setStTab('%')",'logtabs');
+      {k:'err',label:'❌ 오답',n:stErrOpen().length||null},
+      /* 🩺 v4.91 — 5번째 탭(로한 지시). 측정 기록 전용 */
+      {k:'diag',label:'🩺 진단',n:stDiagReady()?'!':null}],t,"setStTab('%')",'logtabs');
   /* 🔒 D-day·입실시각·phase 는 **전 탭 공통 헤더**다.
      2025년 시험장 앞에서 돌아온 이력 때문에 '입실까지'가 목표에 포함된다 — 어느 화면에서도 보여야 한다.
      🧭 v4.81 — 그래서 페이지 헤더 자체가 됐다(탭 아래 따로 있던 sthead 줄 → 헤더 상태 줄) */
   document.getElementById('v-study').innerHTML=pf('study',{status:stHead(),
-      actions:stDiagBtn()+' <button class="btn sm" onclick="stPomoOpen()">⏱ 뽀모 시작</button>',l1:tabs})
+      actions:'<button class="btn sm" onclick="stPomoOpen()">⏱ 뽀모 시작</button>',l1:tabs})
     /* 🩺 v4.90 — 진단이 열려 있으면 탭 내용 대신 진단 화면. 탭을 누르면 닫힌다(진행은 남는다) */
     +((DB.ui&&DB.ui.diagView&&stDiagById(DB.ui.diagView))?'<div class="dgpane">'+stPaneDiag()+'</div>'
-     :(t==='err'?stPaneErr():t==='plan'?stPanePlan():t==='word'?stPaneWord():stPaneCal()));
+     :(t==='err'?stPaneErr():t==='plan'?stPanePlan():t==='word'?stPaneWord():t==='diag'?stPaneDiagTab():stPaneCal()));
   /* 🔊 음성 문항은 **뜨면 한 번 읽어준다** — 매 문항 버튼을 눌러야 하면 문항이 성립하지 않는다.
      ⚠️ 문항당 1회만. 채점 후 다시 그릴 때 또 읽으면 시끄럽다(다시 듣기는 버튼으로). */
   if(t==='word'&&ST_DRILL&&!ST_DRILL.fin&&!ST_DRILL.show&&ST_DRILL.mode==='a2m'){
@@ -14066,7 +14236,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.91';
+var APP_VERSION='4.92';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -14080,6 +14250,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.92',date:'2026-11-10',note:'<b>🔀 단어 카운터 모드별 · 🎯 드릴별 남은 목표 · 🃏 맞혀도 해설 카드 · 🩺 진단 탭.</b> 학습사 v33 + 진단 v2 + 로한 · 🔀 <code>words[].m={r2m,k2r,r2k,k2m,a2m,kata,vconj}</code> — 한자 읽기를 맞혀도 가나→뜻이 안 오른다 · 옛 최상위 카운터는 m.r2m 으로(접속 때 한 번 · 멱등) · 간격 반복(1·3·7일)·「때가 된 것 60% + 처음 보는 것」·하루 2번 제한을 단어 드릴 전 모드에 · 어려운 단어·드릴 오답은 r2m 기준 · 드릴 오답 줄에 모드별 miss/seen · 🎯 로한: <i>「히라가나 뜻은 몇 개 남았다 새로운 게 몇 개다 — 각 드릴마다」</i> → 모드 칸마다 「남은 N (때 · 새)」 + 고른 모드의 목표 상자(다시 볼 때 · 처음 · 쉬는 중·다음 날짜 · 오늘 한 문항) · 문법 칸도 · 🃏 로한: <i>「찍어서 맞은 걸 수도 있어서 오답처럼 해설이」</i> → 맞혀도 같은 카드(초록) · 맞혔을 땐 나머지 보기의 정체 · 문법 해설(💡)도 맞혀도 뜬다 · 🩺 진단 탭(5번째) — 다음 진단·시작/이어서 · 추이(문자·어휘/문법/독해/청해 밴드) · 기록(전략 탭에서 옮김) · + 모의고사 · scheduled 세트는 날짜가 되면 열린다 · 진단에서 틀린 문장은 내일 문법 드릴에서 먼저 · 틀린 단어는 그 섹션 모드에 재점검 · 🕒 로한: <i>「진단 본 것도 데일리에 학습으로」</i> → 진단 시간이 타임로그·학습 분에(dg01 소급: doneAt − 푼 시간) · 🔴 진단 결함 1: 뜻 토큰이 정답과 겹치는 보기 제외(r2m·a2m·k2m·kata) · 결함 2: sc062 보기 はずです → ましょう(rb_call).'},
   {v:'4.91',date:'2026-11-09',note:'<b>👆 패드에서도 「다음」이 오른쪽 아래 · 🃏 오답 설명은 가운데 · 크게.</b> 로한: <i>「모바일에선 다음이 오른쪽 아래에 뜨던데 탭도 그렇게 · 오답 설명을 가운데, 글씨도 키워」</i> · 원인: 패드(S펜·키보드 커버)는 「마우스 있음(hover)」이라고 답해서 v4.89 의 손가락 화면 규칙이 안 걸렸다 → 매체 질의 + 실제로 손가락·펜으로 누르면 그때부터 손가락 화면(html.tch) · 마우스로 누르면 다시 컴퓨터 배치 · 🔒 배치는 손을 뗀 뒤에 바꾼다(누르는 순간 단추가 움직이면 그 클릭이 사라진다). 🃏 오답 카드: 가운데 정렬 · 가나 38px · 뜻 22px · 대비·같은 소리·예문 16~17px · 문법 해설(💡)도 같이.'},
   {v:'4.90',date:'2026-11-09',note:'<b>🩺 진단 모드 · 🃏 드릴 오답 카드.</b> 학습방: <i>「매주 자체 진단을 하기로 했는데 앱에 시험 기능이 없어 세 번 다 못 돌았다」</i> · 학습 헤더 <b>🩺 진단</b> → 세트(study.diag) 처음 열 때 문항 확정(drawn) · 정답·해설은 제출 뒤에만 · 섹션 사이엔 다음 섹션 이름만 · 경과 시간/목표(강제 종료 없음) · 같은 날 이어 풀기 · 🔒 진단은 seen·miss·streak 를 안 바꾼다(제출 뒤 틀린 단어만 retestOn 내일) · 결과: 섹션별 · JLPT 참고정보 밴드 A/B/C(합격선 환산 안 함) · 가나 인지 따로 · 청해 직접 입력 · 오답 복습 · tests 에 kind:diag. 🃏 로한: <i>“해설엔 한자나, 내가 누른 게 틀린 건 뭐였고, 동음어 같은 걸 한 번에”</i> · 단어 드릴에서 틀리면 한 장 카드: 정답(가나·한자·뜻·품사·그룹) · 내가 고른 보기의 정체(역조회) · 닮은 소리 강조 · 같은 소리 · 한 글자 차이 단어 · 예문 · 「확인」을 눌러야 넘어간다 · drills 에 picks:[{id,chose}] · 결과 화면 오답 목록에 고른 것까지.'},
   {v:'4.89',date:'2026-11-07',note:'<b>💾 드릴 중 저장 묶기 · ↵ 결과에서 엔터 = 한 번 더 · 👍 패드에선 「다음」이 오른손 엄지 자리.</b> 로한: <i>「저장 묶기 하고, 한번더 버튼도 엔터로, 패드로 학습할 땐 정답 누르고 다음이 가운데라 불편 — 오른손 엄지 위치로」</i> · 실측 11/07: 드릴 한 문항마다 단어장 전체(26만 자)를 올려 하루 914번. 🔒 드릴 중엔 30초에 한 번만 올리고(타이머를 미루지 않는다) · 세트가 끝나면 바로 · 화면을 떠나면(앱 전환) 바로 — 답마다 기기에는 바로 남긴다(rb_pending). 👍 손가락 화면(hover:none)에서만 「다음 →」·「결과 보기」·「한 번 더」를 오른쪽 아래에 크게(58px) 고정, 저장 배지는 왼쪽 아래로 비킨다 — 컴퓨터는 그대로. 설명 줄도 새 규칙으로(연속 정답 · r2m 세트 구성).'},
@@ -16976,6 +17147,9 @@ function enter(){
     try{ pendRescue(srvRaw); }catch(e){}
     /* v4.12 — 타임로그에 안 남은 옛 뽀모를 한 번 남긴다. 남긴 게 있을 때만 저장한다(아무것도 안 했는데 쓰면 다른 탭과 헛된 충돌이 난다) */
     try{ if(stPomoBackfill())save(); }catch(e){}
+    /* 🩺 v4.91 — 진단 시간을 타임로그에(한 번) · 🔀 모드별 카운터로 옮긴 단어가 있으면 바로 쓴다(옛 판 탭과 섞이지 않게) */
+    try{ if(stDiagBackfill())save(); }catch(e){}
+    try{ if(ST_MIG_N){logAct('🔀 단어 카운터를 모드별로 옮겼다 · '+ST_MIG_N+'개 → m.r2m');ST_MIG_N=0;save();} }catch(e){}
     /* v4.15 — 겹친 id 를 갈랍으면 바로 쓴다. 안 쓰면 다음 병합에서 그만큼 사라진다 */
     try{ if(DUP_FIX.n){logAct('⚠️ 중복 id '+DUP_FIX.n+'건을 새 번호로 갈랐다 · '+DUP_FIX.where.join(' · '));save();} }catch(e){}
     localBackup();netSnapTouch();sideApply();bootDone();renderDaily();navInit();snapAutoOnLoad();kvVerify();kvLiveStart();
