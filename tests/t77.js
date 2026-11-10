@@ -32,12 +32,12 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
       const realNow=Date.now; Date.now=()=>startMs+secs*1000; try{stDrillFinish();}finally{Date.now=realNow;} ST_DRILL=null;};
     /* D1·D3 — 09:05 에 3분 드릴, 빈 칸 */
     run(at(9,5),180);
-    const r1=DB.study.drills[0], blk1=(DB.timelog[t]||[]).find(x=>x.s===18);
+    const r1=DB.study.drills[0], blk1=(DB.timelog[t]||[]).find(x=>x.s===54);   /* v4.94 10분 칸 · 09:00 = 54 */
     const m1=stStudyMins(t);
     /* D2 — 14:00~16:00 일(work) 블록 안에서 4분 드릴 */
     DB.timelog[t].push({s:28,e:31,tag:'work',title:'출근',code:null});
     run(at(14,40),240);
-    const blk2=(DB.timelog[t]||[]).find(x=>x.s<=29&&x.e>=29);
+    const blk2=(DB.timelog[t]||[]).find(x=>x.s<=88&&x.e>=88);   /* 14:40 = 88 · 옛 30분 칸 fixture(28~31)는 84~95 로 옮겨진다 */
     /* D4 — 20:00 25분 뽀모 안에서 20:10 5분 드릴 */
     DB.study.pomos.push({id:'pm1',at:new Date(at(20,0)).toISOString(),mins:25,plan:25});
     stPomoLog(DB.study.pomos[0]);

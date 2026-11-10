@@ -24,11 +24,11 @@ const TL=()=>p.evaluate(()=>JSON.stringify(window.__store.v.timelog['2026-08-20'
 console.log('초기 (08:30–11:00 림월드):', await TL());
 
 console.log('=== 기록된 칸 위에서 범위 선택 시작 ===');
-await p.evaluate(()=>tlSlotClick(20));  // 10:00
+await p.evaluate(()=>tlSlotClick(60));  // 10:00 (v4.94 10분 칸)
 await p.waitForTimeout(300);
 console.log('  1차 탭 후 pick:', await p.evaluate(()=>DB.ui.tlPick), '(모달 안 뜨고 선택 시작이어야)');
 console.log('  모달 열림:', await p.evaluate(()=>document.getElementById('ov').classList.contains('on')), '(false여야)');
-await p.evaluate(()=>tlSlotClick(20));  // 같은 칸 → 30분
+await p.evaluate(()=>tlSlotClick(60));  // 같은 칸 → 10분
 await p.waitForTimeout(400);
 console.log('  모달 제목:', await p.evaluate(()=>document.getElementById('tl_lab').textContent), await p.evaluate(()=>document.getElementById('tl_dur').textContent));
 console.log('  겹침 안내:', await p.evaluate(()=>{const n=document.querySelector('.tlov');return n?n.innerText.replace(/\n/g,' '):'(없음)';}));
@@ -37,7 +37,7 @@ console.log('  내용 프리필:', await p.inputValue('#tl_title'));
 
 console.log('=== 시각 조절 (select) ===');
 console.log('  시작/끝 select 존재:', await p.evaluate(()=>!!document.getElementById('tl_s')&&!!document.getElementById('tl_e')));
-await p.selectOption('#tl_s','20'); await p.selectOption('#tl_e','20');
+await p.selectOption('#tl_s','60'); await p.selectOption('#tl_e','62');
 await p.waitForTimeout(200);
 console.log('  라벨:', await p.evaluate(()=>document.getElementById('tl_lab').textContent), await p.evaluate(()=>document.getElementById('tl_dur').textContent));
 
@@ -51,8 +51,8 @@ console.log(' ', await TL());
 console.log('  → 08:30-10:00 림월드 / 10:00-10:30 식사(B.8a) / 10:30-11:00 림월드 로 갈렸나');
 
 console.log('=== 구간 비우기 (앞뒤 보존) ===');
-await p.evaluate(()=>tlSlotClick(18));await p.waitForTimeout(200);
-await p.evaluate(()=>tlSlotClick(18));await p.waitForTimeout(350);
+await p.evaluate(()=>tlSlotClick(54));await p.waitForTimeout(200);
+await p.evaluate(()=>tlSlotClick(54));await p.waitForTimeout(350);
 await p.evaluate(()=>{const b=[...document.querySelectorAll('#modal button')].find(x=>x.innerText.includes('비우기'));b.click();});
 await p.waitForTimeout(450);
 console.log(' ', await TL());

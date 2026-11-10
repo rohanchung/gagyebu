@@ -75,11 +75,12 @@ console.log('\n=== ② 보조 태그 — 24시간 총량이 안 깨진다 ===');
  ok(/linear-gradient/.test(r.css),'두 태그 = 그라데이션', r.css.slice(0,52)+'…');
  ok(!/gradient/.test(r.solo),'한 태그 = 단색 그대로', r.solo);
  ok(r.label==='낭비+휴식','라벨이 둘 다 보인다', r.label);
- ok(r.sum.waste===2&&r.sum.rest===2,'⚠️ 4슬롯이 낭비 2 + 휴식 2 로 반반', JSON.stringify(r.sum));
+ /* v4.94 — 옛 30분 칸 20~23 은 10분 칸 60~71(12칸)로 옮겨진다 */
+ ok(r.sum.waste===6&&r.sum.rest===6,'⚠️ 12칸(2시간)이 낭비 6 + 휴식 6 으로 반반', JSON.stringify(r.sum));
  ok(r.tot===r.used,'🔒 집계 합 = 실제 사용 슬롯 — 24h 총량이 안 깨진다', r.tot+' = '+r.used);
  const m=await p.evaluate(async()=>{
    document.querySelector('.m[data-v="daily"]').click(); await new Promise(r=>setTimeout(r,250));
-   tlRangeModal('2026-08-25',20,23); await new Promise(r=>setTimeout(r,60));
+   tlRangeModal('2026-08-25',60,71); await new Promise(r=>setTimeout(r,60));
    const seg2=document.getElementById('tl_seg2');
    const pre=document.getElementById('tl_mix').textContent;
    return {has:!!seg2, n:seg2?seg2.querySelectorAll('button').length:0,
@@ -93,10 +94,10 @@ console.log('\n=== ② 보조 태그 — 24시간 총량이 안 깨진다 ===');
    return {dlg:window.__dlg[0]||'',t2:modal._tltag2};});
  ok(/같은 것은 보조로/.test(dup.dlg),'주 태그와 같은 것은 못 고른다');
  const sv=await p.evaluate(()=>{tlSetTag2(null,'');tlSave('2026-08-25');
-   const blk=DB.timelog['2026-08-25'].filter(b=>b.s===20)[0];
+   const blk=DB.timelog['2026-08-25'].filter(b=>b.s===60)[0];
    return {tag2:blk.tag2, sum:tlSum('2026-08-25')};});
  ok(sv.tag2===undefined,'보조를 없음으로 바꾸면 필드가 안 남는다', String(sv.tag2));
- ok(sv.sum.waste===4&&sv.sum.rest===undefined,'집계가 단독으로 복귀', JSON.stringify(sv.sum));
+ ok(sv.sum.waste===12&&sv.sum.rest===undefined,'집계가 단독으로 복귀', JSON.stringify(sv.sum));
  ok(errs.length===0,'JS 에러 0', errs[0]||'');
  await c.close();}
 

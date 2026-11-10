@@ -57,10 +57,12 @@ const FAKE=()=>{
     const d0=new Date(); d0.setHours(9,52,0,0);
     const t={id:'dgX',kind:'diag',date:ds,secs:1320,at:d0.toISOString(),tl:true};
     studyDB().tests=(studyDB().tests||[]).concat([t]);
-    const n1=stDiagBackfill(); const ti=tlOf(ds).map(b=>b.s+':'+b.title);
-    const n2=stDiagBackfill(); const ti2=tlOf(ds).map(b=>b.s+':'+b.title);
+    const n1=stDiagBackfill(); const ti=tlOf(ds).map(b=>b.s+'-'+b.e+':'+b.title);
+    const n2=stDiagBackfill(); const ti2=tlOf(ds).map(b=>b.s+'-'+b.e+':'+b.title);
     return {n1,n2,ti,ti2,tl:t.tl};});
-  ok('T1 🔴 이미 드릴 칸이어도 진단 이름이 남는다',T.ti.length===2&&T.ti.every(x=>/🩺 진단/.test(x))&&T.ti.every(x=>/드릴/.test(x)),JSON.stringify(T.ti));
+  /* v4.94 — 옛 30분 칸(19·20)은 10분 칸 57~59·60~62 로 옮겨진다. 진단 09:52~10:14 = 칸 59~61 만 이름이 붙는다 */
+  const has=(i,re)=>T.ti.some(x=>{const m=x.match(/^(\d+)-(\d+):/);return m&&+m[1]<=i&&+m[2]>=i&&re.test(x);});
+  ok('T1 🔴 이미 드릴 칸이어도 진단 이름이 남는다(겹친 10분 칸만)',[59,60,61].every(i=>has(i,/드릴.*🩺 진단/))&&has(57,/^57-58:🈶 드릴 · A$/)&&has(62,/^62-62:🈶 드릴 · B$/),JSON.stringify(T.ti));
   ok('T2 v4.92 소급분(tl:true)도 한 번 더 남긴다 · 두 번째엔 안 붙인다',T.n1===1&&T.n2===0&&T.tl===2&&JSON.stringify(T.ti)===JSON.stringify(T.ti2),JSON.stringify(T));
   ok('Z 페이지 에러 없음',errs.length===0,errs.join(' | '));
   await ctx.close();

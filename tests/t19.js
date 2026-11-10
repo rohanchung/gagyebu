@@ -23,17 +23,17 @@ const TL=()=>p.evaluate(()=>JSON.stringify(window.__store.v.timelog['2026-08-20'
 console.log('초기:', await TL());
 
 console.log('=== ① hover → 블록 전체 강조 ===');
-await p.hover('[data-tlq="19"]'); await p.waitForTimeout(250);
-console.log('  강조된 칸:', await p.evaluate(()=>[...document.querySelectorAll('.tlq.hl')].map(x=>x.dataset.tlq).join(',')), '(17~21이어야)');
+await p.hover('[data-tlq="57"]'); await p.waitForTimeout(250);
+console.log('  강조된 칸:', await p.evaluate(()=>[...document.querySelectorAll('.tlq.hl')].map(x=>x.dataset.tlq).join(',')), '(51~65이어야 · v4.94 10분 칸)');
 console.log('  ✎ 보임:', await p.evaluate(()=>{const e=document.querySelector('.tlq.hl .tledit');return e?getComputedStyle(e).display:'(없음)'}));
-await p.hover('[data-tlq="40"]'); await p.waitForTimeout(200);
+await p.hover('[data-tlq="120"]'); await p.waitForTimeout(200);
 console.log('  다른 블록 hover 후 강조:', await p.evaluate(()=>[...document.querySelectorAll('.tlq.hl')].map(x=>x.dataset.tlq).join(',')||'(없음)'));
 
 console.log('=== ② ✎ 클릭 → 내용만 수정 ===');
-await p.hover('[data-tlq="19"]'); await p.waitForTimeout(200);
-await p.evaluate(()=>document.querySelector('[data-tledit="17"]').click());
+await p.hover('[data-tlq="57"]'); await p.waitForTimeout(200);
+await p.evaluate(()=>document.querySelector('[data-tledit="51"]').click());
 await p.waitForTimeout(400);
-console.log('  모달:', await p.evaluate(()=>document.getElementById('tl_lab').textContent), await p.evaluate(()=>document.getElementById('tl_dur').textContent), '(08:30–11:00 2.5h)');
+console.log('  모달:', await p.evaluate(()=>document.getElementById('tl_lab').textContent), await p.evaluate(()=>document.getElementById('tl_dur').textContent), '(08:30–11:00 2h 30m)');
 console.log('  태그 프리필:', await p.evaluate(()=>document.querySelector('.tlpick.on').innerText));
 console.log('  내용 프리필:', await p.inputValue('#tl_title'));
 console.log('  시각 select 존재:', await p.evaluate(()=>!!document.getElementById('tl_s')));
@@ -44,9 +44,9 @@ await p.waitForTimeout(450);
 console.log(' ', await TL(), '(시간 그대로, 내용만 바뀌어야)');
 
 console.log('=== ③ 두 칸 탭은 그대로 (신설·덮어쓰기) ===');
-await p.evaluate(()=>tlSlotClick(19));await p.waitForTimeout(250);
+await p.evaluate(()=>tlSlotClick(57));await p.waitForTimeout(250);
 console.log('  pick:', await p.evaluate(()=>DB.ui.tlPick));
-await p.evaluate(()=>tlSlotClick(19));await p.waitForTimeout(350);
+await p.evaluate(()=>tlSlotClick(57));await p.waitForTimeout(350);
 console.log('  모달 범위:', await p.evaluate(()=>document.getElementById('tl_lab').textContent));
 await p.evaluate(()=>{[...document.querySelectorAll('#modal .tlpick')].find(x=>x.innerText.includes('식사')).click();});
 await p.fill('#tl_title','점심');
@@ -55,8 +55,8 @@ await p.waitForTimeout(450);
 console.log(' ', await TL());
 
 console.log('=== ④ 범위 선택 중엔 ✎ 무시 ===');
-await p.evaluate(()=>tlSlotClick(36));await p.waitForTimeout(250);
-await p.evaluate(()=>{const e=document.querySelector('[data-tledit="30"]');if(e)e.click();});
+await p.evaluate(()=>tlSlotClick(108));await p.waitForTimeout(250);
+await p.evaluate(()=>{const e=document.querySelector('[data-tledit="90"]');if(e)e.click();});
 await p.waitForTimeout(350);
 console.log('  모달 열림:', await p.evaluate(()=>document.getElementById('ov').classList.contains('on')), '| pick:', await p.evaluate(()=>DB.ui.tlPick));
 console.log('  (✎가 아니라 칸 클릭으로 처리되어 범위가 잡혔거나 모달이 떠야)');

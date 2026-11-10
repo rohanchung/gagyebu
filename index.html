@@ -868,13 +868,17 @@ textarea.mla.same{background:#f2f9f4}
 .tlrow:last-child{border-bottom:0}
 .tlh{flex:0 0 30px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);
   background:var(--soft);border-right:1px solid var(--line);font-variant-numeric:tabular-nums}
-.tlq{flex:1;min-height:22px;border-right:1px solid #f3f5f8;cursor:pointer;position:relative;
-  transition:background .1s,box-shadow .1s;display:flex;align-items:center;padding:0 6px}
+.tlq{flex:1;min-width:0;min-height:22px;border-right:1px solid #f3f5f8;cursor:pointer;position:relative;
+  transition:background .1s,box-shadow .1s;display:flex;align-items:center;padding:0}
+.tlq.half:not(.has){border-left:1px solid #e3e7ee}
+.tlq.has.mid{border-right-color:transparent}
 .tlq:last-child{border-right:0}
 .tlq:hover{background:#f6f1e3;box-shadow:inset 0 0 0 1px var(--gold)}
 .tlq.has{color:#fff}
-.tlq.has em{font-style:normal;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+.tlq.has em{position:absolute;left:4px;top:50%;transform:translateY(-50%);z-index:1;pointer-events:none;
+  font-style:normal;font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.tlq.has em.cont{opacity:.75}
 .tlq.pick{box-shadow:inset 0 0 0 2px var(--accent);background:#e8effd}
 .tlq.hl{filter:brightness(1.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(0,0,0,.08)}
 .tlq.hl:first-of-type{}
@@ -5291,12 +5295,12 @@ function stUnitRow(u,dim){
 /* ── 학습시간 파생 ──
    ⚠️ tag2 를 빠뜨리면 0 으로 읽힌다. 근무 중 학습은 tag:'work' + tag2:'study' 다. */
 function stMinsOn(ds){
-  var a=(DB.timelog||{})[ds]; if(!a||!a.length)return 0;
+  var a=tlDay(ds); if(!a||!a.length)return 0;
   var n=0;
   a.forEach(function(x){
     if(x.tag!=='study'&&x.tag2!=='study')return;
     var s=+x.s, e=(x.e==null?s:+x.e);
-    n+=(Math.max(s,e)-Math.min(s,e)+1)*30;   /* 슬롯 1칸 = 30분 */
+    n+=(Math.max(s,e)-Math.min(s,e)+1)*TL_M;   /* 슬롯 1칸 = 10분(v4.94) */
   });
   return n;
 }
@@ -5322,20 +5326,20 @@ function stPomoMinsOn(ds){
   stPomos().forEach(function(x){ if(stPomoDate(x)===ds)n+=(+x.mins||0); });
   return n;
 }
-/* 뽀모 1건이 실제로 걸친 30분 칸들. 시작 시각(at)은 브라우저 현지 시각(KST)으로 읽는다.
+/* 뽀모 1건이 실제로 걸친 타임로그 칸들(v4.94 부터 10분 칸 · TL_M). 시작 시각(at)은 브라우저 현지 시각(KST)으로 읽는다.
    rest = 그날 24:00 을 넘긴 분(칸 없이 분만 센다) */
 function stPomoSpan(x){
   var mins=+(x&&x.mins)||0, t=new Date(x&&x.at);
   if(!x||!x.at||isNaN(t.getTime())||mins<=0)return {date:null,slots:[],rest:mins};
   var ds=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
   var a=t.getHours()*60+t.getMinutes()+t.getSeconds()/60, z=Math.min(a+mins,1440), slots=[], got=0;
-  for(var i=Math.floor(a/30);i<48&&i*30<z;i++){
-    var m=Math.min(z,(i+1)*30)-Math.max(a,i*30); if(m>0){slots.push({i:i,m:m});got+=m;}
+  for(var i=Math.floor(a/TL_M);i<TL_N&&i*TL_M<z;i++){
+    var m=Math.min(z,(i+1)*TL_M)-Math.max(a,i*TL_M); if(m>0){slots.push({i:i,m:m});got+=m;}
   }
   return {date:ds,slots:slots,rest:Math.max(0,mins-got)};
 }
 /* 🔒 **'그날 학습을 몇 분 했나'에 답하는 함수는 이것 하나다.**
-   30분 칸마다 — 그 칸에 뽀모가 걸쳐 있으면 **뽀모의 실제 분**, 없으면 timelog 가 study(tag 또는 tag2)일 때 30분.
+   칸마다(v4.94 10분 · 옛 30분 칸 g:30 은 세 칸 묶음) — 그 칸에 뽀모가 걸쳐 있으면 **뽀모의 실제 분**, 없으면 timelog 가 study(tag 또는 tag2)일 때 30분.
    🔴 v4.12 로 바꿨다. 이전엔 timelog + 뽀모를 **그냥 더했다.** 뽀모가 timelog 에 study 를 찍기 시작하면(stPomoLog)
       같은 25분이 30×2 + 25 = 85분으로 부푼다. 칸 단위로 '뽀모가 있으면 뽀모만'이면
       표시(timelog)와 세기(분)가 분리되어, 로한이 칸을 고치거나 블록이 쪼개져도 두 번 세지 않는다. */
@@ -5347,13 +5351,13 @@ function stStudyMins(ds){
     if(stPomoDate(x)!==ds)return;
     var sp=stPomoSpan(x);
     if(!sp.date){extra+=(+x.mins||0);return;}   /* at 이 없는 옛 기록 — 어느 칸인지 모른다 */
-    sp.slots.forEach(function(s){per[s.i]=Math.min(30,(per[s.i]||0)+s.m);});
+    sp.slots.forEach(function(s){per[s.i]=Math.min(TL_M,(per[s.i]||0)+s.m);});
     extra+=sp.rest;
   });
-  ((DB.timelog||{})[ds]||[]).forEach(function(x){
+  (tlDay(ds)||[]).forEach(function(x){
     if(x.tag!=='study'&&x.tag2!=='study')return;
     var s=+x.s,e=(x.e==null?s:+x.e);
-    for(var k=Math.min(s,e);k<=Math.max(s,e);k++)tl[k]=1;
+    for(var k=Math.min(s,e);k<=Math.max(s,e);k++)if(tl[k]!==1)tl[k]=(x.g===30)?'L':1;
   });
   /* 🈶 v4.87 — 드릴도 칸마다 **실제 분**으로 센다(드릴이 찍은 study 칸을 30분으로 세면 3분 드릴이 30분이 된다).
      🔒 드릴은 보통 뽀모 **안에서** 돈다 — 둘을 더하면 같은 시간을 두 번 센다. 칸마다 큰 쪽만 */
@@ -5361,10 +5365,16 @@ function stStudyMins(ds){
   /* 🩺 v4.91 — 진단도 드릴과 같은 칸(실제 분)으로 센다 */
   ((studyDB().drills)||[]).concat((studyDB().tests||[]).filter(function(t){return t&&t.kind==='diag';})).forEach(function(d){
     if(!d||!d.at)return; var sp=stDrillSpan(d); if(sp.date!==ds)return;
-    sp.slots.forEach(function(s){dper[s.i]=Math.min(30,(dper[s.i]||0)+s.m);});
+    sp.slots.forEach(function(s){dper[s.i]=Math.min(TL_M,(dper[s.i]||0)+s.m);});
   });
   var n=extra;
-  for(var i=0;i<48;i++)n+=(per[i]||dper[i])?Math.max(per[i]||0,dper[i]||0):(tl[i]?30:0);
+  /* ⏳ v4.94 — 옛 30분 칸(g:30)은 세 칸 묶음으로 본다: 묶음 안에 뽀모·드릴이 걸쳤으면 그 실제 분만, 아니면 30분 */
+  var hit=function(k){return !!(per[k]||dper[k]);};
+  for(var i=0;i<TL_N;i++){
+    if(hit(i)){n+=Math.max(per[i]||0,dper[i]||0);continue;}
+    if(tl[i]===1)n+=TL_M;
+    else if(tl[i]==='L'){var g0=i-(i%3);if(!hit(g0)&&!hit(g0+1)&&!hit(g0+2))n+=TL_M;}
+  }
   return Math.round(n);
 }
 function stMinsRange(from,to){var n=0,d=from;
@@ -8528,10 +8538,10 @@ function stTlMarkStudy(sp,title){
     if(r.act==='new')tlPut(ds,{s:r.s,e:r.e,tag:'study',title:title,code:null});
     /* 🔴 v4.93 — 이미 학습 칸(드릴 등)이면 **이름을 덧붙인다.** 전엔 그대로 둬서 —
        로한: 「오전에 진단 본 것도 데일리 로그에 반영이 안 됐다」 · 09:52~10:14 진단이 앞뒤 드릴 칸에 묻혀 사라졌다 */
-    /* 🔒 순수 학습 칸(tag=study · tag2 없음)이 이 구간 안에 통째로 들어올 때만 — 다른 활동 칸(식사+휴식 등)과 손으로 찍은 긴 칸은 쪼개지 않는다 */
+    /* 🔒 순수 학습 칸(tag=study · tag2 없음)만 — 다른 활동 칸(식사+휴식 등)은 쪼개지 않는다. v4.94 10분 칸이라 겹치는 칸만 잘라 붙인다 */
     /* 🔒 앱이 만든 칸(🈶 드릴 · 🩺 진단 · 뽀모)에만 — 로한이 손으로 쓴 제목은 안 건드린다 */
-    else if(r.act==='keep'&&r.b.tag==='study'&&!r.b.tag2&&r.b.s>=r.s&&r.b.e<=r.e&&/^(🈶|🩺|뽀모)/.test(String(r.b.title||''))){var bt=String(r.b.title||'');
-      if(bt.indexOf(title)<0)tlPut(ds,{s:r.s,e:r.e,tag:r.b.tag,tag2:r.b.tag2,title:bt?bt+' + '+title:title,code:r.b.code});}
+    else if(r.act==='keep'&&r.b.tag==='study'&&!r.b.tag2&&/^(🈶|🩺|뽀모)/.test(String(r.b.title||''))){var bt=String(r.b.title||'');
+      if(bt.indexOf(title)<0)tlPut(ds,{s:r.s,e:r.e,tag:r.b.tag,tag2:r.b.tag2,title:bt?bt+' + '+title:title,code:r.b.code,g:r.b.g});}
     else if(r.act==='sub')tlPut(ds,{s:r.s,e:r.e,tag:r.b.tag,tag2:'study',title:r.b.title,code:r.b.code});
   });
 }
@@ -13529,7 +13539,17 @@ function rwChip(tier,period,label){
       가계부 = 건(件)·순서 무관·총량 무제한 / 타임로그 = 구간·순서가 의미·**하루 24시간 고정 총량**.
       총량이 고정이라 "이만큼 썼다"가 아니라 **"이만큼밖에 안 남았다"**가 보인다.
    ⚠️ 기록 안 된 시간은 채우지 않는다. **비어 있는 것 자체가 데이터다.**
-   저장 단위: 30분 슬롯(0~47). blocks=[{s,e,tag,title,code}] — 슬롯 배열보다 훨씬 가볍다. */
+   저장 단위: 30분 슬롯(0~47). blocks=[{s,e,tag,title,code}] — 슬롯 배열보다 훨씬 가볍다.
+   ⏳ v4.94 — **10분 슬롯(0~143)** 으로 잘게(로한: 「차라리 로그를 10분 단위로 — 가로로 잘게 쪼개면 되잖아」).
+      30분 칸이면 3분 드릴이 30분을 통째로 먹고, 같은 칸의 진단(22분)이 드릴 이름에 묻혔다.
+   🔒 옮긴 블록엔 `g:30`(원래 칸 크기)을 남긴다 — 학습 분은 옛 30분 묶음으로 센다(28분 뽀모가 든 30분 칸이 48분으로 부풀지 않게 · 과거 숫자 그대로).
+   🔒 블록에 `u:10` 이 붙어 있으면 10분 칸이다. **없으면 옛 30분 칸** — 읽을 때 한 번 옮긴다(s×3 · e×3+2 · 멱등).
+      옛 판 탭이 30분 칸으로 써도 다음 접속 때 바르게 옮겨진다 · 다른 방(SQL)도 u 를 보고 단위를 안다. */
+var TL_M=10, TL_N=144, TL_PH=6;   /* 한 칸 분 · 하루 칸 수 · 한 시간 칸 수 */
+var TL_SEEN=null;
+function tlMigDay(arr){if(!Array.isArray(arr))return 0;var n=0;arr.forEach(function(b){if(!b||typeof b!=='object'||b.u===TL_M)return;
+  var s0=+b.s||0, e0=(b.e==null?s0:+b.e); b.s=s0*3; b.e=e0*3+2; b.u=TL_M; b.g=30; n++;});return n;}
+function tlMigAll(m){var n=0;if(!m||typeof m!=='object')return 0;Object.keys(m).forEach(function(k){n+=tlMigDay(m[k]);});return n;}
 var TL_TAGS=[
   {k:'sleep', label:'수면',  c:'#8b93a8'},
   {k:'work',  label:'일',    c:'#3f6fd8'},
@@ -13564,10 +13584,11 @@ function tlLabel(b){
   var l=tlTag(b.tag).label;
   return (b.tag2&&b.tag2!==b.tag)?(l+'+'+tlTag(b.tag2).label):l;
 }
-function tlAll(){DB.timelog=DB.timelog||{};return DB.timelog;}
-function tlOf(ds){return (tlAll()[ds]||[]).slice().sort(function(a,b){return a.s-b.s;});}
-function slotLabel(i){return String(Math.floor(i/2)).padStart(2,'0')+':'+((i%2)?'30':'00');}
-function slotRange(a,b){return slotLabel(a)+'–'+slotLabel(b+1>47?48:b+1).replace('24:00','24:00');}
+function tlAll(){DB.timelog=DB.timelog||{};if(DB.timelog!==TL_SEEN){tlMigAll(DB.timelog);TL_SEEN=DB.timelog;}return DB.timelog;}
+function tlDay(ds){var a=tlAll()[ds];tlMigDay(a);return a;}
+function tlOf(ds){return (tlDay(ds)||[]).slice().sort(function(a,b){return a.s-b.s;});}
+function slotLabel(i){var m=i*TL_M;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}
+function slotRange(a,b){return slotLabel(a)+'–'+slotLabel(b+1>TL_N-1?TL_N:b+1);}
 /* 슬롯 i 를 덮는 블록 */
 function tlAt(ds,i){var b=tlOf(ds);for(var k=0;k<b.length;k++)if(i>=b[k].s&&i<=b[k].e)return b[k];return null;}
 function tlUsed(ds){var n=0;tlOf(ds).forEach(function(b){n+=(b.e-b.s+1);});return n;}
@@ -13584,32 +13605,33 @@ function tlMonthSum(ym){
     var d=tlSum(k); for(var t in d)m[t]=(m[t]||0)+d[t]; }
   return {tags:m,days:days};
 }
-function hrs(slots){var h=slots/2;return (h%1?h.toFixed(1):h)+'h';}
+function hrs(slots){var m=Math.round(slots*TL_M), h=Math.floor(m/60), r=m%60;return h?(h+'h'+(r?' '+r+'m':'')):(r+'m');}
 /* 겹치는 구간을 잘라낸다 — 같은 시간에 두 가지를 했다고 기록할 순 없다 */
 function tlPut(ds,blk){
-  var all=tlAll(); var list=(all[ds]||[]).slice(), out=[];
+  var all=tlAll(); tlDay(ds); var list=(all[ds]||[]).slice(), out=[];
   list.forEach(function(b){
     if(b.e<blk.s||b.s>blk.e){out.push(b);return;}
-    if(b.s<blk.s)out.push({s:b.s,e:blk.s-1,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code});
-    if(b.e>blk.e)out.push({s:blk.e+1,e:b.e,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code});
+    if(b.s<blk.s)out.push({s:b.s,e:blk.s-1,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code,u:TL_M,g:b.g});
+    if(b.e>blk.e)out.push({s:blk.e+1,e:b.e,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code,u:TL_M,g:b.g});
   });
+  blk.u=TL_M;
   out.push(blk);
   out.sort(function(a,b){return a.s-b.s;});
   all[ds]=out;
 }
 /* 구간만 지운다 — 블록 한가운데를 지우면 앞뒤가 남는다 */
 function tlDelRange(ds,a,z){
-  var all=tlAll(), out=[];
+  var all=tlAll(), out=[]; tlDay(ds);
   (all[ds]||[]).forEach(function(b){
     if(b.e<a||b.s>z){out.push(b);return;}
-    if(b.s<a)out.push({s:b.s,e:a-1,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code});
-    if(b.e>z)out.push({s:z+1,e:b.e,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code});
+    if(b.s<a)out.push({s:b.s,e:a-1,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code,u:TL_M,g:b.g});
+    if(b.e>z)out.push({s:z+1,e:b.e,tag:b.tag,tag2:b.tag2,title:b.title,code:b.code,u:TL_M,g:b.g});
   });
   out.sort(function(x,y){return x.s-y.s;});
   if(out.length)all[ds]=out; else delete all[ds];
 }
 function tlDel(ds,i){
-  var all=tlAll(); all[ds]=(all[ds]||[]).filter(function(b){return !(i>=b.s&&i<=b.e);});
+  var all=tlAll(); tlDay(ds); all[ds]=(all[ds]||[]).filter(function(b){return !(i>=b.s&&i<=b.e);});
   if(!all[ds].length)delete all[ds];
 }
 
@@ -13755,7 +13777,7 @@ function renderDaily(){
       status:'<span class="dtop"><b class="dtd">'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8),10)+'일 ('+DOW_KO[dowOf(t)]+')</b>'
         +' · <span class="'+(tfull?'dfull':'')+'">'+(tfull?'✅ 완전달성':(tr?'오늘 '+tr.done+'/'+tr.total:'루틴 없음'))+'</span>'
         +' · 이번주 '+fullDaysInWeek(weekStart(t))+'/'+cfg.weekFullDays+'일'
-        +' · 기록 '+hrs(used)+' · 미기록 '+hrs(48-used)+'</span>',
+        +' · 기록 '+hrs(used)+' · 미기록 '+hrs(TL_N-used)+'</span>',
       actions:quick,
       cond:'<div class="dgs">'+(gchips||'<span class="mut" data-gojump="">목표가 없다 — 목표·루틴 탭에서 시작해라</span>')+'</div>'});
   var dUsed=tlUsed(d);
@@ -13828,23 +13850,26 @@ function tlStrip(ds,h){
     seg+='<i style="flex:'+(x.e-x.s+1)+';background:'+tlCss(x)+'"></i>';
     cur=x.e+1;
   });
-  if(cur<48)seg+='<i style="flex:'+(48-cur)+'"></i>';
+  if(cur<TL_N)seg+='<i style="flex:'+(TL_N-cur)+'"></i>';
   return '<div class="tlstrip" style="height:'+(h||6)+'px">'+seg+'</div>';
 }
-/* 30분 그리드 — 한 행이 1시간, 좌우 반칸 */
+/* 10분 그리드(v4.94) — 한 행이 1시간, 여섯 칸. 제목은 블록이 그 줄에서 차지하는 칸만큼 펼친다 */
 function tlGrid(ds){
   var pick=(DB.ui&&DB.ui.tlPick), rows='';
   for(var h=0;h<24;h++){
     var cells='';
-    for(var q=0;q<2;q++){
-      var i=h*2+q, b=tlAt(ds,i);
+    for(var q=0;q<TL_PH;q++){
+      var i=h*TL_PH+q, b=tlAt(ds,i);
+      var lead=b&&(b.s===i||q===0), span=b?Math.min(b.e,h*TL_PH+TL_PH-1)-i+1:0;
       var st=b?(' has'+(b.s===i?' st':'')):'';
+      if(q===3)st+=' half';
+      if(b&&b.e>i&&q<TL_PH-1)st+=' mid';   /* 같은 블록 안 — 칸 경계선을 지운다(블록이 한 덩어리로 보이게) */
       var sel=(pick!=null&&i===pick)?' pick':'';
       /* data-blk = 이 칸이 속한 블록의 시작 슬롯. hover 시 같은 블록 전체를 강조하는 데 쓴다. */
       cells+='<span class="tlq'+st+sel+'" data-tlq="'+i+'"'+(b?' data-blk="'+b.s+'"':'')
         +(b?' style="background:'+tlCss(b)+'"':'')
         +' title="'+slotLabel(i)+(b?' · '+tlLabel(b)+(b.title?' '+sajuEsc(b.title):''):'')+'">'
-        +(b&&b.s===i?'<em>'+sajuEsc(b.title||tlLabel(b))+'</em>':'')
+        +(lead?'<em style="max-width:calc('+span+'00% - 6px)"'+(b.s===i?'':' class="cont"')+'>'+sajuEsc(b.title||tlLabel(b))+'</em>':'')
         +(b&&b.e===i?'<b class="tledit" data-tledit="'+b.s+'" title="이 기록 수정">✎</b>':'')+'</span>';
     }
     rows+='<div class="tlrow"><span class="tlh">'+String(h).padStart(2,'0')+'</span>'+cells+'</div>';
@@ -13861,11 +13886,11 @@ function tlPanel(ds){
   var missBox=miss.length?('<div class="tlmiss"><b>못 한 루틴</b> '
     +miss.map(function(m){return '<span class="chip check">'+sajuEsc(m.title)+(m.tag?' · '+sajuEsc(m.tag):'')+'</span>';}).join('')
     +'<div class="mut" style="font-size:10.5px;margin-top:5px">그 시간에 실제로 뭘 했는지 적어라. 그게 반성의 재료다.</div></div>'):'';
-  return '<div class="mut tlstat">기록 <b>'+hrs(used)+'</b> · 미기록 <b>'+hrs(48-used)+'</b></div>'
+  return '<div class="mut tlstat">기록 <b>'+hrs(used)+'</b> · 미기록 <b>'+hrs(TL_N-used)+'</b></div>'
    +missBox
    +(bars?'<div class="tlsums">'+bars+'</div>':'')
    +'<div class="mut tlhint">'+(pick!=null
-      ? ('<b class="acc">'+slotLabel(pick)+'</b> 부터 — <b>끝나는 칸</b>을 눌러라 (같은 칸을 다시 누르면 30분)  <span class="chip check" data-tlcancel="1">취소</span>')
+      ? ('<b class="acc">'+slotLabel(pick)+'</b> 부터 — <b>끝나는 칸</b>을 눌러라 (같은 칸을 다시 누르면 10분)  <span class="chip check" data-tlcancel="1">취소</span>')
       : '시작 칸 → 끝 칸으로 <b>새 기록</b>(덮어써도 앞뒤는 남는다) · 기록 위의 <b>✎</b>로 <b>내용만 수정</b>')+'</div>'
    +'<div class="tlgrid">'+tlGrid(ds)+'</div>'
    +'<div class="tllegend">'+TL_TAGS.map(function(x){
@@ -13902,10 +13927,10 @@ function tlRangeModal(ds,a,z){
       return '<button class="tlpick tl2'+(cur.tag2===x.k?' on':'')+'" style="--tc:'+x.c+'" onclick="tlSetTag2(this,\''+x.k+'\')">'
         +'<i style="background:'+x.c+'"></i>'+x.label+'</button>';}).join('');
   var slotOpts=function(sel,from){var o='';
-    for(var k=(from||0);k<48;k++)o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+slotLabel(k)+'</option>';
+    for(var k=(from||0);k<TL_N;k++)o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+slotLabel(k)+'</option>';
     return o;};
   var endOpts=function(sel){var o='';
-    for(var k=0;k<48;k++)o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+slotLabel(k+1>47?48:k+1)+'</option>';
+    for(var k=0;k<TL_N;k++)o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+slotLabel(k+1>TL_N-1?TL_N:k+1)+'</option>';
     return o;};
   openModal('<div class="mtop"><h3>⏳ <span id="tl_lab">'+slotRange(a,z)+'</span> <span class="mut" style="font-size:12px" id="tl_dur">'
       +hrs(z-a+1)+'</span></h3><span class="x" onclick="closeModal()">×</span></div>'
@@ -13964,11 +13989,11 @@ function tlMixPreview(){
   var pv=document.getElementById('tl_mix'); if(!pv)return;
   var b={tag:modal._tltag,tag2:modal._tltag2};
   if(!modal._tltag){pv.innerHTML='';return;}
-  var bd=tlBounds(), n=(bd[1]-bd[0]+1)/2;
+  var bd=tlBounds(), n=bd[1]-bd[0]+1;
   pv.innerHTML='<span class="tlmixbar" style="background:'+tlCss(b)+'"></span>'
     +'<b>'+sajuEsc(tlLabel(b))+'</b>'
-    +(modal._tltag2?('<span class="mut"> · '+tlTag(modal._tltag).label+' '+(n/2)+'h + '+tlTag(modal._tltag2).label+' '+(n/2)+'h</span>')
-                   :('<span class="mut"> · '+n+'h</span>'));
+    +(modal._tltag2?('<span class="mut"> · '+tlTag(modal._tltag).label+' '+hrs(n/2)+' + '+tlTag(modal._tltag2).label+' '+hrs(n/2)+'</span>')
+                   :('<span class="mut"> · '+hrs(n)+'</span>'));
 }
 function tlSave(ds){
   if(!modal._tltag)return alert('무엇을 했는지 골라라');
@@ -14261,7 +14286,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.93';
+var APP_VERSION='4.94';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -14275,6 +14300,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.94',date:'2026-11-10',note:'<b>⏳ 타임로그 10분 칸.</b> 로한: <i>「차라리 로그를 10분 단위로 — 더 가로로 잘게 쪼개면 되잖아」</i> · 30분 칸이면 3분 드릴이 30분을 통째로 먹고, 같은 칸의 진단이 드릴 이름에 묻혔다 · 🔒 저장 단위 10분(하루 144칸) · 블록에 <code>u:10</code> — 없으면 옛 30분 칸으로 읽고 한 번 옮긴다(s×3 · e×3+2 · 멱등 · 옛 판 탭이 쓴 것도) · 옮긴 블록엔 <code>g:30</code> — 학습 분은 옛 30분 묶음으로 세서 과거 숫자가 안 바뀐다(28분 뽀모가 든 칸이 48분으로 부풀지 않는다) · 그리드 한 줄 = 1시간 · 6칸, 제목은 블록이 그 줄에서 차지한 만큼 펼친다 · 같은 블록 안 칸 경계선은 지운다 · 길이는 「1h 20m」 · 앱이 만든 학습 칸(드릴·진단·뽀모)에 새 기록이 겹치면 겹친 10분 칸만 잘라 이름을 덧붙인다 · 스냅샷 180 · 아고라 SQL(학습분·타임로그 = 칸 × u) 은 db/20261110_agora_timelog_unit.sql.'},
   {v:'4.93',date:'2026-11-10',note:'<b>🎯 남은 목표가 드릴·결과 화면에도.</b> 로한: <i>「드릴을 해도 남은 갯수가 변화가 없다」</i> — 계산은 줄고 있었는데 숫자가 시작 화면에만 있어 엔터로 「한 번 더」를 이어 누르면 볼 데가 없었다 · 드릴 머리줄에 「🎯 남은 N −k」(답할 때마다 줄어든다) · 결과 화면에 「세트 전 → 지금 · 이번 세트로 −k」 · 단어·문법 모드 · 드릴 아래 출제 설명을 전 모드 공통 규칙으로 고침. · 🔴 로한: <i>「오전에 진단 본 것도 데일리 로그에 반영이 안 됐다」</i> — 진단(09:52~10:14) 칸에 이미 드릴이 학습으로 찍혀 있어 「이미 학습이면 그대로」 규칙에 묻혔다 → 이미 학습 칸이면 이름을 덧붙인다(「드릴 · … + 🩺 진단 · …」) · v4.92 소급분도 한 번 더(tl=2 · 이름이 이미 있으면 안 붙임).'},
   {v:'4.92',date:'2026-11-10',note:'<b>🔀 단어 카운터 모드별 · 🎯 드릴별 남은 목표 · 🃏 맞혀도 해설 카드 · 🩺 진단 탭.</b> 학습사 v33 + 진단 v2 + 로한 · 🔀 <code>words[].m={r2m,k2r,r2k,k2m,a2m,kata,vconj}</code> — 한자 읽기를 맞혀도 가나→뜻이 안 오른다 · 옛 최상위 카운터는 m.r2m 으로(접속 때 한 번 · 멱등) · 간격 반복(1·3·7일)·「때가 된 것 60% + 처음 보는 것」·하루 2번 제한을 단어 드릴 전 모드에 · 어려운 단어·드릴 오답은 r2m 기준 · 드릴 오답 줄에 모드별 miss/seen · 🎯 로한: <i>「히라가나 뜻은 몇 개 남았다 새로운 게 몇 개다 — 각 드릴마다」</i> → 모드 칸마다 「남은 N (때 · 새)」 + 고른 모드의 목표 상자(다시 볼 때 · 처음 · 쉬는 중·다음 날짜 · 오늘 한 문항) · 문법 칸도 · 🃏 로한: <i>「찍어서 맞은 걸 수도 있어서 오답처럼 해설이」</i> → 맞혀도 같은 카드(초록) · 맞혔을 땐 나머지 보기의 정체 · 문법 해설(💡)도 맞혀도 뜬다 · 🩺 진단 탭(5번째) — 다음 진단·시작/이어서 · 추이(문자·어휘/문법/독해/청해 밴드) · 기록(전략 탭에서 옮김) · + 모의고사 · scheduled 세트는 날짜가 되면 열린다 · 진단에서 틀린 문장은 내일 문법 드릴에서 먼저 · 틀린 단어는 그 섹션 모드에 재점검 · 🕒 로한: <i>「진단 본 것도 데일리에 학습으로」</i> → 진단 시간이 타임로그·학습 분에(dg01 소급: doneAt − 푼 시간) · 🔴 진단 결함 1: 뜻 토큰이 정답과 겹치는 보기 제외(r2m·a2m·k2m·kata) · 결함 2: sc062 보기 はずです → ましょう(rb_call).'},
   {v:'4.91',date:'2026-11-09',note:'<b>👆 패드에서도 「다음」이 오른쪽 아래 · 🃏 오답 설명은 가운데 · 크게.</b> 로한: <i>「모바일에선 다음이 오른쪽 아래에 뜨던데 탭도 그렇게 · 오답 설명을 가운데, 글씨도 키워」</i> · 원인: 패드(S펜·키보드 커버)는 「마우스 있음(hover)」이라고 답해서 v4.89 의 손가락 화면 규칙이 안 걸렸다 → 매체 질의 + 실제로 손가락·펜으로 누르면 그때부터 손가락 화면(html.tch) · 마우스로 누르면 다시 컴퓨터 배치 · 🔒 배치는 손을 뗀 뒤에 바꾼다(누르는 순간 단추가 움직이면 그 클릭이 사라진다). 🃏 오답 카드: 가운데 정렬 · 가나 38px · 뜻 22px · 대비·같은 소리·예문 16~17px · 문법 해설(💡)도 같이.'},
