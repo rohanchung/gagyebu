@@ -51,6 +51,17 @@ const FAKE=()=>{
   await p.evaluate(()=>{stDrillQuit();stDrillClose();});await p.waitForTimeout(300);
   const S=await p.evaluate(()=>{const e=document.querySelector('#v-study .stgoaln');return e?e.textContent.trim():null;});
   ok('S1 시작 화면 숫자도 같은 계산',S==='40',S);
+  /* T — 진단이 드릴 칸에 묻히지 않는다(로한: 「오전에 진단 본 것도 데일리 로그에 반영이 안 됐다」) */
+  const T=await p.evaluate(()=>{
+    const ds=todayStr(); tlAll()[ds]=[{s:19,e:19,tag:'study',title:'🈶 드릴 · A',code:null},{s:20,e:20,tag:'study',title:'🈶 드릴 · B',code:null}];
+    const d0=new Date(); d0.setHours(9,52,0,0);
+    const t={id:'dgX',kind:'diag',date:ds,secs:1320,at:d0.toISOString(),tl:true};
+    studyDB().tests=(studyDB().tests||[]).concat([t]);
+    const n1=stDiagBackfill(); const ti=tlOf(ds).map(b=>b.s+':'+b.title);
+    const n2=stDiagBackfill(); const ti2=tlOf(ds).map(b=>b.s+':'+b.title);
+    return {n1,n2,ti,ti2,tl:t.tl};});
+  ok('T1 🔴 이미 드릴 칸이어도 진단 이름이 남는다',T.ti.length===2&&T.ti.every(x=>/🩺 진단/.test(x))&&T.ti.every(x=>/드릴/.test(x)),JSON.stringify(T.ti));
+  ok('T2 v4.92 소급분(tl:true)도 한 번 더 남긴다 · 두 번째엔 안 붙인다',T.n1===1&&T.n2===0&&T.tl===2&&JSON.stringify(T.ti)===JSON.stringify(T.ti2),JSON.stringify(T));
   ok('Z 페이지 에러 없음',errs.length===0,errs.join(' | '));
   await ctx.close();
  }catch(e){fail++;bad.push('예외 '+e.message);}finally{await b.close();}
