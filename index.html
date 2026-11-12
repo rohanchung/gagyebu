@@ -520,6 +520,32 @@ html.tch .savebadge{right:auto!important;left:max(10px,env(safe-area-inset-left)
 .oopsrow{margin-top:12px;font-size:16px;line-height:1.7}
 .oopscap{font-size:12.5px;display:block;margin-bottom:2px}
 .oopsrow .oopssub{font-size:14px}
+/* 💼 v4.96 업무 */
+.wkquick{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.wkquick input#wkq{flex:1 1 220px;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font-size:14px}
+.wkqd{position:relative;display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;font-size:12px;cursor:pointer;background:var(--card)}
+.wkqd.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.wkqd input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.wkgrp{margin-top:12px}
+.wkgh{font-size:12.5px;font-weight:800;margin:0 0 4px;padding-bottom:3px;border-bottom:1px solid var(--line)}
+.wkgrp.late .wkgh{color:var(--neg,#d64545)}
+.wkrow{display:flex;gap:9px;align-items:flex-start;padding:8px 6px;border-bottom:1px solid #f1f3f6;cursor:pointer;border-radius:8px}
+.wkrow:hover{background:var(--soft)}
+.wkchk{flex:0 0 26px;height:26px;border:0;background:none;font-size:19px;line-height:26px;cursor:pointer;padding:0;color:var(--ink)}
+.wkrow.done .wkt{text-decoration:line-through;color:var(--muted)}
+.wkrow.drop .wkt{color:var(--muted)}
+.wkmain{flex:1;min-width:0}
+.wkt{font-size:14px;font-weight:600;line-height:1.45;word-break:break-word}
+.wkmeta{display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px;margin-top:2px;align-items:center}
+.wkat{font-weight:700;font-variant-numeric:tabular-nums}
+.wkdue{font-weight:700}.wkdue.warn{color:#c76a00}.wkdue.neg{color:var(--neg,#d64545)}
+.wkpri{color:#d8a13f;font-size:13px}
+.wkpj{padding:0 6px;border-radius:5px;background:color-mix(in srgb,var(--pc) 15%,transparent);color:var(--pc);font-weight:700}
+.wklate{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11.5px;margin-top:4px;color:var(--neg,#d64545)}
+.wkempty{padding:18px 4px;font-size:13px;line-height:1.7}
+.wkpri2{display:flex;gap:6px;align-items:center;cursor:pointer}
+html.tch #v-work .wkfab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:60;min-height:56px;padding:0 22px;font-size:16px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+html.tch #v-work .wkpage{padding-bottom:84px}
 .gcja{font-size:21px;font-weight:700;line-height:1.8;font-family:var(--ja)}
 .gcans{color:var(--accent);font-weight:800;border-bottom:2px solid var(--accent)}
 .gcko{font-size:14.5px;margin-top:3px;color:var(--muted)}
@@ -1920,6 +1946,7 @@ html.boot .bootsplash{display:flex;position:fixed;inset:0;align-items:center;jus
     <div class="brand"><img src="favicon.png" class="brand-crest" alt=""><br>Rohan Book</div>
     <div class="sub">🎯 실행</div>
     <div class="m on" data-v="daily">📅 데일리</div>
+    <div class="m" data-v="work">💼 업무</div>
     <div class="m" data-v="goal">🎯 목표·루틴</div>
     <div class="m" data-v="study">🎓 학습</div>
     <div class="m" data-v="reward">🎁 보상</div>
@@ -1948,6 +1975,7 @@ html.boot .bootsplash{display:flex;position:fixed;inset:0;align-items:center;jus
   </div>
   <div class="main">
     <div class="view on" id="v-daily"></div>
+    <div class="view" id="v-work"></div>
     <div class="view" id="v-goal"></div>
     <div class="view" id="v-study"></div>
     <div class="view" id="v-reward"></div>
@@ -2050,6 +2078,7 @@ var SEED = {
     {id:'g2',date:'2026-07-28',title:'방 개설 & 전면 진단',body:'순자산 -3,410만. 40대 평균은 장기전. 수입체급(행정사/운영총괄)이 유일 레버.'}
   ],
   goals:[],
+  work:{v:1,tasks:[],projects:[]},   /* 💼 v4.96 업무(work-design.md §2) */
   routines:[],
   checks:{},
   missTags:['야근','피로','날씨','약속','무기력','아픔','일정충돌','의지부족','기타'],
@@ -2169,7 +2198,12 @@ var SYNC_COLS=[
   {k:'st_tests', p:['study','tests'],  label:'📊 학습 테스트',
      lab:function(x){return (x.date||'')+' '+(x.scope||'');}},
   {k:'st_drills',p:['study','drills'], label:'🈶 드릴 기록',
-     lab:function(x){return (x.date||'')+' '+(x.mode||'');}}
+     lab:function(x){return (x.date||'')+' '+(x.mode||'');}},
+  /* 💼 v4.96 — 새 컬렉션은 여기 등록까지가 한 작업(위 v3.6 주석). 앱이 만들고 지우지 않는다(deletedAt) — 흡수 대상이 아니다 */
+  {k:'wk_tasks',   p:['work','tasks'],    label:'💼 업무',
+     lab:function(x){return (x.day||'날짜 없음')+' '+(x.title||'')+(x.deletedAt?' (삭제)':'');}},
+  {k:'wk_projects',p:['work','projects'], label:'💼 업무 묶음',
+     lab:function(x){return x.name||'';}}
 ];
 /* ══════ v4.15 🔴 중복 id — 병합이 레코드를 삼킨다 ══════
    로한 신고(9/21): 「くるま」를 물는데 보기가 특히·언젠가·특별히·잘하다. **정답이 없다.**
@@ -2929,7 +2963,8 @@ function exportJSON(){
 function dbSummary(d){
   return '거래 '+((d.transactions||[]).length)+'건 · 목표 '+((d.goals||[]).length)+'개 · 루틴 '+((d.routines||[]).length)+'개'
    +' · 체크 '+Object.keys(d.checks||{}).length+'일 · 타임로그 '+Object.keys(d.timelog||{}).length+'일'
-   +' · 보상카드 '+Object.keys(d.rewardCards||{}).length+'장';
+   +' · 보상카드 '+Object.keys(d.rewardCards||{}).length+'장'
+   +' · 업무 '+(((d.work&&d.work.tasks)||[]).filter(function(t){return t&&!t.deletedAt;}).length)+'건';
 }
 function applyRestore(d,src){
   var bad=[];
@@ -14378,6 +14413,236 @@ var MOODS=[['깨달음','#a67c1a'],['다짐','#00695c'],['기쁨','#2e7d32'],['�
 function moodColor(n){var m=MOODS.filter(function(x){return x[0]===n})[0];return m?m[1]:'#888';}
 function nowLocal(){var d=new Date(),p=function(n){return String(n).padStart(2,'0');};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());}
 function fmtJ(dt){if(!dt)return '';return dt.replace('T',' ');}
+/* ══════════ 💼 업무 (v4.96 · work-design.md · 핸드오프 work-page-spec 걸음 A) ══════════
+   로한: 「실행 카테고리 내 업무 페이지 … 데일리랑 연동 … 보통의 업무 to do list」
+   🔒 업무 페이지 = 「무엇을 언제까지」의 원장 · 데일리 = 「그 날 무엇을」. 달력은 데일리 하나뿐이다(여기엔 두지 않는다).
+   🔒 계약 work = {v:1, tasks:[{id:'w'+uid(), title, status:'todo'|'done'|'drop', day, at, dur, due, pri:0|1,
+        proj, goalId, sub:[], rep:null, memo, moved, day0, doneAt, createdAt, updatedAt, deletedAt, by}], projects:[…]}
+   🔒 밀린 일의 day 를 앱이 몰래 바꾸지 않는다 — [오늘로]·[내일로](또는 상세에서 뒤로 옮김)만 바꾸고 moved+1 · day0 은 처음 값 그대로
+   🔒 삭제 = deletedAt(배열에서 빼지 않는다 — 3자 병합이 되살린다) · drop = 「안 하기로 했다」는 기록(삭제와 다르다)
+   🔒 밀림·D-n·묶음별 수는 파생이다 — 저장하지 않는다
+   🔒 「그 날에 걸린 업무」에 답하는 함수는 wkOn 하나 · 행을 그리는 함수는 wkRow 하나(데일리 업무 탭·달력 칸이 같이 쓴다) */
+function wkEnsure(d){
+  if(!d.work||typeof d.work!=='object'||Array.isArray(d.work))d.work={v:1,tasks:[],projects:[]};
+  var W=d.work; if(W.v!==1)W.v=1;
+  if(!Array.isArray(W.tasks))W.tasks=[]; if(!Array.isArray(W.projects))W.projects=[];
+  return W;
+}
+function wkDB(){return wkEnsure(DB);}
+function wkLive(){return wkDB().tasks.filter(function(t){return t&&t.id&&!t.deletedAt;});}
+function wkById(id){var a=wkDB().tasks;for(var i=0;i<a.length;i++)if(a[i]&&a[i].id===id)return a[i];return null;}
+function wkLocalDay(iso){if(!iso)return null;var d=new Date(iso);if(isNaN(d.getTime()))return null;
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+/* 정렬 — 시각 있는 것(시각순) → 중요 → 마감 가까운 순 → 만든 순 */
+function wkSort(a,b){
+  var x=a.at||'', y=b.at||''; if(!!x!==!!y)return x?-1:1; if(x!==y)return x<y?-1:1;
+  if((+b.pri||0)!==(+a.pri||0))return (+b.pri||0)-(+a.pri||0);
+  var dx=a.due||'9999', dy=b.due||'9999'; if(dx!==dy)return dx<dy?-1:1;
+  return String(a.createdAt||'')<String(b.createdAt||'')?-1:1;
+}
+/* 밀린 것 — 예정일이 t 보다 앞인데 아직 안 한 것(파생) */
+function wkLate(t){t=t||todayStr();return wkLive().filter(function(x){return x.status==='todo'&&x.day&&x.day<t;}).sort(function(a,b){return a.day<b.day?-1:(a.day>b.day?1:wkSort(a,b));});}
+/* 🔒 그 날에 걸린 업무 — 하나뿐인 답 */
+function wkOn(ds){
+  var L=wkLive(), t=todayStr(), o={late:[],sched:[],todo:[],dueHere:[],done:[]};
+  L.forEach(function(x){
+    if(x.status==='todo'){
+      if(x.day===ds){(x.at?o.sched:o.todo).push(x);}
+      else if(x.due===ds)o.dueHere.push(x);
+    }else if(x.status==='done'){
+      if((wkLocalDay(x.doneAt)||x.day)===ds)o.done.push(x);
+    }
+  });
+  if(ds===t)o.late=wkLate(t);
+  ['sched','todo','dueHere','done'].forEach(function(k){o[k].sort(wkSort);});
+  o.left=o.sched.length+o.todo.length;
+  return o;
+}
+function wkWeekEnd(t){return addDays(weekStart(t||todayStr()),6);}
+function wkDueWeek(t){t=t||todayStr();var we=wkWeekEnd(t);return wkLive().filter(function(x){return x.status==='todo'&&x.due&&x.due>=t&&x.due<=we;});}
+function wkDoneIn(a,z){return wkLive().filter(function(x){var d=x.status==='done'&&wkLocalDay(x.doneAt);return d&&d>=a&&d<=z;});}
+function wkMD(ds){return ds?parseInt(ds.slice(5,7),10)+'/'+parseInt(ds.slice(8),10):'';}
+function wkDiff(a,b){return Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);}
+/* 마감 꼬리표 — 지나면 빨강 · 오늘·내일 주황 */
+function wkDueTag(x){
+  if(!x.due||x.status!=='todo')return '';
+  var n=wkDiff(todayStr(),x.due), cls=n<0?'neg':(n<=1?'warn':'');
+  return '<span class="wkdue '+cls+'">⚑ '+(n<0?'D+'+(-n):(n===0?'D-day':'D-'+n))+'</span>';
+}
+/* 🔒 행은 하나 — ctx:{late:true} 면 「11/10 예정 · 2일 밀림 · 미룸 3회 [오늘로][내일로]」 */
+function wkRow(x,ctx){
+  ctx=ctx||{}; var done=x.status==='done', drop=x.status==='drop', t=todayStr();
+  var meta=[];
+  if(x.at)meta.push('<span class="wkat">'+mdEsc(x.at)+(x.dur?'–'+mdEsc(wkEndAt(x.at,x.dur)):'')+'</span>');
+  if(ctx.showDay&&x.day)meta.push('<span class="mut">'+wkMD(x.day)+'</span>');
+  var dt=wkDueTag(x); if(dt)meta.push(dt);
+  if(+x.pri)meta.push('<span class="wkpri" title="중요">★</span>');
+  var pj=x.proj?wkProj(x.proj):null; if(pj)meta.push('<span class="wkpj" style="--pc:'+mdEsc(pj.color||'#8b93a8')+'">'+mdEsc(pj.name)+'</span>');
+  if(done&&ctx.doneDay)meta.push('<span class="mut">'+wkMD(wkLocalDay(x.doneAt))+' 끝냄</span>');
+  var late=(ctx.late&&x.status==='todo'&&x.day&&x.day<t)
+    ?'<div class="wklate"><span>'+wkMD(x.day)+' 예정 · '+wkDiff(x.day,t)+'일 밀림'+((+x.moved)?' · 미룸 '+x.moved+'회':'')+'</span>'
+      +'<button class="ghost sm" onclick="event.stopPropagation();wkMove(\''+x.id+'\',\'today\')">오늘로</button>'
+      +'<button class="ghost sm" onclick="event.stopPropagation();wkMove(\''+x.id+'\',\'tomorrow\')">내일로</button></div>':'';
+  return '<div class="wkrow'+(done?' done':'')+(drop?' drop':'')+'" data-wk="'+x.id+'" onclick="wkModal(\''+x.id+'\')">'
+    +(drop?'<span class="wkchk" title="안 하기로 함">⊘</span>'
+      :'<button class="wkchk" title="'+(done?'되돌리기':'끝냄')+'" onclick="event.stopPropagation();wkToggle(\''+x.id+'\')">'+(done?'☑':'☐')+'</button>')
+    +'<div class="wkmain"><div class="wkt">'+mdEsc(x.title||'(제목 없음)')+'</div>'
+    +(meta.length?'<div class="wkmeta">'+meta.join('')+'</div>':'')+late+'</div></div>';
+}
+function wkEndAt(at,dur){var m=/^(\d{1,2}):(\d{2})$/.exec(String(at||''));if(!m)return '';var z=(+m[1])*60+(+m[2])+(+dur||0);z=Math.min(z,1440);
+  return String(Math.floor(z/60)).padStart(2,'0')+':'+String(z%60).padStart(2,'0');}
+function wkProj(id){var a=wkDB().projects;for(var i=0;i<a.length;i++)if(a[i]&&a[i].id===id)return a[i];return null;}
+/* ── 쓰기 ── */
+function wkStamp(x){x.updatedAt=new Date().toISOString();}
+function wkAdd(o){
+  var now=new Date().toISOString(), day=o.day||null;
+  var x={id:'w'+uid(),title:String(o.title||'').trim(),status:'todo',day:day,at:o.at||null,dur:o.at?(+o.dur||60):null,due:o.due||null,pri:o.pri?1:0,
+    proj:null,goalId:null,sub:[],rep:null,memo:String(o.memo||''),moved:0,day0:day,doneAt:null,createdAt:now,updatedAt:now,deletedAt:null,by:'rohan'};
+  if(!x.title)return null;
+  wkDB().tasks.push(x); logAct('💼 업무 추가 · '+x.title+(day?' · '+wkMD(day):' · 날짜 없음'));
+  return x;
+}
+function wkToggle(id){
+  var x=wkById(id); if(!x||x.deletedAt||x.status==='drop')return;
+  if(x.status==='done'){x.status='todo';x.doneAt=null;logAct('💼 업무 되돌림 · '+x.title);}
+  else{x.status='done';x.doneAt=new Date().toISOString();logAct('💼 업무 끝냄 · '+x.title);}
+  wkStamp(x); save(); wkRerender();
+}
+/* [오늘로]·[내일로] — 🔒 이때만 day 가 바뀐다 · 뒤로 옮기면 moved+1 · day0 은 그대로 */
+function wkMove(id,to){
+  var x=wkById(id); if(!x||x.status!=='todo')return;
+  var t=todayStr(), nd=to==='today'?t:(to==='tomorrow'?addDays(t,1):to);
+  if(!nd||nd===x.day)return;
+  wkSetDay(x,nd); logAct('💼 업무 미룸 · '+x.title+' → '+wkMD(nd)+' (미룸 '+x.moved+'회)');
+  wkStamp(x); save(); wkRerender();
+}
+function wkSetDay(x,nd){
+  if(x.day0==null&&x.day)x.day0=x.day;
+  if(x.day&&nd&&nd>x.day)x.moved=(+x.moved||0)+1;     /* 뒤로 옮긴 것만 「미룸」이다 */
+  if(x.day0==null)x.day0=nd||null;
+  x.day=nd||null;
+}
+function wkDrop(id){var x=wkById(id);if(!x)return;if(!confirm('「'+x.title+'」 — 안 하기로 할까? (기록은 남는다)'))return;
+  x.status='drop';x.doneAt=null;wkStamp(x);logAct('💼 업무 안 하기로 · '+x.title);save();closeModal();wkRerender();}
+function wkUndrop(id){var x=wkById(id);if(!x)return;x.status='todo';wkStamp(x);logAct('💼 업무 되살림 · '+x.title);save();closeModal();wkRerender();}
+function wkDel(id){var x=wkById(id);if(!x)return;if(!confirm('「'+x.title+'」 을 삭제할까?'))return;
+  x.deletedAt=new Date().toISOString();wkStamp(x);logAct('💼 업무 삭제 · '+x.title);save();closeModal();wkRerender();}
+function wkRerender(){
+  var v=document.querySelector('.view.on'), k=v&&v.id?v.id.replace(/^v-/,''):'';
+  if(k&&VIEW_RENDER[k])VIEW_RENDER[k]();
+}
+/* ── 빠른 추가 ── 기본 날짜 = 오늘(업무 페이지) · 엔터로 넣는다 */
+function wkQDay(){var u=(DB.ui&&DB.ui.wkQ)||'today';return u;}
+function wkQSet(k){DB.ui=DB.ui||{};DB.ui.wkQ=k;kvUiWrite();var i=document.getElementById('wkq'),v=i?i.value:'';renderWork();var j=document.getElementById('wkq');if(j){j.value=v;j.focus();}}
+function wkQDate(el){if(el&&el.value)wkQSet(el.value);}
+function wkQResolve(k){var t=todayStr();return k==='today'?t:(k==='tomorrow'?addDays(t,1):(k==='none'?null:k));}
+function wkQAdd(ev,dayOverride){
+  if(ev&&ev.key!=='Enter')return; if(ev&&ev.isComposing)return;
+  var i=document.getElementById('wkq'); if(!i)return; var tt=i.value.trim(); if(!tt)return;
+  var x=wkAdd({title:tt,day:dayOverride!==undefined?dayOverride:wkQResolve(wkQDay())}); if(!x)return;
+  save(); wkRerender(); var j=document.getElementById('wkq'); if(j)j.focus();
+}
+function wkQuickHtml(ctxDay){
+  var k=wkQDay(), t=todayStr();
+  var chips=[{k:'today',label:'오늘'},{k:'tomorrow',label:'내일'},{k:'none',label:'날짜 없음'}];
+  var custom=(k!=='today'&&k!=='tomorrow'&&k!=='none');
+  return '<div class="wkquick"><input id="wkq" placeholder="+ 할 일을 적고 엔터" autocomplete="off" onkeydown="wkQAdd(event)">'
+    +uiChips(chips,custom?'':k,"wkQSet('%')")
+    +'<label class="wkqd'+(custom?' on':'')+'" title="날짜 고르기">📅'+(custom?' '+wkMD(k):'')+'<input type="date" value="'+(custom?k:'')+'" min="2020-01-01" onchange="wkQDate(this)"></label></div>';
+}
+/* ── 상세(모달) ── */
+function wkModal(id,def){
+  var x=id?wkById(id):null; def=def||{};
+  var e=x||{title:'',day:def.day!==undefined?def.day:todayStr(),at:'',dur:60,due:'',pri:0,memo:''};
+  var durs=[10,20,30,45,60,90,120,180,240];
+  openModal('<div class="mtop"><h3>💼 '+(x?'업무':'새 업무')+'</h3><span class="x" onclick="closeModal()">×</span></div>'
+   +'<div class="field"><label>제목</label><input id="wk_t" value="'+mdEsc(e.title||'')+'" placeholder="예: 교육청 방문"></div>'
+   +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+     +'<div class="field" style="flex:1;min-width:140px"><label>예정일 <span class="mut">(비우면 날짜 없음)</span></label><input id="wk_d" type="date" value="'+(e.day||'')+'"></div>'
+     +'<div class="field" style="flex:1;min-width:140px"><label>마감 <span class="mut">(선택)</span></label><input id="wk_due" type="date" value="'+(e.due||'')+'"></div></div>'
+   +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+     +'<div class="field" style="flex:1;min-width:120px"><label>시각 <span class="mut">(있으면 일정)</span></label><input id="wk_at" type="time" value="'+(e.at||'')+'"></div>'
+     +'<div class="field" style="flex:1;min-width:120px"><label>길이</label><select id="wk_dur">'+durs.map(function(m){return '<option value="'+m+'"'+((+e.dur||60)===m?' selected':'')+'>'+hrsMin(m)+'</option>';}).join('')+'</select></div></div>'
+   +'<div class="field"><label class="wkpri2"><input id="wk_pri" type="checkbox"'+(+e.pri?' checked':'')+'> ★ 중요</label></div>'
+   +'<div class="field"><label>메모</label><textarea id="wk_m" rows="3">'+mdEsc(e.memo||'')+'</textarea></div>'
+   +(x&&(x.day0||+x.moved)?'<div class="mut" style="font-size:11px;margin:-4px 0 10px">처음 잡은 날 '+wkMD(x.day0)+((+x.moved)?' · 미룸 '+x.moved+'회':'')+(x.doneAt?' · '+wkMD(wkLocalDay(x.doneAt))+' 끝냄':'')+'</div>':'')
+   +'<button class="btn" onclick="wkSave('+(x?"'"+x.id+"'":'null')+')">저장</button>'
+   +(x?(x.status==='drop'?' <button class="ghost" onclick="wkUndrop(\''+x.id+'\')">다시 할 일로</button>':(x.status==='todo'?' <button class="ghost" onclick="wkDrop(\''+x.id+'\')">안 하기로</button>':''))
+       +' <button class="ghost" onclick="wkDel(\''+x.id+'\')">삭제</button>':''));
+  setTimeout(function(){var i=document.getElementById('wk_t');if(i&&!x)i.focus();},30);
+}
+function hrsMin(m){m=+m||0;var h=Math.floor(m/60),r=m%60;return h?(h+'시간'+(r?' '+r+'분':'')):(r+'분');}
+function wkSave(id){
+  var g=function(k){var e=document.getElementById(k);return e?e.value:'';};
+  var title=g('wk_t').trim(); if(!title)return alert('제목을 적어라');
+  var day=g('wk_d')||null, at=g('wk_at')||null, due=g('wk_due')||null, dur=+g('wk_dur')||60, pri=document.getElementById('wk_pri').checked?1:0, memo=g('wk_m');
+  if(!id){wkAdd({title:title,day:day,at:at,dur:dur,due:due,pri:pri,memo:memo});save();closeModal();wkRerender();return;}
+  var x=wkById(id); if(!x)return;
+  var moved0=+x.moved||0;
+  if(day!==x.day)wkSetDay(x,day);
+  x.title=title; x.at=at; x.dur=at?dur:null; x.due=due; x.pri=pri; x.memo=memo;
+  wkStamp(x); logAct('💼 업무 고침 · '+title+((+x.moved)>moved0?' (미룸 '+x.moved+'회)':''));
+  save(); closeModal(); wkRerender();
+}
+/* ── 화면 ── */
+function wkTab(){var k=pfL1Get('work','todo');return (k==='done')?k:'todo';}
+function wkGroup(title,list,ctx,cls){
+  if(!list.length)return '';
+  return '<div class="wkgrp'+(cls?' '+cls:'')+'"><div class="wkgh">'+title+' <span class="mut">'+list.length+'</span></div>'
+    +list.map(function(x){return wkRow(x,ctx);}).join('')+'</div>';
+}
+function renderWork(){
+  var t=todayStr(), tm=addDays(t,1), we=wkWeekEnd(t), ws=weekStart(t), tab=wkTab();
+  var on=wkOn(t), late=wkLate(t), dueW=wkDueWeek(t), doneW=wkDoneIn(ws,we);
+  var status='오늘 '+on.left+' · 밀린 '+late.length+' · 이번 주 마감 '+dueW.length;
+  var l1=uiTabs([{k:'todo',label:'📋 할 일',n:wkLive().filter(function(x){return x.status==='todo';}).length||null},{k:'done',label:'✅ 끝낸 것'}],tab,"pfL1Set('work','%')");
+  var actions='<button class="btn sm wkfab" onclick="wkModal(null)">+ 업무</button>';
+  var html;
+  if(tab==='todo'){
+    var P=wkDB().projects.filter(function(p){return p&&!p.archived;}), pf0=(DB.ui&&DB.ui.wkProj)||'';
+    var fil=function(a){return pf0?a.filter(function(x){return x.proj===pf0;}):a;};
+    var cond=P.length?uiChips([{k:'',label:'전체'}].concat(P.map(function(p){return {k:p.id,label:p.name};})),pf0,"wkProjSet('%')"):'';
+    var todo=wkLive().filter(function(x){return x.status==='todo';});
+    var g={late:fil(late),today:fil(on.sched.concat(on.todo)).sort(wkSort),tom:[],week:[],later:[],none:[]};
+    fil(todo).forEach(function(x){
+      if(!x.day)g.none.push(x); else if(x.day===tm)g.tom.push(x);
+      else if(x.day>tm&&x.day<=we)g.week.push(x); else if(x.day>we)g.later.push(x);
+    });
+    ['tom','none'].forEach(function(k){g[k].sort(wkSort);});
+    ['week','later'].forEach(function(k){g[k].sort(function(a,b){return a.day!==b.day?(a.day<b.day?-1:1):wkSort(a,b);});});
+    var body=wkGroup('⏰ 밀린 것',g.late,{late:true},'late')
+      +wkGroup('오늘 <span class="mut">'+wkMD(t)+' ('+DOW_KO[dowOf(t)]+')</span>',g.today,{})
+      +wkGroup('내일',g.tom,{})
+      +wkGroup('이번 주',g.week,{showDay:true})
+      +wkGroup('그 뒤',g.later,{showDay:true})
+      +wkGroup('📥 날짜 없음',g.none,{});
+    var doneToday=on.done.length?'<div class="mut" style="font-size:11.5px;margin-top:10px">오늘 끝낸 것 '+on.done.length+'개 — ✅ 끝낸 것 탭에서 본다</div>':'';
+    html=pf('work',{status:status,actions:actions,l1:l1,cond:cond,
+        kpi:[{l:'오늘 남은',v:String(on.left)},{l:'밀린',v:String(late.length),cls:late.length?'neg':''},
+             {l:'이번 주 마감',v:String(dueW.length),cls:dueW.length?'warn':''},{l:'이번 주 끝낸',v:String(doneW.length),cls:doneW.length?'pos':''}]})
+      +'<div class="sec wkpage">'+wkQuickHtml()
+      +(body||'<div class="wkempty">할 일이 없다. 위 칸에 적고 엔터 — 예정일 기본은 <b>오늘</b>이다.<br><span class="mut">시각을 넣으면 「일정」, 마감을 넣으면 ⚑ 가 붙는다(줄을 누르면 상세).</span></div>')
+      +doneToday+'</div>';
+  }else{
+    var w0=(DB.ui&&DB.ui.wkWeek)||ws; if(w0>ws)w0=ws; var w1=addDays(w0,6);
+    var D=wkDoneIn(w0,w1).sort(function(a,b){return String(b.doneAt)<String(a.doneAt)?-1:1;});
+    var drops=wkLive().filter(function(x){return x.status==='drop'&&wkLocalDay(x.updatedAt)>=w0&&wkLocalDay(x.updatedAt)<=w1;});
+    var mv=D.reduce(function(a,x){return a+(+x.moved||0);},0);
+    var byDay={}; D.forEach(function(x){var d=wkLocalDay(x.doneAt);(byDay[d]=byDay[d]||[]).push(x);});
+    var days=Object.keys(byDay).sort().reverse();
+    var body2=days.map(function(d){return wkGroup(wkMD(d)+' ('+DOW_KO[dowOf(d)]+')',byDay[d],{});}).join('')
+      +(drops.length?wkGroup('⊘ 안 하기로 함',drops,{},'drop'):'');
+    html=pf('work',{status:status,actions:actions,l1:l1,
+        cond:uiPnav(weekLabel(w0),'onclick="wkWeekMv(-1)"',(w0<ws?'onclick="wkWeekMv(1)"':'disabled'),{today:'onclick="wkWeekMv(0)"',isToday:w0===ws,todayLabel:'이번 주'}),
+        kpi:[{l:'끝낸',v:String(D.length),cls:D.length?'pos':''},{l:'미룬 횟수',v:String(mv),tip:'이 주에 끝낸 것들이 끝나기 전에 미뤄진 횟수 합'},{l:'안 하기로',v:String(drops.length)}]})
+      +'<div class="sec wkpage">'+(body2||'<div class="wkempty">이 주에 끝낸 것이 없다.</div>')+'</div>';
+  }
+  document.getElementById('v-work').innerHTML=html;
+}
+function wkProjSet(k){DB.ui=DB.ui||{};DB.ui.wkProj=k||'';kvUiWrite();renderWork();}
+function wkWeekMv(n){DB.ui=DB.ui||{};var ws=weekStart(todayStr()),w0=(DB.ui.wkWeek)||ws;
+  w0=n===0?ws:addDays(w0,7*n); if(w0>ws)w0=ws; DB.ui.wkWeek=w0; kvUiWrite(); renderWork();}
+
 function renderJournal(){
   var J=(DB.journal||[]).slice().sort(function(a,b){return (a.date||'')<(b.date||'')?1:-1;});
   var rows=J.map(function(e){
@@ -14412,7 +14677,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.95';
+var APP_VERSION='4.96';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -14426,6 +14691,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.96',date:'2026-11-12',note:'<b>💼 업무 페이지 신설(1판 걸음 A).</b> 로한: <i>「실행 카테고리 내 업무 페이지 … 보통의 업무 to do list」</i> · 기획방 work-design.md · 핸드오프 work-page-spec · 🔒 새 키 <code>work={v:1,tasks,projects}</code> — 업무 = id·title·status(todo/done/drop)·day·at·dur·due·pri·memo·moved·day0·doneAt·deletedAt · 네비 데일리 바로 아래 · L1 📋 할 일 · ✅ 끝낸 것 · 할 일: 빠른 추가(엔터 · 오늘/내일/날짜 없음/📅) → ⏰ 밀린 것 · 오늘 · 내일 · 이번 주 · 그 뒤 · 📥 날짜 없음 · KPI 오늘 남은·밀린·이번 주 마감·이번 주 끝낸 · 줄: ☐ · 시각 · ⚑ D-n · ★ · 밀린 줄 「11/10 예정 · 2일 밀림 · 미룸 N회 [오늘로][내일로]」 · 상세: 예정일·마감·시각/길이·중요·메모·안 하기로·삭제 · 끝낸 것: 주 이동 · 안 하기로 · 🔒 밀린 일의 예정일은 앱이 안 바꾼다(누를 때만 · 뒤로 옮기면 미룸+1 · 처음 날은 그대로) · 삭제는 deletedAt(지우지 않는다) · 「그 날의 업무」는 wkOn 하나(데일리가 걸음 B 에서 그대로 쓴다) · 충돌창·복원 요약에 업무 · 터치 기기는 [+ 업무]가 오른쪽 아래 엄지 자리.'},
   {v:'4.95',date:'2026-11-12',note:'<b>🔊 조사 듣기 · 🃏 문법 오답 카드(해설 사전) · 🎯 조사 짝 보기.</b> 학습사 v35·v36 · 로한: <i>「들을 때 단어는 들리는데 조사 때문에 이해가 안 될 때가 너무 많다」 「조사 오답도 디테일하게 — 히라가나 맞추기처럼」</i> · 🔎 조사 자동 출제(v17)는 v4.13 부터 있었다 — 서버 실측 수동 48 + 자동 약 750문항(543문장 중 471) · 🎯 자동 문항의 오답은 뜻이 바뀌는 짝부터(に↔で · が↔を · から↔まで · と↔を · へ↔を) · は↔が 는 여전히 서로 오답이 아니다 · 🔊 <code>gpart-a</code> 조사 듣기 — 문장을 읽어 주고(띄어쓰기 없이) 빈칸 조사를 고른다 · 다시 듣기 · 🐢 느리게(0.6) · 재료·카운터는 조사 채우기와 같다(문장 단위) · 일본어 음성이 없으면 칸을 안 그린다 · 🃏 문법 드릴(문맥규정 제외) 채점 화면이 한 장 카드: 완성 문장(정답 강조) · 번역 · 정답 뜻·역할 · 고른 것이 이 문장에서 안 되는 이유(사전 vs → 없으면 두 역할 나란히) · 함정 · 해설 · 예 · 문장 속 단어(gloss · 없으면 단어장에서 · ます형은 사전형 근사) · 맞히면 초록 카드 + 나머지 보기의 뜻 · 진단 오답 복습에도 사전 해설 · 사전 <code>study.gref</code>(학습방 81항목 · 앱은 읽기만 · 「표기@cat」→「표기」) · 문법 드릴도 <code>picks:[{id,chose,ans}]</code>.'},
   {v:'4.94',date:'2026-11-10',note:'<b>⏳ 타임로그 10분 칸.</b> 로한: <i>「차라리 로그를 10분 단위로 — 더 가로로 잘게 쪼개면 되잖아」</i> · 30분 칸이면 3분 드릴이 30분을 통째로 먹고, 같은 칸의 진단이 드릴 이름에 묻혔다 · 🔒 저장 단위 10분(하루 144칸) · 블록에 <code>u:10</code> — 없으면 옛 30분 칸으로 읽고 한 번 옮긴다(s×3 · e×3+2 · 멱등 · 옛 판 탭이 쓴 것도) · 옮긴 블록엔 <code>g:30</code> — 학습 분은 옛 30분 묶음으로 세서 과거 숫자가 안 바뀐다(28분 뽀모가 든 칸이 48분으로 부풀지 않는다) · 그리드 한 줄 = 1시간 · 6칸, 제목은 블록이 그 줄에서 차지한 만큼 펼친다 · 같은 블록 안 칸 경계선은 지운다 · 길이는 「1h 20m」 · 앱이 만든 학습 칸(드릴·진단·뽀모)에 새 기록이 겹치면 겹친 10분 칸만 잘라 이름을 덧붙인다 · 스냅샷 180 · 아고라 SQL(학습분·타임로그 = 칸 × u) 은 db/20261110_agora_timelog_unit.sql.'},
   {v:'4.93',date:'2026-11-10',note:'<b>🎯 남은 목표가 드릴·결과 화면에도.</b> 로한: <i>「드릴을 해도 남은 갯수가 변화가 없다」</i> — 계산은 줄고 있었는데 숫자가 시작 화면에만 있어 엔터로 「한 번 더」를 이어 누르면 볼 데가 없었다 · 드릴 머리줄에 「🎯 남은 N −k」(답할 때마다 줄어든다) · 결과 화면에 「세트 전 → 지금 · 이번 세트로 −k」 · 단어·문법 모드 · 드릴 아래 출제 설명을 전 모드 공통 규칙으로 고침. · 🔴 로한: <i>「오전에 진단 본 것도 데일리 로그에 반영이 안 됐다」</i> — 진단(09:52~10:14) 칸에 이미 드릴이 학습으로 찍혀 있어 「이미 학습이면 그대로」 규칙에 묻혔다 → 이미 학습 칸이면 이름을 덧붙인다(「드릴 · … + 🩺 진단 · …」) · v4.92 소급분도 한 번 더(tl=2 · 이름이 이미 있으면 안 붙임).'},
@@ -15934,7 +16200,7 @@ function healthMergeSeed(H){
     if(a.length>n)a.length=n;
   });
 }
-function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health)healthMergeSeed(d.health); healthPeopleSeed(d);
+function migrateDB(d){ if(d&&!d.activity)d.activity=[]; if(d)wkEnsure(d); if(d&&!d.posts)d.posts=[]; if(d&&!d.journal)d.journal=[]; if(d&&!d.saju)d.saju=JSON.parse(JSON.stringify(SAJU_SEED)); if(d&&d.saju){d.saju.natal=SAJU_SEED.natal;d.saju.daeun=SAJU_SEED.daeun;d.saju.gongmang=SAJU_SEED.gongmang;if(!d.saju.readings)d.saju.readings={};} if(d&&d.ui&&!d.ui.sajuYear)d.ui.sajuYear=new Date().getFullYear(); if(d&&d.ui&&!d.ui.sajuYM)d.ui.sajuYM=todayStr().slice(0,7); if(d&&!d.health)d.health=JSON.parse(JSON.stringify(HEALTH_SEED)); if(d&&d.health)healthMergeSeed(d.health); healthPeopleSeed(d);
  if(d&&d.health&&!d.health.wImport2026){d.health.weights=d.health.weights||[];WEIGHT_IMPORT_2026.forEach(function(w){if(!d.health.weights.some(function(x){return x.date===w.date;}))d.health.weights.push(JSON.parse(JSON.stringify(w)));});d.health.wImport2026=true;} if(d&&d.ui&&!d.ui.watchCats)d.ui.watchCats=['식비','카페','간식/편의점']; if(d&&d.health&&!d.health.height)d.health.height=163; if(d&&d.ui&&!d.ui.weightMetric)d.ui.weightMetric='kg'; if(d&&d.ui&&!d.ui.cfPeriod)d.ui.cfPeriod='month'; if(d&&d.ui&&!d.ui.reconcile)d.ui.reconcile={}; if(d&&d.categories){d.categories.forEach(function(c){ if(c.type==='income'){ if(!c.incType){var n=c.name||''; c.incType=/강사|스토어|스마트|사업|매출|판매/.test(n)?'사업소득':/급여|월급|상여/.test(n)?'근로소득':/이자/.test(n)?'이자소득':/배당/.test(n)?'배당소득':/연금/.test(n)?'연금소득':'기타소득';} if(c.taxCode===undefined)c.taxCode=/강사/.test(c.name||'')?'940903':''; } }); } if(d&&!d.goals)d.goals=[]; if(d&&!d.routines)d.routines=[]; if(d&&!d.checks)d.checks={}; if(d)d=migrateV6(d); if(d)d=fixDupIds(d); return d; }
 
 /* ====== 마이그레이션 ======
@@ -17082,7 +17348,7 @@ function renderSources(){
 }
 var VIEW_RENDER={emr:emrOpen,daily:renderDaily,goal:renderGoal,reward:renderReward,dash:renderDash,cal:renderCal,cashflow:renderCashflow,
   acct:renderAcct,tax:renderTax,budget:renderBudget,weight:renderWeight,labs:renderLabs,insu:renderInsu,
-  saju:sajuOpen,journal:renderJournal,agora:agoraOpen,items:renderItems,log:renderLog,study:renderStudy,src:renderSources};
+  saju:sajuOpen,journal:renderJournal,work:renderWork,agora:agoraOpen,items:renderItems,log:renderLog,study:renderStudy,src:renderSources};
 
 /* ====== 이벤트 ====== */
 /* v2.5 ⇔ 메뉴 텍스트를 아이콘/글자로 가른다. 접을 때 글자만 숨기면 된다.

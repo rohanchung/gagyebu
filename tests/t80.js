@@ -27,7 +27,7 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
    await p.route('**/*supabase*',r=>r.abort());
    await p.goto('file://'+file);await p.waitForTimeout(1500);
    const views=await p.$$eval('.side .m[data-v]',es=>es.map(e=>e.dataset.v));
-   ok('F0 페이지 20개 @'+W,views.length===20,views.length);
+   ok('F0 페이지 21개 @'+W,views.length===21,views.length);   /* v4.96 💼 업무 신설 */
    const fails=[];
    for(const v of views){
     const e0=errs.length;
