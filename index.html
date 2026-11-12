@@ -520,6 +520,15 @@ html.tch .savebadge{right:auto!important;left:max(10px,env(safe-area-inset-left)
 .oopsrow{margin-top:12px;font-size:16px;line-height:1.7}
 .oopscap{font-size:12.5px;display:block;margin-bottom:2px}
 .oopsrow .oopssub{font-size:14px}
+.gcja{font-size:21px;font-weight:700;line-height:1.8;font-family:var(--ja)}
+.gcans{color:var(--accent);font-weight:800;border-bottom:2px solid var(--accent)}
+.gcko{font-size:14.5px;margin-top:3px;color:var(--muted)}
+.gcw{font-size:24px;font-weight:800;font-family:var(--ja)}
+.gctrap .oopscap{color:#b26a00;font-weight:700}
+.gcgl{display:flex;flex-wrap:wrap;gap:5px 12px;justify-content:center;font-size:13.5px}
+.gcgl .oopscap{width:100%}
+.gcwd{white-space:nowrap}
+.gplay{display:flex;gap:8px;justify-content:center;margin:2px 0 10px}
 mark.smk{background:#ffe48a;color:#1a1a1a;border-radius:3px;padding:0 1px}
 .stdopt.dg1{grid-template-columns:1fr}.stdopt.dg1 button{text-align:left}
 .dgpass{font-family:var(--ja);font-size:14px;line-height:1.8;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:4px 0 10px;text-align:left}
@@ -5901,15 +5910,20 @@ function stTtsJa(){
 function stTtsReady(){
   return !!(window.speechSynthesis&&window.SpeechSynthesisUtterance&&stTtsJa());
 }
-function stSpeak(kana){
+function stSpeak(kana,rate){
   if(!stTtsReady())return false;
   try{
     window.speechSynthesis.cancel();
     var u=new window.SpeechSynthesisUtterance(String(kana||''));
-    u.lang='ja-JP'; u.rate=0.9;
+    u.lang='ja-JP'; u.rate=+rate||0.9;
     var v=stTtsJa(); if(v)u.voice=v;
     window.speechSynthesis.speak(u); return true;
   }catch(e){return false;}
+}
+/* 🔊 v4.95 조사 듣기 — 문장 전체를 읽는다(띄어쓰기는 지운다 · 보통 0.9 / 느리게 0.6) */
+function stSpeakSent(slow){
+  var D=ST_DRILL; if(!D)return; var s=stDrillItem(D,D.i); if(!s)return;
+  stSpeak(String(s.ja||'').replace(/\s+/g,''),slow?0.6:0.9);
 }
 function stSpeakCur(){
   var D=ST_DRILL; if(!D)return;
@@ -6402,6 +6416,8 @@ function stDrillRecord(ok,my,dunno){
   }
   var r={id:w.id,my:String(my||''),ok:ok};
   if(dunno)r.dunno=true;
+  /* 🃏 v4.95 — 문법은 채점하는 순간의 정답을 같이 남긴다(picks 의 ans · 답한 순서와 문항 순서가 어긋나도 맞게) */
+  if(stIsGram(D.mode)){var gq=stGramQ(D,D.i);if(gq&&gq.ans!=null)r.ans=String(gq.ans);}
   /* 🃏 v4.90 — 고른 오답의 출처 단어(학습사: 혼동 쌍 집계). 「모르겠다」·단어장에 없는 꼴은 null */
   if(!ok&&!stIsGram(D.mode)&&!stIsVerb(D.mode)){var cw=dunno?[]:stChoseWords(w,D.mode,my);r.chose=cw.length?cw[0].id:null;}
   D.res.push(r);
@@ -6508,6 +6524,8 @@ function stDrillFinish(){
   if(!stIsGram(D.mode))rec.ids=D.res.map(function(r){return r.id;});
   /* 🃏 v4.90 — picks:[{id, chose}] (학습사 id8). wrongIds 는 그대로 둔다 */
   if(!stIsGram(D.mode)&&!stIsVerb(D.mode)&&wrong.length)rec.picks=wrong.map(function(r){return {id:r.id,chose:r.chose===undefined?null:r.chose};});
+  /* 🃏 v4.95 — 문법도 고른 보기를 남긴다(학습사 v36 #8: 혼동 짝 집계) · {id:문장, chose:고른 표기|null(모르겠다), ans:정답 표기} */
+  if(stIsGram(D.mode)){var gp=[];D.res.forEach(function(r){if(r.ok)return;gp.push({id:r.id,chose:r.dunno?null:String(r.my||''),ans:String(r.ans==null?'':r.ans)});});if(gp.length)rec.picks=gp;}
   /* 📝 v4.50 — 하부(문장 점검) 결과를 같은 기록에 남긴다.
      🔒 본문항 수(rec.n)와 **섞지 않는다** — 「10문항」이 20이 되면 숫자가 거짓말을 한다.
      🔒 틀린 것은 무엇을 어떻게 틀렸는지까지 남긴다(내 답 포함) — 그게 오답노트의 재료다. */
@@ -6727,6 +6745,9 @@ function stDrillResult(){
    🔒 유의표현은 정답이 문장 **밖**이라 빈칸 채우기가 아니다 — slots 가 아니라 syn 필드로 따로 돈다. */
 var ST_GMODES=[
   {k:'gpart',label:'조사 채우기',  hint:'もんだい1 · 조사'},
+  /* 🔊 v4.95 — 학습사 v35 요구 2. 로한: 「들을 때 단어는 들리는데 조사 때문에 이해가 안 될 때가 너무 많다」.
+     문장을 읽어 주고 들은 조사를 고른다. 🔒 재료·카운터는 조사 채우기와 같다(문장 단위 · 단어 카운터는 안 건드린다) */
+  {k:'gpart-a',label:'🔊 조사 듣기',hint:'청해 · 들은 조사 고르기',tts:true},
   {k:'gconj',label:'접속사 채우기',hint:'もんだい3 · 문장 흐름'},
   {k:'gadv', label:'부사 채우기',  hint:'もんだい1·3 · 부사'},
   {k:'gform',label:'문형 채우기',  hint:'문형 108항목'},
@@ -6736,6 +6757,8 @@ var ST_GMODES=[
   {k:'gctx', label:'문맥규정',     hint:'もんだい3 · 문장 전체'}];
 var ST_GKIND={gconj:'conj',gadv:'adv',gform:'form',gctx:'ctx'};
 function stGModeOK(k){return ST_GMODES.some(function(m){return m.k===k;});}
+/* 🔊 듣기 모드는 재료가 조사 채우기와 같다 — 문항을 만드는 쪽엔 바탕 모드로 넘긴다 */
+function stGBase(k){return k==='gpart-a'?'gpart':k;}
 /* 🔒 이 드릴이 문법인지 단어인지 묻는 함수는 **이것 하나다.** 곳곳에서 mode 문자열을 비교하면
    모드를 하나 추가할 때 빼먹는 자리가 반드시 생긴다. */
 function stIsGram(k){return stGModeOK(k);}
@@ -6834,6 +6857,14 @@ var ST_PART_STOP=['そこで','それで','それから','それに','それで�
   'やっと','とても','いつも','けれども','この','その','あの','どの','しかし','それとも','それなら','なぜなら'];
 /* 🔒 정답이 둘 되는 오답을 뺀다 — は·が·も 는 서로 바꿔도 맞는 문장이 많고, に·へ 도 그렇다(v3.4 동음이의어와 같은 구조) */
 var ST_PART_TWIN={'は':['が','も'],'が':['は','も'],'も':['は','が'],'に':['へ'],'へ':['に']};
+/* 🎯 v4.95 — 학습사 v35: 자동 슬롯의 오답은 **뜻이 크게 바뀌는 짝**부터(に↔で · が↔を · から↔まで · と↔を · へ↔を).
+   무작위로 뽑으면 「の」「も」 같은 눈감고 거를 보기가 섞인다. 짝을 먼저 넣고 나머지를 채운다. 🔒 は↔が 는 TWIN 이 계속 막는다 */
+var ST_PART_PAIR={'に':['で','を'],'で':['に','を'],'が':['を'],'を':['が','に','と'],'から':['まで','に'],'まで':['から','に'],'と':['を','に'],'へ':['を','で'],'は':['を'],'の':['が'],'も':['を']};
+function stGPartOpts(p,bad){
+  var pr=(ST_PART_PAIR[p]||[]).filter(function(x){return bad.indexOf(x)<0;});
+  var rest=stGShuffle(ST_PART.filter(function(x){return bad.indexOf(x)<0&&pr.indexOf(x)<0;}));
+  return pr.concat(rest).slice(0,3);
+}
 function stGPunct(t){var m=String(t).match(/[、。，．,.!?！？]+$/);return m?m[0]:'';}
 /* 한 예문의 조사 후보 — [{i:어절번호, p:조사, why}] · 수동 슬롯이 먼저 */
 function stGParticles(s){
@@ -6891,8 +6922,7 @@ function stGPartQ(s,c){
     c=(man.length?man:cs)[Math.floor(Math.random()*(man.length||cs.length))];
   }
   var bad=[c.p].concat(ST_PART_TWIN[c.p]||[]);
-  var opts=(c.manual&&Array.isArray(c.opts)&&c.opts.length>=3)?c.opts.slice(0,3)
-    :stGShuffle(ST_PART.filter(function(x){return bad.indexOf(x)<0;})).slice(0,3);
+  var opts=(c.manual&&Array.isArray(c.opts)&&c.opts.length>=3)?c.opts.slice(0,3):stGPartOpts(c.p,bad);
   return {ans:c.p, ja:stGPartMask(s,c), why:c.why, opts:stGShuffle([c.p].concat(opts))};
 }
 /* 어절 — 교재의 띄어쓰기가 그대로 살아 있어야 어순 문제가 성립한다 */
@@ -6925,7 +6955,7 @@ function stGShuffle(a){
 }
 /* 출제 대상 — 🔒 정렬은 단어와 **같은 식**(stWordScore)이다. seen·miss·lastSeen 만 읽는다 */
 function stGramPool(mode){
-  var ds=todayStr();
+  mode=stGBase(mode); var ds=todayStr();
   return stSents().filter(function(s){
     if(!stNorm(s.ja))return false;
     if(ST_GKIND[mode])return stGSlots(s,ST_GKIND[mode]).length>0;
@@ -6941,6 +6971,7 @@ function stGramPool(mode){
 /* 🔒 문항은 **시작할 때 한 번** 만들어 세션에 박는다.
    채점할 때마다 다시 만들면 보기가 춤추고, 어순 문제는 정답 자리까지 바뀐다. */
 function stGMkQ(s,mode,it){
+  mode=stGBase(mode);
   if(ST_GKIND[mode]){
     var sl=(it&&it.slot)||stGSlot(s,ST_GKIND[mode]);
     if(!sl)return null;
@@ -6963,7 +6994,7 @@ function stGMkQ(s,mode,it){
    🔒 pool 은 '문장 목록'이고 items 는 '문항 목록'이다. 화면이 "61문항"이라고 말하면
       실제로 61문항이 나와야 한다 — 슬롯이 2개인 문장을 1문항으로 세면 숫자가 거짓말을 한다. */
 function stGramItems(mode){
-  var out=[];
+  mode=stGBase(mode); var out=[];
   stGramPool(mode).forEach(function(s){
     if(ST_GKIND[mode])stGSlots(s,ST_GKIND[mode]).forEach(function(sl){out.push({s:s,slot:sl});});
     else if(mode==='gsyn')out.push({s:s});       /* 유의표현 — 한 짝이 한 문항이다 */
@@ -7005,7 +7036,7 @@ function stGramPick(mode,n){
 function stGramQ(D,i){return (D.qs&&D.qs[i])||null;}
 /* 문항 수가 모자라 못 시작하는 이유를 화면이 말해줄 수 있게 한다 */
 function stGramWhyBlocked(mode){
-  var n=stGramItems(mode).length;
+  mode=stGBase(mode); var n=stGramItems(mode).length;
   if(!stSents().length)return '예문이 없다 — 학습방에서 올린다.';
   /* 🔒 모드 이름을 손으로 적지 않는다 — 모드를 늘릴 때 빠뜨리는 자리가 반드시 생긴다(v4.13 교훈) */
   if(!n)return ST_GKIND[mode]
@@ -7729,6 +7760,85 @@ function stVconjRun(){
 /* ── 📖 문법 진행 화면 (v3.9) ──
    🔒 **답하기 전에 한국어 번역을 보여주지 않는다.** 번역에 「그래서」가 박혀 있으면
       접속사 문제의 정답이 번역에 그대로 적혀 있는 셈이다. 번역·해설은 채점 후에만 뜬다. */
+/* ══ 🃏 v4.95 문법 오답 카드 — 해설 사전 study.gref (학습사 v35·v36) ══
+   로한: 「조사 오답도 디테일하게 해설 — 히라가나 맞추기처럼」.
+   🔒 사전 = study.gref.items{ 표기 | 표기@cat : {cat, ko, role, trap, vs:{짝:구별}, ex} } · 앱은 **읽기만** 한다(학습방이 쓴다)
+   🔒 찾는 순서: 「표기@cat」 → 「표기」 · cat 은 모드에서 정한다(gpart·gpart-a=particle · gconj=conj · gadv=adv · 문형은 표기로만)
+   🔒 「내가 고른 게 왜 안 되나」 = 정답.vs[고른 것] → 고른 것.vs[정답] → 없으면 둘의 role 을 나란히 */
+var ST_GREF_CAT={'gpart':'particle','gpart-a':'particle','gconj':'conj','gadv':'adv'};
+function stGrefItems(){var g=studyDB().gref;return (g&&g.items&&typeof g.items==='object')?g.items:{};}
+function stGref(t,cat){
+  var it=stGrefItems(), k=String(t==null?'':t).trim(); if(!k)return null;
+  return (cat&&it[k+'@'+cat])||it[k]||null;
+}
+function stGrefVs(ans,my,cat){
+  var A=stGref(ans,cat), M=stGref(my,cat);
+  if(A&&A.vs&&stNorm(A.vs[my]))return String(A.vs[my]);
+  if(M&&M.vs&&stNorm(M.vs[ans]))return String(M.vs[ans]);
+  return '';
+}
+/* 문장 속 단어 — gloss 가 있으면 그대로. 없으면 어절을 단어장에서 찾는다(조사 떼기 · ます형은 사전형 근사) */
+var ST_I2U={'き':'く','ぎ':'ぐ','し':'す','ち':'つ','に':'ぬ','び':'ぶ','み':'む','り':'る','い':'う'};
+function stSentGloss(s){
+  if(s&&Array.isArray(s.gloss)&&s.gloss.length)return s.gloss.filter(function(g){return g&&stNorm(g.w)&&stNorm(g.ko);})
+    .map(function(g){return {w:String(g.w),kana:String(g.base||g.w),kanji:String(g.kanji||''),ko:String(g.ko),note:String(g.note||'')};});
+  var byK={}, byJ={};
+  stWords().forEach(function(w){if(!w)return;if(stNorm(w.kana)&&!byK[w.kana])byK[w.kana]=w;if(stNorm(w.kanji)&&!byJ[w.kanji])byJ[w.kanji]=w;});
+  var look=function(t){return byJ[t]||byK[t]||null;}, out=[], seen={};
+  stGTokens(s).forEach(function(t0){
+    var t=t0.replace(/[、。，．,.!?！？「」]+/g,''); if(!t)return;
+    var c=[t], p=ST_PART.filter(function(x){return t.length>x.length&&t.slice(-x.length)===x;})[0];
+    if(p)c.push(t.slice(0,-p.length));
+    var m=t.match(/^(.+?)(ませんでした|ましょうか|ましょう|ませんか|ません|ました|ます)$/);
+    if(m){var st=m[1], last=st.slice(-1);
+      if(st==='し')c.push('する'); if(st==='き')c.push('くる');
+      if(/し$/.test(st))c.push(st.slice(0,-1)+'する');
+      c.push(st+'る'); if(ST_I2U[last])c.push(st.slice(0,-1)+ST_I2U[last]);}
+    for(var i=0;i<c.length;i++){var w=look(c[i]); if(w){ if(!seen[w.id]){seen[w.id]=1;out.push({w:t,kana:String(w.kana||''),kanji:String(w.kanji||''),ko:String(w.ko||''),note:''});} return; }}
+  });
+  return out;
+}
+function stGrefLine(t,cat){var g=stGref(t,cat);return g?(stNorm(g.ko)?'<span class="oopssub">'+mdEsc(g.ko)+'</span>':''):'';}
+/* 카드 본체 — 문법 드릴(문맥규정 제외)과 진단 오답 복습이 같이 쓴다 */
+function stGramCard(s,q,last,mode){
+  var cat=ST_GREF_CAT[mode]||null, ans=String(q.ans==null?'':q.ans);
+  var wrong=!!last&&!last.ok, dunno=!!(last&&last.dunno), my=wrong&&!dunno?String(last.my||''):'';
+  var A=stGref(ans,cat), M=my?stGref(my,cat):null;
+  var ja=String(q.ja||'').indexOf('（　）')>=0
+    ? mdEsc(q.ja).replace('（　）','<span class="gcans">'+mdEsc(ans)+'</span>')
+    : mdEsc(String((s&&s.ja)||q.ja||''));
+  var h='<div class="oops gcard'+(wrong?'':' okc')+'">'
+    +'<div class="gcja">'+ja+'</div>'
+    +(q.syn?'<div class="oopsrow">= <b class="gcans">'+mdEsc(ans)+'</b></div>':'')
+    +((mode!=='gctx'&&s&&stNorm(s.ko))?'<div class="gcko">'+mdEsc(s.ko)+'</div>':'')
+    +'<div class="oopsrow"><span class="oopscap mut">정답</span><b class="gcw">'+mdEsc(ans)+'</b>'
+      +(A&&stNorm(A.ko)?' <span class="oopssub">'+mdEsc(A.ko)+'</span>':'')
+      +(A&&stNorm(A.role)?'<div class="oopssub mut">'+mdEsc(A.role)+'</div>':'')+'</div>';
+  if(wrong){
+    if(dunno)h+='<div class="oopsrow"><span class="oopscap mut">내가 고른 것</span><b>모르겠다</b></div>';
+    else{
+      var vs=stGrefVs(ans,my,cat);
+      h+='<div class="oopsvs"><span class="oopscap mut">내가 고른 것 — 이 문장에서 안 되는 이유</span><b class="gcw neg">'+mdEsc(my||'—')+'</b>'
+        +(M&&stNorm(M.ko)?' <span class="oopssub">'+mdEsc(M.ko)+'</span>':'')
+        +'<div class="oopssub">'+(vs?mdEsc(vs)
+          :((A&&stNorm(A.role))||(M&&stNorm(M.role))
+            ?('<b>'+mdEsc(ans)+'</b> '+mdEsc((A&&A.role)||'—')+'<br><b>'+mdEsc(my)+'</b> '+mdEsc((M&&M.role)||'—'))
+            :'<span class="mut">사전에 아직 없는 짝이다</span>'))+'</div></div>';
+    }
+  }else{
+    var others=(q.opts||[]).filter(function(o){return String(o)!==ans;}).map(function(o){
+      var g=stGref(o,cat);return '<b>'+mdEsc(o)+'</b>'+(g&&stNorm(g.ko)?' '+mdEsc(g.ko):'');});
+    if(others.length&&mode!=='gord')h+='<div class="oopsrow"><span class="oopscap mut">나머지 보기</span><span class="oopssub">'+others.join(' · ')+'</span></div>';
+  }
+  if(A&&stNorm(A.trap))h+='<div class="oopsrow gctrap"><span class="oopscap">⚠️ 함정</span><span class="oopssub">'+mdEsc(A.trap)+'</span></div>';
+  if(stNorm(q.why))h+='<div class="gwhy">💡 '+mdEsc(q.why)+'</div>';
+  if(A&&stNorm(A.ex))h+='<div class="oopsrow"><span class="oopscap mut">예</span><span class="oopssub" style="font-family:var(--ja)">'+mdEsc(A.ex)+'</span></div>';
+  var gl=stSentGloss(s);
+  if(gl.length)h+='<div class="oopsrow gcgl"><span class="oopscap mut">문장 속 단어</span>'+gl.map(function(g){
+      return '<span class="gcwd"><b>'+mdEsc(g.kana)+'</b>'+(g.kanji&&g.kanji!==g.kana?' <span class="mut">'+mdEsc(g.kanji)+'</span>':'')+' '+mdEsc(g.ko)
+        +(g.note?' <span class="mut">('+mdEsc(g.note)+')</span>':'')+'</span>';}).join('')+'</div>';
+  return h+'</div>';
+}
 function stGramRun(){
   var D=ST_DRILL, s=stDrillItem(D,D.i), q=stGramQ(D,D.i);
   if(!s||!q){D.fin=true;return stPaneWord();}
@@ -7750,6 +7860,12 @@ function stGramRun(){
       +'<div class="stdhint">같은 뜻이 되는 것을 골라라</div>';
   }else if(D.mode!=='gord'){
     qhtml='<div class="gja">'+mdEsc(q.ja).replace('（　）','<span class="gbl">（　）</span>')+'</div>';
+    /* 🔊 듣기 — 새 문항이면 한 번 읽는다 · 다시 듣기 · 느리게 */
+    if(D.mode==='gpart-a'){
+      qhtml='<div class="gplay"><button class="btn" onclick="stSpeakSent(false)">🔊 다시 듣기</button> <button class="ghost" onclick="stSpeakSent(true)">🐢 느리게</button></div>'
+        +qhtml+'<div class="stdhint">들은 조사를 골라라</div>';
+      if(!D.show&&D.spk!==D.i){D.spk=D.i;setTimeout(function(){stSpeakSent(false);},120);}
+    }
   }else{
     var slots=q.win.map(function(_,k){
       return '<span class="gslot'+(k===q.star?' star':'')+'">'+(k===q.star?'★':'＿')+'</span>';}).join('');
@@ -7759,24 +7875,26 @@ function stGramRun(){
   var body;
   if(D.show){
     var full=String(s.ja);
+    /* 🃏 v4.95 — 문맥규정 밖은 한 장 카드(문장·번역·정답 뜻·고른 것이 안 되는 이유·함정·해설·문장 속 단어) */
     body='<div class="stdmark '+(last.ok?'ok':'no')+'">'+(last.ok?'○ 맞음':'✗ 틀림')+'</div>'
-      +'<div style="margin-top:8px;font-size:20px;font-weight:800">'+mdEsc(q.ans)+'</div>'
+      +(D.mode!=='gctx'?stGramCard(s,q,last,D.mode):(
+      '<div style="margin-top:8px;font-size:20px;font-weight:800">'+mdEsc(q.ans)+'</div>'
       +(last.ok?'':'<div class="mut" style="font-size:11.5px;margin-top:4px">내 답 <b>'
          +mdEsc(last.my||'—')+'</b></div>')
-      +'<div class="gfull">'+mdEsc(full)+'</div>'
+      +'<div class="gfull">'+mdEsc(full)+'</div>'))
       /* 🔴 v4.51 — 문맥규정은 **번역도 아직 안 보여준다.**
          전수 검사가 잡았다: 「いえから バスていまで…」의 번역에 "집"이 들어 있어서,
          그 번역을 띄우면 하부 문항 「いえ 의 뜻은?」의 정답이 화면에 이미 적혀 있게 된다.
          🔒 번역 자체가 점검 B(문장 번역 고르기)의 정답이기도 하다. 번역은 정리 화면에서 편다.
          🔒 일본어 완성문(ja)은 보여준다 — 그건 뜻을 흘리지 않고, 빈칸이 메워진 걸 봐야 한다. */
-      +((D.mode!=='gctx'&&stNorm(s.ko))?'<div class="mut" style="font-size:11.5px;margin-top:4px">'+mdEsc(s.ko)+'</div>':'')
+      /* 번역·💡 은 카드 안으로 옮겼다(v4.95) */
       /* 🃏 v4.91 — 해설은 맞혀도 띄운다(로한: 「찍어서 맞은 걸 수도 있다」 · 전엔 틀렸을 때만).
          🔴 v4.51 [결함] 문맥규정은 여기서 해설을 **통째로** 띄웠다. 그런데 그 해설에는
          문장의 모든 단어 뜻이 적혀 있다 — 그걸 보여준 다음에 「이 단어 뜻은?」을 물으면
          **방금 본 표를 보고 맞힌다.** 점검이 점검이 아니게 된다.
          로한: "정답을 누르고, **정답만 정오답을 알려주고**, 구성요소 물어보고, 그다음 최종 정리된걸"
          🔒 그래서 문맥규정은 여기서 **빈칸의 정오답만** 말한다. 해설(why 포함)은 정리 화면으로 민다. */
-      +((D.mode!=='gctx')&&stNorm(q.why)?'<div class="gwhy">💡 '+mdEsc(q.why)+'</div>':'')
+      +''
       +'<div class="mut" style="font-size:10.5px;margin-top:6px">'
         +(s.src?mdEsc(s.src)+' · ':'')+'누적 '+(+s.miss||0)+'틀림/'+(+s.seen||0)+'회'
         +((+s.streak||0)?' · 연속 '+s.streak+'회 (서로 다른 날 · 짝수 번째마다 틀림 −1)':'')+'</div>'
@@ -7799,7 +7917,7 @@ function stGramRun(){
       +'<div class="mut" style="font-size:10px;margin-top:4px">찍지 마라 — 찍어서 맞히면 약점이 안 보인다</div></div>';
   }
   return '<div class="sec">'
-   +'<div class="row" style="padding:0 0 9px"><span class="subhd2">📖 '+stModeLabel(D.mode)
+   +'<div class="row" style="padding:0 0 9px"><span class="subhd2">'+(D.mode==='gpart-a'?'':'📖 ')+stModeLabel(D.mode)
      +' <span class="mut">'+(D.i+1)+'/'+D.ids.length+'</span>'+stGoalLive(D)+'</span>'
      +'<span><button class="ghost sm" onclick="stDrillQuit()">그만</button></span></div>'
    +bar
@@ -7812,6 +7930,8 @@ function stGramRun(){
    +(D.mode==='gsyn'
      ? '보기는 다른 항목의 짝에서 빌린다 — 🔒 <b>같은 표현을 가진 항목은 뺀다</b>. '
         +'책에는 짝이 둘인 표현이 있어(あいさつしました) 그대로 섞으면 정답이 둘이 된다.'
+     : D.mode==='gpart-a'
+     ? '🔊 문장을 소리로 듣고 빈칸의 조사를 고른다 — 읽기로는 맞히는데 들으면 놓치는 조사를 잡는다. 재료는 조사 채우기와 같다.'
      : D.mode==='gpart'
      ? '조사 앞 말이 명사로 확인된 자리만 가린다 — この·それから 같은 건 조사가 아니다. '
         +'🔒 は·が·も, に·へ 는 서로 오답에 넣지 않는다(바꿔도 맞는 문장이 많다).'
@@ -7975,7 +8095,8 @@ function stPaneWord(){
       드릴은 드릴끼리 한 탭에 둔다 — 단어 위, 문법 아래. */
 function stGramBox(){
   var ss=stSents();
-  var rows=ST_GMODES.map(function(m){
+  /* 🔒 듣기 모드는 일본어 음성이 없으면 그리지 않는다(단어 음성 모드와 같은 규칙) */
+  var rows=ST_GMODES.filter(function(m){return !(m.tts&&!stTtsReady());}).map(function(m){
     var n=stGramItems(m.k).length, why=stGramWhyBlocked(m.k);
     /* 🔒 gconj 는 보기 4개가 데이터에 박혀 있어 예문 1건으로도 성립한다.
        gord 는 한 문장 안에서 보기를 만들기 때문에 역시 1건으로 된다. → 막는 기준은 pool 0 뿐이다 */
@@ -8980,6 +9101,11 @@ function stDiagResult(set){
       var s=stSentById(q.ref)||{};
       top='<span style="font-family:var(--ja)">'+mdEsc(s.ja||'')+'</span>';
       ex=(stNorm(s.ko)?mdEsc(s.ko):'')+(q.why?' · 💡 '+mdEsc(q.why):'');
+      /* 🃏 v4.95 — 사전 해설: 정답 뜻 · 고른 것이 안 되는 이유 */
+      (function(){var cat=ST_GREF_CAT[q.mode]||null, A=stGref(right,cat), vs=(my!=null&&my>=0)?stGrefVs(right,myTxt,cat):'';
+        if(A&&stNorm(A.ko))ex+='<br><b style="font-family:var(--ja)">'+mdEsc(right)+'</b> '+mdEsc(A.ko)+(stNorm(A.role)?' — '+mdEsc(A.role):'');
+        if(vs)ex+='<br>✗ <b style="font-family:var(--ja)">'+mdEsc(myTxt)+'</b> '+mdEsc(vs);
+        if(A&&stNorm(A.trap))ex+='<br>⚠️ '+mdEsc(A.trap);})();
     }else{
       var hit=stDiagItem(set,q.ref)||{}, it=hit.it||{};
       top='<span style="font-family:var(--ja)">'+mdEsc(it.q||it.word||'')+'</span>';
@@ -14286,7 +14412,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.94';
+var APP_VERSION='4.95';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -14300,6 +14426,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.95',date:'2026-11-12',note:'<b>🔊 조사 듣기 · 🃏 문법 오답 카드(해설 사전) · 🎯 조사 짝 보기.</b> 학습사 v35·v36 · 로한: <i>「들을 때 단어는 들리는데 조사 때문에 이해가 안 될 때가 너무 많다」 「조사 오답도 디테일하게 — 히라가나 맞추기처럼」</i> · 🔎 조사 자동 출제(v17)는 v4.13 부터 있었다 — 서버 실측 수동 48 + 자동 약 750문항(543문장 중 471) · 🎯 자동 문항의 오답은 뜻이 바뀌는 짝부터(に↔で · が↔を · から↔まで · と↔を · へ↔を) · は↔が 는 여전히 서로 오답이 아니다 · 🔊 <code>gpart-a</code> 조사 듣기 — 문장을 읽어 주고(띄어쓰기 없이) 빈칸 조사를 고른다 · 다시 듣기 · 🐢 느리게(0.6) · 재료·카운터는 조사 채우기와 같다(문장 단위) · 일본어 음성이 없으면 칸을 안 그린다 · 🃏 문법 드릴(문맥규정 제외) 채점 화면이 한 장 카드: 완성 문장(정답 강조) · 번역 · 정답 뜻·역할 · 고른 것이 이 문장에서 안 되는 이유(사전 vs → 없으면 두 역할 나란히) · 함정 · 해설 · 예 · 문장 속 단어(gloss · 없으면 단어장에서 · ます형은 사전형 근사) · 맞히면 초록 카드 + 나머지 보기의 뜻 · 진단 오답 복습에도 사전 해설 · 사전 <code>study.gref</code>(학습방 81항목 · 앱은 읽기만 · 「표기@cat」→「표기」) · 문법 드릴도 <code>picks:[{id,chose,ans}]</code>.'},
   {v:'4.94',date:'2026-11-10',note:'<b>⏳ 타임로그 10분 칸.</b> 로한: <i>「차라리 로그를 10분 단위로 — 더 가로로 잘게 쪼개면 되잖아」</i> · 30분 칸이면 3분 드릴이 30분을 통째로 먹고, 같은 칸의 진단이 드릴 이름에 묻혔다 · 🔒 저장 단위 10분(하루 144칸) · 블록에 <code>u:10</code> — 없으면 옛 30분 칸으로 읽고 한 번 옮긴다(s×3 · e×3+2 · 멱등 · 옛 판 탭이 쓴 것도) · 옮긴 블록엔 <code>g:30</code> — 학습 분은 옛 30분 묶음으로 세서 과거 숫자가 안 바뀐다(28분 뽀모가 든 칸이 48분으로 부풀지 않는다) · 그리드 한 줄 = 1시간 · 6칸, 제목은 블록이 그 줄에서 차지한 만큼 펼친다 · 같은 블록 안 칸 경계선은 지운다 · 길이는 「1h 20m」 · 앱이 만든 학습 칸(드릴·진단·뽀모)에 새 기록이 겹치면 겹친 10분 칸만 잘라 이름을 덧붙인다 · 스냅샷 180 · 아고라 SQL(학습분·타임로그 = 칸 × u) 은 db/20261110_agora_timelog_unit.sql.'},
   {v:'4.93',date:'2026-11-10',note:'<b>🎯 남은 목표가 드릴·결과 화면에도.</b> 로한: <i>「드릴을 해도 남은 갯수가 변화가 없다」</i> — 계산은 줄고 있었는데 숫자가 시작 화면에만 있어 엔터로 「한 번 더」를 이어 누르면 볼 데가 없었다 · 드릴 머리줄에 「🎯 남은 N −k」(답할 때마다 줄어든다) · 결과 화면에 「세트 전 → 지금 · 이번 세트로 −k」 · 단어·문법 모드 · 드릴 아래 출제 설명을 전 모드 공통 규칙으로 고침. · 🔴 로한: <i>「오전에 진단 본 것도 데일리 로그에 반영이 안 됐다」</i> — 진단(09:52~10:14) 칸에 이미 드릴이 학습으로 찍혀 있어 「이미 학습이면 그대로」 규칙에 묻혔다 → 이미 학습 칸이면 이름을 덧붙인다(「드릴 · … + 🩺 진단 · …」) · v4.92 소급분도 한 번 더(tl=2 · 이름이 이미 있으면 안 붙임).'},
   {v:'4.92',date:'2026-11-10',note:'<b>🔀 단어 카운터 모드별 · 🎯 드릴별 남은 목표 · 🃏 맞혀도 해설 카드 · 🩺 진단 탭.</b> 학습사 v33 + 진단 v2 + 로한 · 🔀 <code>words[].m={r2m,k2r,r2k,k2m,a2m,kata,vconj}</code> — 한자 읽기를 맞혀도 가나→뜻이 안 오른다 · 옛 최상위 카운터는 m.r2m 으로(접속 때 한 번 · 멱등) · 간격 반복(1·3·7일)·「때가 된 것 60% + 처음 보는 것」·하루 2번 제한을 단어 드릴 전 모드에 · 어려운 단어·드릴 오답은 r2m 기준 · 드릴 오답 줄에 모드별 miss/seen · 🎯 로한: <i>「히라가나 뜻은 몇 개 남았다 새로운 게 몇 개다 — 각 드릴마다」</i> → 모드 칸마다 「남은 N (때 · 새)」 + 고른 모드의 목표 상자(다시 볼 때 · 처음 · 쉬는 중·다음 날짜 · 오늘 한 문항) · 문법 칸도 · 🃏 로한: <i>「찍어서 맞은 걸 수도 있어서 오답처럼 해설이」</i> → 맞혀도 같은 카드(초록) · 맞혔을 땐 나머지 보기의 정체 · 문법 해설(💡)도 맞혀도 뜬다 · 🩺 진단 탭(5번째) — 다음 진단·시작/이어서 · 추이(문자·어휘/문법/독해/청해 밴드) · 기록(전략 탭에서 옮김) · + 모의고사 · scheduled 세트는 날짜가 되면 열린다 · 진단에서 틀린 문장은 내일 문법 드릴에서 먼저 · 틀린 단어는 그 섹션 모드에 재점검 · 🕒 로한: <i>「진단 본 것도 데일리에 학습으로」</i> → 진단 시간이 타임로그·학습 분에(dg01 소급: doneAt − 푼 시간) · 🔴 진단 결함 1: 뜻 토큰이 정답과 겹치는 보기 제외(r2m·a2m·k2m·kata) · 결함 2: sc062 보기 はずです → ましょう(rb_call).'},

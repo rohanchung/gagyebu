@@ -72,20 +72,20 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
     🔒 아예 안 그리면 "그런 드릴이 없다"로 읽힌다 — 있는데 재료가 없는 것과 다르다(빈 서랍 금지의 반대쪽) */
  /* 🔒 v4.50 — **개수를 박지 않는다.** 모드가 하나 늘 때마다 깨지는 단언은 결함을 못 잡고
     사람을 부른다(v4.45 교훈). 「목록에 있는 모드는 전부 그려진다」가 불변식이다. */
- ok('D1 문법 모드가 빠짐없이 그려진다',btns.length===(await p.evaluate(()=>ST_GMODES.length))
+ ok('D1 문법 모드가 빠짐없이 그려진다',btns.length===(await p.evaluate(()=>ST_GMODES.filter(m=>!(m.tts&&!stTtsReady())).length))   /* v4.95 — 음성 모드는 일본어 음성이 없으면 안 그린다 */
     &&['조사','접속사','부사','문형','유의표현','문장'].every(k=>btns.some(t=>t.includes(k))),JSON.stringify(btns));
  const offb=await p.evaluate(()=>[...document.querySelectorAll('.gmode button')]
    .filter(x=>x.disabled).map(x=>x.textContent));
  /* 🔒 v4.50 — 개수가 아니라 **규칙**을 잰다: 문항이 0개인 모드는 전부 꺼져 있고,
     1개라도 있는 모드는 전부 켜져 있다. 모드가 늘어도 이 단언은 그대로 유효하다. */
- const want=await p.evaluate(()=>ST_GMODES.filter(m=>stGramItems(m.k).length===0).map(m=>m.label));
+ const want=await p.evaluate(()=>ST_GMODES.filter(m=>!(m.tts&&!stTtsReady())).filter(m=>stGramItems(m.k).length===0).map(m=>m.label));
  ok('D1b 재료 없는 모드는 눌리지 않는다 (0문항인 것 전부)',
     offb.length===want.length&&want.every(l=>offb.some(t=>t.indexOf(l)>=0)),
     JSON.stringify({off:offb,want:want}));
  const onb=await p.evaluate(()=>[...document.querySelectorAll('.gmode button')]
    .filter(x=>!x.disabled).map(x=>x.textContent));
  ok('D1c 재료 있는 모드는 전부 눌린다',
-    onb.length===(await p.evaluate(()=>ST_GMODES.filter(m=>stGramItems(m.k).length>0).length)),
+    onb.length===(await p.evaluate(()=>ST_GMODES.filter(m=>!(m.tts&&!stTtsReady())).filter(m=>stGramItems(m.k).length>0).length)),
     JSON.stringify(onb));
  for(const m of ['gpart','gadv']){
    await p.evaluate(mm=>stDrillStart(mm,2),m);await p.waitForTimeout(200);
