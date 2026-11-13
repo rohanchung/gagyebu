@@ -840,6 +840,34 @@ textarea.mla.same{background:#f2f9f4}
 .dwkn.all{color:#2f7a44}
 .dmdots{display:none}
 .dmbars:empty{display:none}
+/* 📅 v5.01 구글 일정 */
+.dmbars{display:flex;flex-direction:column;gap:1px;margin:1px -4px 1px}
+.dwc .dmbars{margin:2px -5px 0}
+.cbar{height:15px;line-height:15px;font-size:10.5px;font-weight:700;color:#fff;background:var(--c);padding:0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cbar.cs{margin-left:4px;border-top-left-radius:4px;border-bottom-left-radius:4px}
+.cbar.ce{margin-right:4px;border-top-right-radius:4px;border-bottom-right-radius:4px}
+.cbar.cont{border-top-left-radius:0;border-bottom-left-radius:0;margin-left:0}
+.cbar.emp{background:transparent}
+.dmon{gap:3px 0}
+.dmon .gcell{margin:0 1.5px}
+.dmi.cev{color:var(--ink)}
+.cdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:4px;vertical-align:1px;font-style:normal}
+.dwi.cev{cursor:pointer}
+.calchips{display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap}
+.calchip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 8px;font-size:11px;cursor:pointer;color:var(--muted)}
+.calchip i{width:8px;height:8px;border-radius:50%;background:transparent;box-shadow:inset 0 0 0 1.5px var(--c)}
+.calchip.on{color:var(--ink)}.calchip.on i{background:var(--c)}
+.calchip.miss{border-style:dashed;opacity:.7}.calchip.bad{border-color:var(--neg,#d64545)}
+.calsync{border:1px solid var(--line);background:var(--card);border-radius:999px;width:24px;height:22px;font-size:12px;cursor:pointer;padding:0}
+.calwarn{font-size:11px;font-weight:700;color:#c76a00}
+.caldaybox{border:1px solid var(--line);border-radius:10px;padding:7px 9px;margin:0 0 10px;background:var(--soft)}
+.calday-h{font-size:11.5px;font-weight:800;margin-bottom:4px}
+.calrow{display:flex;gap:6px;align-items:baseline;font-size:12.5px;line-height:1.5;padding:2px 0}
+.calw{flex:0 0 auto;font-weight:700;font-variant-numeric:tabular-nums;min-width:44px}
+.calt{flex:1;min-width:0;word-break:break-word}
+.calnote{display:block;font-size:11px;color:var(--muted);white-space:pre-wrap}
+.calsrcn{flex:0 0 auto;font-size:10.5px}
+@media(max-width:599px){.cbar{height:5px;font-size:0;padding:0}.dmon .dmbars{gap:1px}}
 .dwk{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;min-height:0}
 .dwc{display:flex;flex-direction:column;min-height:0;min-width:0;border:1px solid var(--line);border-radius:9px;background:var(--card);padding:5px 5px 0}
 .dwc.today{box-shadow:inset 0 0 0 1.5px var(--accent)}
@@ -852,7 +880,7 @@ textarea.mla.same{background:#f2f9f4}
 .dwl{flex:1;min-width:0;overflow-y:auto;padding-bottom:6px;scrollbar-width:thin}
 .dwg{margin-bottom:6px}
 .dwgh{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.3px;margin:2px 0 1px;padding-left:4px;border-left:2px solid var(--line)}
-.dwg-wk .dwgh{border-left-color:var(--ink)}.dwg-rt .dwgh{border-left-color:#d8a13f}.dwg-st .dwgh{border-left-color:#2f9e6e}
+.dwg-cal .dwgh,.dwg-cal2 .dwgh{border-left-color:#3f6fd8}.dwg-wk .dwgh{border-left-color:var(--ink)}.dwg-rt .dwgh{border-left-color:#d8a13f}.dwg-st .dwgh{border-left-color:#2f9e6e}
 .dwr{display:flex;align-items:flex-start;gap:2px;min-height:24px}
 .dwck{flex:0 0 22px;min-height:22px;border:0;background:none;padding:0;font-size:14px;line-height:22px;cursor:pointer;color:var(--ink)}
 .dwt{flex:1;min-width:0;font-size:11.5px;line-height:15px;padding:3px 0;cursor:pointer;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -14088,6 +14116,117 @@ function mealPanel(ds){
    🔒 「0/8」 은 하루 머리의 알약(dpill · 달성률 4단계 색). 칸 배경 채색·.gcr 줄·「주」 칸은 없앴다 — 계산(dayRate·fullDaysInWeek)은 그대로
    🔒 기둥의 체크·끝냄은 서랍과 같은 함수(checkToggle·wkToggle) · 미래 날은 그 함수들이 막는다(dayFut)
    🔒 폭 기준 — ≥1200 옆 서랍 · 600~1199 아래 판 55% · <600 아래 판 60% + 주간은 하루 한 장 목록 · 월간은 글자 없이 점 */
+/* ══ 📅 v5.01 구글 캘린더 표시 (daily-view-spec D3 · daily-design.md §3·§4·§5-4) ══
+   🔒 일정의 원본은 구글 캘린더 — 서버(cal-sync)가 30분마다 public.cal_events 에 쌓고, 앱은 **읽기만** 한다(RLS 본인 select)
+   🔒 「그 날 일정」에 답하는 함수는 calOn 하나 — 월간 칸 · 주간 기둥 · 그 날 표가 같이 쓴다
+   🔒 학사 캘린더 제목에는 학생 이름이 있다 — 달력 칸(월·주)에는 분류(cat)와 수만 · 이름은 그 날 표에서만(cat 이 있는 일정)
+   🔒 보이는 범위(± 5주)만 읽고, 기기 사본(rb_cal)을 먼저 그린다 · 켜고 끄기는 기기에(DB.ui.calOff) */
+var CAL={src:[],ev:[],from:null,to:null,at:0,busy:false,failAt:0,read:false};
+function calCacheRead(){if(CAL.read)return;CAL.read=true;try{var c=JSON.parse(localStorage.getItem('rb_cal')||'null');if(c&&Array.isArray(c.ev)){CAL.src=c.src||[];CAL.ev=c.ev;CAL.from=c.from;CAL.to=c.to;CAL.cached=true;}}catch(e){}}
+function calCacheWrite(){try{localStorage.setItem('rb_cal',JSON.stringify({src:CAL.src,ev:CAL.ev,from:CAL.from,to:CAL.to}));}catch(e){}}
+function calRange(){
+  if(dview()==='month'){var ym=curMonth(),y=+ym.slice(0,4),m=+ym.slice(5);return [addDays(ym+'-01',-7),addDays(ym+'-'+String(new Date(Date.UTC(y,m,0)).getUTCDate()).padStart(2,'0'),7)];}
+  var ws=dweekStart();return [addDays(ws,-7),addDays(ws,13)];
+}
+function calNeed(){calCacheRead();var r=calRange();return !(CAL.from&&CAL.from<=r[0]&&CAL.to>=r[1]&&!CAL.cached);}
+function calQ(t){try{return SB.from(t);}catch(e){return null;}}
+function calCall(q,m,args){return (q&&typeof q[m]==='function')?q[m].apply(q,args):q;}
+function calFetch(){
+  if(CAL.busy||!USER||typeof SB==='undefined'||!SB)return;
+  if(CAL.failAt&&Date.now()-CAL.failAt<60000)return;
+  var r=calRange(), a=addDays(r[0],-28), b=addDays(r[1],28);
+  var qs=calQ('cal_sources'), qe=calQ('cal_events'); if(!qs||!qe)return;
+  qs=calCall(calCall(qs,'select',['key,name,color,show,ord,last_sync_at,last_status']),'order',['ord']);
+  qe=calCall(qe,'select',['src,uid,inst,title,cat,all_day,d0,d1,t0,t1,loc,note']);
+  qe=calCall(calCall(calCall(calCall(qe,'is',['gone_at',null]),'lte',['d0',b]),'gte',['d1',a]),'limit',[5000]);
+  CAL.busy=true;
+  Promise.all([Promise.resolve(qs),Promise.resolve(qe)]).then(function(res){
+    CAL.busy=false; var s0=res[0]||{}, e0=res[1]||{};
+    if(s0.error||e0.error){CAL.failAt=Date.now();return;}
+    CAL.src=(s0.data||[]).filter(function(x){return x&&x.key;});
+    CAL.ev=(e0.data||[]).filter(function(x){return x&&x.d0&&x.d1&&x.d1>=a&&x.d0<=b;});
+    CAL.from=a; CAL.to=b; CAL.at=Date.now(); CAL.cached=false; calCacheWrite();
+    var v=document.getElementById('v-daily'); if(v&&v.classList.contains('on'))renderDaily();
+  },function(){CAL.busy=false;CAL.failAt=Date.now();});
+}
+/* ↻ — 서버에 지금 받아 오라고 한다(1분에 한 번 · 서버도 막는다) */
+function calSync(){
+  if(CAL.syncAt&&Date.now()-CAL.syncAt<60000){saveBadge('↻ 1분 안에 이미 받아 왔다','ok');return;}
+  CAL.syncAt=Date.now(); saveBadge('↻ 구글 캘린더를 받아 오는 중…','wait');
+  var done=function(){CAL.from=null;CAL.failAt=0;calFetch();setTimeout(function(){saveBadge('','');},1500);};
+  try{SB.functions.invoke('cal-sync',{body:{manual:true}}).then(done,done);}catch(e){done();}
+}
+function calSrc(k){for(var i=0;i<CAL.src.length;i++)if(CAL.src[i].key===k)return CAL.src[i];return null;}
+function calShown(k){var off=(DB.ui&&DB.ui.calOff)||{};var s=calSrc(k);return !off[k]&&!(s&&s.show===false);}
+function calToggle(k){DB.ui=DB.ui||{};var o=DB.ui.calOff=DB.ui.calOff||{};if(o[k])delete o[k];else o[k]=1;kvUiWrite();renderDaily();}
+function calColor(e){var s=calSrc(e.src);return (s&&s.color)||'#8b93a8';}
+function calHM(iso){var d=new Date(iso);if(isNaN(d.getTime()))return '';return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+/* 🔒 그 날 일정 — 하나뿐인 답 */
+function calOn(ds){
+  calCacheRead();
+  return CAL.ev.filter(function(e){return e.d0<=ds&&e.d1>=ds&&calShown(e.src);})
+    .sort(function(a,b){if(a.all_day!==b.all_day)return a.all_day?-1:1;var x=a.t0||a.d0,y=b.t0||b.d0;return x<y?-1:(x>y?1:0);});
+}
+/* 칸에 쓰는 이름 — 분류가 있으면 분류만(이름은 그 날 표에서) */
+function calLabel(e){return e.cat?e.cat:e.title;}
+/* 시각 일정 묶기 — src + cat + 시작 시각이 같으면 ×N (cat 이 없으면 안 묶는다) */
+function calTimed(ds){
+  var out=[], idx={};
+  calOn(ds).filter(function(e){return !e.all_day;}).forEach(function(e){
+    var hm=(e.d0===ds)?calHM(e.t0):'', k=e.cat?(e.src+'|'+e.cat+'|'+hm):null;
+    if(k&&idx[k]){idx[k].n++;return;}
+    var g={e:e,hm:hm,n:1,label:calLabel(e)}; if(k)idx[k]=g; out.push(g);
+  });
+  return out;
+}
+function calTimedHtml(g){return '<div class="dmi cev" style="--c:'+mdEsc(calColor(g.e))+'" title="'+mdEsc(g.label+(g.n>1?' ×'+g.n:''))+'"><i class="cdot"></i>'+(g.hm?'<b>'+g.hm+'</b> ':'')+mdEsc(g.label)+(g.n>1?' <b>×'+g.n+'</b>':'')+'</div>';}
+/* 종일 막대 줄 배정 — 한 주 단위 · 시작 빠른 순 → 긴 것 먼저 → 빈 줄에 · 같은 일정은 그 주 안에서 같은 줄 */
+var CAL_LANE={};
+function calLanes(ws){
+  var we=addDays(ws,6), key=ws+'|'+CAL.at+'|'+JSON.stringify((DB.ui&&DB.ui.calOff)||{});
+  if(CAL_LANE[key])return CAL_LANE[key];
+  var evs=CAL.ev.filter(function(e){return e.all_day&&e.d0<=we&&e.d1>=ws&&calShown(e.src);})
+    .sort(function(a,b){if(a.d0!==b.d0)return a.d0<b.d0?-1:1;var la=daysBetween(a.d0,a.d1),lb=daysBetween(b.d0,b.d1);return lb-la;});
+  var lanes=[], items=[];
+  evs.forEach(function(e){var s0=e.d0<ws?ws:e.d0, e0=e.d1>we?we:e.d1, L=0;
+    while(lanes[L]&&lanes[L].some(function(x){return !(x.e<s0||x.s>e0);}))L++;
+    (lanes[L]=lanes[L]||[]).push({s:s0,e:e0}); items.push({ev:e,lane:L,s:s0,e:e0});});
+  var res={items:items,n:lanes.length}; CAL_LANE[key]=res; return res;
+}
+/* 칸의 막대 — max 줄까지 · 넘친 수를 돌려준다 */
+function calBarsHtml(ds,max){
+  var L=calLanes(weekStart(ds)), h='', hid=0;
+  for(var i=0;i<L.n;i++){
+    var it=null; L.items.forEach(function(x){if(x.lane===i&&x.s<=ds&&x.e>=ds)it=x;});
+    if(i>=max){if(it)hid++;continue;}
+    if(!it){h+='<div class="cbar emp"></div>';continue;}
+    var e=it.ev, st=ds===it.s, en=ds===it.e;
+    h+='<div class="cbar'+(st?' cs':'')+(en?' ce':'')+(e.d0<it.s&&st?' cont':'')+'" style="--c:'+mdEsc(calColor(e))+'" title="'+mdEsc(calLabel(e)+(e.d0!==e.d1?' · '+wkMD(e.d0)+'~'+wkMD(e.d1):''))+'">'+(st?mdEsc(calLabel(e)):'&nbsp;')+'</div>';
+  }
+  return {h:h,hid:hid};
+}
+function calStale(){
+  var t=Date.now(), old=null;
+  CAL.src.forEach(function(s){if(!calShown(s.key)||!s.last_sync_at)return;var st=String(s.last_status||'');if(/^주소 없음/.test(st))return;var a=Date.parse(s.last_sync_at);if(!old||a<old)old=a;});
+  if(!old)return '';var hr=(t-old)/3600000; if(hr<2)return '';
+  return '<span class="calwarn" title="마지막 동기화가 늦다">⚠ '+(hr<24?Math.floor(hr)+'시간':Math.floor(hr/24)+'일')+' 전</span>';
+}
+function calChips(){
+  if(!CAL.src.length)return '';
+  return '<span class="calchips">'+CAL.src.map(function(s){var on=calShown(s.key),st=String(s.last_status||''),miss=/^주소 없음/.test(st),bad=!miss&&st&&!/^ok/.test(st);
+    return '<button class="calchip'+(on?' on':'')+(miss?' miss':'')+(bad?' bad':'')+'" style="--c:'+mdEsc(s.color||'#8b93a8')+'" onclick="calToggle(\''+s.key+'\')" title="'+mdEsc(s.name+' · '+(miss?'주소를 아직 안 넣었다(Supabase Secrets)':(st||'아직 안 받음')))+'"><i></i>'+mdEsc(s.name)+'</button>';}).join('')
+    +'<button class="calsync" onclick="calSync()" title="구글 캘린더 지금 받아 오기">↻</button>'+calStale()+'</span>';
+}
+/* 그 날 표 — 이 날 일정(전체 제목 · 장소 · 메모 · 읽기 전용) */
+function calDayHtml(ds){
+  var L=calOn(ds); if(!L.length)return '';
+  return '<div class="caldaybox"><div class="calday-h">📅 이 날 일정 <span class="mut">'+L.length+'</span></div>'+L.map(function(e){
+    var when=e.all_day?(e.d0!==e.d1?wkMD(e.d0)+'~'+wkMD(e.d1):'종일'):(calHM(e.t0)+(e.t1?'–'+calHM(e.t1):''));
+    var s=calSrc(e.src);
+    return '<div class="calrow" style="--c:'+mdEsc(calColor(e))+'"><i class="cdot"></i><span class="calw">'+when+'</span><span class="calt">'+(e.cat?'<b>['+mdEsc(e.cat)+']</b> ':'')+mdEsc(e.title)
+      +(e.loc?'<span class="mut"> · '+mdEsc(e.loc)+'</span>':'')+(e.note?'<span class="calnote">'+mdEsc(String(e.note).slice(0,160))+'</span>':'')+'</span>'
+      +'<span class="mut calsrcn">'+mdEsc(s?s.name:e.src)+'</span></div>';}).join('')+'</div>';
+}
 function dvL2(){
   var v=dview(), t=todayStr(), cfg=rwCfg(), lab, now;
   if(v==='month'){var ym=curMonth();lab=parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월';now=ym===t.slice(0,7);}
@@ -14099,7 +14238,7 @@ function dvL2(){
   if(v==='week'){var w0=dweekStart(),n=fullDaysInWeek(w0),fut=w0>t;
     extra=fut?'':'<span class="dwpill'+(n>=cfg.weekFullDays?' ok':'')+'" data-wjump="'+w0+'" title="이 주 완전달성 일수 · 보상 계단">'+(w0===weekStart(t)?'이번 주 ':'')+n+'/'+cfg.weekFullDays+'일 🎁</span>';}
   else extra=rwChip('month',curMonth(),'월간');
-  return '<div class="dl2">'+nav+'<span class="dl2x">'+extra+'</span>'+uiSeg([{k:'week',label:'주'},{k:'month',label:'월'}],v,"dviewSet('%')")+'</div>';
+  return '<div class="dl2">'+nav+calChips()+'<span class="dl2x">'+extra+'</span>'+uiSeg([{k:'week',label:'주'},{k:'month',label:'월'}],v,"dviewSet('%')")+'</div>';
 }
 function dview(){var v=DB.ui&&DB.ui.dview;return v==='month'?'month':'week';}
 function dviewSet(v){DB.ui=DB.ui||{};DB.ui.dview=(v==='month')?'month':'week';kvUiWrite();renderDaily();}
@@ -14147,13 +14286,16 @@ function dvMonLines(ds){
   return out;
 }
 function dvMonCell(ds){
-  var t=todayStr(), fut=ds>t, lines=dvMonLines(ds);
+  var t=todayStr(), fut=ds>t, bars=calBarsHtml(ds,3), ct=calTimed(ds);
+  var lines=ct.map(calTimedHtml).concat(dvMonLines(ds));
+  if(bars.hid)lines.unshift('<div class="dmi dmmore">막대 +'+bars.hid+'</div>');
+  var cdots=ct.slice(0,4).map(function(g){return '<i style="color:'+mdEsc(calColor(g.e))+'">●</i>';}).join('');
   var dots=wkLive().filter(function(x){return x.status==='todo'&&x.day===ds&&x.at;}).length;
   var due=wkLive().some(function(x){return x.status==='todo'&&x.due===ds;});
   return '<div class="gcell dmc'+(ds===t?' today':'')+(fut?' fut':'')+(ds===curDate()&&dayOpen()?' sel':'')+'" data-gcal="'+ds+'">'
-    +dvHead(ds,false)+'<div class="dmbars"></div>'
+    +dvHead(ds,false)+'<div class="dmbars">'+bars.h+'</div>'
     +'<div class="dml">'+lines.join('')+'</div>'
-    +'<div class="dmdots">'+(dots?'<i>'+'●'.repeat(Math.min(4,dots))+'</i>':'')+(due?'<i class="neg">⚑</i>':'')+'</div>'
+    +'<div class="dmdots">'+cdots+(dots?'<i>'+'●'.repeat(Math.min(4,dots))+'</i>':'')+(due?'<i class="neg">⚑</i>':'')+'</div>'
     +(fut?'':tlStrip(ds,8))+'</div>';
 }
 function dvMonth(){
@@ -14182,6 +14324,9 @@ function dvStudyLine(ds){
 }
 function dvDayList(ds){
   var t=todayStr(), fut=ds>t, o=wkOn(ds), h='';
+  var ct=calTimed(ds); h+=dvGrp('cal','일정',ct.map(function(g){return '<div class="dwi cev" style="--c:'+mdEsc(calColor(g.e))+'" onclick="dayOpenTo(\''+ds+'\')"><i class="cdot"></i>'+(g.hm?'<b>'+g.hm+'</b> ':'')+mdEsc(g.label)+(g.n>1?' <b>×'+g.n+'</b>':'')+'</div>';}).join(''));
+  if(dvW()==='s'){var ad=calOn(ds).filter(function(e){return e.all_day;});   /* 폰 목록엔 막대가 없다 — 종일도 줄로 */
+    if(ad.length)h=dvGrp('cal2','종일',ad.map(function(e){return '<div class="dwi cev" style="--c:'+mdEsc(calColor(e))+'"><i class="cdot"></i>'+mdEsc(calLabel(e))+'</div>';}).join(''))+h;}
   var wr=o.sched.concat(o.todo).map(function(x){return dvRow(ds,'wk',x.id,false,(x.at?'<b>'+mdEsc(x.at)+'</b> ':'')+(+x.pri?'★ ':'')+(ds<t?'↷ ':'')+mdEsc(x.title),ds<t?'late':'');}).join('')
     +o.dueHere.map(function(x){return dvRow(ds,'wk',x.id,false,'⚑ '+mdEsc(x.title),'due');}).join('')
     +o.done.map(function(x){return dvRow(ds,'wk',x.id,true,mdEsc(x.title),'');}).join('');
@@ -14201,7 +14346,7 @@ function dvDayList(ds){
 }
 function dvWeekCol(ds){
   var t=todayStr();
-  return '<div class="dwc'+(ds===t?' today':'')+(ds>t?' fut':'')+(ds===curDate()&&dayOpen()?' sel':'')+'">'+dvHead(ds,true)+'<div class="dmbars"></div>'
+  return '<div class="dwc'+(ds===t?' today':'')+(ds>t?' fut':'')+(ds===curDate()&&dayOpen()?' sel':'')+'">'+dvHead(ds,true)+'<div class="dmbars">'+calBarsHtml(ds,4).h+'</div>'
     +'<div class="dwb"><div class="dwstrip" title="그 날 로그" onclick="dayOpenTab(\''+ds+'\',\'log\')">'+(ds>t?'<div class="tlstrip v empty"></div>':tlStrip(ds,0,true))+'</div>'
     +'<div class="dwl" data-ds="'+ds+'">'+dvDayList(ds)+'</div></div></div>';
 }
@@ -14313,6 +14458,7 @@ function renderDaily(){
    +(isToday?'':'<span class="chip check" id="goalToday">오늘로</span>')+'</span>'
    +'<span class="hacts">'+rwChip('week',weekStart(d),'주간')+'<button class="ddx" onclick="dayOpenSet(false)" title="닫기 (Esc)" aria-label="닫기">✕</button></span></h4>'
    /* 🔑 날짜는 그대로 두고 내용만 갈아끼운다 — 계획(루틴)과 실제(로그)를 같은 날짜로 대조한다 */
+   +calDayHtml(d)
    +'<div class="dtabs"><span class="dtab'+(tab==='routine'?' on':'')+'" data-dtab="routine">✓ 루틴'
    +(nMiss&&!fut?' <em>'+nMiss+'</em>':'')+'</span>'
    +'<span class="dtab'+(tab==='work'?' on':'')+'" data-dtab="work">💼 업무'+(wkN?' <em>'+wkd.d+'/'+wkN+'</em>':'')+'</span>'
@@ -14338,6 +14484,7 @@ function renderDaily(){
   document.querySelectorAll('#v-daily .dwl[data-ds]').forEach(function(e){if(_keep[e.dataset.ds])e.scrollTop=_keep[e.dataset.ds];});
   if(_dw==='s'&&_wy)window.scrollTo(0,_wy);
   setTimeout(dvFit,0);
+  if(calNeed())setTimeout(calFetch,0);
 }
 
 /* 날짜 상태는 curDate() 하나만 쓴다 — 두 개면 반드시 어긋난다 (v12.0 통합) */
@@ -15032,7 +15179,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='5.00';
+var APP_VERSION='5.01';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -15046,6 +15193,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'5.01',date:'2026-11-13',note:'<b>📅 구글 캘린더 연동(daily-view-spec D2·D3).</b> 로한: <i>「캘린더가 월간일 땐 구글 캘린더 긁어와서 일정을 보여 달라」</i> · 🗄 서버: 새 표 cal_sources·cal_events(본인만 읽기 · 쓰기는 서버 함수만) · Edge Function cal-sync 가 ICS 를 읽어 오늘 −90일 ~ +400일로 펼친다(반복 규칙·예외·회차 수정·취소·시간대 · 종일 DTEND 는 하루 뺌) · 원본에서 사라진 일정은 지우지 않고 gone_at · 30분마다(pg_cron) · 🔒 주소는 비밀값(CAL_ICS_ME·CAL_ICS_AC)에만 · 대한민국 휴일은 공개 주소라 바로 들어온다 · 📆 화면: 종일·여러 날 = 가로 막대(한 주 안에서 같은 줄 · 다음 주로 넘어가면 제목 다시) · 시각 일정 ● 14:00 제목 · 같은 캘린더·분류·시각은 ×N 으로 묶기 · 🔒 학사 캘린더의 학생 이름은 달력 칸에 쓰지 않는다(분류만 · 이름은 그 날 표 「이 날 일정」에서만) · L2 캘린더 칩(켜고 끄기 · 기기에 기억) · ↻ 지금 받아 오기(1분 1회) · 늦으면 ⚠ N시간 전 · 주소 없는 캘린더는 점선 · 주간 기둥 맨 위 「일정」 · 폰 월간은 5px 막대 + 색 점.'},
   {v:'5.00',date:'2026-11-13',note:'<b>⚡ 드릴 페이지 속도 — 드릴 탭 1.7초 → 0.05초 · 조사 드릴 답 하나 0.3초 → 0.01초.</b> 로한: <i>「드릴 페이지가 DB 가 많아져서 그런가 좀 느려졌다」</i> · 실측(단어 1,149 · 예문 543): ① studyDB() 가 **부를 때마다** 단어·예문 전부를 다시 정리했다(한 번 0.23ms · 화면 하나에 수천 번) → 같은 묶음·같은 배열·같은 개수면 다시 하지 않는다(서버에서 새로 받거나 넣고 빼면 다시) ② 조사 후보가 문장마다 단어장 전체로 가나 목록을 새로 만들었다(62만 번) → 단어장이 바뀔 때만 ③ 모드 칸 숫자·남은 목표가 개수만 세면서 1,149개를 출제 순서로 정렬했다 → 셀 때는 정렬 안 함 · 결과(출제 순서·문항·숫자)는 그대로 · 문법 칸 1.9초 → 0.05초 · 조사 드릴 시작 1.4초 → 0.03초.'},
   {v:'4.99',date:'2026-11-13',note:'<b>📅 업무 숫자 = 끝낸/전체 · 월간에 그 날 업무가 다 보인다.</b> 로한: <i>「월간 화면일 때 일정을 못 가져오는 것 같은데? 그리고 업무에서 2개 쓰고 2개 다 했으면 2/2 이렇게 되어야 되는 거 아냐?」</i> · 🔴 숫자가 「남은 수」라 다 끝내면 사라졌다 · 월간은 시각·마감 있는 업무만 이름을 써서 시각 없는 할 일은 안 보였다 · 🔒 셈 함수 하나 wkDayCount(그 날 = 예정일 · 끝낸/전체 · 안 하기로는 안 셈) — 하루 머리 ☐1/2 → 다 끝내면 ☑2/2(초록) · 지난 날 남은 것은 ↷N · 서랍 업무 탭 · 데일리 헤더 「업무 2/2」 · 업무 페이지 헤더 「오늘 2/2 끝냄」 · 월간 칸 = 시각 → 마감 → 할 일 → 끝낸 것(흐리게) · 「그 날 끝낸 것」 목록도 예정일 기준(숫자와 같은 날). 구글 캘린더 일정은 아직 연결 전(D2 — 주소 등록 대기).'},
   {v:'4.98',date:'2026-11-13',note:'<b>📅 데일리 주간·월간 보기(daily-view-spec D1).</b> 로한: <i>「주간, 월간을 만들어라 … 월간은 일정·로그 위주, 주간은 루틴+업무 나열 … 0/8 이 한 줄을 차지한다 헤더로 … 노트북·핸드폰·샤오미패드7 에 맞게」</i> · L2 = ‹ 기간 › 오늘 · 주│월(기기에 기억 · 기본 주) · 보는 주는 고른 날과 따로 움직인다 · 달력이 화면 높이를 다 쓴다(월 = 주 수로 나눔 · 주 = 기둥이 끝까지) · 「0/8」 은 하루 머리의 알약(달성률 4단계 색) · 칸 배경 금색·.gcr 줄·「주」 칸·「이번 주만」 토글 없앰(계산은 그대로) → 주간 L2 「이번 주 n/m일 🎁」 · 월간은 성공한 주 일요일에 ✓ · 💬 말풍선은 두 보기 머리에 그대로 · 🗓 주간 기둥 = 세로 로그 띠 + 업무(바로 끝냄) · 루틴(지난 날 ✗ 이름·✓ N개 완료 / 오늘 전부 체크 상자 / 올 날 N개 예정) · 학습(드릴·진단·분) · 기둥에서 체크하면 알약·헤더가 같이 바뀐다(서랍 안 열림) · 📆 월간 칸 = 업무 일정(시각)·마감만 이름으로 · 넘치면 「+N개 더」 · 바닥 로그 띠 · 📱 폭 기준 — 1200 이상 옆 서랍 330 · 600~1199 아래 판 55%(패드 세로에서 달력이 눌리던 것) · 600 미만 아래 판 60% · 주간은 하루 한 장 목록(오늘 → 올 날 → 지난 날) · 월간은 글자 없이 점 · 목표 칩은 헤더 상태 줄 아래 한 줄(가로 스크롤).'},
