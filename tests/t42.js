@@ -54,7 +54,8 @@ async function boot(st){
   await p.goto('file://'+file);
   await p.waitForFunction(()=>typeof DB!=='undefined'&&DB&&DB.study,null,{timeout:15000});
   /* 📅 v4.74 — 앱은 열 때 데일리를 **오늘**로 돌린다. 픽스처가 고른 날(st.ui.goalDate)로 다시 옮긴다 */
-  if(st.ui&&st.ui.goalDate)await p.evaluate(d=>setGoalDate(d),st.ui.goalDate);
+  if(st.ui&&st.ui.goalDate)await p.evaluate(d=>{DB.ui.dayOpen=true;setGoalDate(d);},st.ui.goalDate);   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
+  else await p.evaluate(()=>{DB.ui.dayOpen=true;});
   await p.click('.m[data-v="study"]');await p.waitForTimeout(500);
   return {b:c,p,errs,dlg};
 }

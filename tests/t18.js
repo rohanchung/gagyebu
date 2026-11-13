@@ -19,7 +19,7 @@ const p=await c.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message)
 await p.route('**/*supabase*',r=>r.abort());
 await p.goto('file://'+FILE);await p.waitForTimeout(1300);
 /* 📅 v4.74 — 앱은 열 때 오늘로 돌린다. 이 테스트의 날(8/20)로 옮긴다 */
-await p.evaluate(()=>setGoalDate('2026-08-20'));await p.waitForTimeout(200);
+await p.evaluate(()=>{DB.ui.dayOpen=true;setGoalDate('2026-08-20');});   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */await p.waitForTimeout(200);
 const TL=()=>p.evaluate(()=>JSON.stringify(window.__store.v.timelog['2026-08-20']));
 console.log('초기 (08:30–11:00 림월드):', await TL());
 

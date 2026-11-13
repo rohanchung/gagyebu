@@ -122,7 +122,7 @@ async function boot(st){
  /* ── D. 🍚 식사 기록 ── */
  {
   const {b,p,errs}=await boot(BASE());
-  await p.evaluate(()=>setDailyTab('meal'));await p.waitForTimeout(400);
+  await p.evaluate(()=>{DB.ui.dayOpen=true;setDailyTab('meal');});   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */await p.waitForTimeout(400);
   ok('D1 식사 탭 존재',(await p.$eval('#v-daily',e=>e.textContent)).indexOf('🍚 식사')>=0);
   ok('D2 제안 4칸',(await p.$$('#v-daily textarea[id^=mp_]')).length===4);
   ok('D2b 실제 4칸',(await p.$$('#v-daily textarea[id^=ml_]')).length===4);
@@ -146,7 +146,7 @@ async function boot(st){
  /* ── D2. 🍽 제안 → 실제 복사 ── */
  {
   const {b,p,errs}=await boot(BASE());
-  await p.evaluate(()=>{DB.ui.goalDate='2026-09-01';setDailyTab('meal');});await p.waitForTimeout(400);
+  await p.evaluate(()=>{DB.ui.goalDate='2026-09-01';DB.ui.dayOpen=true;setDailyTab('meal');});await p.waitForTimeout(400);
   ok('J1 제안만 있으면 복사 버튼',(await p.$eval('#v-daily',e=>e.textContent)).indexOf('제안대로 먹었다')>=0);
   ok('J2 제안이 왼쪽에 들어있다',(await p.$eval('#mp_b',e=>e.value))==='삶은계란 토스트');
   ok('J3 실제는 비어 있다',(await p.$eval('#ml_b',e=>e.value))==='');

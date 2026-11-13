@@ -65,7 +65,7 @@ const FAKE=()=>{
   ok('L2 옛 칸 · 뽀모 없음 = 칸 그대로(60분)',L.l2===60,L.l2);
   ok('L3 새 10분 칸 둘 = 20분',L.l3===20,L.l3);
   /* G — 그리드 */
-  await p.evaluate(()=>{DB.ui.dailyTab='log';setGoalDate('2026-10-18');tlPut('2026-10-18',{s:63,e:70,tag:'work',title:'긴 제목의 일',code:null});document.querySelector('.side .m[data-v="daily"]').click();});
+  await p.evaluate(()=>{DB.ui.dailyTab='log';DB.ui.dayOpen=true;setGoalDate('2026-10-18');tlPut('2026-10-18',{s:63,e:70,tag:'work',title:'긴 제목의 일 — 교육청 방문 서류 준비',code:null});document.querySelector('.side .m[data-v="daily"]').click();});
   await p.waitForTimeout(500);
   const G=await p.evaluate(()=>{const rows=[...document.querySelectorAll('.tlgrid .tlrow')];
     const q63=document.querySelector('[data-tlq="63"] em'), q66=document.querySelector('[data-tlq="66"] em');

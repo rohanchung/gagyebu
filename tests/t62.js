@@ -80,8 +80,9 @@ function mock(sess){return ({s,sess})=>{
   const B=await p.evaluate(()=>({cd:curDate(),cm:curMonth(),top:document.querySelector('#v-daily .dtd').textContent}));
   ok('B1 🔴 저장된 goalDate(11/2)가 있어도 오늘(11/4)로 연다',B.cd==='2026-11-04'&&B.cm==='2026-11',JSON.stringify(B));
   ok('B2 상단 날짜 = 오늘',/^11월 4일/.test(B.top),B.top);
-  const B3=await p.evaluate(()=>{setGoalDate('2026-11-01');return {top:document.querySelector('#v-daily .dtd').textContent,
-    pane:document.querySelectorAll('#v-daily .dcol > .pane')[1].querySelector('.mnav2 b').textContent};});
+  const B3=await p.evaluate(()=>{DB.ui.dayOpen=true;setGoalDate('2026-11-01');   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
+return {top:document.querySelector('#v-daily .dtd').textContent,
+    pane:document.querySelector('#v-daily .ddraw .pane').querySelector('.mnav2 b').textContent};});
   ok('B3 🔴 지난 날을 눌러도 상단은 오늘 · 오른쪽 칸만 그 날',/^11월 4일/.test(B3.top)&&/11월 1일/.test(B3.pane),JSON.stringify(B3));
 
   /* ── C 칸 머리 일진 ── */

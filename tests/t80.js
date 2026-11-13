@@ -82,7 +82,7 @@ const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:
     /* v4.82 — 카드 안 옛 부품이 표준 세 모양을 입는다: 밑줄 탭 · 세그먼트 · 칩 */
     const S=await p.evaluate(async()=>{
       const cs=(el,pr)=>el?getComputedStyle(el)[pr]:'';
-      document.querySelector('.side .m[data-v="daily"]').click();await new Promise(r=>setTimeout(r,200));
+      document.querySelector('.side .m[data-v="daily"]').click();dayOpenSet(true);await new Promise(r=>setTimeout(r,200));   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
       const dt=document.querySelector('#v-daily .dtab.on'), l1=null;
       const acc=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
       document.querySelector('.side .m[data-v="cal"]').click();await new Promise(r=>setTimeout(r,200));

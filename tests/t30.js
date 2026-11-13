@@ -115,7 +115,7 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
     for(let i=1;i<firsts.length;i++)if(firsts[i]<firsts[i-1])return '그룹 순서 어긋남: '+seq.join('>');
     return '';
   }
-  await p.click('.m[data-v="daily"]');await p.waitForTimeout(400);
+  await p.click('.m[data-v="daily"]');await p.evaluate(()=>dayOpenSet(true));await p.waitForTimeout(400);   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
   const d1=await dailyCodes(p);
   const gk=await gkeyMap(p);
   const mode=await p.evaluate(()=>rtGroupMode());
@@ -135,7 +135,7 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
   }
   const m2=await matrixCodes(p);
   ok('D3 E.8B 가 맨 위로 올라온다',m2[0]==='E.8B',m2.join(','));
-  await p.click('.m[data-v="daily"]');await p.waitForTimeout(400);
+  await p.click('.m[data-v="daily"]');await p.evaluate(()=>dayOpenSet(true));await p.waitForTimeout(400);   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
   const d2=await dailyCodes(p);
   ok('D4 데일리도 E.8B 가 맨 위',d2[0]==='E.8B',d2.join(','));
   const dueOrder2=await p.evaluate(()=>routinesForDay(curDate()).map(r=>r.code));
@@ -251,7 +251,7 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
   ok('J6 표기가 凶/吉/平',v.marks.join(',')==='凶,吉,平',v.marks.join(','));
 
   /* 화면 */
-  await p.click('.m[data-v="daily"]');await p.waitForTimeout(400);
+  await p.click('.m[data-v="daily"]');await p.evaluate(()=>dayOpenSet(true));await p.waitForTimeout(400);   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
   /* 🔮 v4.74 — 일진은 상단 한 칸이 아니라 **달력 칸 머리**에 날마다 있다(로한: 「캘린더 날짜별로 · 오른쪽 상단」) */
   const ui=await p.evaluate((sel)=>{
     const e=document.querySelector(sel);
