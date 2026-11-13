@@ -41,7 +41,7 @@ const FAKE=()=>{
   const cell=ds=>p.evaluate(d=>{document.querySelector('#v-daily .gcell[data-gcal="'+d+'"]').click();},ds);
   const st=()=>p.evaluate(()=>({open:!!document.querySelector('#v-daily .ddraw'),sel:(document.querySelector('#v-daily .gcell.sel')||{dataset:{}}).dataset.gcal||null,
     title:(document.querySelector('#v-daily .ddraw .mnav2 b')||{}).textContent||'',cur:curDate()}));
-  await p.evaluate(()=>{DB.routines=[{id:'r1',code:'A.1',title:'스트레칭',freq:'daily',days:[],status:'active',start:'2026-01-01'}];document.querySelector('.side .m[data-v="daily"]').click();});
+  await p.evaluate(()=>{DB.ui.dview='month';DB.routines=[{id:'r1',code:'A.1',title:'스트레칭',freq:'daily',days:[],status:'active',start:'2026-01-01'}];document.querySelector('.side .m[data-v="daily"]').click();});
   await p.waitForTimeout(300);
   const t=await p.evaluate(()=>todayStr()), t1=await p.evaluate(()=>addDays(todayStr(),1)), tm2=await p.evaluate(()=>addDays(todayStr(),-1));
   const sameMonth=t1.slice(0,7)===t.slice(0,7), past=tm2.slice(0,7)===t.slice(0,7)?tm2:t;
@@ -83,10 +83,10 @@ const FAKE=()=>{
   ok('W3 탭 순서 루틴·업무·로그·식사·학습 · 업무 숫자 남은/전체',W.tabs==='routine,work,log,meal,study'&&W.em==='3/3',JSON.stringify(W));
   /* L — 1440 밀어내기 */
   await p.waitForTimeout(350);   /* 서랍 애니메이션(0.2초)이 끝난 뒤 잰다 */
-  const L=await p.evaluate(()=>{const g=document.querySelector('#v-daily .gcal').getBoundingClientRect(), dr=document.querySelector('#v-daily .ddraw').getBoundingClientRect();
-    const cells=[...document.querySelectorAll('#v-daily .gcal > *')].slice(0,8).map(x=>x.getBoundingClientRect().right);
+  const L=await p.evaluate(()=>{const g=document.querySelector('#v-daily .dmon').getBoundingClientRect(), dr=document.querySelector('#v-daily .ddraw').getBoundingClientRect();
+    const cells=[...document.querySelectorAll('#v-daily .dmon > *')].slice(0,7).map(x=>x.getBoundingClientRect().right);
     return {gr:g.right,dl:dr.left,dw:dr.width,maxr:Math.max.apply(null,cells),ov:document.documentElement.scrollWidth>innerWidth+1};});
-  ok('L1 1440 — 서랍(350)이 달력을 밀어낸다 · 7열+주 칸이 다 보인다',Math.abs(L.dw-350)<2&&L.maxr<=L.dl&&L.gr<=L.dl&&!L.ov,JSON.stringify(L));
+  ok('L1 1440 — 서랍(330 · v4.98)이 달력을 밀어낸다 · 7열이 다 보인다',Math.abs(L.dw-330)<2&&L.maxr<=L.dl&&L.gr<=L.dl&&!L.ov,JSON.stringify(L));
   ok('Z 페이지 에러 없음',errs.length===0,errs.join(' | '));
   /* R — 새로고침하면 닫힘 */
   await p.evaluate(()=>{DB.ui.dayOpen=true;kvUiWrite();});
@@ -99,7 +99,7 @@ const FAKE=()=>{
   await ctx2.addInitScript(FAKE);
   const p2=await ctx2.newPage();await p2.route('**/*supabase*',r=>r.abort());
   await p2.goto('file://'+file);await p2.waitForTimeout(2500);
-  const M=await p2.evaluate(()=>{document.querySelector('.side .m[data-v="daily"]').click(); if(gcalWeekMode())document.getElementById('gcalToggle').click();
+  const M=await p2.evaluate(()=>{document.querySelector('.side .m[data-v="daily"]').click(); DB.ui.dview='month';renderDaily();
     const c=document.querySelector('#v-daily .gcell[data-gcal="'+todayStr()+'"]'); c.click();
     const dr=document.querySelector('#v-daily .ddraw'), r=dr.getBoundingClientRect(), cs=getComputedStyle(dr);
     const res={pos:cs.position,bot:Math.round(innerHeight-r.bottom),h:Math.round(r.height/innerHeight*100),w:Math.round(r.width),ov:document.documentElement.scrollWidth>innerWidth+1};

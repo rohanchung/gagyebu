@@ -86,7 +86,8 @@ return {top:document.querySelector('#v-daily .dtd').textContent,
   ok('B3 🔴 지난 날을 눌러도 상단은 오늘 · 오른쪽 칸만 그 날',/^11월 4일/.test(B3.top)&&/11월 1일/.test(B3.pane),JSON.stringify(B3));
 
   /* ── C 칸 머리 일진 ── */
-  const C=await p.evaluate(()=>{const cells=[...document.querySelectorAll('#v-daily .gcell[data-gcal]')];
+  const C=await p.evaluate(()=>{DB.ui.dview='month';renderDaily();   /* v4.98 — 달력 칸(월간)을 본다 */
+   const cells=[...document.querySelectorAll('#v-daily .gcell[data-gcal]')];
     return {n:cells.length,withFv:cells.filter(c=>c.querySelector('.gchd .gmk.fv')).length,withBub:cells.filter(c=>c.querySelector('.gchd .bub')).length,
       top:!!document.querySelector('#v-daily .dtop .bub,#v-daily .dtop .dsaju'),
       fut:(()=>{const e=document.querySelector('#v-daily .gcell.fut .gchd .bub');return e?getComputedStyle(e).pointerEvents:null;})()};});

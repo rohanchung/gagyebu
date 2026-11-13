@@ -251,7 +251,8 @@ const dailyCodes = p => p.evaluate(()=>[].map.call(
   ok('J6 표기가 凶/吉/平',v.marks.join(',')==='凶,吉,平',v.marks.join(','));
 
   /* 화면 */
-  await p.click('.m[data-v="daily"]');await p.evaluate(()=>dayOpenSet(true));await p.waitForTimeout(400);   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
+  await p.click('.m[data-v="daily"]');await p.evaluate(()=>{DB.ui.dview='month';dayOpenSet(true);});   /* v4.98 — 달력 칸(월간)을 본다 */
+ await p.waitForTimeout(400);   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */
   /* 🔮 v4.74 — 일진은 상단 한 칸이 아니라 **달력 칸 머리**에 날마다 있다(로한: 「캘린더 날짜별로 · 오른쪽 상단」) */
   const ui=await p.evaluate((sel)=>{
     const e=document.querySelector(sel);

@@ -806,10 +806,82 @@ textarea.mla.same{background:#f2f9f4}
    기록 칸을 줄여서 캘린더 칸을 1:1 에 가깝게 맞춘다(로한 지시). */
 .g2col.dcol{grid-template-columns:2.1fr 1fr}
 /* 📅 v4.97 데일리 — 달력 전체 폭 + 서랍 */
+/* 📅 v4.98 주간·월간 */
+.dcalp{padding:8px!important}
+.dcal{display:flex;flex-direction:column;min-height:0}
+.dl2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
+.dl2x{flex:1;display:flex;justify-content:flex-end;min-width:0}
+.dwpill{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--soft);cursor:pointer;white-space:nowrap}
+.dwpill.ok{background:#e6f4ea;color:#2f7a44}
+.ph-t .dgs1{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-top:6px;padding-top:0;border-top:0;gap:6px}
+.ph-t .dgs1::-webkit-scrollbar{display:none}
+.ph-t .dgs1 .dgchip{flex:0 0 auto}
+.gchd.dvh{display:flex;align-items:center;gap:4px;min-width:0;cursor:pointer;flex-shrink:0}
+.dvh .gcd{font-size:12px;font-weight:700;color:var(--ink);line-height:20px;min-width:20px;text-align:center}
+.dvh .gcd.td{background:var(--accent);color:#fff;border-radius:999px}
+.dvh .dvdow{font-size:11px;color:var(--muted)}
+.dvh .dvmid{flex:1;display:flex;gap:4px;align-items:center;overflow:hidden;min-width:0;white-space:nowrap}
+.dvh .gcmks{flex-shrink:0}
+.dpill{font-size:10.5px;font-weight:800;padding:0 6px;border-radius:999px;line-height:17px;flex-shrink:0;background:#f1f2f4;color:#7a7f88}
+.dpill.l1{background:#f7efd6;color:#8a6d12}.dpill.l2{background:#efd98a;color:#6b5208}.dpill.l3{background:#d8a13f;color:#fff}
+.dwkn{font-size:10.5px;font-weight:700;color:var(--ink);flex-shrink:1}.dwkn.late{color:var(--neg,#d64545)}
+.dwok{font-style:normal;font-size:10px;color:#2f7a44;font-weight:800}
+.dmon{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:auto repeat(var(--wk),minmax(96px,1fr));gap:3px;min-height:0}
+.dmon .gcell{min-height:0;padding:3px 4px;gap:2px}
+.dmon .gcell.l0,.dmon .gcell.l1,.dmon .gcell.l2,.dmon .gcell.l3{background:var(--card)}
+.dmon .gcell.today{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.dmon .gcell.fut{opacity:1}
+.dml{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:1px}
+.dmi{flex-shrink:0;font-size:11px;line-height:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.dmi b{font-variant-numeric:tabular-nums}
+.dmi.late{color:var(--neg,#d64545)}.dmi.due.warn{color:#c76a00}.dmi.due.neg{color:var(--neg,#d64545)}
+.dmi.dmmore{color:var(--muted);font-weight:700}
+.dmdots{display:none}
+.dmbars:empty{display:none}
+.dwk{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;min-height:0}
+.dwc{display:flex;flex-direction:column;min-height:0;min-width:0;border:1px solid var(--line);border-radius:9px;background:var(--card);padding:5px 5px 0}
+.dwc.today{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.dwc.sel,.dag.sel{outline:2.5px solid var(--ink);outline-offset:-1px}
+.dwb{flex:1;display:flex;gap:5px;min-height:0;margin-top:4px}
+.dwstrip{flex:0 0 5px;display:flex;cursor:pointer;padding-bottom:5px}
+.tlstrip.v{flex-direction:column;width:5px;height:100%;margin-top:0}
+.tlstrip.v i{width:100%;height:auto}
+.tlstrip.v.empty{background:repeating-linear-gradient(180deg,#f0f2f6 0 3px,transparent 3px 6px)}
+.dwl{flex:1;min-width:0;overflow-y:auto;padding-bottom:6px;scrollbar-width:thin}
+.dwg{margin-bottom:6px}
+.dwgh{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.3px;margin:2px 0 1px;padding-left:4px;border-left:2px solid var(--line)}
+.dwg-wk .dwgh{border-left-color:var(--ink)}.dwg-rt .dwgh{border-left-color:#d8a13f}.dwg-st .dwgh{border-left-color:#2f9e6e}
+.dwr{display:flex;align-items:flex-start;gap:2px;min-height:24px}
+.dwck{flex:0 0 22px;min-height:22px;border:0;background:none;padding:0;font-size:14px;line-height:22px;cursor:pointer;color:var(--ink)}
+.dwt{flex:1;min-width:0;font-size:11.5px;line-height:15px;padding:3px 0;cursor:pointer;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dwr.on .dwt{text-decoration:line-through;color:var(--muted)}
+.dwr.late .dwt{color:var(--neg,#d64545)}.dwr.due .dwt{color:#c76a00}
+.dwi{font-size:11.5px;line-height:15px;padding:2px 0 2px 3px;cursor:pointer;word-break:break-word}
+.dwi.dwmiss{color:var(--neg,#d64545)}.dwi.dwmiss b{font-weight:600;color:var(--muted)}.dwi.dwdone{color:#4a6b3f}
+.dwnone{cursor:default;text-align:center}
+html.tch .dwr{min-height:40px}html.tch .dwck{flex-basis:36px;min-height:40px;font-size:18px;line-height:40px}html.tch .dwt{padding:11px 0;font-size:13px;line-height:18px}
+.dagenda{display:flex;flex-direction:column;gap:8px}
+.dag{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card)}
+.dag.today{border-color:var(--accent);box-shadow:0 0 0 1.5px var(--accent)}
+.dag .dwl{overflow:visible;padding-bottom:0}
+.dag .dwt,.dag .dwi{font-size:13px;line-height:18px}
+.dagpast{font-size:11.5px;font-weight:700;margin:6px 2px 0}
+@media(max-width:599px){
+  .dcal.month .dml{display:none}
+  .dcal.month .dmdots{display:flex;gap:2px;font-size:7px;line-height:9px;color:var(--ink);flex-wrap:wrap}
+  .dcal.month .dmdots i{font-style:normal}
+  .dmon{grid-template-rows:auto repeat(var(--wk),minmax(64px,1fr))}
+  .dmon .gcell{padding:2px 2px}
+  .dmon .dvh{flex-direction:column;align-items:flex-start;gap:1px}
+  .dmon .dvh .gcd{font-size:11px;line-height:17px;min-width:17px}
+  .dmon .dvh .dvmid{flex:0 0 auto;width:100%}
+  .dmon .dvh .dwkn,.dmon .dvh .gcmks{display:none}
+  .dmon .dpill{font-size:9px;line-height:13px;padding:0 3px}
+}
 .dlay{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;overflow-x:clip}   /* 서랍이 미끄러져 들어오는 0.2초 동안 가로 스크롤이 생기지 않게 (clip 은 sticky 를 안 깬다) */
 .dlay>.pane,.ddraw>.pane{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
 .dlay>.pane{flex:1 1 0;min-width:0!important;margin-bottom:0}
-.ddraw{flex:0 0 350px;width:350px;position:sticky;top:calc(var(--pfh,0px) + 8px);max-height:calc(100vh - var(--pfh,0px) - 16px);overflow:auto;animation:ddin .2s ease-out;border-radius:12px}
+.ddraw{flex:0 0 330px;width:330px;position:sticky;top:calc(var(--pfh,0px) + 8px);max-height:calc(100vh - var(--pfh,0px) - 16px);overflow:auto;animation:ddin .2s ease-out;border-radius:12px}
 .ddraw>.pane{margin-bottom:0}
 @keyframes ddin{from{transform:translateX(28px);opacity:0}to{transform:none;opacity:1}}
 .ddrawbg{display:none}
@@ -825,14 +897,15 @@ textarea.mla.same{background:#f2f9f4}
 .rtask.ro{cursor:default;opacity:.8}.rtask.ro .bx{border-style:dashed}
 .dtop[data-dayopen]{cursor:pointer}
 .gcell.sel{outline:2.5px solid var(--ink);outline-offset:-1px;z-index:1}
-@media(max-width:720px){
-  .ddraw{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;height:62vh;max-height:62vh;z-index:95;border-radius:16px 16px 0 0;
+@media(max-width:1199px){
+  .ddraw{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;height:55vh;max-height:55vh;z-index:95;border-radius:16px 16px 0 0;
     box-shadow:0 -8px 28px rgba(0,0,0,.18);animation:ddup .22s ease-out;background:var(--card)}
   .ddraw>.pane{border:0;border-radius:16px 16px 0 0;min-height:100%;padding-top:6px}
   .ddgrab{display:block;width:44px;height:5px;border-radius:3px;background:#d3d8e0;margin:2px auto 8px}
   .ddrawbg{display:block;position:fixed;inset:0;z-index:94;background:rgba(15,20,30,.18)}
-  .dlay.open>.pane{padding-bottom:62vh}
+  .dlay.open>.pane{padding-bottom:55vh}
 }
+@media(max-width:599px){.ddraw{height:60vh;max-height:60vh}.dlay.open>.pane{padding-bottom:60vh}}
 @keyframes ddup{from{transform:translateY(40%);opacity:.4}to{transform:none;opacity:1}}
 /* ── ⚙ 루틴 요일 매트릭스 ── */
 .btbl.rtm th.c,.btbl.rtm td.c{text-align:center;padding:6px 2px;width:30px}
@@ -12834,7 +12907,7 @@ function dayFut(ds){return !!ds&&ds>todayStr();}
 function curMonth(){return (DB.ui&&DB.ui.goalMonth)||todayStr().slice(0,7);}
 function setGoalDate(ds){
   if(!ds)return;
-  DB.ui.goalDate=ds; DB.ui.goalMonth=ds.slice(0,7); save(); renderDG();
+  DB.ui.goalDate=ds; DB.ui.goalMonth=ds.slice(0,7); DB.ui.dweek=weekStart(ds); save(); renderDG();
 }
 function moveGoalDate(n){setGoalDate(addDays(curDate(),n));}
 function moveGoalMonth(n){
@@ -13858,7 +13931,7 @@ function gcalPick(ds){
 function dayOpenTo(ds){DB.ui=DB.ui||{};DB.ui.dayOpen=true;kvUiWrite();setGoalDate(ds||todayStr());dayScrollSel();}
 /* 모바일 — 판이 아래 60% 를 덮으니 고른 날짜의 주가 위에 보이게 */
 function dayScrollSel(){
-  if(window.innerWidth>720)return;
+  if(window.innerWidth>=1200)return;
   setTimeout(function(){try{var c=document.querySelector('#v-daily .gcell.sel');if(!c)return;
     var y=c.getBoundingClientRect().top+window.scrollY-((parseFloat(getComputedStyle(document.querySelector('#v-daily')).getPropertyValue('--pfh'))||0)+70);
     window.scrollTo({top:Math.max(0,y),behavior:'smooth'});}catch(e){}},30);
@@ -13982,6 +14055,161 @@ function mealPanel(ds){
    +'<div class="mut" style="font-size:11px;margin-top:9px">🩺 캘린더 <b>생활</b> 모드에서 한 달치를 한눈에 본다 — 검사일 앞뒤로 뭘 먹었는지 대조하려고 만든 것이다.<br>'
      +'제안은 순환기 핸드오프와 예산을 보고 생활방에서 일주일치를 한 번에 넣는다.</div>';
 }
+/* ══ 📅 v4.98 데일리 주간·월간 보기 (daily-design.md · 핸드오프 daily-view-spec D1) ══
+   로한: 「주간, 월간을 만들어라 … 월간은 일정·이벤트·로그 위주, 주간은 루틴+업무 나열 … 0/8 이 한 줄을 차지한다 헤더로 …
+          노트북·핸드폰·샤오미패드7 에 맞게」
+   🔒 보기 = DB.ui.dview('week'|'month' · 기기 것 · 기본 주) · 보는 주 = DB.ui.dweek(고른 날과 따로 — goalMonth 의 주 버전)
+   🔒 「0/8」 은 하루 머리의 알약(dpill · 달성률 4단계 색). 칸 배경 채색·.gcr 줄·「주」 칸은 없앴다 — 계산(dayRate·fullDaysInWeek)은 그대로
+   🔒 기둥의 체크·끝냄은 서랍과 같은 함수(checkToggle·wkToggle) · 미래 날은 그 함수들이 막는다(dayFut)
+   🔒 폭 기준 — ≥1200 옆 서랍 · 600~1199 아래 판 55% · <600 아래 판 60% + 주간은 하루 한 장 목록 · 월간은 글자 없이 점 */
+function dvL2(){
+  var v=dview(), t=todayStr(), cfg=rwCfg(), lab, now;
+  if(v==='month'){var ym=curMonth();lab=parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월';now=ym===t.slice(0,7);}
+  else{var ws=dweekStart(),we=addDays(ws,6);
+    lab=parseInt(ws.slice(5,7),10)+'월 '+parseInt(ws.slice(8),10)+'일 – '+(we.slice(5,7)===ws.slice(5,7)?'':parseInt(we.slice(5,7),10)+'월 ')+parseInt(we.slice(8),10)+'일';now=ws===weekStart(t);}
+  var nav=uiPnav(lab,'onclick="dvMove(-1)"','onclick="dvMove(1)"',{today:'onclick="dvToday()"',isToday:now,
+    labelAttr:'onclick="'+(v==='month'?'goalMonthPicker()':'goalDatePicker()')+'" style="cursor:pointer" title="날짜 고르기"'});
+  var extra;
+  if(v==='week'){var w0=dweekStart(),n=fullDaysInWeek(w0),fut=w0>t;
+    extra=fut?'':'<span class="dwpill'+(n>=cfg.weekFullDays?' ok':'')+'" data-wjump="'+w0+'" title="이 주 완전달성 일수 · 보상 계단">'+(w0===weekStart(t)?'이번 주 ':'')+n+'/'+cfg.weekFullDays+'일 🎁</span>';}
+  else extra=rwChip('month',curMonth(),'월간');
+  return '<div class="dl2">'+nav+'<span class="dl2x">'+extra+'</span>'+uiSeg([{k:'week',label:'주'},{k:'month',label:'월'}],v,"dviewSet('%')")+'</div>';
+}
+function dview(){var v=DB.ui&&DB.ui.dview;return v==='month'?'month':'week';}
+function dviewSet(v){DB.ui=DB.ui||{};DB.ui.dview=(v==='month')?'month':'week';kvUiWrite();renderDaily();}
+function dweekStart(){var w=DB.ui&&DB.ui.dweek;return (w&&/^\d{4}-\d\d-\d\d$/.test(w))?weekStart(w):weekStart(curDate());}
+function dvMove(n){
+  DB.ui=DB.ui||{};
+  if(dview()==='month'){DB.ui.goalMonth=ymAdd(curMonth(),n);}
+  else{var w=addDays(dweekStart(),7*n);DB.ui.dweek=w;DB.ui.goalMonth=addDays(w,3).slice(0,7);}
+  kvUiWrite();save();renderDG();
+}
+function dvToday(){var t=todayStr();DB.ui.dweek=weekStart(t);DB.ui.goalMonth=t.slice(0,7);kvUiWrite();save();renderDG();}
+function dvW(){var w=window.innerWidth||1280;return w<600?'s':(w<1200?'m':'l');}
+var DV_LASTW=null;
+function dayOpenTab(ds,tab){DB.ui=DB.ui||{};DB.ui.dailyTab=tab;dayOpenTo(ds);}
+function dvLv(r){return r.rate>=1?'l3':(r.rate>=0.5?'l2':(r.rate>0?'l1':'l0'));}
+function dvWkOk(ws){var t=todayStr();return ws<=t&&fullDaysInWeek(ws)>=rwCfg().weekFullDays;}
+/* 하루 머리 — 모든 보기 공통. full = 주간·목록(陰·🎁·요일까지) */
+function dvHead(ds,full){
+  var t=todayStr(), fut=ds>t, dd=parseInt(ds.slice(8),10), r=fut?null:dayRate(ds);
+  var pill=(r&&r.total)?'<span class="dpill '+dvLv(r)+'" title="루틴 '+r.done+'/'+r.total+'">'+r.done+'/'+r.total+'</span>':'';
+  var o=wkOn(ds), n=o.sched.length+o.todo.length;
+  var wk=n?(ds<t?'<span class="dwkn late" title="밀린 업무 '+n+'">↷'+n+'</span>':'<span class="dwkn" title="남은 업무 '+n+'">☐'+n+'</span>'):'';
+  var ext='';
+  if(full){var used=cardsUsedOn(ds);ext=(isYinDay(ds)?'<i class="gmk yin" title="陰 음기일">陰</i>':'')
+    +(used.length?'<i class="gmk" title="'+sajuEsc(used.map(function(c){return c.code+' '+c.title;}).join(', '))+'">🎁</i>':'');}
+  var fv='';
+  try{var ft=dayFlags(parseInt(ds.slice(0,4),10),parseInt(ds.slice(5,7),10),dd), vd=dayVerdict(ft);
+    fv='<i class="gmk fv '+vd.k+'" title="'+sajuEsc(ft.gz+' · '+(ft.flags.map(function(f){return f.d;}).join(' · ')||'걸린 것 없음'))+'">'+vd.mark+'</i>'+bub('day:'+ds,ds+' '+ft.gz);}catch(e){}
+  var wok=(!full&&dowOf(ds)===0&&dvWkOk(ds))?'<i class="dwok" title="이 주 완전달성 성공">✓</i>':'';
+  return '<div class="gchd dvh" data-gcal="'+ds+'">'+wok+'<span class="gcd'+(ds===t?' td':'')+'">'+dd+'</span>'
+    +(full?'<span class="dvdow">'+DOW_KO[dowOf(ds)]+'</span>':'')
+    +'<span class="dvmid">'+pill+wk+ext+'</span><span class="gcmks">'+fv+'</span></div>';
+}
+/* 월간 줄 — 업무의 일정(시각)·마감만 이름으로. 보통 할 일은 머리의 ☐N */
+function dvMonLines(ds){
+  var t=todayStr(), L=wkLive().filter(function(x){return x.status==='todo';}), out=[];
+  L.filter(function(x){return x.day===ds&&x.at;}).sort(wkSort).forEach(function(x){
+    out.push('<div class="dmi'+(ds<t?' late':'')+'" title="'+mdEsc(x.title)+'">☐ <b>'+mdEsc(x.at)+'</b> '+mdEsc(x.title)+'</div>');});
+  L.filter(function(x){return x.due===ds;}).sort(wkSort).forEach(function(x){
+    var n=wkDiff(t,ds);out.push('<div class="dmi due'+(n<0?' neg':(n<=1?' warn':''))+'" title="마감 · '+mdEsc(x.title)+'">⚑ '+mdEsc(x.title)+'</div>');});
+  return out;
+}
+function dvMonCell(ds){
+  var t=todayStr(), fut=ds>t, lines=dvMonLines(ds);
+  var dots=wkLive().filter(function(x){return x.status==='todo'&&x.day===ds&&x.at;}).length;
+  var due=wkLive().some(function(x){return x.status==='todo'&&x.due===ds;});
+  return '<div class="gcell dmc'+(ds===t?' today':'')+(fut?' fut':'')+(ds===curDate()&&dayOpen()?' sel':'')+'" data-gcal="'+ds+'">'
+    +dvHead(ds,false)+'<div class="dmbars"></div>'
+    +'<div class="dml">'+lines.join('')+'</div>'
+    +'<div class="dmdots">'+(dots?'<i>'+'●'.repeat(Math.min(4,dots))+'</i>':'')+(due?'<i class="neg">⚑</i>':'')+'</div>'
+    +(fut?'':tlStrip(ds,8))+'</div>';
+}
+function dvMonth(){
+  var ym=curMonth(), y=parseInt(ym.slice(0,4),10), mo=parseInt(ym.slice(5),10);
+  var first=new Date(Date.UTC(y,mo-1,1)).getUTCDay(), dim=new Date(Date.UTC(y,mo,0)).getUTCDate();
+  var rows=Math.ceil((first+dim)/7), out=DOW_KO.map(function(d,i){return '<div class="gcdow s'+i+'">'+d+'</div>';}).join('');
+  for(var i=0;i<first;i++)out+='<div class="gcell empty"></div>';
+  for(var dd=1;dd<=dim;dd++)out+=dvMonCell(ym+'-'+String(dd).padStart(2,'0'));
+  for(var z=(first+dim)%7;z&&z<7;z++)out+='<div class="gcell empty"></div>';
+  return '<div class="dmon" style="--wk:'+rows+'">'+out+'</div>';
+}
+/* 주간 기둥의 줄 — 체크 상자 = 체크만 · 글자 = 그 날 표의 그 탭 */
+function dvRow(ds,kind,id,on,label,cls){
+  var ck=kind==='wk'?"wkToggle('"+id+"')":"checkToggle('"+ds+"','"+id+"')";
+  var tab=kind==='wk'?'work':'routine';
+  return '<div class="dwr'+(on?' on':'')+(cls?' '+cls:'')+'">'
+    +'<button class="dwck" onclick="event.stopPropagation();'+ck+'" title="'+(on?'되돌리기':(kind==='wk'?'끝냄':'체크'))+'">'+(on?'☑':'☐')+'</button>'
+    +'<span class="dwt" onclick="event.stopPropagation();dayOpenTab(\''+ds+'\',\''+tab+'\')">'+label+'</span></div>';
+}
+function dvGrp(k,title,inner){return inner?'<div class="dwg dwg-'+k+'"><div class="dwgh">'+title+'</div>'+inner+'</div>':'';}
+function dvStudyLine(ds){
+  var dr=(studyDB().drills||[]).filter(function(d){return d&&d.date===ds;}), n=dr.reduce(function(a,d){return a+(+d.n||0);},0);
+  var dg=(studyDB().tests||[]).filter(function(x){return x&&x.kind==='diag'&&x.date===ds;}).length, m=stStudyMins(ds);
+  var parts=[]; if(n)parts.push('드릴 '+n+'문항'); if(dg)parts.push('진단 '+dg); if(m)parts.push(m+'분');
+  return parts.join(' · ');
+}
+function dvDayList(ds){
+  var t=todayStr(), fut=ds>t, o=wkOn(ds), h='';
+  var wr=o.sched.concat(o.todo).map(function(x){return dvRow(ds,'wk',x.id,false,(x.at?'<b>'+mdEsc(x.at)+'</b> ':'')+(+x.pri?'★ ':'')+(ds<t?'↷ ':'')+mdEsc(x.title),ds<t?'late':'');}).join('')
+    +o.dueHere.map(function(x){return dvRow(ds,'wk',x.id,false,'⚑ '+mdEsc(x.title),'due');}).join('')
+    +o.done.map(function(x){return dvRow(ds,'wk',x.id,true,mdEsc(x.title),'');}).join('');
+  h+=dvGrp('wk','업무',wr);
+  var rs=routinesForDay(ds), rh='';
+  if(rs.length){
+    if(fut)rh='<div class="dwi mut">'+rs.length+'개 예정</div>';
+    else if(ds===t)rh=rs.map(function(rr){return dvRow(ds,'rt',rr.code,checkGet(ds,rr.code),mdEsc(rr.title),'');}).join('');
+    else{var mr=missRows(ds), dn=doneOf(ds);
+      rh=mr.map(function(m){return '<div class="dwi dwmiss" onclick="dayOpenTab(\''+ds+'\',\'routine\')">✗ '+mdEsc(m.title)+(m.tag?' <b>'+mdEsc(m.tag)+'</b>':'')+'</div>';}).join('')
+        +(dn.length?'<div class="dwi dwdone">✓ '+(mr.length?dn.length+'개 완료':'완전달성')+'</div>':'');}
+  }
+  h+=dvGrp('rt','루틴',rh);
+  var sl=fut?'':dvStudyLine(ds);
+  h+=dvGrp('st','학습',sl?'<div class="dwi" onclick="dayOpenTab(\''+ds+'\',\'study\')">'+sl+'</div>':'');
+  return h||'<div class="dwi mut dwnone">—</div>';
+}
+function dvWeekCol(ds){
+  var t=todayStr();
+  return '<div class="dwc'+(ds===t?' today':'')+(ds>t?' fut':'')+(ds===curDate()&&dayOpen()?' sel':'')+'">'+dvHead(ds,true)+'<div class="dmbars"></div>'
+    +'<div class="dwb"><div class="dwstrip" title="그 날 로그" onclick="dayOpenTab(\''+ds+'\',\'log\')">'+(ds>t?'<div class="tlstrip v empty"></div>':tlStrip(ds,0,true))+'</div>'
+    +'<div class="dwl" data-ds="'+ds+'">'+dvDayList(ds)+'</div></div></div>';
+}
+function dvWeek(){var ws=dweekStart(),h='';for(var k=0;k<7;k++)h+=dvWeekCol(addDays(ws,k));return '<div class="dwk">'+h+'</div>';}
+/* 폰 주간 — 하루 한 장 · 오늘 → 올 날 → 지난 날 */
+function dvAgenda(){
+  var ws=dweekStart(), t=todayStr(), days=[], k;
+  for(k=0;k<7;k++)days.push(addDays(ws,k));
+  var now=days.filter(function(d){return d>=t;}), past=days.filter(function(d){return d<t;}).reverse();
+  var card=function(ds){return '<div class="dag'+(ds===t?' today':'')+(ds>t?' fut':'')+(ds===curDate()&&dayOpen()?' sel':'')+'">'+dvHead(ds,true)+'<div class="dwl" data-ds="'+ds+'">'+dvDayList(ds)+'</div></div>';};
+  return '<div class="dagenda">'+now.map(card).join('')+(past.length?'<div class="dagpast mut">지난 날</div>'+past.map(card).join(''):'')+'</div>';
+}
+/* 높이 — 달력이 화면 끝까지(최소: 월 칸 96 · 주 기둥 420) · 월간 칸은 넘치는 줄을 「+N개 더」로 접는다 */
+function dvFit(){
+  try{
+    var c=document.querySelector('#v-daily .dcal'); if(!c||!c.offsetParent)return;
+    if(dview()==='week'&&dvW()==='s'){c.style.height='';return;}
+    var top=c.getBoundingClientRect().top+window.scrollY, h=Math.round(window.innerHeight-top-14);
+    var wk=+(getComputedStyle(c.querySelector('.dmon')||c).getPropertyValue('--wk'))||5;
+    var min=dview()==='month'?(wk*96+24):440;
+    c.style.height=Math.max(min,h)+'px';
+    dvFitLines();
+  }catch(e){}
+}
+function dvFitLines(){
+  document.querySelectorAll('#v-daily .dml').forEach(function(l){
+    var kids=[].slice.call(l.children).filter(function(k){return !k.classList.contains('dmmore');});
+    kids.forEach(function(k){k.style.display='';}); var m=l.querySelector('.dmmore'); if(m)m.remove();
+    if(l.scrollHeight<=l.clientHeight+1)return;
+    var hid=0, i=kids.length-1, mo=document.createElement('div'); mo.className='dmi dmmore';
+    for(;i>=0&&l.scrollHeight>l.clientHeight+1;i--){kids[i].style.display='none';hid++;}
+    mo.textContent='+'+hid+'개 더'; l.appendChild(mo);
+    for(;i>=0&&l.scrollHeight>l.clientHeight+1;i--){kids[i].style.display='none';hid++;mo.textContent='+'+hid+'개 더';}
+  });
+}
+window.addEventListener('resize',function(){clearTimeout(dvFit._t);dvFit._t=setTimeout(function(){
+  var v=document.getElementById('v-daily'); if(!v||!v.classList.contains('on'))return;
+  if(dvW()!==DV_LASTW)renderDaily(); else dvFit();},140);});
 function renderDaily(){
   syncAllMilestones();
   var t=todayStr(), d=curDate(), ym=curMonth(), yy=t.slice(0,4);
@@ -14019,22 +14247,15 @@ function renderDaily(){
         +' · 이번주 '+fullDaysInWeek(weekStart(t))+'/'+cfg.weekFullDays+'일'
         +' · 기록 '+hrs(used)+' · 미기록 '+hrs(TL_N-used)+'</span>',
       actions:quick,
-      cond:'<div class="dgs">'+(gchips||'<span class="mut" data-gojump="">목표가 없다 — 목표·루틴 탭에서 시작해라</span>')+'</div>'});
+      cond:dvL2()});
+  /* 목표 칩 = 헤더 상태 줄 바로 아래 한 줄(가로 스크롤 · 달력 높이를 먹지 않게) */
+  topbar=topbar.replace('</div></div><div class="ph-a">','</div><div class="dgs dgs1">'+(gchips||'<span class="mut" data-gojump="">목표가 없다 — 목표·루틴 탭에서 시작해라</span>')+'</div></div><div class="ph-a">');
   var dUsed=tlUsed(d);
 
-  /* ── 좌: 통합 캘린더 (계획 + 실제) ── */
-  var calPane='<div class="sec pane"><h4><span class="mnav2"><span data-mmv="-1">◀</span>'
-   +'<b>'+parseInt(ym.slice(0,4),10)+'년 '+parseInt(ym.slice(5),10)+'월</b>'
-   +'<span data-mmv="1">▶</span><span id="goalMonthPick" title="월 선택">📅</span></span>'
-   +'<span class="hacts">'+rwChip('month',ym,'월간')
-   +'<span class="gcalsw" id="gcalToggle">'+(gcalWeekMode()?'월 전체 ▾':'이번 주만 ▴')+'</span></span></h4>'
-   +'<div class="mut" style="font-size:10.5px;margin:-2px 0 7px">'+monthDoneDays(ym)+'일 체크 · '
-   +(function(){var ms=tlMonthSum(ym);var tot=0;for(var k in ms.tags)tot+=ms.tags[k];
-      return ms.days?(ms.days+'일 기록 '+hrs(tot)):'시간 기록 없음';})()
-   +' · 날짜를 누르면 그 날 표가 열린다(다시 누르면 닫힘)</div>'
-   +'<div class="gcal'+(gcalWeekMode()?' wk':'')+'">'+goalCalendar()+'</div>'
-   +'<div class="tllegend">'+TL_TAGS.map(function(x){
-      return '<span class="tlsum"><i style="background:'+x.c+'"></i>'+x.label+'</span>';}).join('')+'</div></div>';
+  /* ── 📅 v4.98 달력 — 주간 기둥 / 월간 칸 / 폰 주간 목록 ── */
+  var _dv=dview(), _dw=dvW(); DV_LASTW=_dw;
+  var calPane='<div class="sec pane dcalp"><div class="dcal '+_dv+' w'+_dw+'">'
+    +(_dv==='month'?dvMonth():(_dw==='s'?dvAgenda():dvWeek()))+'</div></div>';
 
   /* ── 우: 날짜는 고정, 내용만 탭으로 바뀐다 ── */
   var groups=todayGroups(d);
@@ -14078,10 +14299,15 @@ function renderDaily(){
      :(fut?'<div class="dfutnote">⏳ 아직 오지 않은 날 — 로그는 그 날이 되면 적는다.</div>':tlPanel(d)))
    +'</div>';
   var open=dayOpen();
+  /* 기둥·목록의 스크롤 자리를 지킨다(체크하면 다시 그린다) */
+  var _keep={}, _wy=window.scrollY; document.querySelectorAll('#v-daily .dwl[data-ds]').forEach(function(e){_keep[e.dataset.ds]=e.scrollTop;});
   /* 📅 v4.97 — 달력이 본문 전체 · 그 날 표는 서랍(데스크톱 오른쪽 350px 밀어내기 · 모바일 아래 판) */
   document.getElementById('v-daily').innerHTML=topbar+'<div class="dlay'+(open?' open':'')+'">'+calPane
     +(open?'<aside class="ddraw" aria-label="'+d+' 그 날 표">'+dayPane+'</aside><div class="ddrawbg" onclick="dayOpenSet(false)"></div>':'')+'</div>';
   if(open)dayDrawTouch(document.querySelector('#v-daily .ddraw'));
+  document.querySelectorAll('#v-daily .dwl[data-ds]').forEach(function(e){if(_keep[e.dataset.ds])e.scrollTop=_keep[e.dataset.ds];});
+  if(_dw==='s'&&_wy)window.scrollTo(0,_wy);
+  setTimeout(dvFit,0);
 }
 
 /* 날짜 상태는 curDate() 하나만 쓴다 — 두 개면 반드시 어긋난다 (v12.0 통합) */
@@ -14089,8 +14315,10 @@ function tlDate(){return curDate();}
 function tlMonth(){return curMonth();}
 function setTlDate(ds){DB.ui.tlPick=null;setGoalDate(ds);}
 /* 하루를 가로 색띠 하나로 — 한 달을 펼치면 생활 패턴이 그림으로 드러난다 */
-function tlStrip(ds,h){
-  var b=tlOf(ds); if(!b.length)return '<div class="tlstrip empty" style="height:'+(h||6)+'px"></div>';
+function tlStrip(ds,h,vert){
+  /* 📅 v4.98 — vert: 주간 기둥의 세로 띠(위 0시 · 아래 24시) */
+  var hs=vert?'':' style="height:'+(h||6)+'px"';
+  var b=tlOf(ds); if(!b.length)return '<div class="tlstrip empty'+(vert?' v':'')+'"'+hs+'></div>';
   var seg='',cur=0;
   b.forEach(function(x){
     if(x.s>cur)seg+='<i style="flex:'+(x.s-cur)+'"></i>';
@@ -14098,7 +14326,7 @@ function tlStrip(ds,h){
     cur=x.e+1;
   });
   if(cur<TL_N)seg+='<i style="flex:'+(TL_N-cur)+'"></i>';
-  return '<div class="tlstrip" style="height:'+(h||6)+'px">'+seg+'</div>';
+  return '<div class="tlstrip'+(vert?' v':'')+'"'+hs+'>'+seg+'</div>';
 }
 /* 10분 그리드(v4.94) — 한 행이 1시간, 여섯 칸. 제목은 블록이 그 줄에서 차지하는 칸만큼 펼친다 */
 function tlGrid(ds){
@@ -14766,7 +14994,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.97';
+var APP_VERSION='4.98';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -14780,6 +15008,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'4.98',date:'2026-11-13',note:'<b>📅 데일리 주간·월간 보기(daily-view-spec D1).</b> 로한: <i>「주간, 월간을 만들어라 … 월간은 일정·로그 위주, 주간은 루틴+업무 나열 … 0/8 이 한 줄을 차지한다 헤더로 … 노트북·핸드폰·샤오미패드7 에 맞게」</i> · L2 = ‹ 기간 › 오늘 · 주│월(기기에 기억 · 기본 주) · 보는 주는 고른 날과 따로 움직인다 · 달력이 화면 높이를 다 쓴다(월 = 주 수로 나눔 · 주 = 기둥이 끝까지) · 「0/8」 은 하루 머리의 알약(달성률 4단계 색) · 칸 배경 금색·.gcr 줄·「주」 칸·「이번 주만」 토글 없앰(계산은 그대로) → 주간 L2 「이번 주 n/m일 🎁」 · 월간은 성공한 주 일요일에 ✓ · 💬 말풍선은 두 보기 머리에 그대로 · 🗓 주간 기둥 = 세로 로그 띠 + 업무(바로 끝냄) · 루틴(지난 날 ✗ 이름·✓ N개 완료 / 오늘 전부 체크 상자 / 올 날 N개 예정) · 학습(드릴·진단·분) · 기둥에서 체크하면 알약·헤더가 같이 바뀐다(서랍 안 열림) · 📆 월간 칸 = 업무 일정(시각)·마감만 이름으로 · 넘치면 「+N개 더」 · 바닥 로그 띠 · 📱 폭 기준 — 1200 이상 옆 서랍 330 · 600~1199 아래 판 55%(패드 세로에서 달력이 눌리던 것) · 600 미만 아래 판 60% · 주간은 하루 한 장 목록(오늘 → 올 날 → 지난 날) · 월간은 글자 없이 점 · 목표 칩은 헤더 상태 줄 아래 한 줄(가로 스크롤).'},
   {v:'4.97',date:'2026-11-13',note:'<b>📅 데일리 — 달력이 화면 전체 · 그 날 표는 서랍 · 미래 날짜(1판 걸음 B).</b> 로한: <i>「오른쪽 할일표를 일자를 클릭하면 오른쪽에서 나오고 다시 누르면 사라지게 해서 캘린더 중점으로」</i> · 앱을 열면 달력만(닫힘) · 날짜를 누르면 그 날 표가 오른쪽에서 나온다(350px · 달력을 밀어낸다 · 덮지 않는다) · 다른 날짜 = 내용만 · 같은 날짜·✕·Esc = 닫힘 · 헤더 오늘 한 줄 = 오늘 서랍 · ←→ 하루 ↑↓ 한 주 · 모바일은 아래에서 올라오는 판(62%) · 바깥 누르기·쓸어내리기로 닫힘 · 🔒 날짜 상태는 curDate 하나 그대로 · 열림은 기기 것(부팅 때 닫힘) · 🔮 미래 날을 고를 수 있다 — 업무는 미래가 본체 · 🔒 막던 문을 연 대신 루틴 체크·못 한 사유·타임로그 쓰기 함수가 스스로 막는다(미래 루틴은 읽기 전용 · 로그는 「아직 오지 않은 날」) · 💼 서랍에 업무 탭(루틴 다음) — 빠른 추가(이 날로) · ⏰ 밀린 것(오늘만) · 🕑 일정 · 📋 할 일 · ⚑ 이 날 마감 · ✅ 끝낸 것(접힘) · 업무 페이지와 같은 함수(wkOn·wkRow) · 헤더에 「업무 n/m」 · 달력 칸 격자 minmax(0,1fr) — 서랍이 밀어내도 칸이 줄어든다.'},
   {v:'4.96',date:'2026-11-12',note:'<b>💼 업무 페이지 신설(1판 걸음 A).</b> 로한: <i>「실행 카테고리 내 업무 페이지 … 보통의 업무 to do list」</i> · 기획방 work-design.md · 핸드오프 work-page-spec · 🔒 새 키 <code>work={v:1,tasks,projects}</code> — 업무 = id·title·status(todo/done/drop)·day·at·dur·due·pri·memo·moved·day0·doneAt·deletedAt · 네비 데일리 바로 아래 · L1 📋 할 일 · ✅ 끝낸 것 · 할 일: 빠른 추가(엔터 · 오늘/내일/날짜 없음/📅) → ⏰ 밀린 것 · 오늘 · 내일 · 이번 주 · 그 뒤 · 📥 날짜 없음 · KPI 오늘 남은·밀린·이번 주 마감·이번 주 끝낸 · 줄: ☐ · 시각 · ⚑ D-n · ★ · 밀린 줄 「11/10 예정 · 2일 밀림 · 미룸 N회 [오늘로][내일로]」 · 상세: 예정일·마감·시각/길이·중요·메모·안 하기로·삭제 · 끝낸 것: 주 이동 · 안 하기로 · 🔒 밀린 일의 예정일은 앱이 안 바꾼다(누를 때만 · 뒤로 옮기면 미룸+1 · 처음 날은 그대로) · 삭제는 deletedAt(지우지 않는다) · 「그 날의 업무」는 wkOn 하나(데일리가 걸음 B 에서 그대로 쓴다) · 충돌창·복원 요약에 업무 · 터치 기기는 [+ 업무]가 오른쪽 아래 엄지 자리.'},
   {v:'4.95',date:'2026-11-12',note:'<b>🔊 조사 듣기 · 🃏 문법 오답 카드(해설 사전) · 🎯 조사 짝 보기.</b> 학습사 v35·v36 · 로한: <i>「들을 때 단어는 들리는데 조사 때문에 이해가 안 될 때가 너무 많다」 「조사 오답도 디테일하게 — 히라가나 맞추기처럼」</i> · 🔎 조사 자동 출제(v17)는 v4.13 부터 있었다 — 서버 실측 수동 48 + 자동 약 750문항(543문장 중 471) · 🎯 자동 문항의 오답은 뜻이 바뀌는 짝부터(に↔で · が↔を · から↔まで · と↔を · へ↔を) · は↔が 는 여전히 서로 오답이 아니다 · 🔊 <code>gpart-a</code> 조사 듣기 — 문장을 읽어 주고(띄어쓰기 없이) 빈칸 조사를 고른다 · 다시 듣기 · 🐢 느리게(0.6) · 재료·카운터는 조사 채우기와 같다(문장 단위) · 일본어 음성이 없으면 칸을 안 그린다 · 🃏 문법 드릴(문맥규정 제외) 채점 화면이 한 장 카드: 완성 문장(정답 강조) · 번역 · 정답 뜻·역할 · 고른 것이 이 문장에서 안 되는 이유(사전 vs → 없으면 두 역할 나란히) · 함정 · 해설 · 예 · 문장 속 단어(gloss · 없으면 단어장에서 · ます형은 사전형 근사) · 맞히면 초록 카드 + 나머지 보기의 뜻 · 진단 오답 복습에도 사전 해설 · 사전 <code>study.gref</code>(학습방 81항목 · 앱은 읽기만 · 「표기@cat」→「표기」) · 문법 드릴도 <code>picks:[{id,chose,ans}]</code>.'},
@@ -17686,7 +17915,7 @@ function enter(){
     syncSetBase(d);
     DB=migrateDB(d);
     /* 📅 v4.74 — 앱을 열면 데일리는 **오늘**에서 시작한다. 지난번에 눌러 둔 날(11/2)이 남아 있었다(로한) */
-    try{ DB.ui=DB.ui||{}; DB.ui.goalDate=todayStr(); DB.ui.goalMonth=todayStr().slice(0,7); DB.ui.tlPick=null; DB.ui.dayOpen=false; }catch(e){}   /* 📅 v4.97 앱을 열면 서랍은 늘 닫힘 */
+    try{ DB.ui=DB.ui||{}; DB.ui.goalDate=todayStr(); DB.ui.goalMonth=todayStr().slice(0,7); DB.ui.tlPick=null; DB.ui.dayOpen=false; DB.ui.dweek=weekStart(todayStr()); }catch(e){}   /* 📅 v4.97 앱을 열면 서랍은 늘 닫힘 */
     /* 🔒 저장 못 한 변경이 남아 있으면 **무엇보다 먼저** 건져 올린다.
        아래 save() 들이 돌면 pendWrite 가 덮어써서 증거가 사라진다 */
     try{ pendRescue(srvRaw); }catch(e){}
