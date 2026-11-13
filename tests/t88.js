@@ -72,6 +72,16 @@ const FAKE=()=>{
   ok('W2 기둥에서 업무 끝냄',W.done==='done',W.done);
   ok('W3 올 날 = N개 예정(체크 상자 없음) · 지난 날 = ✗ 이름 + ✓ N개 완료',/5개 예정/.test(W.futTxt)&&W.futCk===0&&(/지난 날이 다른 주/.test(W.pastTxt)||(/✗ 물/.test(W.pastTxt)&&/✓ 2개 완료/.test(W.pastTxt))),JSON.stringify(W));
   ok('W4 기둥 글자 = 그 날 표의 그 탭',W.tab==='work'&&W.open2,JSON.stringify(W));
+  /* C — 🔴 로한 사례(v4.99): 시각 없는 할 일 2개를 다 끝냄 → 2/2 · 월간에 이름이 남는다 */
+  const C=await p.evaluate(()=>{const t=todayStr(); DB.work.tasks.forEach(x=>{if(x.day===t)x.deletedAt=new Date().toISOString();});
+    const a=wkAdd({title:'학원 청소',day:t}), b2=wkAdd({title:'행사 준비',day:t}); save(); wkToggle(a.id); wkToggle(b2.id);
+    dviewSet('week'); const head=document.querySelector('#v-daily .dwc.today .dwkn'), hs=document.querySelector('#v-daily .ph-s').textContent;
+    dviewSet('month'); const cell=document.querySelector('#v-daily .dmon .gcell[data-gcal="'+t+'"]'), mh=cell.querySelector('.dwkn'), lines=[...cell.querySelectorAll('.dmi')].map(x=>x.textContent+'|'+x.className);
+    dayOpenTo(t); const em=(document.querySelector('#v-daily .ddraw .dtab[data-dtab="work"] em')||{}).textContent; dayOpenSet(false);
+    gotoTab('work'); const ws=document.querySelector('#v-work .ph-s').textContent; gotoTab('daily');
+    return {wh:head&&head.textContent,mh:mh&&mh.textContent,hs:(hs.match(/업무 \d+\/\d+/)||[''])[0],lines,em,ws:(ws.match(/오늘 \d+\/\d+ 끝냄/)||[''])[0]};});
+  ok('C1 🔴 2개 다 끝내면 2/2 — 주간 머리·월간 머리·헤더·서랍 탭·업무 페이지가 같은 답',C.wh==='☑2/2'&&C.mh==='☑2/2'&&C.hs==='업무 2/2'&&C.em==='2/2'&&C.ws==='오늘 2/2 끝냄',JSON.stringify(C));
+  ok('C2 🔴 월간 칸에 시각 없는 할 일·끝낸 것도 이름으로(끝낸 것은 흐리게)',C.lines.some(l=>/학원 청소/.test(l)&&/done/.test(l))&&C.lines.some(l=>/행사 준비/.test(l)),JSON.stringify(C.lines));
   await p.evaluate(()=>dayOpenSet(false));
   ok('Z 페이지 에러 없음',errs.length===0,errs.join(' | '));
   await ctx.close();

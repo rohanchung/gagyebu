@@ -83,9 +83,9 @@ const FAKE=()=>{
     const grp=[...document.querySelectorAll('#v-work .wkgrp')].find(g=>/^오늘/.test(g.querySelector('.wkgh').textContent));
     const shown=grp?[...grp.querySelectorAll('.wkrow')].map(r=>r.dataset.wk):[];
     const first=grp?grp.querySelector('.wkrow .wkt').textContent:'';
-    return {ids,shown,first,due:on.dueHere.map(x=>x.title),left:on.left,kpi:[...document.querySelectorAll('#v-work .kpi .kv')].map(x=>x.textContent),st:document.querySelector('#v-work .ph-s').textContent};});
+    return {ids,shown,first,due:on.dueHere.map(x=>x.title),left:on.left,tc:wkDayCount(t),kpi:[...document.querySelectorAll('#v-work .kpi .kv')].map(x=>x.textContent),st:document.querySelector('#v-work .ph-s').textContent};});
   ok('O1 🔴 페이지 「오늘」 = wkOn(오늘) 과 같은 답 · 일정이 먼저',JSON.stringify(O.ids)===JSON.stringify(O.shown)&&O.first==='14시 회의'&&O.due.indexOf('모레 마감 다른 날')>=0,JSON.stringify(O));
-  ok('K1 헤더·KPI 숫자(오늘 남은 · 밀린 0 · 이번 주 마감)',O.kpi[0]===String(O.left)&&O.kpi[1]==='0'&&new RegExp('오늘 '+O.left+' · 밀린 0').test(O.st),JSON.stringify(O.kpi)+' '+O.st);
+  ok('K1 헤더·KPI 숫자(오늘 남은 · 밀린 0 · 이번 주 마감)',O.kpi[0]===String(O.left)&&O.kpi[1]==='0'&&new RegExp('오늘 '+O.tc.d+'/'+O.tc.n+' 끝냄 · 밀린 0').test(O.st)   /* v4.99 끝낸/전체 */,JSON.stringify(O.kpi)+' '+O.st);
   /* F — 끝낸 것 탭 */
   const F=await p.evaluate(()=>{const x=DB.work.tasks.find(t=>t.title==='14시 회의'); wkToggle(x.id); pfL1Set('work','done');
     const txt=document.getElementById('v-work').textContent; wkWeekMv(-1); const prev=document.getElementById('v-work').textContent; wkWeekMv(0);

@@ -80,7 +80,7 @@ const FAKE=()=>{
     return {ids,want,addedDay:added&&added.day,tabs,em};},t1);
   ok('W1 서랍 업무 탭 = wkOn(그 날) 같은 답',JSON.stringify(W.ids)===JSON.stringify(W.want)&&W.ids.length===2,JSON.stringify(W));
   ok('W2 서랍에서 넣으면 그 날 할 일',W.addedDay===t1,W.addedDay);
-  ok('W3 탭 순서 루틴·업무·로그·식사·학습 · 업무 숫자 남은/전체',W.tabs==='routine,work,log,meal,study'&&W.em==='3/3',JSON.stringify(W));
+  ok('W3 탭 순서 루틴·업무·로그·식사·학습 · 업무 숫자 끝낸/전체(v4.99)',W.tabs==='routine,work,log,meal,study'&&W.em==='0/3',JSON.stringify(W));
   /* L — 1440 밀어내기 */
   await p.waitForTimeout(350);   /* 서랍 애니메이션(0.2초)이 끝난 뒤 잰다 */
   const L=await p.evaluate(()=>{const g=document.querySelector('#v-daily .dmon').getBoundingClientRect(), dr=document.querySelector('#v-daily .ddraw').getBoundingClientRect();

@@ -836,6 +836,8 @@ textarea.mla.same{background:#f2f9f4}
 .dmi b{font-variant-numeric:tabular-nums}
 .dmi.late{color:var(--neg,#d64545)}.dmi.due.warn{color:#c76a00}.dmi.due.neg{color:var(--neg,#d64545)}
 .dmi.dmmore{color:var(--muted);font-weight:700}
+.dmi.done{color:var(--muted);text-decoration:line-through}
+.dwkn.all{color:#2f7a44}
 .dmdots{display:none}
 .dmbars:empty{display:none}
 .dwk{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;min-height:0}
@@ -5259,7 +5261,18 @@ var ST_DEF_EXAM={name:'JLPT N4',date:'',enterBy:'',pass:90,parts:[
   {k:'listen',label:'청해',max:60,cut:19,goal:40}]};
 
 /* 🔒 존재 보장은 여기 한 곳에서만 한다. 이 유형(마이그레이션 누락)이 세 번 터졌다. */
+/* ⚡ v5.00 — 🔴 [느림] 이 함수는 화면 하나에 수천 번 불린다(문항마다 · 단어마다). 그런데 부를 때마다 단어 1,149개 ·
+   예문 543개를 처음부터 다시 정리했다(실측 한 번 0.23ms → 문법 칸에서만 수백 ms).
+   🔒 정리는 전부 멱등한 「불러온 데이터 바로잡기」다 — **같은 묶음·같은 배열·같은 개수면 다시 하지 않는다.**
+      서버에서 받거나(kvLoad·kvPull·병합) 복원하면 배열이 새 객체라 열쇠가 바뀌어 다시 돈다. 앱 안에서 넣거나 빼면 개수가 바뀐다 */
+var ST_SDB=null;
+function stSdbKey(S){var a=[S.words,S.sents,S.units,S.pomos,S.drills,S.tests,S.errors];
+  return a.map(function(x){return Array.isArray(x)?x.length:-1;}).join(',');}
+function stSdbSame(S){
+  return !!(ST_SDB&&ST_SDB.S===S&&ST_SDB.w===S.words&&ST_SDB.s===S.sents&&ST_SDB.u===S.units&&ST_SDB.p===S.pomos&&ST_SDB.k===stSdbKey(S)&&S.v===1&&S.exam);
+}
 function studyDB(){
+  if(DB.study&&stSdbSame(DB.study))return DB.study;
   DB.study=DB.study||{}; var S=DB.study;
   if(S.v!==1)S.v=1;
   /* 🔒 v3.2 — 옛 구조(뽀모·주간제안) 제거는 **매번** 돈다.
@@ -5328,6 +5341,7 @@ function studyDB(){
     /* 🔀 v4.91 — 카운터는 모드별(w.m[mode]) · 최상위 카운터는 m.r2m 으로 옮긴다(학습사 v33 · 멱등) */
     stMigW(w);
   });
+  ST_SDB={S:S,w:S.words,s:S.sents,u:S.units,p:S.pomos,k:stSdbKey(S)};
   return S;
 }
 function stExam(){return studyDB().exam;}
@@ -6225,18 +6239,21 @@ function stSeenToday(w,ds){ds=ds||todayStr();if(!w)return false;if(!w.m)return w
 
 /* 출제 대상 — 🚫 랜덤 금지. 랜덤이면 아는 단어만 계속 나온다.
    ① miss 많은 것 → ② 책에 체크한 것(flag) → ③ 오래 안 본 것(미출제가 먼저) */
-function stDrillPool(mode,hardOnly){
+/* ⚡ v5.00 — noSort: 개수만 셀 때(모드 칸 숫자 · 남은 목표). 출제 순서 정렬(1,149개 × 비교마다 점수 계산)을 건너뛴다 */
+function stDrillPool(mode,hardOnly,noSort){
   var ds=todayStr();
   /* 🧱 v4.87 — r2m 은 어려운 단어를 뺀 풀 · hardOnly 면 어려운 단어만(별도 세트) */
   var wc=(mode==='r2m')?stWrongCounts():null;
-  return stWords().filter(function(w){
+  var L=stWords().filter(function(w){
     if(mode==='r2m'){var h=stIsHard(w,wc);if(hardOnly?!h:h)return false;}
     /* 한자가 없는 순가나 단어(あいさつ·いらっしゃる 등)는 한자를 묻거나 보여줄 수 없다 */
     if(mode==='k2r'||mode==='r2k')return !!stNorm(w.kanji)&&!!stNorm(w.kana);
     if(mode==='k2m')return !!stNorm(w.kanji)&&!!stNorm(w.ko);
     if(mode==='kata')return stIsKata(w)&&!!stNorm(w.ko);
     return !!stNorm(w.kana)&&!!stNorm(w.ko);          /* a2m · r2m */
-  }).slice().sort(function(a,b){
+  });
+  if(noSort)return L;
+  return L.slice().sort(function(a,b){
     /* 🔴 v4.85 — 학습사 v28: 「재점검 큐가 오래된 순으로 나오지 않는다」. 맞다.
          재점검 +200 은 다 같고, 처음 보는 단어 +100 이 그 위에 얹혀서 — 10/23 교재 투입분(새 단어)이
          10/22 재점검분(이미 본 단어)을 통째로 앞질렀다. 실측 10/23: 10/22분 17개가 하나도 안 나왔다.
@@ -7004,9 +7021,18 @@ function stGPartOpts(p,bad){
 }
 function stGPunct(t){var m=String(t).match(/[、。，．,.!?！？]+$/);return m?m[0]:'';}
 /* 한 예문의 조사 후보 — [{i:어절번호, p:조사, why}] · 수동 슬롯이 먼저 */
+/* ⚡ v5.00 — 🔴 [느림] 로한: 「드릴 페이지가 DB 가 많아져서 그런가 좀 느려졌다」.
+   실측(단어 1,149 · 예문 543): 이 가나 목록을 **문장마다** 단어장 전체로 다시 만들었다 — 한 번에 62만 번 ·
+   문법 칸 1.9초 · 조사 드릴은 답 하나에 0.3초. 🔒 단어장 배열이 같고 개수가 같으면 그대로 쓴다(바뀌면 새로) */
+var ST_KANA_C=null;
+function stKanaSet(){
+  var w=studyDB().words||[];
+  if(ST_KANA_C&&ST_KANA_C.ref===w&&ST_KANA_C.n===w.length)return ST_KANA_C.set;
+  var k={}; w.forEach(function(x){if(x&&x.kana)k[x.kana]=1;});
+  ST_KANA_C={ref:w,n:w.length,set:k}; return k;
+}
 function stGParticles(s){
-  var toks=stGTokens(s), out=[], used={}, kana={};
-  (studyDB().words||[]).forEach(function(w){if(w&&w.kana)kana[w.kana]=1;});
+  var toks=stGTokens(s), out=[], used={}, kana=stKanaSet();
   function find(p,from){
     for(var i=from||0;i<toks.length;i++){
       var t=toks[i].slice(0,toks[i].length-stGPunct(toks[i]).length);
@@ -8088,7 +8114,7 @@ function stGramRun(){
 /* 🎯 v4.91 — 한 모드의 오늘 목표. 🔒 파생이다(저장하지 않는다) · 세트를 고르는 규칙(stR2mPick)과 같은 기준으로 센다
    due = 다시 볼 때가 된 것(retestOn·간격) · fresh = 이 모드로 처음 보는 것 · wait = 아직 때가 아닌 것(다음 날짜) · cap = 오늘 두 번 나와 쉬는 것 */
 function stGoal(mode){
-  var ds=todayStr(), pool=stDrillPool(mode), tc=stTodayCounts(mode), g={due:0,fresh:0,wait:0,cap:0,next:null,total:pool.length,done:0};
+  var ds=todayStr(), pool=stDrillPool(mode,false,true), tc=stTodayCounts(mode), g={due:0,fresh:0,wait:0,cap:0,next:null,total:pool.length,done:0};
   pool.forEach(function(w){
     if((tc[w.id]||0)>=2){g.cap++;return;}
     var c=stCt(w,mode), d=stDueOf(w,mode);
@@ -8146,7 +8172,7 @@ function stPaneWord(){
       return !(m.tts&&!tts);
     }).map(function(m){
     /* 🔒 4지선다는 보기가 4개 나와야 성립한다 — 단어가 4개 미만이면 모드를 막는다 */
-    var n=stDrillPool(m.k).length, on=n>=4;
+    var n=stDrillPool(m.k,false,true).length, on=n>=4;
     return '<button class="'+(on?(cur===m.k?'on':''):'off')+'"'
       +(on?' onclick="setStdMode(\''+m.k+'\')"':' disabled title="'+(n?'단어가 '+n+'개뿐이라 4지선다를 못 만든다':'이 모드로 낼 단어가 없다')+'"')+'>'
       +'<b>'+(m.tts?'🔊 ':'')+m.label+'</b><span class="mut">'+m.hint+' · '+(on?n+'개':n+'개 · 4개 이상 필요')+'</span>'
@@ -8155,7 +8181,7 @@ function stPaneWord(){
     +(tts?'':'<div class="mut" style="font-size:10.5px;margin:-4px 0 10px">'
       +'🔊 음성 모드는 이 기기에 <b>일본어 음성이 없어</b> 숨겼다. '
       +'윈도우 설정 → 시간 및 언어 → 음성에서 일본어 음성을 추가하면 나타난다.</div>');
-  var pool=stDrillPool(cur).length;
+  var pool=stDrillPool(cur,false,true).length;
   /* 모드를 고르고 → 문항 수를 누르면 시작. 모드는 기억되니 다음부터는 한 번만 누른다. */
   /* 한 세트 **20문항 · 문항당 5초**가 목표다(학습방 v10). 20 을 앞에 둔다 */
   var sizes=[20,40,10].filter(function(n){return n<=pool;});
@@ -14094,8 +14120,9 @@ function dvWkOk(ws){var t=todayStr();return ws<=t&&fullDaysInWeek(ws)>=rwCfg().w
 function dvHead(ds,full){
   var t=todayStr(), fut=ds>t, dd=parseInt(ds.slice(8),10), r=fut?null:dayRate(ds);
   var pill=(r&&r.total)?'<span class="dpill '+dvLv(r)+'" title="루틴 '+r.done+'/'+r.total+'">'+r.done+'/'+r.total+'</span>':'';
-  var o=wkOn(ds), n=o.sched.length+o.todo.length;
-  var wk=n?(ds<t?'<span class="dwkn late" title="밀린 업무 '+n+'">↷'+n+'</span>':'<span class="dwkn" title="남은 업무 '+n+'">☐'+n+'</span>'):'';
+  var wc=wkDayCount(ds);
+  var wk=!wc.n?'':(wc.late?'<span class="dwkn late" title="밀린 업무 '+wc.late+' (끝낸 '+wc.d+'/'+wc.n+')">↷'+wc.late+'</span>'
+    :'<span class="dwkn'+(wc.d===wc.n?' all':'')+'" title="업무 끝낸 '+wc.d+'/'+wc.n+'">'+(wc.d===wc.n?'☑':'☐')+wc.d+'/'+wc.n+'</span>');
   var ext='';
   if(full){var used=cardsUsedOn(ds);ext=(isYinDay(ds)?'<i class="gmk yin" title="陰 음기일">陰</i>':'')
     +(used.length?'<i class="gmk" title="'+sajuEsc(used.map(function(c){return c.code+' '+c.title;}).join(', '))+'">🎁</i>':'');}
@@ -14108,12 +14135,15 @@ function dvHead(ds,full){
     +'<span class="dvmid">'+pill+wk+ext+'</span><span class="gcmks">'+fv+'</span></div>';
 }
 /* 월간 줄 — 업무의 일정(시각)·마감만 이름으로. 보통 할 일은 머리의 ☐N */
+/* 🔴 v4.99 — 로한: 「월간 화면일 때 일정을 못 가져오는 것 같은데?」 · 시각 없는 할 일은 이름을 안 써서, 다 끝내면 칸에서 통째로 사라졌다.
+   🔒 그 날로 잡은 업무는 전부 쓴다 — 시각 있는 것 → 마감 → 할 일 → 끝낸 것(흐리게). 넘치면 「+N개 더」 */
 function dvMonLines(ds){
-  var t=todayStr(), L=wkLive().filter(function(x){return x.status==='todo';}), out=[];
-  L.filter(function(x){return x.day===ds&&x.at;}).sort(wkSort).forEach(function(x){
-    out.push('<div class="dmi'+(ds<t?' late':'')+'" title="'+mdEsc(x.title)+'">☐ <b>'+mdEsc(x.at)+'</b> '+mdEsc(x.title)+'</div>');});
-  L.filter(function(x){return x.due===ds;}).sort(wkSort).forEach(function(x){
-    var n=wkDiff(t,ds);out.push('<div class="dmi due'+(n<0?' neg':(n<=1?' warn':''))+'" title="마감 · '+mdEsc(x.title)+'">⚑ '+mdEsc(x.title)+'</div>');});
+  var t=todayStr(), L=wkLive(), out=[];
+  var line=function(x,cls,pre){return '<div class="dmi'+cls+'" title="'+mdEsc(x.title)+'">'+pre+mdEsc(x.title)+'</div>';};
+  L.filter(function(x){return x.status==='todo'&&x.day===ds&&x.at;}).sort(wkSort).forEach(function(x){out.push(line(x,ds<t?' late':'','☐ <b>'+mdEsc(x.at)+'</b> '));});
+  L.filter(function(x){return x.status==='todo'&&x.due===ds;}).sort(wkSort).forEach(function(x){var n=wkDiff(t,ds);out.push(line(x,' due'+(n<0?' neg':(n<=1?' warn':'')),'⚑ '));});
+  L.filter(function(x){return x.status==='todo'&&x.day===ds&&!x.at&&x.due!==ds;}).sort(wkSort).forEach(function(x){out.push(line(x,ds<t?' late':'','☐ '));});
+  L.filter(function(x){return x.status==='done'&&x.day===ds;}).sort(wkSort).forEach(function(x){out.push(line(x,' done','☑ '+(x.at?'<b>'+mdEsc(x.at)+'</b> ':'')));});
   return out;
 }
 function dvMonCell(ds){
@@ -14243,7 +14273,7 @@ function renderDaily(){
   var topbar=pf('daily',{
       status:'<span class="dtop" data-dayopen="'+t+'" title="오늘 서랍 열기">'+'<b class="dtd">'+parseInt(t.slice(5,7),10)+'월 '+parseInt(t.slice(8),10)+'일 ('+DOW_KO[dowOf(t)]+')</b>'
         +' · <span class="'+(tfull?'dfull':'')+'">'+(tfull?'✅ 완전달성':(tr?'오늘 '+tr.done+'/'+tr.total:'루틴 없음'))+'</span>'
-        +(function(){var w=wkOn(t),n=w.left+w.done.length;return n?' · 업무 '+w.done.length+'/'+n:'';})()
+        +(function(){var w=wkDayCount(t);return w.n?' · 업무 '+w.d+'/'+w.n:'';})()
         +' · 이번주 '+fullDaysInWeek(weekStart(t))+'/'+cfg.weekFullDays+'일'
         +' · 기록 '+hrs(used)+' · 미기록 '+hrs(TL_N-used)+'</span>',
       actions:quick,
@@ -14276,7 +14306,7 @@ function renderDaily(){
    +'<div style="margin-top:10px"><button class="ghost sm" onclick="gotoTab(\'goal\')">⚙ 루틴 설계</button>'
    +' <span class="mut" id="rwHistBtn" style="font-size:11px;margin-left:8px;cursor:pointer">🎁 사용 '+usedCards().length+'건</span></div>';
 
-  var wkd=wkOn(d), wkN=wkd.left+wkd.done.length;
+  var wkd=wkDayCount(d), wkN=wkd.n;
   var dayPane='<div class="sec pane"><div class="ddgrab" aria-hidden="true"></div><h4><span class="mnav2"><span data-dmv="-1">◀</span>'
    +'<b>'+parseInt(d.slice(5,7),10)+'월 '+parseInt(d.slice(8),10)+'일 <span class="mut" style="font-weight:600">('+DOW_KO[dowOf(d)]+')</span></b>'
    +'<span data-dmv="1">▶</span><span id="goalDatePick" title="날짜 선택">📅</span>'
@@ -14285,7 +14315,7 @@ function renderDaily(){
    /* 🔑 날짜는 그대로 두고 내용만 갈아끼운다 — 계획(루틴)과 실제(로그)를 같은 날짜로 대조한다 */
    +'<div class="dtabs"><span class="dtab'+(tab==='routine'?' on':'')+'" data-dtab="routine">✓ 루틴'
    +(nMiss&&!fut?' <em>'+nMiss+'</em>':'')+'</span>'
-   +'<span class="dtab'+(tab==='work'?' on':'')+'" data-dtab="work">💼 업무'+(wkN?' <em>'+wkd.left+'/'+wkN+'</em>':'')+'</span>'
+   +'<span class="dtab'+(tab==='work'?' on':'')+'" data-dtab="work">💼 업무'+(wkN?' <em>'+wkd.d+'/'+wkN+'</em>':'')+'</span>'
    +'<span class="dtab'+(tab==='log'?' on':'')+'" data-dtab="log">⏳ 로그'
    +(dUsed?' <em>'+hrs(dUsed)+'</em>':'')+'</span>'
    +'<span class="dtab'+(tab==='meal'?' on':'')+'" data-dtab="meal">🍚 식사'
@@ -14767,13 +14797,20 @@ function wkOn(ds){
       if(x.day===ds){(x.at?o.sched:o.todo).push(x);}
       else if(x.due===ds)o.dueHere.push(x);
     }else if(x.status==='done'){
-      if((wkLocalDay(x.doneAt)||x.day)===ds)o.done.push(x);
+      if((x.day||wkLocalDay(x.doneAt))===ds)o.done.push(x);   /* v4.99 — 예정일 기준(셈 wkDayCount 와 같은 날) · 날짜 없던 것만 끝낸 날 */
     }
   });
   if(ds===t)o.late=wkLate(t);
   ['sched','todo','dueHere','done'].forEach(function(k){o[k].sort(wkSort);});
   o.left=o.sched.length+o.todo.length;
   return o;
+}
+/* 📅 v4.99 — 「그 날 업무 몇 개 중 몇 개 끝냈나」에 답하는 함수는 이것 하나(루틴 알약 3/8 과 같은 꼴 · 끝낸/전체).
+   로한: 「업무에서 2개 쓰고 2개 다 했으면 2/2 이렇게 되어야 되는 거 아냐?」 — 전엔 남은 수만 세서 다 끝내면 숫자가 사라졌다.
+   🔒 그 날 = 예정일(day). 안 하기로(drop)·삭제는 안 센다. late = 예정일이 지났는데 안 한 것 */
+function wkDayCount(ds){
+  var n=0,d=0; wkLive().forEach(function(x){if(x.day!==ds||x.status==='drop')return;n++;if(x.status==='done')d++;});
+  return {n:n,d:d,left:n-d,late:(ds<todayStr())?n-d:0};
 }
 function wkWeekEnd(t){return addDays(weekStart(t||todayStr()),6);}
 function wkDueWeek(t){t=t||todayStr();var we=wkWeekEnd(t);return wkLive().filter(function(x){return x.status==='todo'&&x.due&&x.due>=t&&x.due<=we;});}
@@ -14911,7 +14948,8 @@ function wkGroup(title,list,ctx,cls){
 function renderWork(){
   var t=todayStr(), tm=addDays(t,1), we=wkWeekEnd(t), ws=weekStart(t), tab=wkTab();
   var on=wkOn(t), late=wkLate(t), dueW=wkDueWeek(t), doneW=wkDoneIn(ws,we);
-  var status='오늘 '+on.left+' · 밀린 '+late.length+' · 이번 주 마감 '+dueW.length;
+  var tc=wkDayCount(t);
+  var status='오늘 '+tc.d+'/'+tc.n+' 끝냄 · 밀린 '+late.length+' · 이번 주 마감 '+dueW.length;
   var l1=uiTabs([{k:'todo',label:'📋 할 일',n:wkLive().filter(function(x){return x.status==='todo';}).length||null},{k:'done',label:'✅ 끝낸 것'}],tab,"pfL1Set('work','%')");
   var actions='<button class="btn sm wkfab" onclick="wkModal(null)">+ 업무</button>';
   var html;
@@ -14994,7 +15032,7 @@ function saveJournal(id){
 function delJournal(id){if(!confirm('이 기록을 삭제할까요?'))return;DB.journal=DB.journal.filter(function(e){return e.id!==id});save();closeModal();renderJournal();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='4.98';
+var APP_VERSION='5.00';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -15008,6 +15046,8 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'5.00',date:'2026-11-13',note:'<b>⚡ 드릴 페이지 속도 — 드릴 탭 1.7초 → 0.05초 · 조사 드릴 답 하나 0.3초 → 0.01초.</b> 로한: <i>「드릴 페이지가 DB 가 많아져서 그런가 좀 느려졌다」</i> · 실측(단어 1,149 · 예문 543): ① studyDB() 가 **부를 때마다** 단어·예문 전부를 다시 정리했다(한 번 0.23ms · 화면 하나에 수천 번) → 같은 묶음·같은 배열·같은 개수면 다시 하지 않는다(서버에서 새로 받거나 넣고 빼면 다시) ② 조사 후보가 문장마다 단어장 전체로 가나 목록을 새로 만들었다(62만 번) → 단어장이 바뀔 때만 ③ 모드 칸 숫자·남은 목표가 개수만 세면서 1,149개를 출제 순서로 정렬했다 → 셀 때는 정렬 안 함 · 결과(출제 순서·문항·숫자)는 그대로 · 문법 칸 1.9초 → 0.05초 · 조사 드릴 시작 1.4초 → 0.03초.'},
+  {v:'4.99',date:'2026-11-13',note:'<b>📅 업무 숫자 = 끝낸/전체 · 월간에 그 날 업무가 다 보인다.</b> 로한: <i>「월간 화면일 때 일정을 못 가져오는 것 같은데? 그리고 업무에서 2개 쓰고 2개 다 했으면 2/2 이렇게 되어야 되는 거 아냐?」</i> · 🔴 숫자가 「남은 수」라 다 끝내면 사라졌다 · 월간은 시각·마감 있는 업무만 이름을 써서 시각 없는 할 일은 안 보였다 · 🔒 셈 함수 하나 wkDayCount(그 날 = 예정일 · 끝낸/전체 · 안 하기로는 안 셈) — 하루 머리 ☐1/2 → 다 끝내면 ☑2/2(초록) · 지난 날 남은 것은 ↷N · 서랍 업무 탭 · 데일리 헤더 「업무 2/2」 · 업무 페이지 헤더 「오늘 2/2 끝냄」 · 월간 칸 = 시각 → 마감 → 할 일 → 끝낸 것(흐리게) · 「그 날 끝낸 것」 목록도 예정일 기준(숫자와 같은 날). 구글 캘린더 일정은 아직 연결 전(D2 — 주소 등록 대기).'},
   {v:'4.98',date:'2026-11-13',note:'<b>📅 데일리 주간·월간 보기(daily-view-spec D1).</b> 로한: <i>「주간, 월간을 만들어라 … 월간은 일정·로그 위주, 주간은 루틴+업무 나열 … 0/8 이 한 줄을 차지한다 헤더로 … 노트북·핸드폰·샤오미패드7 에 맞게」</i> · L2 = ‹ 기간 › 오늘 · 주│월(기기에 기억 · 기본 주) · 보는 주는 고른 날과 따로 움직인다 · 달력이 화면 높이를 다 쓴다(월 = 주 수로 나눔 · 주 = 기둥이 끝까지) · 「0/8」 은 하루 머리의 알약(달성률 4단계 색) · 칸 배경 금색·.gcr 줄·「주」 칸·「이번 주만」 토글 없앰(계산은 그대로) → 주간 L2 「이번 주 n/m일 🎁」 · 월간은 성공한 주 일요일에 ✓ · 💬 말풍선은 두 보기 머리에 그대로 · 🗓 주간 기둥 = 세로 로그 띠 + 업무(바로 끝냄) · 루틴(지난 날 ✗ 이름·✓ N개 완료 / 오늘 전부 체크 상자 / 올 날 N개 예정) · 학습(드릴·진단·분) · 기둥에서 체크하면 알약·헤더가 같이 바뀐다(서랍 안 열림) · 📆 월간 칸 = 업무 일정(시각)·마감만 이름으로 · 넘치면 「+N개 더」 · 바닥 로그 띠 · 📱 폭 기준 — 1200 이상 옆 서랍 330 · 600~1199 아래 판 55%(패드 세로에서 달력이 눌리던 것) · 600 미만 아래 판 60% · 주간은 하루 한 장 목록(오늘 → 올 날 → 지난 날) · 월간은 글자 없이 점 · 목표 칩은 헤더 상태 줄 아래 한 줄(가로 스크롤).'},
   {v:'4.97',date:'2026-11-13',note:'<b>📅 데일리 — 달력이 화면 전체 · 그 날 표는 서랍 · 미래 날짜(1판 걸음 B).</b> 로한: <i>「오른쪽 할일표를 일자를 클릭하면 오른쪽에서 나오고 다시 누르면 사라지게 해서 캘린더 중점으로」</i> · 앱을 열면 달력만(닫힘) · 날짜를 누르면 그 날 표가 오른쪽에서 나온다(350px · 달력을 밀어낸다 · 덮지 않는다) · 다른 날짜 = 내용만 · 같은 날짜·✕·Esc = 닫힘 · 헤더 오늘 한 줄 = 오늘 서랍 · ←→ 하루 ↑↓ 한 주 · 모바일은 아래에서 올라오는 판(62%) · 바깥 누르기·쓸어내리기로 닫힘 · 🔒 날짜 상태는 curDate 하나 그대로 · 열림은 기기 것(부팅 때 닫힘) · 🔮 미래 날을 고를 수 있다 — 업무는 미래가 본체 · 🔒 막던 문을 연 대신 루틴 체크·못 한 사유·타임로그 쓰기 함수가 스스로 막는다(미래 루틴은 읽기 전용 · 로그는 「아직 오지 않은 날」) · 💼 서랍에 업무 탭(루틴 다음) — 빠른 추가(이 날로) · ⏰ 밀린 것(오늘만) · 🕑 일정 · 📋 할 일 · ⚑ 이 날 마감 · ✅ 끝낸 것(접힘) · 업무 페이지와 같은 함수(wkOn·wkRow) · 헤더에 「업무 n/m」 · 달력 칸 격자 minmax(0,1fr) — 서랍이 밀어내도 칸이 줄어든다.'},
   {v:'4.96',date:'2026-11-12',note:'<b>💼 업무 페이지 신설(1판 걸음 A).</b> 로한: <i>「실행 카테고리 내 업무 페이지 … 보통의 업무 to do list」</i> · 기획방 work-design.md · 핸드오프 work-page-spec · 🔒 새 키 <code>work={v:1,tasks,projects}</code> — 업무 = id·title·status(todo/done/drop)·day·at·dur·due·pri·memo·moved·day0·doneAt·deletedAt · 네비 데일리 바로 아래 · L1 📋 할 일 · ✅ 끝낸 것 · 할 일: 빠른 추가(엔터 · 오늘/내일/날짜 없음/📅) → ⏰ 밀린 것 · 오늘 · 내일 · 이번 주 · 그 뒤 · 📥 날짜 없음 · KPI 오늘 남은·밀린·이번 주 마감·이번 주 끝낸 · 줄: ☐ · 시각 · ⚑ D-n · ★ · 밀린 줄 「11/10 예정 · 2일 밀림 · 미룸 N회 [오늘로][내일로]」 · 상세: 예정일·마감·시각/길이·중요·메모·안 하기로·삭제 · 끝낸 것: 주 이동 · 안 하기로 · 🔒 밀린 일의 예정일은 앱이 안 바꾼다(누를 때만 · 뒤로 옮기면 미룸+1 · 처음 날은 그대로) · 삭제는 deletedAt(지우지 않는다) · 「그 날의 업무」는 wkOn 하나(데일리가 걸음 B 에서 그대로 쓴다) · 충돌창·복원 요약에 업무 · 터치 기기는 [+ 업무]가 오른쪽 아래 엄지 자리.'},
