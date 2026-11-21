@@ -1,0 +1,64 @@
+const {chromium}=require('playwright');
+/* 🔒 경로를 박아 두지 마라 — 0820·0821에 같은 사고가 두 번 났다. */
+const path=require('path');
+const FILE=process.argv[2]||path.join(__dirname,'..','work.html');
+const goals=[{id:'gB',due:'2026-12-31',code:'B',kind:'year',title:'체중 65kg',metric:{type:'binary',unit:'',target:0},period:'2026',status:'active',startYM:'2026-08',baseline:null,parentId:null,progress:0}];
+const routines=[{id:'r1',code:'B.8a',title:'유산균 챙기기',freq:'daily',days:[],goalId:'gB',status:'active',start:'2026-08-01'}];
+const STATE={schemaVersion:7,goals,routines,checks:{'2026-08-20':{done:[],due:['B.8a'],miss:{}}},
+ rewards:[],rewardCards:{},timelog:{'2026-08-20':[{s:17,e:21,tag:'waste',title:'림월드',code:null},{s:30,e:33,tag:'work',title:'강의',code:null}]},
+ rewardCfg:{weekFullDays:4,monthWeeks:4,yearMonths:9},ui:{month:'2026-08',goalDate:'2026-08-20',goalMonth:'2026-08',dailyTab:'log'},
+ accounts:[],transactions:[],categories:[],cards:[],debts:[],fixed:[],events:[],posts:[],
+ health:{weights:[],labs:[],labDates:[],labTypes:[],labMeds:[],labValues:{},events:[]},journal:[],items:[],logs:[],budgets:{}};
+(async()=>{const b=await chromium.launch({executablePath:process.env.CHROME||(require('fs').existsSync('/opt/pw-browsers/chromium')?'/opt/pw-browsers/chromium':undefined)});
+const c=await b.newContext({viewport:{width:1440,height:1100}});
+await c.addInitScript(({st})=>{const store={v:st};window.__store=store;
+ let _m=null,_p=null;const q={select(){if(_m==='update'){_m=null;store.v=_p.data;store.at=_p.updated_at;return Promise.resolve({data:[{updated_at:store.at}]});}return q},eq(){return q},maybeSingle(){return Promise.resolve({data:{data:store.v,updated_at:store.at||null}})},update(p){_m='update';_p=p;return q},upsert(row){store.v=row.data;store.at=row.updated_at;return Promise.resolve({})},order(){return q},limit(){return q},insert(){return Promise.resolve({data:[],error:null})},delete(){return q},in(){return q},then(a){return Promise.resolve({data:[],error:null}).then(a)}};
+ window.supabase={createClient:()=>({from:()=>q,auth:{getSession:()=>Promise.resolve({data:{session:{user:{id:'u1'}}}}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}})}})};},{st:STATE});
+const p=await c.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('dialog',d=>d.accept());
+await p.route('**/*supabase*',r=>r.abort());
+await p.goto('file://'+FILE);await p.waitForTimeout(1300);
+/* 📅 v4.74 — 앱은 열 때 오늘로 돌린다. 이 테스트의 날(8/20)로 옮긴다 */
+await p.evaluate(()=>{DB.ui.dayOpen=true;setGoalDate('2026-08-20');});   /* v4.97 — 그 날 표는 서랍이다. 쓰기 전에 연다 */await p.waitForTimeout(200);
+const TL=()=>p.evaluate(()=>JSON.stringify(window.__store.v.timelog['2026-08-20']));
+console.log('초기:', await TL());
+
+console.log('=== ① hover → 블록 전체 강조 ===');
+await p.hover('[data-tlq="57"]'); await p.waitForTimeout(250);
+console.log('  강조된 칸:', await p.evaluate(()=>[...document.querySelectorAll('.tlq.hl')].map(x=>x.dataset.tlq).join(',')), '(51~65이어야 · v4.94 10분 칸)');
+console.log('  ✎ 보임:', await p.evaluate(()=>{const e=document.querySelector('.tlq.hl .tledit');return e?getComputedStyle(e).display:'(없음)'}));
+await p.hover('[data-tlq="120"]'); await p.waitForTimeout(200);
+console.log('  다른 블록 hover 후 강조:', await p.evaluate(()=>[...document.querySelectorAll('.tlq.hl')].map(x=>x.dataset.tlq).join(',')||'(없음)'));
+
+console.log('=== ② ✎ 클릭 → 내용만 수정 ===');
+await p.hover('[data-tlq="57"]'); await p.waitForTimeout(200);
+await p.evaluate(()=>document.querySelector('[data-tledit="51"]').click());
+await p.waitForTimeout(400);
+console.log('  모달:', await p.evaluate(()=>document.getElementById('tl_lab').textContent), await p.evaluate(()=>document.getElementById('tl_dur').textContent), '(08:30–11:00 2h 30m)');
+console.log('  태그 프리필:', await p.evaluate(()=>document.querySelector('.tlpick.on').innerText));
+console.log('  내용 프리필:', await p.inputValue('#tl_title'));
+console.log('  시각 select 존재:', await p.evaluate(()=>!!document.getElementById('tl_s')));
+await p.fill('#tl_title','림월드 스팀 세일판');
+await p.selectOption('#tl_code','B.8a');
+await p.evaluate(()=>{[...document.querySelectorAll('#modal button')].find(x=>x.innerText.trim()==='저장').click();});
+await p.waitForTimeout(450);
+console.log(' ', await TL(), '(시간 그대로, 내용만 바뀌어야)');
+
+console.log('=== ③ 두 칸 탭은 그대로 (신설·덮어쓰기) ===');
+await p.evaluate(()=>tlSlotClick(57));await p.waitForTimeout(250);
+console.log('  pick:', await p.evaluate(()=>DB.ui.tlPick));
+await p.evaluate(()=>tlSlotClick(57));await p.waitForTimeout(350);
+console.log('  모달 범위:', await p.evaluate(()=>document.getElementById('tl_lab').textContent));
+await p.evaluate(()=>{[...document.querySelectorAll('#modal .tlpick')].find(x=>x.innerText.includes('식사')).click();});
+await p.fill('#tl_title','점심');
+await p.evaluate(()=>{[...document.querySelectorAll('#modal button')].find(x=>x.innerText.trim()==='저장').click();});
+await p.waitForTimeout(450);
+console.log(' ', await TL());
+
+console.log('=== ④ 범위 선택 중엔 ✎ 무시 ===');
+await p.evaluate(()=>tlSlotClick(108));await p.waitForTimeout(250);
+await p.evaluate(()=>{const e=document.querySelector('[data-tledit="90"]');if(e)e.click();});
+await p.waitForTimeout(350);
+console.log('  모달 열림:', await p.evaluate(()=>document.getElementById('ov').classList.contains('on')), '| pick:', await p.evaluate(()=>DB.ui.tlPick));
+console.log('  (✎가 아니라 칸 클릭으로 처리되어 범위가 잡혔거나 모달이 떠야)');
+console.log('  JS 에러:', errs.length, errs.slice(0,2).join(' | '));
+await b.close();})();

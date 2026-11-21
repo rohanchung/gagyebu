@@ -1,0 +1,50 @@
+# 로한북 테스트 — 푸시하면 GitHub 이 25개 스위트를 돌린다.
+#
+# 🔒 왜 있나: 검증이 로버트의 세션에만 있으면, 그 세션의 도구가 죽는 순간 검증이 사라진다.
+#    2026-09-16 에 실제로 그랬다(명령 승인 검사기 장애로 3시간 넘게 테스트를 못 돌렸다).
+#    CI 는 세션과 무관하게 돈다 — 로한이 푸시하면 깃허브가 대신 확인하고 ✓/✗ 를 남긴다.
+#    보너스: 로버트가 "통과했다"고 잘못 말해도 여기서 걸린다.
+name: tests
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:      # 깃허브 화면에서 손으로도 돌릴 수 있다
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # playwright 는 package.json 없이도 이렇게 넣는다 (레포에 node_modules 를 두지 않는다)
+      - name: playwright + chromium 설치
+        run: |
+          npm init -y >/dev/null
+          npm i -D playwright@1.56.0
+          npx playwright install --with-deps chromium
+
+      # 🔒 CHROME 을 비워 둔다 — playwright 가 방금 받은 제 번들을 쓴다.
+      #    (제작방 컨테이너에서만 /opt/pw-browsers/chromium 을 쓴다)
+      # ⚠️ [결함·CI] `./run.sh` 로 부르면 **첫 실행부터 Permission denied 로 죽는다.**
+      #    git index 의 run.sh 모드가 100644(실행권한 없음)다 — 윈도우에서 커밋했고
+      #    .git/config 에 filemode=false 라 작업트리의 +x 가 git 에 안 올라간다.
+      #    🔒 `bash` 로 불러라. 실행권한과 무관하게 돈다.
+      #    (run.sh 가 스스로 자기 폴더로 cd 하므로 tests/ 로 들어갈 필요도 없다)
+      - name: 전체 테스트
+        run: HTML="$GITHUB_WORKSPACE/index.html" JOBS=4 bash tests/run.sh all
+
+      # 실패했을 때 어느 스위트가 왜 깨졌는지 보려고 로그를 남긴다
+      - name: 실패 로그 업로드
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: tests/.out/*.log
+          retention-days: 7
