@@ -56,8 +56,7 @@ jobs:
           for f in tests/.out/*.log; do
             n=$(basename "$f" .log)
             if grep -qE "✗|Error|실패 [1-9]" "$f"; then
-              msg=$(grep -m6 -E "✗|Error|실패" "$f" | tr '
-' ' ' | cut -c1-900)
+              msg=$(grep -m6 -E "✗|Error|실패" "$f" | tr -s '[:space:]' ' ' | cut -c1-900)
               echo "::error title=$n::$msg"
             fi
           done
