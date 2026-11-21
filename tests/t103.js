@@ -3,12 +3,14 @@
    🔒 S  소스에 실데이터 꼴이 없다(사업자번호 꼴 · 가린 증권번호 꼴 · 생년월일 · 씨앗 속 금액) — 진짜 값은 테스트에 싣지 않고 「꼴」로만 잰다
    🔒 N  새 기기(서버에 데이터가 있다) — 씨앗이 비어도 서버 값을 지우거나 덮지 않는다(사주 원국 · 건강 · 어머니 · 세무 · 보험 · 계좌)
    🔒 E  빈 계정 — 화면마다 죽지 않는다 · 사주는 「원국이 아직 없다」 · 키가 없으면 BMI 「—」 · 어머니 칸을 만들지 않는다
-   🔒 O  오프라인 첫 실행 — 서버가 응답하지 않아도 죽지 않는다 */
+   🔒 O  오프라인 첫 실행 — 서버가 응답하지 않으면 「불러오지 못했다」에서 멈춘다 · 아무것도 저장하지 않는다
+   🔴 A  v5.15 — 11/21 22:14 사고 재현: 읽기는 **오류로 답하고**(로그인 만료) 쓰기는 되는 서버
+        → 빈 씨앗으로 시작해 자동 저장이 47칸을 비웠다. 이제는 멈추고 저장 0 */
 const {chromium}=require('playwright');const path=require('path');const fs=require('fs');
 const file=process.argv[2]||path.join(__dirname,'..','index.html');
 let pass=0,fail=0;const bad=[];
 const ok=(n,c,x)=>{if(c)pass++;else{fail++;bad.push(n+(x!==undefined?'  → '+x:''));}};
-/* 서버 흉내 — mode: 'full'(데이터 있음) · 'empty'(빈 계정) · 'down'(응답 없음) */
+/* 서버 흉내 — mode: 'full'(데이터 있음) · 'empty'(빈 계정) · 'down'(응답 없음) · 'autherr'(읽기는 오류 · 쓰기는 됨) */
 const FAKE=(mode)=>{
   const S={kv:{},saves:[]}; window.__S=S; const at=new Date().toISOString();
   if(mode==='full'){
@@ -30,9 +32,12 @@ const FAKE=(mode)=>{
   }
   if(mode!=='down'){const seed={schemaVersion:9,actTzFixed:1};Object.keys(seed).forEach(k=>{if(!S.kv[k])S.kv[k]={data:seed[k],rev:1,at};});}
   function q(name){const st={inKeys:null};const o={select(){return o},eq(){return o},order(){return o},limit(){return o},
-    in(c,ks){st.inKeys=ks;return o},gt(){return o},update(){return o},upsert(){return Promise.resolve({})},insert(){return Promise.resolve({data:[],error:null})},delete(){return o},
-    maybeSingle(){return mode==='down'?Promise.reject(new Error('offline')):Promise.resolve({data:null,error:null})},
-    then(a,b){if(mode==='down')return Promise.reject(new Error('offline')).then(a,b);let data=[];if(name==='app_kv'){let ks=Object.keys(S.kv);if(st.inKeys)ks=ks.filter(k=>st.inKeys.includes(k));
+    in(c,ks){st.inKeys=ks;return o},gt(){return o},update(){st.upd=1;return o},upsert(){S.saves.push(name+':upsert');return Promise.resolve({})},insert(){return Promise.resolve({data:[],error:null})},delete(){return o},
+    maybeSingle(){return mode==='down'?Promise.reject(new Error('offline')):Promise.resolve(mode==='autherr'?{data:null,error:{message:'JWT expired'}}:{data:null,error:null})},
+    then(a,b){if(mode==='down')return Promise.reject(new Error('offline')).then(a,b);
+      if(st.upd){S.saves.push(name+':update');return Promise.resolve({data:[{updated_at:new Date().toISOString()}],error:null}).then(a,b);}
+      if(mode==='autherr')return Promise.resolve({data:null,error:{message:'JWT expired'}}).then(a,b);
+      let data=[];if(name==='app_kv'){let ks=Object.keys(S.kv);if(st.inKeys)ks=ks.filter(k=>st.inKeys.includes(k));
       data=ks.map(k=>({key:k,data:JSON.parse(JSON.stringify(S.kv[k].data)),rev:S.kv[k].rev,updated_at:S.kv[k].at}));}
       return Promise.resolve({data,error:null}).then(a,b);}};return o;}
   function rpc(fn,args){
@@ -104,7 +109,13 @@ const FAKE=(mode)=>{
   /* ── O) 오프라인 첫 실행 ── */
   const O=await run('down',async p=>{await p.waitForTimeout(1500);
     return await p.evaluate(()=>({db:typeof DB!=='undefined'&&!!DB,acc:(typeof DB!=='undefined'&&DB&&DB.accounts)?DB.accounts.length:-1,natal:(typeof DB!=='undefined'&&DB&&DB.saju)?DB.saju.natal:'x',body:document.body.innerText.slice(0,300).replace(/\s+/g,' '),login:getComputedStyle(document.getElementById('login')).display,app:document.getElementById('app').className}));});
-  ok('O1 오프라인 첫 실행 — 실데이터 없는 틀로 뜬다',O.r.db&&O.r.acc===0&&O.r.natal==null,JSON.stringify(O.r));
+  ok('O1 오프라인 첫 실행 — 「불러오지 못했다」에서 멈춘다(빈 틀로 뜨지 않는다)',!O.r.db&&/불러오지 못했다/.test(O.r.body),JSON.stringify(O.r));
+  /* ── A) 🔴 11/21 사고 — 읽기 오류 · 쓰기 됨 ── */
+  const A=await run('autherr',async p=>{await p.waitForTimeout(3000);
+    return await p.evaluate(()=>({db:typeof DB!=='undefined'&&!!DB,saves:window.__S.saves.slice(),fail:!!document.getElementById('loadFail'),txt:(document.getElementById('loadFail')||{}).textContent||''}));});
+  ok('A1 🔴 읽기가 오류면 빈 씨앗으로 시작하지 않는다 — 「불러오지 못했다」',!A.r.db&&A.r.fail&&/다시 불러오기/.test(A.r.txt),JSON.stringify(A.r));
+  ok('A2 🔴 아무것도 저장하지 않는다(키 칸·덩어리 모두 0)',A.r.saves.length===0,JSON.stringify(A.r.saves));
+  ok('A3 페이지 에러 없음(읽기 오류)',A.errs.length===0,A.errs.join(' | '));
   ok('O2 페이지 에러 없음(오프라인)',O.errs.filter(e=>!/offline/.test(e)).length===0,O.errs.join(' | '));
  }catch(e){fail++;bad.push('예외 '+e.message);}finally{await b.close();}
  console.log('t103 '+pass+'/'+(pass+fail)+(bad.length?'\n  ✗ '+bad.join('\n  ✗ '):''));process.exit(fail?1:0);
