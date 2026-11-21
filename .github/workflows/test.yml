@@ -14,7 +14,10 @@ on:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    # 🔴 [결함·CI 2026-11] 「playwright + chromium 설치」에서 몇 주째 죽고 있었다(테스트는 돌지도 않았다).
+    #    ubuntu-latest 가 바뀌면 고정한 playwright(1.56)의 --with-deps 가 시스템 패키지를 못 깐다.
+    #    🔒 러너를 고정한다 — 바꿀 때는 playwright 판과 같이 올린다
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
