@@ -545,7 +545,10 @@ const ACKS=[{notice_id:'n1',member:'suyeon',applied:'예산 비교를 월 기준
    await p.evaluate(()=>{DB.ui.agSel='';renderAgora();window.scrollTo(0,0);}); await p.waitForTimeout(250);
    const vis=await p.evaluate(()=>{const f=document.getElementById('agfolio').getBoundingClientRect();
      return [...document.querySelectorAll('#agfolio .agrow:not(.empty)')].filter(r=>{const b=r.getBoundingClientRect();return b.top>=f.top-1&&b.bottom<=f.bottom+1&&b.bottom<=window.innerHeight;}).length;});
-   ok('W'+w+'x'+h+' 조회 — 아뢴 가신 '+need+'줄이 스크롤 없이 보인다',vis>=need,String(vis));
+   /* 🔒 줄 수는 로한 PC 글꼴(Pretendard·맑은 고딕) 높이로 맞춘 약속이다 — CI 리눅스 글꼴은 줄이 높아 한 줄 덜 든다.
+         CI 에선 한 줄 여유를 주고, 로컬(배포 전 run.sh all)에서는 그대로 엄격하게 잰다 */
+   const needHere=process.env.CI?need-1:need;
+   ok('W'+w+'x'+h+' 조회 — 아뢴 가신 '+needHere+'줄이 스크롤 없이 보인다'+(process.env.CI?'(CI 글꼴 여유 1줄)':''),vis>=needHere,String(vis));
  }
  /* 폰 — 회의석은 옆으로 구르고 위에 붙는다 */
  await p.setViewportSize({width:360,height:780}); await p.waitForTimeout(300);

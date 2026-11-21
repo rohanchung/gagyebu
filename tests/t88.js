@@ -64,7 +64,9 @@ const FAKE=()=>{
     const p1=col().querySelector('.dpill').textContent, h1=document.querySelector('#v-daily .ph-s').textContent, open1=dayOpen(), chk=(DB.checks[t]||{done:[]}).done.indexOf('R.2')>=0;
     const wr=[...col().querySelectorAll('.dwg-wk .dwr')].find(r=>/교육청/.test(r.textContent)); wr.querySelector('.dwck').click();
     const done=DB.work.tasks.find(x=>x.title==='교육청 방문').status;
-    const fut=document.querySelector('#v-daily .dwc.fut'), futTxt=fut?fut.querySelector('.dwg-rt').textContent:'', futCk=fut?fut.querySelectorAll('.dwg-rt .dwck').length:-1;
+    /* 🔒 주의 마지막 날(토)엔 이번 주에 올 날이 없다 — 다음 주에서 본다 */
+    let fut=document.querySelector('#v-daily .dwc.fut'), moved=false; if(!fut){dvMove(1); moved=true; fut=document.querySelector('#v-daily .dwc.fut');}
+    const futTxt=fut?fut.querySelector('.dwg-rt').textContent:'', futCk=fut?fut.querySelectorAll('.dwg-rt .dwck').length:-1; if(moved)dvToday();
     const past=[...document.querySelectorAll('#v-daily .dwc')].find(c=>c.querySelector('.dvh').dataset.gcal===addDays(t,-1)), pastTxt=past?past.querySelector('.dwg-rt').textContent:'(지난 날이 다른 주)';
     [...col().querySelectorAll('.dwg-wk .dwt')][0].click(); const tab=DB.ui.dailyTab, open2=dayOpen();
     return {p0,p1,h0:/오늘 \d\/\d/.exec(h0)[0],h1:/오늘 \d\/\d/.exec(h1)[0],open1,chk,done,futTxt,futCk,pastTxt,tab,open2};});

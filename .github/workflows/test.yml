@@ -68,4 +68,5 @@ jobs:
         with:
           name: test-logs
           path: tests/.out/*.log
+          include-hidden-files: true
           retention-days: 7

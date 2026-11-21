@@ -324,6 +324,8 @@ function init({session,users}){
  ok('I10b 눈금 간격은 오른쪽(기록 버튼 옆)',await p.evaluate(()=>{const s=document.getElementById('stepGrp').getBoundingClientRect(),l=document.getElementById('bLog').getBoundingClientRect(),n=document.getElementById('bNew').getBoundingClientRect();return s.left>n.right&&l.left-s.right<40;}));
  await p.setViewportSize({width:1536,height:730});await wait(250);
  tf=await tabFit();
+ /* 🔒 글꼴이 좁으면(CI 리눅스) 1536 에서 8개가 다 들어간다 — 넘칠 때까지 더 좁혀서 같은 동작을 본다 */
+ for(const w of [1280,1100,960]){if(tf.shown<8)break;await p.setViewportSize({width:w,height:730});await wait(250);tf=await tabFit();}
  ok('I10c 좁은 창: 넘치는 판만 목록으로(외 N개) · 탭 넘침 없음',tf.shown<8&&tf.over<=1&&new RegExp('외 '+(8-tf.shown)+'개').test(tf.more)&&tf.cur,tf);
  await p.evaluate(()=>switchBoard(BOARDS[BOARDS.length-1].id));await wait(100);
  tf=await tabFit();

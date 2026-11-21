@@ -68,7 +68,10 @@ const FAKE=()=>{
   await ctx.addInitScript(FAKE);
   const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('dialog',d=>d.accept());
   await p.route('**/*supabase*',r=>r.abort());
-  await p.goto('file://'+file);await p.waitForTimeout(1800);
+  /* 🔒 file:// 이 아니라 가짜 http 주소로 연다 — 리눅스 크롬(CI)은 file:// 에서 새로고침하면
+        localStorage·IndexedDB 가 비어 나온다(가짜 서버·기기 사본이 같이 사라져 S2 가 깨졌다) */
+  await p.route('http://rb.test/**',r=>new URL(r.request().url()).pathname==='/'?r.fulfill({path:file,contentType:'text/html; charset=utf-8'}):r.fulfill({status:404,body:''}));
+  await p.goto('http://rb.test/');await p.waitForTimeout(1800);
   const L1=await p.evaluate(()=>({info:KV_LOADINFO,on:KV_ON}));
   ok('S1 처음엔 전부 받는다',L1.on&&L1.info&&L1.info.fetched===L1.info.keys&&L1.info.cached===0,JSON.stringify(L1));
   ok('S6 실시간 신호는 kv_ping 구독',await p.evaluate(()=>window.__S.subs.some(f=>f&&f.table==='kv_ping')));
