@@ -33,6 +33,10 @@ jobs:
           npm i -D playwright@1.56.0
           npx playwright install --with-deps chromium
 
+      # 🔒 로한의 PC 와 같게 — 한글 글꼴(글자 폭·넘침을 재는 테스트) · 한국 시간(날짜 경계를 재는 테스트)
+      - name: 한글 글꼴
+        run: sudo apt-get install -y fonts-noto-cjk >/dev/null
+
       # 🔒 CHROME 을 비워 둔다 — playwright 가 방금 받은 제 번들을 쓴다.
       #    (제작방 컨테이너에서만 /opt/pw-browsers/chromium 을 쓴다)
       # ⚠️ [결함·CI] `./run.sh` 로 부르면 **첫 실행부터 Permission denied 로 죽는다.**
@@ -41,7 +45,22 @@ jobs:
       #    🔒 `bash` 로 불러라. 실행권한과 무관하게 돈다.
       #    (run.sh 가 스스로 자기 폴더로 cd 하므로 tests/ 로 들어갈 필요도 없다)
       - name: 전체 테스트
+        env:
+          TZ: Asia/Seoul
         run: HTML="$GITHUB_WORKSPACE/index.html" JOBS=4 bash tests/run.sh all
+
+      # 🔒 실패한 스위트를 **공개 주석**으로 남긴다 — 작업 로그는 관리자만 받을 수 있어 제작방이 못 읽는다
+      - name: 실패 요약(주석)
+        if: failure()
+        run: |
+          for f in tests/.out/*.log; do
+            n=$(basename "$f" .log)
+            if grep -qE "✗|Error|실패 [1-9]" "$f"; then
+              msg=$(grep -m6 -E "✗|Error|실패" "$f" | tr '
+' ' ' | cut -c1-900)
+              echo "::error title=$n::$msg"
+            fi
+          done
 
       # 실패했을 때 어느 스위트가 왜 깨졌는지 보려고 로그를 남긴다
       - name: 실패 로그 업로드
