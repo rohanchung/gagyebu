@@ -53,6 +53,28 @@ select rb_call('순환기','rec_add', $${"key":"healthPeople","path":["mom","eve
   "rec":{"date":"2026-01-15","name":"예시 진료"}}$$::jsonb);
 ```
 
+`map_put` · `map_del` 도 `path` 를 받는다(2026-11-23 · 칸 안쪽 객체의 한 칸만). 바깥 칸이 없으면 거절한다 — 바깥부터 만든다.
+
+### 📜 토정비결 2판 — `saju/readings` 의 `tojeong:YYYY` (사주 actor)
+출처를 따로따로 넣어도 서로 덮지 않게, **바깥 틀 한 번 → 출처 한 줄씩 → 종합** 순서로 넣는다.
+```sql
+-- ① 틀 (해마다 한 번 · 이미 있으면 건너뛴다)
+select rb_call('사주','map_put', $${"key":"saju/readings","sub":"tojeong:2027","why":"2027 토정 틀",
+  "value":{"v":2,"year":2027,"madeAt":"2026-11-23","gwae":null,"sources":[],"synth":null}}$$::jsonb);
+-- ② 출처 하나 (kind: room=우리 방 · vendor=외부 업체 / luck: good·mixed·bad·null — 쓴 쪽이 말한 것만)
+select rb_call('사주','rec_add', $${"key":"saju/readings","path":["tojeong:2027","sources"],"why":"출처 추가(예시)",
+  "rec":{"id":"s1","who":"예시업체","kind":"vendor","gwae":{"no":"000","name":"예시 괘"},"title":"예시 제목",
+         "body":"요지를 옮겨 적은 글(예시)","months":{"1":{"t":"예시","luck":"good"}},"src":"예시 앱","at":"2026-11-23"}}$$::jsonb);
+-- 출처 하나 고치기
+select rb_call('사주','rec_edit', $${"key":"saju/readings","path":["tojeong:2027","sources"],"id":"s1","why":"오타","patch":{"title":"고친 제목"}}$$::jsonb);
+-- ③ 종합(정리한 한 판) · 종합의 한 달만
+select rb_call('사주','map_put', $${"key":"saju/readings","path":["tojeong:2027"],"sub":"synth","why":"종합",
+  "value":{"by":"점술부장","summary":"예시 총평","months":null,"keys":["예시"],"note":"갈린 곳 정리(예시)"}}$$::jsonb);
+select rb_call('사주','map_put', $${"key":"saju/readings","path":["tojeong:2027","synth","months"],"sub":"3","why":"3월 종합",
+  "value":{"t":"예시","luck":"mixed"}}$$::jsonb);
+```
+서버가 거절하는 것: `kind`·`luck` 이 정한 값 밖 · 출처 id 겹침 · 달 키가 1~12 밖 · `year` 가 키의 해와 다름. 합의(몇 곳이 같은 길흉)는 넣지 않는다 — 화면이 센다. 외부 업체 글은 통째로 붙이지 말고 요지를 옮겨 적는다.
+
 ## 예시
 ```sql
 -- 거래 추가

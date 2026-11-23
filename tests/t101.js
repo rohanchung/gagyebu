@@ -81,7 +81,7 @@ const FAKE=()=>{
   ok('T3c 좁으면 판 칩으로 하나씩',T3b.vis===1&&T3b.by.join()==='Gemini'&&T3b.chips==='block',JSON.stringify(T3b));
   await p.setViewportSize({width:1280,height:900});
   await p.evaluate(()=>{Object.keys(DB.saju.readings).forEach(k=>{if(/^tojeong:/.test(k))delete DB.saju.readings[k];});renderSaju();});
-  ok('T6 키가 없으면 「아직 없다 — 사주방이 넣는다」',await p.evaluate(()=>/토정비결이 아직 없다 — 사주방이 넣는다/.test(document.getElementById('v-saju').textContent)));
+  ok('T6 키가 없으면 「YYYY년 토정비결이 아직 없다 — 점술부장이 넣는다」',await p.evaluate(()=>/\d{4}년 토정비결이 아직 없다 — 점술부장이/.test(document.getElementById('v-saju').textContent)));
   const T8=await p.evaluate(()=>{SM.data={x:1};sjSetTab('tojeong');const keep=SM.data;sjSetTab('main');const main=/총운/.test(document.getElementById('v-saju').textContent);
     sjSetTab('summit');const sm=sjTab()==='summit'&&SM.data===null;sjSetTab('main');return {keep:!!keep,main,sm};});
   ok('T8 사주 탭 그대로 · 대토론은 들어갈 때 새로 읽는다 · 토정 탭은 대토론 분기를 안 탄다',T8.keep&&T8.main&&T8.sm,JSON.stringify(T8));
