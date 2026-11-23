@@ -41,6 +41,18 @@ select key, rev, length(data::text) chars, updated_by, updated_at from app_kv or
 
 모든 동사에 `why`(이유)를 붙이기를 권장한다. 이력 화면에 그대로 보인다.
 
+### 칸 안쪽 배열 — `path` (2026-11-23)
+객체 칸 **안에 든 레코드 배열**(예: `health/rest` 의 `events`, `healthPeople` 의 `mom` → `events`)도 한 건씩 다룬다.
+`rec_add` · `rec_edit` · `rec_remove` 에 `path`(문자열 배열)를 붙인다. 배열을 통째로 다시 짜지 않는다.
+```sql
+-- 검진 이벤트 한 건만 고친다 (상태 · 날짜 · 결과)
+select rb_call('순환기','rec_edit', $${"key":"health/rest","path":["events"],"id":"x예시아이디",
+  "why":"검진 시행 완료","patch":{"status":"완료","treatment":"결과 요약(예시)"}}$$::jsonb);
+-- 가족(어머니) 이벤트 추가
+select rb_call('순환기','rec_add', $${"key":"healthPeople","path":["mom","events"],"why":"진료 기록",
+  "rec":{"date":"2026-01-15","name":"예시 진료"}}$$::jsonb);
+```
+
 ## 예시
 ```sql
 -- 거래 추가
@@ -75,7 +87,7 @@ select rb_call('생활사','map_put', $${"key":"budgets","sub":"통신비","valu
 5. 로한에게 한국어로 보고한다: 무엇을 · 몇 건 · 왜 · 로한북에서 어디서 보이는지.
 
 ## 하지 말 것
-- `update app_state …` / `update app_kv …` 로 직접 쓰는 것. 이력에 direct-sql 로 남고, 다음 단계에서 막힌다.
+- `update app_state …` / `update app_kv …` 로 직접 쓰는 것. 🔴 **app_state 직접 쓰기는 2026-11-23 부터 서버가 거절한다** — 2026-11-21 부터는 써도 앱에 닿지 않고 사라졌다. app_kv 직접 쓰기는 이력에 direct-sql 로 남는다.
 - 레코드 배열을 통째로 바꾸는 것(`kv_put` 으로 transactions 등).
 - 이유 없이 지우는 것.
 - 다른 담당사의 키를 쓰는 것. 필요하면 핸드오프로 그 방에 요청한다.
