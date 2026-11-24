@@ -82,13 +82,13 @@ const FAKE=()=>{
     await new Promise(r=>setTimeout(r,80));const s=DB.study.sweep,h=s.history[0];
     return {round:s.round,idx:s.idx,pool:s.pool.length,n:s.order.length,h,t:document.getElementById('v-study').textContent};});
   ok('S13 풀이 비면 history 에 남기고 2회차 · 새로 섞고 처음부터',S13.round===2&&S13.idx===0&&S13.pool===0&&S13.n===30&&S13.h&&S13.h.round===1&&S13.h.size===30&&S13.h.firstPassCorrect===23&&S13.h.poolPeak===7&&!!S13.h.endedAt,JSON.stringify(S13.h));
-  ok('S14 결과 화면 한 줄 — 「1회차 완료 — 첫 바퀴 정답 77% · 오답 풀 최대 7」',/1회차 완료 — 첫 바퀴 정답 77% · 오답 풀 최대 7/.test(S13.t),S13.t.slice(0,200));
+  ok('S14 결과 화면 한 줄 — 「1회독 완료 — 첫 답 정답률 77% · 오답 풀 최대 7」',/1회독 완료 — 첫 답 정답률 77% · 오답 풀 최대 7/.test(S13.t),S13.t.slice(0,200));
   /* S15 — 드릴 탭 행 · 끄면 예전 간격 반복 */
   const S15=await p.evaluate(async()=>{stDrillClose();DB.ui.studyTab='word';renderStudy();await new Promise(r=>setTimeout(r,80));
     const row=document.querySelector('#v-study .drow[data-mode="r2m"]');const t=row?row.textContent:'';
     stSweepTog();stDrillStart('r2m',10);const off=!ST_DRILL.sweep;stDrillQuit();stDrillClose();stSweepTog();
     return {t,off,on:stSweepOn()};});
-  ok('S15 행에 「🔁 2회차 · 첫 바퀴 0 / 30 · 오답 풀 0」',/🔁 2회차 · 첫 바퀴 0 \/ 30 · 오답 풀 0/.test(S15.t),S15.t.slice(0,120));
+  ok('S15 행에 「🔁 2회독 0 / 30 · 오답 풀 0」(v5.18 — 로한: 한 바퀴보다 1회독)',/🔁 2회독 0 \/ 30 · 오답 풀 0/.test(S15.t),S15.t.slice(0,120));
   ok('S16 한 바퀴를 끄면 예전 세트(간격 반복)로 · 다시 켤 수 있다',S15.off&&S15.on);
   /* S17 — study/rest 에 실려 서버로 간다(KV_KIDS 아님) */
   const S17=await p.evaluate(()=>{const o=kvSplit(DB);return {rest:!!(o['study/rest']&&o['study/rest'].sweep),kid:KV_KIDS.study.indexOf('sweep')};});

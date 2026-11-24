@@ -82,7 +82,8 @@ const FAKE=()=>{
   /* 크기 — 문제 화면 · 정답 카드 */
   for(const [w,h] of [[1280,720],[360,780]]){
     await p.setViewportSize({width:w,height:h});
-    await p.evaluate(()=>stDrillStart('k2r',6));await p.waitForTimeout(300);
+    /* 첫 문항이 표에 없는 글자(桜)면 훈음 줄이 없다 — 표에 있는 단어가 첫 문항이 될 때까지 다시 연다 */
+    await p.evaluate(()=>{for(let k=0;k<30;k++){stDrillStart('k2r',6);if(ST_DRILL.ids[0]!=='w4')break;stDrillQuit();stDrillClose();}});await p.waitForTimeout(300);
     const m1=await p.evaluate(()=>{const s=[...document.querySelectorAll('#v-study .kjhun, #v-study .kjhun *')].filter(e=>e.offsetParent&&parseFloat(getComputedStyle(e).fontSize)<10.5).length;
       return {over:document.documentElement.scrollWidth-window.innerWidth,small:s,has:document.querySelectorAll('#v-study .kjhun').length};});
     await p.evaluate(()=>stDrillGrade(ST_DRILL.opts[ST_DRILL.i][0]));await p.waitForTimeout(80);

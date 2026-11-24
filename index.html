@@ -6914,12 +6914,12 @@ function stSweepEnd(s){
   return h;
 }
 function stSweepDoneTxt(h){
-  return h.round+'회차 완료 — 첫 바퀴 정답 '+(h.size?Math.round(h.firstPassCorrect/h.size*100):0)+'% · 오답 풀 최대 '+stNum(h.poolPeak);
+  return h.round+'회독 완료 — 첫 답 정답률 '+(h.size?Math.round(h.firstPassCorrect/h.size*100):0)+'% · 오답 풀 최대 '+stNum(h.poolPeak);
 }
 /* 화면 한 줄 */
 function stSweepLine(){
   var L=stSweepLive();
-  return '🔁 <b>'+L.round+'회차</b> · '+(L.phase==='A'?('첫 바퀴 <b>'+stNum(L.idx)+'</b> / '+stNum(L.total)):'<b>첫 바퀴 끝</b>')+' · 오답 풀 <b>'+stNum(L.pool)+'</b>';
+  return '🔁 <b>'+L.round+'회독</b> '+(L.phase==='A'?('<b>'+stNum(L.idx)+'</b> / '+stNum(L.total)):'<b>본문 끝</b>')+' · 오답 풀 <b>'+stNum(L.pool)+'</b>';
 }
 /* ══════ 🎓 v5.12 아는 단어 빼기(졸업 필터) — 학습사 id 8 (11/18 · 로한 요청) ══════
    로한: 「어제 1바퀴 돌렸는데 아는 것과 모르는 것이 확연히 갈린다. 시간이 없으니 확실히 아는 건 빼도 좋다. 옵션으로 넣어 달라」
@@ -8895,18 +8895,18 @@ function stTodayTxt(t){
 }
 /* 드릴 머리줄 — 답할 때마다 줄어든다. 복습이 있으면 복습 · 없으면 새로 볼 것 */
 function stGoalLive(D){if(!D||D.g0==null)return '';
-  if(D.sweep){var L=stSweepLive();return ' <span class="stgoallive">'+(D.sweep.phase==='A'?'🔁 '+D.sweep.round+'회차 첫 바퀴 <b>'+stNum(L.idx)+'</b> / '+stNum(L.total):'🔁 오답 풀 <b>'+stNum(L.pool)+'</b>개 남음')+'</span>';}
+  if(D.sweep){var L=stSweepLive();return ' <span class="stgoallive">'+(D.sweep.phase==='A'?'🔁 '+D.sweep.round+'회독 <b>'+stNum(L.idx)+'</b> / '+stNum(L.total):'🔁 오답 풀 <b>'+stNum(L.pool)+'</b>개 남음')+'</span>';}
   var t=stToday(D.mode);
   if((D.g0||0)>0||t.due>0)return ' <span class="stgoallive" title="오늘 다시 볼 때가 된 것">오늘 복습 <b>'+t.due+'</b> 남음'+(t.due<D.g0?' <span class="pos">−'+(D.g0-t.due)+'</span>':'')+'</span>';
   return ' <span class="stgoallive" title="오늘 복습은 끝났다 — 새로 보는 것">새로 볼 것 <b>'+t.fresh+'</b>'+((D.f0||0)>t.fresh?' <span class="pos">−'+(D.f0-t.fresh)+'</span>':'')+'</span>';}
 /* 결과 화면 — 게이지 둘 + 이번 세트로 움직인 양 */
 function stGoalDelta(D){if(!D||D.g0==null)return '';
   if(D.sweep){var L=stSweepLive();
-    return '<div class="stgoal"><div class="stgoalk"><span><b>🔁 한 바퀴</b> '+(D.sweep.phase==='A'?'첫 바퀴':'오답 풀')+'</span></div>'
+    return '<div class="stgoal"><div class="stgoalk"><span><b>🔁 '+D.sweep.round+'회독</b> '+(D.sweep.phase==='A'?'본문':'오답 풀')+'</span></div>'
       +(D.sweepDone?'<div class="stswdone">🎉 '+mdEsc(stSweepDoneTxt(D.sweepDone))+'</div>':'')
       +'<div class="sgrow"><div class="sgb"><i class="g4" style="width:'+(L.total?(L.idx/L.total*100).toFixed(2):0)+'%"></i></div><span class="sgt">'+stSweepLine()+'</span></div>'
       +'<div class="mut" style="font-size:10.5px;margin-top:3px">'+(D.sweep.phase==='A'
-        ?'첫 바퀴의 첫 답만 실력으로 센다 · 틀린 것은 오답 풀로 간다'
+        ?'회독 본문의 첫 답만 실력으로 센다 · 틀린 것은 오답 풀로 간다'
         :'오답 풀은 <b>두 번</b> 맞혀야 빠진다 · 틀리면 다시 두 번 · 여기서 맞힌 것은 실력 카운터에 안 센다')+'</div></div>';}var t=stToday(D.mode), p=stProg(D.mode), p0=D.p0||p;
   var mv=[]; if(p.solid-p0.solid)mv.push('익힘 <b>'+(p.solid-p0.solid>0?'+':'')+(p.solid-p0.solid)+'</b>');
   if(p.near-p0.near)mv.push('한 번 더 <b>'+(p.near-p0.near>0?'+':'')+(p.near-p0.near)+'</b>');
@@ -8968,9 +8968,9 @@ function stRowHtml(u,P,T){
           +' <span class="mut">접속사·부사·문형 빈칸을 섞어 낸다 · 칩으로 하나만 고를 수 있다</span></div>':'')
       +(k==='r2m'?stGradBox():'')
       +(k==='r2m'?(function(){var S=studyDB().sweep, h=S&&S.history&&S.history.length?S.history[S.history.length-1]:null;
-          return '<div class="drxl">'+(stSweepOn()?stSweepLine()+' · 바퀴는 날짜와 무관하게 이어 간다 · 오답 풀은 두 번 맞혀야 빠진다':'🔁 한 바퀴는 꺼져 있다 — 간격 반복(1일 → 3일 → 7일)으로 낸다')
-            +(h?'<br><span class="mut">지난 바퀴: '+mdEsc(stSweepDoneTxt(h))+'</span>':'')
-            +' <button class="ghost sm" onclick="stSweepTog()">'+(stSweepOn()?'한 바퀴 끄기':'한 바퀴 켜기')+'</button></div>';})():'')
+          return '<div class="drxl">'+(stSweepOn()?stSweepLine()+' · 회독은 날짜와 무관하게 이어 간다 · 오답 풀은 두 번 맞혀야 빠진다':'🔁 회독은 꺼져 있다 — 간격 반복(1일 → 3일 → 7일)으로 낸다')
+            +(h?'<br><span class="mut">지난 회독: '+mdEsc(stSweepDoneTxt(h))+'</span>':'')
+            +' <button class="ghost sm" onclick="stSweepTog()">'+(stSweepOn()?'회독 끄기':'회독 켜기')+'</button></div>';})():'')
       +(k==='r2m'?(function(){var hw=stHardWords().length;return hw?'<div class="drxl"><button class="ghost sm" onclick="stDrillStart(\'r2m\','+Math.min(10,hw)+',true)">🧱 어려운 단어 '+hw+'개 · '+Math.min(10,hw)+'문항</button> <span class="mut">4번 넘게 봤는데 정답률 30% 미만</span></div>':'';})():'')
       +'</div>';
   }
@@ -9019,8 +9019,8 @@ function stPaneWord(){
         '익힘 '+stNum(sum.p.solid)+' · 한 번 더 '+stNum(sum.p.near)+' · 익히는 중 '+stNum(sum.p.learning)+' · 안 봄 '+stNum(sum.p.unseen))
     +'</div>';
   var nW=ws.length, fresh=ws.filter(function(w){return (+stCt(w,'r2m').seen||0)===0;}).length, flag=ws.filter(function(w){return w.flag;}).length;
-  var phase=fresh?('📖 커버리지 단계 — 미출제 '+fresh+'건이 남아 있어 전 단어를 한 바퀴 돌린다. 다 돌면 틀린 단어 위주로 바뀐다.')
-    :(nW?'🎯 약점 집중 단계 — 전 단어를 한 바퀴 돌았다. 이제 틀린 횟수가 순서를 정한다.':'');
+  var phase=fresh?('📖 커버리지 단계 — 미출제 '+fresh+'건이 남아 있어 전 단어를 1회독 한다. 다 돌면 틀린 단어 위주로 바뀐다.')
+    :(nW?'🎯 약점 집중 단계 — 전 단어 1회독을 마쳤다. 이제 틀린 횟수가 순서를 정한다.':'');
   var cols='<span class="dgcols"><span>전체</span><span>오늘 복습</span><span>7일</span></span>';
   var grp=function(g){
     var us=SH.filter(function(u){return u.tier===g.k;}), fold=(window.innerWidth<600)&&stGrpFold(g.k);
@@ -16150,7 +16150,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
-  {v:'5.18',date:'2026-11-24',note:'<b>📚 학습부장 요청 넷</b>(학습 핸드오프 id 8). ① <b>🧩 문형만</b>(새 드릴) — 문형 74개를 보고 뜻 고르기 · 보기는 헷갈리는 묶음끼리(ところ·ことがある 등) · 맞힌 뒤 같은 묶음을 한 화면에서 대비 · 뜻 → 문형 방향도 · 하루 메뉴 「문형만 → 문형 뜻」 순서 ② <b>드릴 탭 정리</b> — 메인 6(뜻 맞히기 · 조사 · 문형만 · 문형 뜻 · 빈칸 단어 · 한자 읽기, 하루 메뉴 순서) · 더 보기(문법 빈칸 = 접속사·부사·문형을 하나로 · 한자 표기 · 같은 뜻) · 듣기·가타카나·한자 보고 뜻·동사 활용·문장 만들기는 탭에서 뺐다(기록은 그대로) ③ <b>해설 = 문장 속 문법 포인트 전부</b> — 문법 드릴 해설 카드에 그 문장의 포인트를 번호로 칠하고 목록으로(빈칸 정답이 든 것은 「빈칸」) ④ <b>한자 읽기 보기가 어려워졌다</b> — 오답은 다른 실제 단어의 읽기만 · 같은 글자 수 + 같은 첫 글자부터(裏 → うで · うら · うみ · うた) · 장음·탁음만 바꾼 가짜 읽기는 안 쓴다'},
+  {v:'5.18',date:'2026-11-24',note:'<b>📚 학습부장 요청 넷</b>(학습 핸드오프 id 8). ① <b>🧩 문형만</b>(새 드릴) — 문형 74개를 보고 뜻 고르기 · 보기는 헷갈리는 묶음끼리(ところ·ことがある 등) · 맞힌 뒤 같은 묶음을 한 화면에서 대비 · 뜻 → 문형 방향도 · 하루 메뉴 「문형만 → 문형 뜻」 순서 ② <b>드릴 탭 정리</b> — 메인 6(뜻 맞히기 · 조사 · 문형만 · 문형 뜻 · 빈칸 단어 · 한자 읽기, 하루 메뉴 순서) · 더 보기(문법 빈칸 = 접속사·부사·문형을 하나로 · 한자 표기 · 같은 뜻) · 듣기·가타카나·한자 보고 뜻·동사 활용·문장 만들기는 탭에서 뺐다(기록은 그대로) ③ <b>해설 = 문장 속 문법 포인트 전부</b> — 문법 드릴 해설 카드에 그 문장의 포인트를 번호로 칠하고 목록으로(빈칸 정답이 든 것은 「빈칸」) ⑤ 「한 바퀴」 → <b>「회독」</b>(로한: 한자어 그대로가 낫다) — 「🔁 2회독 120 / 717 · 오답 풀 8」 · 「1회독 완료 — 첫 답 정답률 x%」 · ④ <b>한자 읽기 보기가 어려워졌다</b> — 오답은 다른 실제 단어의 읽기만 · 같은 글자 수 + 같은 첫 글자부터(裏 → うで · うら · うみ · うた) · 장음·탁음만 바꾼 가짜 읽기는 안 쓴다'},
   {v:'5.17',date:'2026-11-24',note:'<b>🈷 한자 뜻(훈음) 병기</b> — 로한: 「드릴에서 한자 나올 때 한자 뜻도 병기해줘」. 腕時計 → <b>腕</b> 팔 완 · <b>時</b> 때 시 · <b>計</b> 셀 계. 한자 읽기 문제 화면 · 동사 활용 문제 화면 · 정답 카드(모든 모드)에 붙는다. 뜻을 묻는 문항(한자→뜻)과 한자를 고르는 문항(읽기→한자)은 문제 화면엔 안 띄운다 — 훈이 답을 흘린다(정답 카드엔 나온다). 단어장 한자 600자 전부 · 새 한자는 학습방이 study/rest 의 kanjiHun 으로 더한다(없는 글자는 지어내지 않고 건너뜀)'},
   {v:'5.16',date:'2026-11-23',note:'<b>📜 토정비결 2판 — 여러 출처를 모아 정리하는 자리</b>(기획방 id 70). 첫 판은 <b>2027년</b>(올해 것이 없으면 다가오는 해가 기본 · 「시작 전 · 1월부터」). 위에서 아래로 <b>정리한 한 판</b>(총평 · 키워드 · 열두 달 띠 ●길 ◐섞임 ○흉 · 합의 n/m) → <b>달마다 갈림 표</b>(종합 + 출처들 · 길과 흉이 갈린 달은 붉은 「갈림」, 다 같으면 「한목소리」 · 좁은 화면은 달 하나씩 ◀ ▶) → <b>출처별 원문</b>(우리 방 🏛 / 외부 🏷 · 받은 곳·날 · 괘). 길흉은 쓴 쪽이 적은 것만 — 앱이 본문에서 추측하지 않는다 · 합의는 화면에서 센다(저장 안 함) · 채점하지 않는다 · 2026 1판 모양도 그대로 읽는다 · 서버: 토정 칸 모양 검사(tj_check) · rb_call path 를 map_put·map_del 에도 · 바깥 칸 없는 path 는 거절 · 테스트 t104(41)'},
   {v:'5.15',date:'2026-11-21',note:'<b>🔴 사고 대응 — 불러오기에 실패하면 멈춘다(저장 0).</b> 11/21 22:14 — 서버가 <b>오류</b>로 답했는데(로그인 만료·순간 끊김) 앱이 「데이터 없음」으로 읽고 빈 씨앗으로 시작했다 → 켜자마자 도는 자동 저장이 그 빈 틀을 올려 <b>47칸이 비었다</b>(학습·거래·사주·일지 전부) · 서버 이력(events)에 덮이기 직전 값이 칸마다 남아 있어 <b>48칸 전부 22:14 직전으로 되돌렸다</b>(kv_verify 차이 0) · 이제 씨앗은 서버가 「없다」고 분명히 답할 때만 · 오류면 「서버에서 데이터를 불러오지 못했다 · 다시 불러오기」 화면에서 멈추고 아무것도 저장하지 않는다 · 서버: 옛 덩어리(app_state)를 키 칸으로 옮겨 쓰던 장치(blob_to_kv)를 껐다 — 옛 탭이 다시 덮지 못한다 · 테스트: t103 A(읽기 오류 · 쓰기 됨 — 사고 재현 · 옛 판은 실패) · O1 오프라인은 멈춤 화면'},
