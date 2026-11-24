@@ -137,7 +137,7 @@ const EXP={
     await p.evaluate(()=>{const w=stWords().find(x=>x.kanji==='切る');return /1그룹/.test(stVMkQ(w,'te').note);}));
 
  /* ── D) 드릴이 끝까지 돌고 words 카운터에 쌓인다 ── */
- ok('D1 동사 활용 행이 열려 있다(v5.03 행 틀)',/동사 활용/.test(html)&&await p.evaluate(()=>!!document.querySelector('#v-study .drow[data-mode="vconj"]:not(.off)')));
+ ok('D1 🗂 v5.18 동사 활용은 탭에서 뺐다(76% · 문형 드릴이 활용을 함께 다룬다) · 출제는 그대로 된다',await p.evaluate(()=>!document.querySelector('#v-study .drow[data-mode="vconj"]')&&stBlockWhy('vconj')===''));
  await p.evaluate(()=>stDrillStart('vconj',3));await p.waitForTimeout(250);
  const run=await p.evaluate(()=>({n:document.querySelectorAll('#v-study .stdopt button').length,
    hint:(document.querySelector('#v-study .stdhint')||{}).textContent||'',
@@ -249,8 +249,10 @@ const EXP={
  const gb=await p.evaluate(()=>{renderStudy();
    return [...document.querySelectorAll('#v-study .drow[data-mode="gform"],#v-study .drow[data-mode="gsyn"]')]
      .map(x=>({t:x.textContent,off:x.classList.contains('off')}));});   /* v5.03 행 — 「/ 전체」가 문항 수 */
- ok('F13 두 모드가 숫자와 함께 눌리는 상태로 뜬다',
-    gb.some(b=>/문형/.test(b.t)&&/\/\s*2(?!\d)/.test(b.t)&&!b.off)
+ /* 🗂 v5.18 — 문형(gform)은 「문법 빈칸」에 합쳐져 탭에서 빠졌다. 문법 빈칸 행이 그 문항을 담는다 */
+ const gbl=await p.evaluate(()=>{const x=document.querySelector('#v-study .drow[data-mode="gblank"]');return x?{t:x.textContent,off:x.classList.contains('off'),n:stGramItems('gblank').length,f:stGramItems('gform').length}:null;});
+ ok('F13 문법 빈칸 · 같은 뜻이 숫자와 함께 눌리는 상태로 뜬다 (문형 문항은 문법 빈칸 안에)',
+    !!gbl&&!gbl.off&&gbl.n>=gbl.f&&gbl.f===2&&!gb.some(b=>/^문형/.test(b.t))
     &&gb.some(b=>/같은 뜻/.test(b.t)&&/\/\s*5(?!\d)/.test(b.t)&&!b.off),JSON.stringify(gb));
 
  for(const r of R)assert.ok(r.v,r.n+(r.x?'  → '+r.x:''));

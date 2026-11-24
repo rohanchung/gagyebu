@@ -331,8 +331,9 @@ async function boot(st){
   /* v3.3 — 4모드 전부 구현됐다. 막히는 건 **낼 단어가 없는 모드**뿐이다.
      이 픽스처엔 가타카나가 없으니 kata 하나만 disabled 여야 한다. */
   /* ⚠️ v3.9 — 같은 탭에 문법 칸(.gmode)이 생겼다. **단어 칸만** 세야 한다 */
-  ok('K4 kata 만 막혀 있다 (가타카나 0건)',
-     (await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow.off')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))===1,   /* v5.03 행 틀 */
+  /* 🗂 v5.18 — 가타카나는 탭에서 뺐다(숨김). 보이는 단어 행은 다 열려 있다 */
+  ok('K4 kata 는 탭에 없다 · 보이는 단어 행은 막힌 게 없다',
+     (await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow.off')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))===0&&(await p.$$('#v-study .drow[data-mode="kata"]')).length===0,   /* v5.03 행 틀 */
      String((await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow.off')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))));
   await p.evaluate(()=>stDrillStart('k2r',3));await p.waitForTimeout(350);
   ok('K5 3문항 · 첫 문항은 miss 최다',
@@ -550,11 +551,11 @@ async function boot(st){
   /* 🔒 가타카나가 0건이면 그 모드는 disabled — 누르면 빈 화면이 되는 입구는 안 만든다 */
   const dis=await p.evaluate(()=>{setStTab('word');return null;});
   await p.waitForTimeout(300);
-  ok('O2 kata 는 막혀 있다 (0건)',
-     (await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow.off')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))===1,   /* v5.03 행 틀 */
+  ok('O2 kata 는 탭에 없다(v5.18 숨김)',
+     (await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow.off')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))===0,   /* v5.03 행 틀 */
      String((await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow.off')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))));
-  ok('O3 나머지 4모드는 열려 있다',
-     (await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow:not(.off)')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))===4,
+  ok('O3 보이는 단어 모드 3개(뜻 맞히기·한자 읽기·한자 표기)는 열려 있다',
+     (await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow:not(.off)')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))===3,
      String((await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow:not(.off)')].filter(e=>stModeOK(e.dataset.mode)&&e.dataset.mode!=='a2m').length))));
   await p.evaluate(()=>setStdMode('k2m'));await p.waitForTimeout(300);
   ok('O4 고른 모드를 기억한다',(await p.evaluate(()=>stdMode()))==='k2m');
@@ -603,8 +604,8 @@ async function boot(st){
     renderStudy();
   });
   await p.waitForTimeout(300);
-  ok('P2 음성이 생기면 카드가 나타난다',
-     (await p.$$('#v-study .drow[data-mode="a2m"]:not(.off)')).length===1);
+  ok('P2 음성이 생겨도 듣기 행은 탭에 없다(v5.18 — 로한: 듣기 빼고)',
+     (await p.$$('#v-study .drow[data-mode="a2m"]')).length===0);
   ok('P3 ja 음성을 고른다',(await p.evaluate(()=>stTtsJa().lang))==='ja-JP');
   await p.evaluate(()=>stDrillStart('a2m',3));await p.waitForTimeout(600);
   ok('P4 a2m pool 5건',(await p.evaluate(()=>stDrillPool('a2m').length))===5);
@@ -781,13 +782,14 @@ async function boot(st){
      (await p.evaluate(()=>stKanaVariants('こくさい').indexOf('こくざい')>=0))===true);
   ok('S5 원본은 변형 목록에 없다',vs.indexOf('うでどけい')<0);
   /* 🔒 사전에 없는 가짜 읽기가 실제 오답으로 쓰여야 한다 — もんだい1 이 원래 그렇게 낸다 */
-  ok('S6 변형이 실제 오답으로 쓰인다',
+  /* 🔴 v5.18 학습사 11/19 — 가짜 읽기(장음·탁음만 바꾼 것)는 오답에 안 쓴다. 다른 실제 단어의 읽기만 */
+  ok('S6 가짜 읽기는 오답에 안 쓰인다',
      (await p.evaluate(()=>{
        const pool=stDrillPool('k2r'), real={};
        pool.forEach(x=>real[x.kana]=1);
        return stMkOpts(stWordById('s3'),'k2r',pool)
          .filter(x=>x!=='うでどけい').some(x=>!real[x]);
-     }))===true,
+     }))===false,
      JSON.stringify(await p.evaluate(()=>stMkOpts(stWordById('s3'),'k2r',stDrillPool('k2r')))));
 
   /* ③ 오답이 정답과 가까운가 — 정량. v3.4 는 실데이터에서 3.33 이었다 */
@@ -803,7 +805,9 @@ async function boot(st){
     });
     return cnt?tot/cnt:99;
   });
-  ok('S7 오답 평균 편집거리 2.5 이하',far<=2.5,String(Math.round(far*100)/100));
+  /* v5.18 — 편집거리가 아니라 「같은 모라 수 + 같은 첫 글자」가 기준이다(발음 공식으로 풀리지 않게). 거리 숫자는 기록만 */
+  ok('S7 모든 k2r 보기가 실제 단어의 읽기다',await p.evaluate(()=>{const pool=stDrillPool('k2r'),real={};pool.forEach(x=>real[x.kana]=1);
+     return pool.every(w=>stMkOpts(w,'k2r',pool).every(o=>real[o]));}),String(Math.round(far*100)/100));
 
   /* ④ 소리 모드 — 읽기 1글자 차이 / 자타동사 짝 */
   const o5=await p.evaluate(()=>stMkOpts(stWordById('s4'),'r2m',stDrillPool('r2m')));
@@ -1385,8 +1389,8 @@ async function boot(st){
   const tabs=await p.$$eval('#v-study .logtabs button',es=>es.map(e=>e.textContent.trim()));
   ok('Y1 탭 5개',tabs.length===5,JSON.stringify(tabs));
   ok('Y2 단어 탭이 드릴 탭이 됐다',tabs[2].indexOf('드릴')>=0,JSON.stringify(tabs));
-  ok('Y3 문법 칸이 같은 탭에 있다',
-     (await p.$$('#v-study .dgrp[data-grp="gram"]')).length===1);
+  ok('Y3 문법 행이 같은 탭에 있다',
+     (await p.$$('#v-study .drow[data-grp="gram"]')).length>0);
   /* ② 풀 — 조건별로 갈린다 */
   /* 🔒 v4.45 — 개수를 박아두면 예문이 하나 늘거나 빠질 때마다 깨진다.
      세어야 할 것은 **개수가 아니라 자격**이다 — slots 를 갖췄고 답이 새지 않는 것만 들어온다. */
@@ -1525,7 +1529,7 @@ async function boot(st){
   const emp=await p.$eval('#v-study',e=>e.textContent);
   ok('Y40 예문 0건이면 학습방이 올린다고 말한다',emp.indexOf('학습방에서 올린다')>=0,emp.slice(0,200));
   ok('Y41 0건이면 시작 버튼이 막힌다',
-     (await p.$$eval('#v-study .dgrp[data-grp="gram"] .drgo:not([disabled])',es=>es.length))===0);
+     (await p.$$eval('#v-study .drow[data-grp="gram"] .drgo:not([disabled])',es=>es.length))===0);
   ok('Y42 빈 상태에서 시작해도 안 죽는다',
      (await p.evaluate(()=>{stDrillStart('gconj',20);return ST_DRILL===null;}))===true);
   ok('Y43 에러 0',errs.length===0,errs.join('|'));

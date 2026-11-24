@@ -74,7 +74,7 @@ const FAKE=()=>{
     const w1=JSON.stringify(DB.study.words.map(w=>w.m||null));
     return {n1,n2,btn,spk,ja:String(s.ja).replace(/\s+/g,''),play,slow,seenUp:(+s.seen||0)===seen0+1,wSame:w0===w1};});
   ok('A1 듣기 모드 = 조사 채우기와 같은 문항 수',A.n1>0&&A.n1===A.n2,A.n1+'/'+A.n2);
-  ok('A2 음성이 있으면 「🔊 조사 듣기」 칸',A.btn);
+  ok('A2 🗂 v5.18 — 조사 듣기는 탭에서 뺐다(로한: 듣기 빼고) · 출제 함수는 그대로 돈다',!A.btn);
   ok('A3 🔴 새 문항이면 문장 전체를 한 번 읽는다(띄어쓰기 없이)',A.spk.length===1&&A.spk[0].t===A.ja&&A.play,JSON.stringify(A.spk));
   ok('A4 느리게 = 0.6',A.slow&&A.slow.r===0.6,JSON.stringify(A.slow));
   ok('A5 카운터는 문장 — 단어 카운터는 그대로',A.seenUp&&A.wSame);

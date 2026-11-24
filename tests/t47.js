@@ -67,25 +67,26 @@ const STATE={schemaVersion:7,goals:[],routines:[],checks:{},rewards:[],rewardCar
  /* ④ 화면 — 네 모드 버튼 · 조사/부사 드릴이 끝까지 돈다(어순 화면으로 새지 않는다) */
  await p.evaluate(()=>{document.getElementById('login').style.display='none';document.getElementById('app').classList.add('on');gotoTab('study');setStTab('word');});
  await p.waitForTimeout(300);
- const btns=await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow')].filter(x=>ST_GMODES.some(m=>m.k===x.dataset.mode)).map(x=>x.textContent));   /* v5.03 행 틀 */
+ const btns=await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow')].filter(x=>ST_GMODES.some(m=>m.k===x.dataset.mode)).map(x=>x.textContent));
+ /* 🗂 v5.18 — 숨긴 모드(tier hide)는 탭에 없다. 「보이는 문법 모드는 전부 그려진다」가 불변식이다 */   /* v5.03 행 틀 */
  /* v4.30 — 문형·유의표현이 늘었다. 이 fixture 에는 그 데이터가 없으니 **off 로 그려져야** 한다.
     🔒 아예 안 그리면 "그런 드릴이 없다"로 읽힌다 — 있는데 재료가 없는 것과 다르다(빈 서랍 금지의 반대쪽) */
  /* 🔒 v4.50 — **개수를 박지 않는다.** 모드가 하나 늘 때마다 깨지는 단언은 결함을 못 잡고
     사람을 부른다(v4.45 교훈). 「목록에 있는 모드는 전부 그려진다」가 불변식이다. */
- ok('D1 문법 모드가 빠짐없이 그려진다(v5.03 — 음성 모드도 막힌 행으로)',btns.length===(await p.evaluate(()=>ST_GMODES.length))
-    &&['조사','접속사','부사','문형','같은 뜻','문장'].every(k=>btns.some(t=>t.includes(k))),JSON.stringify(btns));
+ ok('D1 보이는 문법 모드가 빠짐없이 그려진다(v5.18 — 숨긴 모드는 없다)',btns.length===(await p.evaluate(()=>ST_GMODES.filter(m=>{const u=stDUI(m.k);return u&&u.tier!=='hide';}).length))
+    &&['조사','문형 뜻','빈칸 단어','문법 빈칸','같은 뜻'].every(k=>btns.some(t=>t.includes(k)))&&!btns.some(t=>/문장 만들기|조사 듣기/.test(t)),JSON.stringify(btns));
  const offb=await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow')].filter(x=>ST_GMODES.some(m=>m.k===x.dataset.mode))
    .filter(x=>x.classList.contains('off')).map(x=>x.textContent));
  /* 🔒 v4.50 — 개수가 아니라 **규칙**을 잰다: 문항이 0개인 모드는 전부 꺼져 있고,
     1개라도 있는 모드는 전부 켜져 있다. 모드가 늘어도 이 단언은 그대로 유효하다. */
- const want=await p.evaluate(()=>ST_GMODES.filter(m=>(m.tts&&!stTtsReady())||stGramItems(m.k).length===0).map(m=>stModeLabel(m.k)));
+ const want=await p.evaluate(()=>ST_GMODES.filter(m=>{const u=stDUI(m.k);return u&&u.tier!=='hide';}).filter(m=>(m.tts&&!stTtsReady())||stGramItems(m.k).length===0).map(m=>stModeLabel(m.k)));
  ok('D1b 재료 없는 모드는 눌리지 않는다 (0문항인 것 전부)',
     offb.length===want.length&&want.every(l=>offb.some(t=>t.indexOf(l)>=0)),
     JSON.stringify({off:offb,want:want}));
  const onb=await p.evaluate(()=>[...document.querySelectorAll('#v-study .drow')].filter(x=>ST_GMODES.some(m=>m.k===x.dataset.mode))
    .filter(x=>!x.classList.contains('off')).map(x=>x.textContent));
  ok('D1c 재료 있는 모드는 전부 눌린다',
-    onb.length===(await p.evaluate(()=>ST_GMODES.filter(m=>!(m.tts&&!stTtsReady())).filter(m=>stGramItems(m.k).length>0).length)),
+    onb.length===(await p.evaluate(()=>ST_GMODES.filter(m=>{const u=stDUI(m.k);return u&&u.tier!=='hide';}).filter(m=>!(m.tts&&!stTtsReady())).filter(m=>stGramItems(m.k).length>0).length)),
     JSON.stringify(onb));
  for(const m of ['gpart','gadv']){
    await p.evaluate(mm=>stDrillStart(mm,2),m);await p.waitForTimeout(200);

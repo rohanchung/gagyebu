@@ -43,17 +43,20 @@ const FAKE=()=>{
   await p.evaluate(()=>{document.querySelector('.side .m[data-v="study"]').click();setStTab('word');});await p.waitForTimeout(400);
 
   const A=await p.evaluate(()=>{const v=document.getElementById('v-study'), rows=[...v.querySelectorAll('.drow[data-mode]')];
-    const word=ST_DRILL_UI.filter(u=>u.grp==='word').map(u=>u.k);
-    return {word, got:rows.filter(r=>r.dataset.grp==='word').map(r=>r.dataset.mode),
+    const main=ST_DRILL_UI.filter(u=>u.tier==='main').map(u=>u.k), more=ST_DRILL_UI.filter(u=>u.tier==='more').map(u=>u.k);
+    const inG=g=>[...v.querySelectorAll('.dgrp[data-grp="'+g+'"] .drow[data-mode]')].map(r=>r.dataset.mode);
+    return {main, more, gotMain:inG('main'), gotMore:inG('more'), hid:rows.filter(r=>(stDUI(r.dataset.mode)||{}).tier==='hide').length,
       allGrp:rows.every(r=>!!r.dataset.grp), grps:[...v.querySelectorAll('.dgrp')].map(g=>g.dataset.grp),
       old:v.querySelectorAll('.stdmode,.gmode,.mstbar').length,
-      gram:(v.querySelector('.dgrp[data-grp="gram"]')||{}).textContent||'', gramGo:v.querySelectorAll('.dgrp[data-grp="gram"] .drgo:not([disabled])').length,
+      gram:rows.filter(r=>r.dataset.grp==='gram').map(r=>r.textContent).join('|'), gramGo:v.querySelectorAll('.drow[data-grp="gram"] .drgo:not([disabled])').length,
       r2m:!!v.querySelector('.drow[data-mode="r2m"]:not(.off) .drgo:not([disabled])'),
       offOk:[...v.querySelectorAll('.drow.off')].every(r=>r.querySelector('.drgo').disabled&&!!r.querySelector('.drwhy'))};});
-  ok('R1 단어 묶음 = 단어 행 전부 · data-grp 가 다 있다',JSON.stringify(A.word)===JSON.stringify(A.got)&&A.allGrp,JSON.stringify(A));
-  ok('R1b 묶음 셋(단어·문법·듣기)',['word','gram','listen'].every(g=>A.grps.includes(g)),JSON.stringify(A.grps));
+  /* 🗂 v5.18 — 메인 6(하루 메뉴 순서) · 더 보기 · 숨긴 드릴은 행이 없다 */
+  ok('R1 메인 = 하루 메뉴 순서 6 · 더 보기 = 보조 · 숨김 행 0 · data-grp 가 다 있다',JSON.stringify(A.main)===JSON.stringify(A.gotMain)&&A.main.join()==='r2m,gpart,gpat,gmean,gctx,k2r'
+     &&JSON.stringify(A.more)===JSON.stringify(A.gotMore)&&A.hid===0&&A.allGrp,JSON.stringify(A));
+  ok('R1b 묶음 둘(메인·더 보기)',A.grps.join()==='main,more',JSON.stringify(A.grps));
   ok('R1c 옛 단추 틀이 없다',A.old===0,A.old);
-  ok('R2 예문이 없으면 문법 묶음은 「예문이 없다」 한 줄 · ▶ 없음',/예문이 없다/.test(A.gram)&&A.gramGo===0,A.gram.slice(0,120));
+  ok('R2 예문·문형이 없으면 문법 행은 이유를 쓰고 ▶ 가 막힌다',/예문이 없다/.test(A.gram)&&/문형 사전이 없다/.test(A.gram)&&A.gramGo===0,A.gram.slice(0,200));
   ok('R3 뜻 맞히기 행이 열려 있다',A.r2m);
   ok('R3b 막힌 행은 ▶ 가 눌리지 않고 이유를 쓴다',A.offOk);
 
@@ -73,10 +76,10 @@ const FAKE=()=>{
   ok('R5b 다시 누르면 접는다',O.closed&&O.st2==null,JSON.stringify(O.st2));
 
   const S=await p.evaluate(()=>{const s=document.querySelector('#v-study .ssum');const t=s?s.textContent:'';
-    let tot=0;ST_DRILL_UI.forEach(u=>{if(u.grp!=='listen'&&!stBlockWhy(u.k))tot+=stProg(u.k).total;});
+    let tot=0;ST_DRILL_UI.forEach(u=>{if(u.tier!=='hide'&&!stBlockWhy(u.k))tot+=stProg(u.k).total;});
     return {t,tot};});
   ok('R6 요약에 오늘 복습 · 시험까지 전체 · 메뉴 칸 없음',/오늘 복습/.test(S.t)&&/시험까지 전체/.test(S.t)&&!/오늘 메뉴/.test(S.t),S.t.slice(0,200));
-  ok('R6b 전체 합 = 듣기 뺀 열린 행 합',new RegExp('/\\s*'+S.tot.toLocaleString('ko-KR')+'(?!\\d)').test(S.t),S.tot+' / '+S.t.slice(0,200));
+  ok('R6b 전체 합 = 탭에 보이는 열린 행 합',new RegExp('/\\s*'+S.tot.toLocaleString('ko-KR')+'(?!\\d)').test(S.t),S.tot+' / '+S.t.slice(0,200));
   ok('Z 페이지 에러 없음',errs.length===0,errs.join(' | '));
   await ctx.close();
 
@@ -87,11 +90,11 @@ const FAKE=()=>{
   await q.route('**/*supabase*',r=>r.abort());
   await q.goto('file://'+file);await q.waitForTimeout(2500);
   await q.evaluate(()=>{gotoTab('study');setStTab('word');});await q.waitForTimeout(400);
-  const P=await q.evaluate(()=>{const g=()=>document.querySelector('#v-study .dgrp[data-grp="listen"]');
+  const P=await q.evaluate(()=>{const g=()=>document.querySelector('#v-study .dgrp[data-grp="more"]');
     const r0=g().querySelectorAll('.drow').length; g().querySelector('.dgh').click();
     const r1=g().querySelectorAll('.drow').length;
-    return {r0,r1,mem:DB.ui.stGrp&&DB.ui.stGrp.listen===false,sw:document.documentElement.scrollWidth};});
-  ok('R7 폰: 듣기 묶음은 접힌 채 시작 · 누르면 펼친다 · 기억',P.r0===0&&P.r1>0&&P.mem,JSON.stringify(P));
+    return {r0,r1,mem:DB.ui.stGrp&&DB.ui.stGrp.more===false,sw:document.documentElement.scrollWidth};});
+  ok('R7 폰: 더 보기 묶음은 접힌 채 시작 · 누르면 펼친다 · 기억',P.r0===0&&P.r1>0&&P.mem,JSON.stringify(P));
   ok('R7b 폰: 가로 스크롤 없음',P.sw<=360,P.sw);
   ok('Z2 폰 에러 없음',e2.length===0,e2.join(' | '));
   await c2.close();
