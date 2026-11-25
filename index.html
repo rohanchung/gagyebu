@@ -14990,12 +14990,25 @@ function tlPanel(ds){
   return '<div class="mut tlstat">기록 <b>'+hrs(used)+'</b> · 미기록 <b>'+hrs(TL_N-used)+'</b></div>'
    +missBox
    +(bars?'<div class="tlsums">'+bars+'</div>':'')
-   +'<div class="mut tlhint">'+(pick!=null
-      ? ('<b class="acc">'+slotLabel(pick)+'</b> 부터 — <b>끝나는 칸</b>을 눌러라 (같은 칸을 다시 누르면 10분)  <span class="chip check" data-tlcancel="1">취소</span>')
-      : '시작 칸 → 끝 칸으로 <b>새 기록</b>(덮어써도 앞뒤는 남는다) · 기록 위의 <b>✎</b>로 <b>내용만 수정</b>')+'</div>'
+   +'<div class="mut tlhint">'+tlHintHtml(pick)+'</div>'
    +'<div class="tlgrid">'+tlGrid(ds)+'</div>'
    +'<div class="tllegend">'+TL_TAGS.map(function(x){
       return '<span class="tlsum"><i style="background:'+x.c+'"></i>'+x.label+'</span>';}).join('')+'</div>';
+}
+function tlHintHtml(pick){
+  return pick!=null
+    ? ('<b class="acc">'+slotLabel(pick)+'</b> 부터 — <b>끝나는 칸</b>을 눌러라 (같은 칸을 다시 누르면 10분)  <span class="chip check" data-tlcancel="1">취소</span>')
+    : '시작 칸 → 끝 칸으로 <b>새 기록</b>(덮어써도 앞뒤는 남는다) · 기록 위의 <b>✎</b>로 <b>내용만 수정</b>';
+}
+/* 🔴 v5.19 — 로한(11/25): 「로그에서 칸 누를 때마다 새로고침한다 말이 되냐」
+   시작 칸을 누르거나 취소할 때 데일리 전체(달력·루틴·로그)를 다시 그리고 저장까지 돌렸다 → 화면이 깜빡이고 스크롤이 튄다.
+   🔒 고른 칸 표시는 **그 자리에서만** 바꾼다(.pick 클래스 · 안내 한 줄) · tlPick 은 잠깐 쓰는 값이라 저장하지 않는다(앱을 열면 늘 비운다) */
+function tlPickPaint(){
+  var pick=(DB.ui&&DB.ui.tlPick), box=document.getElementById('v-daily');
+  if(!box||!box.querySelector('.tlgrid'))return renderDaily();
+  [].slice.call(box.querySelectorAll('.tlq.pick')).forEach(function(e){e.classList.remove('pick');});
+  if(pick!=null){var c=box.querySelector('.tlq[data-tlq="'+pick+'"]');if(c)c.classList.add('pick');}
+  var h=box.querySelector('.tlhint');if(h)h.innerHTML=tlHintHtml(pick);
 }
 /* 칸 클릭 — 두 번 눌러 범위를 잡는다(모바일에서 드래그보다 확실하다) */
 /* ⚠️ v12.0까지 기록된 칸을 누르면 '블록 전체 수정'만 됐다.
@@ -15005,9 +15018,9 @@ function tlPanel(ds){
 function tlSlotClick(i){
   var ds=tlDate(); if(dayFut(ds))return;   /* 🔒 v4.97 — 오지 않은 날의 로그는 쓰지 않는다 */
   var pick=(DB.ui&&DB.ui.tlPick);
-  if(pick==null){ DB.ui.tlPick=i;save();return renderDaily(); }
+  if(pick==null){ DB.ui.tlPick=i;return tlPickPaint(); }
   var a=Math.min(pick,i), z=Math.max(pick,i);
-  DB.ui.tlPick=null;save();
+  DB.ui.tlPick=null;tlPickPaint();
   tlRangeModal(ds,a,z);
 }
 /* 구간 편집 모달 — 시작·끝을 직접 조절할 수 있어야 '시간 조절'이 된다 */
@@ -16136,7 +16149,7 @@ function lfSeal(id){var x=lifeDB().bucket.filter(function(q){return q&&q.id===id
   logAct('🏵️ 서약 '+(x.done?'이룸':'되돌림')+' · '+(x.title||'')); save(); renderLife();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='5.18';
+var APP_VERSION='5.19';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -16150,6 +16163,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'5.19',date:'2026-11-25',note:'<b>🔴 데일리 로그 — 칸을 누를 때마다 화면 전체가 새로 그려지던 것.</b> 로한: 「로그에서 그 칸 누를 때마다 새로고침한다 말이 되냐」 · 시작 칸을 누르거나 취소하면 달력·루틴·로그를 통째로 다시 그리고 저장까지 돌렸다(깜빡임 · 스크롤 튐) → 고른 칸 표시와 안내 한 줄만 그 자리에서 바꾼다 · 저장도 안 한다(잠깐 쓰는 값) · 끝 칸을 누르면 예전처럼 기록 창이 뜬다 · 테스트 t107'},
   {v:'5.18',date:'2026-11-24',note:'<b>📚 학습부장 요청 넷</b>(학습 핸드오프 id 8). ① <b>🧩 문형만</b>(새 드릴) — 문형 74개를 보고 뜻 고르기 · 보기는 헷갈리는 묶음끼리(ところ·ことがある 등) · 맞힌 뒤 같은 묶음을 한 화면에서 대비 · 뜻 → 문형 방향도 · 하루 메뉴 「문형만 → 문형 뜻」 순서 ② <b>드릴 탭 정리</b> — 메인 6(뜻 맞히기 · 조사 · 문형만 · 문형 뜻 · 빈칸 단어 · 한자 읽기, 하루 메뉴 순서) · 더 보기(문법 빈칸 = 접속사·부사·문형을 하나로 · 한자 표기 · 같은 뜻) · 듣기·가타카나·한자 보고 뜻·동사 활용·문장 만들기는 탭에서 뺐다(기록은 그대로) ③ <b>해설 = 문장 속 문법 포인트 전부</b> — 문법 드릴 해설 카드에 그 문장의 포인트를 번호로 칠하고 목록으로(빈칸 정답이 든 것은 「빈칸」) ⑤ 「한 바퀴」 → <b>「회독」</b>(로한: 한자어 그대로가 낫다) — 「🔁 2회독 120 / 717 · 오답 풀 8」 · 「1회독 완료 — 첫 답 정답률 x%」 · ④ <b>한자 읽기 보기가 어려워졌다</b> — 오답은 다른 실제 단어의 읽기만 · 같은 글자 수 + 같은 첫 글자부터(裏 → うで · うら · うみ · うた) · 장음·탁음만 바꾼 가짜 읽기는 안 쓴다'},
   {v:'5.17',date:'2026-11-24',note:'<b>🈷 한자 뜻(훈음) 병기</b> — 로한: 「드릴에서 한자 나올 때 한자 뜻도 병기해줘」. 腕時計 → <b>腕</b> 팔 완 · <b>時</b> 때 시 · <b>計</b> 셀 계. 한자 읽기 문제 화면 · 동사 활용 문제 화면 · 정답 카드(모든 모드)에 붙는다. 뜻을 묻는 문항(한자→뜻)과 한자를 고르는 문항(읽기→한자)은 문제 화면엔 안 띄운다 — 훈이 답을 흘린다(정답 카드엔 나온다). 단어장 한자 600자 전부 · 새 한자는 학습방이 study/rest 의 kanjiHun 으로 더한다(없는 글자는 지어내지 않고 건너뜀)'},
   {v:'5.16',date:'2026-11-23',note:'<b>📜 토정비결 2판 — 여러 출처를 모아 정리하는 자리</b>(기획방 id 70). 첫 판은 <b>2027년</b>(올해 것이 없으면 다가오는 해가 기본 · 「시작 전 · 1월부터」). 위에서 아래로 <b>정리한 한 판</b>(총평 · 키워드 · 열두 달 띠 ●길 ◐섞임 ○흉 · 합의 n/m) → <b>달마다 갈림 표</b>(종합 + 출처들 · 길과 흉이 갈린 달은 붉은 「갈림」, 다 같으면 「한목소리」 · 좁은 화면은 달 하나씩 ◀ ▶) → <b>출처별 원문</b>(우리 방 🏛 / 외부 🏷 · 받은 곳·날 · 괘). 길흉은 쓴 쪽이 적은 것만 — 앱이 본문에서 추측하지 않는다 · 합의는 화면에서 센다(저장 안 함) · 채점하지 않는다 · 2026 1판 모양도 그대로 읽는다 · 서버: 토정 칸 모양 검사(tj_check) · rb_call path 를 map_put·map_del 에도 · 바깥 칸 없는 path 는 거절 · 테스트 t104(41)'},
@@ -18969,7 +18983,7 @@ document.addEventListener('click',function(e){
   var tlq=e.target.closest('[data-tlq]');if(tlq)return tlSlotClick(parseInt(tlq.dataset.tlq,10));
   var tlc=e.target.closest('[data-tlcal]');if(tlc)return setTlDate(tlc.dataset.tlcal);
   if(e.target.closest('[data-tltoday]'))return setTlDate(todayStr());
-  if(e.target.closest('[data-tlcancel]')){DB.ui.tlPick=null;save();return renderDaily();}
+  if(e.target.closest('[data-tlcancel]')){DB.ui.tlPick=null;return tlPickPaint();}
   var rdw=e.target.closest('[data-rtdow]');if(rdw){var pw=rdw.dataset.rtdow.split('|');return rtDayToggle(pw[0],parseInt(pw[1],10));}
   var gjp=e.target.closest('[data-gojump]');if(gjp){var gid=gjp.dataset.gojump;
     gotoTab('goal'); if(gid){DB.ui.goalOpen=gid;save();renderGoal();} return;}
