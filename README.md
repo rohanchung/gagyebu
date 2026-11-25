@@ -21,6 +21,11 @@
 - `tax-design.md` · `ui-frame-plan.md` · `card-design.md` · `cashflow-design.md` · `data-safety.md` · `goal-design.md`
 - `skills/rohanbook-write/SKILL.md`(+`.zip`) · `skills/rohanbook-evidence/SKILL.md`(+`.zip`) — 예시를 지어낸 값으로
 
+## 2026-11-25 추가 정리
+- `integration-design.md` — 11/20 목록에 없어 원본이 남아 있던 문서. 배달 실측 · 버킷 표 가격 · 올해 보상 지출액과 보증금 목표 대비 비율을 자리표로 치환(원본은 dev).
+- `goal-design.md` — 남아 있던 체중 시작값·목표값을 「(체중 — dev 원본)」으로
+- `tax-design.md` — 남아 있던 사업장 주소를 「(주소 — dev 원본)」으로
+
 ## 테스트
 ```
 HTML=index.html NODE_PATH=<_testenv>/node_modules bash tests/run.sh all
