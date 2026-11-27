@@ -14589,10 +14589,14 @@ function calFetch(){
   Promise.all([Promise.resolve(qs),Promise.resolve(qe)]).then(function(res){
     CAL.busy=false; var s0=res[0]||{}, e0=res[1]||{};
     if(s0.error||e0.error){CAL.failAt=Date.now();return;}
+    /* 🔴 v5.20 — 10분마다·다른 주로 가면 다시 받는다. 받은 것이 화면에 있던 것과 같으면 **다시 그리지 않는다**
+       (전엔 받을 때마다 데일리를 통째로 다시 그려서, 그 날을 누른 직후 달력이 한 번 더 번쩍였다) */
+    var sig0=JSON.stringify([CAL.src,CAL.ev,CAL.cached]);
     CAL.src=(s0.data||[]).filter(function(x){return x&&x.key;});
     CAL.ev=(e0.data||[]).filter(function(x){return x&&x.d0&&x.d1&&x.d1>=a&&x.d0<=b;});
+    var same=sig0===JSON.stringify([CAL.src,CAL.ev,false]);
     CAL.from=a; CAL.to=b; CAL.at=Date.now(); CAL.cached=false; calCacheWrite();
-    var v=document.getElementById('v-daily'); if(v&&v.classList.contains('on'))renderDaily();
+    var v=document.getElementById('v-daily'); if(!same&&v&&v.classList.contains('on'))renderDaily();
   },function(){CAL.busy=false;CAL.failAt=Date.now();});
 }
 /* ↻ — 서버에 지금 받아 오라고 한다(1분에 한 번 · 서버도 막는다) */
@@ -14922,10 +14926,25 @@ function renderDaily(){
   /* 기둥·목록의 스크롤 자리를 지킨다(체크하면 다시 그린다) */
   var _keep={}, _wy=window.scrollY; document.querySelectorAll('#v-daily .dwl[data-ds]').forEach(function(e){_keep[e.dataset.ds]=e.scrollTop;});
   /* 📅 v4.97 — 달력이 본문 전체 · 그 날 표는 서랍(데스크톱 오른쪽 350px 밀어내기 · 모바일 아래 판) */
-  document.getElementById('v-daily').innerHTML=topbar+'<div class="dlay'+(open?' open':'')+'">'+calPane
+  /* 🔴 v5.20 — 로한(11/27): 「어떤 날은 서랍이 뜰 때 달력이 새로고침 안 되는데, 어떤 날은 된다」
+     날짜를 누를 때마다 달력까지 통째로 새로 깔았다(innerHTML) · 고른 칸 표시(sel) 말고는 같은 내용인데도.
+     🔒 달력 글이 고른 칸 표시만 빼고 같으면 **옛 달력 노드를 그대로 옮겨 쓴다** — 클래스만 맞춘다(깜빡임·이미지 다시 그리기·기둥 스크롤 튐 0)
+     🔒 내용이 달라지면(체크·기록·주 이동·캘린더 새 일정) 예전처럼 새로 깐다 */
+  var vd=document.getElementById('v-daily'), oldCal=vd.querySelector('.dcalp'), calKey=calPane.replace(/ sel(?=[ "])/g,'');
+  var keep=!!(oldCal&&oldCal.__key===calKey);
+  vd.innerHTML=topbar+'<div class="dlay'+(open?' open':'')+'">'+(keep?'<div class="dcalp-slot"></div>':calPane)
     +(open?'<aside class="ddraw" aria-label="'+d+' 그 날 표">'+dayPane+'</aside><div class="ddrawbg" onclick="dayOpenSet(false)"></div>':'')+'</div>';
+  if(keep){
+    var tmp=document.createElement('div'); tmp.innerHTML=calPane;
+    var nw=tmp.firstChild, oa=[oldCal].concat([].slice.call(oldCal.querySelectorAll('*'))), na=[nw].concat([].slice.call(nw.querySelectorAll('*')));
+    if(oa.length===na.length){for(var ci=0;ci<oa.length;ci++)if(oa[ci].className!==na[ci].className)oa[ci].className=na[ci].className;}
+    else{oldCal=nw;}   /* 모양이 어긋나면(있을 수 없지만) 새 것 */
+    var slot=vd.querySelector('.dcalp-slot'); slot.parentNode.replaceChild(oldCal,slot);
+  }else{
+    var nc=vd.querySelector('.dcalp'); if(nc)nc.__key=calKey;
+  }
   if(open)dayDrawTouch(document.querySelector('#v-daily .ddraw'));
-  document.querySelectorAll('#v-daily .dwl[data-ds]').forEach(function(e){if(_keep[e.dataset.ds])e.scrollTop=_keep[e.dataset.ds];});
+  if(!keep)document.querySelectorAll('#v-daily .dwl[data-ds]').forEach(function(e){if(_keep[e.dataset.ds])e.scrollTop=_keep[e.dataset.ds];});
   if(_dw==='s'&&_wy)window.scrollTo(0,_wy);
   setTimeout(dvFit,0);
   if(calNeed())setTimeout(calFetch,0);
@@ -16149,7 +16168,7 @@ function lfSeal(id){var x=lifeDB().bucket.filter(function(q){return q&&q.id===id
   logAct('🏵️ 서약 '+(x.done?'이룸':'되돌림')+' · '+(x.title||'')); save(); renderLife();}
 
 /* ====== 로그 ====== */
-var APP_VERSION='5.19';
+var APP_VERSION='5.20';
 (function(){var fv=document.getElementById('footVer');if(fv)fv.textContent='v'+APP_VERSION;})();
 /* 🔴 [결함] 로그인한 계정을 **앱 어디에도 적지 않았다**. 계정이 다르면 데이터가 통째로
    달라지는데(RLS), 화면은 그냥 「비어 있음」으로 보인다 — 로한이 「버그인가?」라고 물은 자리다.
@@ -16163,6 +16182,7 @@ function footWho(){
    예: 기능 추가 v1.0 → v1.1, 그 뒤 세부 수정 v1.1 → v1.11 → v1.12.
    이 아래 v12.2~v1.1 표기는 8/11~8/20 개발 이터레이션 번호다(날짜로 구분된다). */
 var CHANGELOG=[
+  {v:'5.20',date:'2026-11-27',note:'<b>🔴 데일리 — 날짜를 눌러 서랍이 뜰 때 달력이 어떤 날은 새로 그려지던 것.</b> 로한: 「어떤 날은 새로고침이 안 되는데 어떤 날은 된다」 · 원인 둘: ① 날짜를 누를 때마다 달력까지 통째로 새로 깔았다(고른 칸 표시만 다른데도) ② 그 날이 다른 주거나 10분이 지났으면 구글 캘린더를 다시 받아 와서 <b>받은 뒤 한 번 더</b> 통째로 그렸다 — 그래서 「어떤 날만」 번쩍였다 · 이제 달력 내용이 같으면 옛 달력을 그대로 두고 고른 칸 표시만 바꾼다 · 다시 받은 일정이 같으면 다시 그리지 않는다 · 테스트 t108'},
   {v:'5.19',date:'2026-11-25',note:'<b>🔴 데일리 로그 — 칸을 누를 때마다 화면 전체가 새로 그려지던 것.</b> 로한: 「로그에서 그 칸 누를 때마다 새로고침한다 말이 되냐」 · 시작 칸을 누르거나 취소하면 달력·루틴·로그를 통째로 다시 그리고 저장까지 돌렸다(깜빡임 · 스크롤 튐) → 고른 칸 표시와 안내 한 줄만 그 자리에서 바꾼다 · 저장도 안 한다(잠깐 쓰는 값) · 끝 칸을 누르면 예전처럼 기록 창이 뜬다 · 테스트 t107'},
   {v:'5.18',date:'2026-11-24',note:'<b>📚 학습부장 요청 넷</b>(학습 핸드오프 id 8). ① <b>🧩 문형만</b>(새 드릴) — 문형 74개를 보고 뜻 고르기 · 보기는 헷갈리는 묶음끼리(ところ·ことがある 등) · 맞힌 뒤 같은 묶음을 한 화면에서 대비 · 뜻 → 문형 방향도 · 하루 메뉴 「문형만 → 문형 뜻」 순서 ② <b>드릴 탭 정리</b> — 메인 6(뜻 맞히기 · 조사 · 문형만 · 문형 뜻 · 빈칸 단어 · 한자 읽기, 하루 메뉴 순서) · 더 보기(문법 빈칸 = 접속사·부사·문형을 하나로 · 한자 표기 · 같은 뜻) · 듣기·가타카나·한자 보고 뜻·동사 활용·문장 만들기는 탭에서 뺐다(기록은 그대로) ③ <b>해설 = 문장 속 문법 포인트 전부</b> — 문법 드릴 해설 카드에 그 문장의 포인트를 번호로 칠하고 목록으로(빈칸 정답이 든 것은 「빈칸」) ⑤ 「한 바퀴」 → <b>「회독」</b>(로한: 한자어 그대로가 낫다) — 「🔁 2회독 120 / 717 · 오답 풀 8」 · 「1회독 완료 — 첫 답 정답률 x%」 · ④ <b>한자 읽기 보기가 어려워졌다</b> — 오답은 다른 실제 단어의 읽기만 · 같은 글자 수 + 같은 첫 글자부터(裏 → うで · うら · うみ · うた) · 장음·탁음만 바꾼 가짜 읽기는 안 쓴다'},
   {v:'5.17',date:'2026-11-24',note:'<b>🈷 한자 뜻(훈음) 병기</b> — 로한: 「드릴에서 한자 나올 때 한자 뜻도 병기해줘」. 腕時計 → <b>腕</b> 팔 완 · <b>時</b> 때 시 · <b>計</b> 셀 계. 한자 읽기 문제 화면 · 동사 활용 문제 화면 · 정답 카드(모든 모드)에 붙는다. 뜻을 묻는 문항(한자→뜻)과 한자를 고르는 문항(읽기→한자)은 문제 화면엔 안 띄운다 — 훈이 답을 흘린다(정답 카드엔 나온다). 단어장 한자 600자 전부 · 새 한자는 학습방이 study/rest 의 kanjiHun 으로 더한다(없는 글자는 지어내지 않고 건너뜀)'},
